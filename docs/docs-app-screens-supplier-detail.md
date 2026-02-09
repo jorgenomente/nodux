@@ -23,7 +23,7 @@
 Gestionar un proveedor en profundidad:
 
 - ver/editar datos del proveedor
-- asociar/remover productos
+- ver/editar productos principales asociados
 - ver historial de pedidos (MVP: link/preview simple)
 - crear producto desde el detalle (entry point alterno)
 
@@ -46,7 +46,7 @@ Gestionar un proveedor en profundidad:
 MVP recomendado (secciones verticales):
 
 1. Datos del proveedor
-2. Productos asociados
+2. Productos principales asociados
 3. Historial de pedidos (placeholder MVP o link)
 
 ---
@@ -64,30 +64,24 @@ MVP recomendado (secciones verticales):
 - Confirmación simple
 - Guarda con RPC upsert (is_active)
 
-### A3) Asociar producto
-
-- Input typeahead de productos activos
-- Al seleccionar:
-  - crea asociación
-  - opcional: completar SKU en proveedor y nombre del producto en proveedor
-  - definir relation_type (primary | secondary)
-
-### A4) Editar datos de asociación
+### A3) Editar datos de asociación
 
 - Editar supplier_sku y supplier_product_name inline o modal
 - Guarda con RPC upsert_supplier_product
 
-### A5) Remover asociación
+### A4) Remover asociación
 
 - Acción “Remover”
 - Si en el futuro hay referencias (orders):
   - Post-MVP: soft-remove (is_active=false en la relación)
 - MVP: permitir remover si no rompe integridad
 
-### A6) Crear producto desde proveedor
+### A5) Crear producto desde proveedor
 
 - Formulario mínimo para crear producto nuevo
 - Incluir vencimiento aproximado (días)
+- Incluir stock mínimo (aplica a todas las sucursales)
+- Opcional: nombre del artículo en proveedor y SKU en proveedor
 - Al crear, se asocia automáticamente como proveedor primario
 
 ---
@@ -167,14 +161,6 @@ RPC 4: `rpc_remove_supplier_product_relation(input)`
 
 - product_id
 - relation_type
-
-### Typeahead productos
-
-View: `v_products_typeahead_admin(search, limit)`
-
-- product_id
-- product_name
-- is_active
 
 ---
 

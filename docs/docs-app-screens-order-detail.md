@@ -90,19 +90,24 @@ RPC status change:
 
 ### A5) Recibir mercadería (sent → received)
 
-- UI cambia a modo recepción:
+- UI cambia a modo recepción + control:
   - received_qty por item (default = ordered_qty)
-- Confirmar recepción:
-  - registra received_at
+  - fecha/hora de recepción editable
+  - nombre de quien controla (editable) + autofirma
+- Confirmar recepción/control:
+  - registra received_at (manual)
+  - registra controlado por (nombre + user)
+  - status → `reconciled` (Controlado)
   - genera movimientos purchase por item (stock +)
   - genera batches de vencimiento si el producto tiene `shelf_life_days`
-    RPC: `rpc_receive_supplier_order(order_id, received_items[])`
+    RPC: `rpc_receive_supplier_order(order_id, received_items[], received_at, controlled_by)`
 
 ### A6) Conciliar (received → reconciled)
 
 - Confirmación
 - set reconciled_at y bloquear edición
-  RPC: `rpc_reconcile_supplier_order(order_id)`
+- opcional: nombre de quien controla (si venía de estado received)
+  RPC: `rpc_reconcile_supplier_order(order_id, controlled_by)`
 
 ---
 
@@ -126,6 +131,7 @@ Salida:
   - supplier_id, supplier_name
   - branch_id, branch_name
   - created_at, sent_at, received_at, reconciled_at
+  - controlled_by_name, controlled_by_user_id, controlled_by_user_name
 - items[]:
   - order_item_id
   - product_id, product_name

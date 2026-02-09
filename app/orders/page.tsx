@@ -1,14 +1,18 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
+import OrderSuggestionsClient from '@/app/orders/OrderSuggestionsClient';
 import PageShell from '@/app/components/PageShell';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 type SearchParams = {
   branch_id?: string;
   status?: string;
-  supplier_id?: string;
-  suggest_branch_id?: string;
+  draft_supplier_id?: string;
+  draft_branch_id?: string;
+  draft_margin_pct?: string;
+  draft_avg_mode?: string;
 };
 
 type OrderRow = {
@@ -32,7 +36,28 @@ type SuggestionRow = {
   stock_on_hand: number | null;
   safety_stock: number | null;
   avg_daily_sales_30d: number | null;
+  cycle_days?: number | null;
   suggested_qty: number | null;
+};
+
+type ProductPriceRow = {
+  id: string;
+  unit_price: number | null;
+};
+
+const formatStatusLabel = (status: string) => {
+  switch (status) {
+    case 'draft':
+      return 'Borrador';
+    case 'sent':
+      return 'Enviado';
+    case 'received':
+      return 'Recibido';
+    case 'reconciled':
+      return 'Controlado';
+    default:
+      return status;
+  }
 };
 
 export default async function OrdersPage({
@@ -82,14 +107,24 @@ export default async function OrdersPage({
     typeof resolvedSearchParams.status === 'string'
       ? resolvedSearchParams.status
       : '';
-  const suggestSupplierId =
-    typeof resolvedSearchParams.supplier_id === 'string'
-      ? resolvedSearchParams.supplier_id
+  const draftSupplierId =
+    typeof resolvedSearchParams.draft_supplier_id === 'string'
+      ? resolvedSearchParams.draft_supplier_id
       : '';
-  const suggestBranchId =
-    typeof resolvedSearchParams.suggest_branch_id === 'string'
-      ? resolvedSearchParams.suggest_branch_id
+  const draftBranchId =
+    typeof resolvedSearchParams.draft_branch_id === 'string'
+      ? resolvedSearchParams.draft_branch_id
       : '';
+  const draftMarginPctRaw =
+    typeof resolvedSearchParams.draft_margin_pct === 'string'
+      ? resolvedSearchParams.draft_margin_pct
+      : '';
+  const draftAvgMode =
+    typeof resolvedSearchParams.draft_avg_mode === 'string'
+      ? resolvedSearchParams.draft_avg_mode
+      : 'cycle';
+  const draftMarginPct =
+    draftMarginPctRaw === '' ? 0 : Number(draftMarginPctRaw);
 
   let orderQuery = supabase
     .from('v_orders_admin')
@@ -112,18 +147,44 @@ export default async function OrdersPage({
   }
 
   const { data: orders } = await orderQuery;
+  const ordersList = (orders as OrderRow[]) ?? [];
+  const pendingOrders = ordersList.filter(
+    (order) => order.status !== 'reconciled',
+  );
+  const controlledOrders = ordersList.filter(
+    (order) => order.status === 'reconciled',
+  );
 
   const { data: suggestions } =
-    suggestSupplierId && suggestBranchId
+    draftSupplierId && draftBranchId
       ? await supabase
           .from('v_supplier_product_suggestions')
           .select('*')
           .eq('org_id', membership.org_id)
-          .eq('supplier_id', suggestSupplierId)
-          .eq('branch_id', suggestBranchId)
-          .order('relation_type')
+          .eq('supplier_id', draftSupplierId)
+          .eq('branch_id', draftBranchId)
+          .eq('relation_type', 'primary')
           .order('product_name')
       : { data: [] };
+
+  const suggestionIds = (suggestions as SuggestionRow[] | null)
+    ?.map((row) => row.product_id)
+    .filter(Boolean) as string[] | undefined;
+
+  const { data: suggestionPrices } =
+    suggestionIds && suggestionIds.length > 0
+      ? await supabase
+          .from('products')
+          .select('id, unit_price')
+          .eq('org_id', membership.org_id)
+          .in('id', suggestionIds)
+      : { data: [] };
+
+  const priceByProduct = new Map<string, number>();
+  (suggestionPrices as ProductPriceRow[] | null)?.forEach((row) => {
+    if (!row.id) return;
+    priceByProduct.set(row.id, Number(row.unit_price ?? 0));
+  });
 
   const createOrder = async (formData: FormData) => {
     'use server';
@@ -147,12 +208,65 @@ export default async function OrdersPage({
 
     const orderId = result?.[0]?.order_id as string | undefined;
 
-    revalidatePath('/orders');
-
-    if (orderId) {
-      redirect(`/orders/${orderId}`);
+    if (!orderId) {
+      revalidatePath('/orders');
+      return;
     }
+
+    const items = Array.from(formData.entries())
+      .filter(([key]) => key.startsWith('qty_'))
+      .map(([key, value]) => ({
+        productId: key.replace('qty_', ''),
+        qty: Number(value),
+      }))
+      .filter((entry) => entry.productId && entry.qty > 0);
+
+    if (items.length === 0) {
+      revalidatePath('/orders');
+      return;
+    }
+
+    await Promise.all(
+      items.map((item) =>
+        supabaseServer.rpc('rpc_upsert_supplier_order_item', {
+          p_org_id: membership.org_id,
+          p_order_id: orderId,
+          p_product_id: item.productId,
+          p_ordered_qty: item.qty,
+          p_unit_cost: 0,
+        }),
+      ),
+    );
+
+    revalidatePath('/orders');
   };
+
+  const selectedSupplier = suppliers?.find(
+    (supplier) => supplier.id === draftSupplierId,
+  );
+  const selectedBranch = branches?.find(
+    (branch) => branch.id === draftBranchId,
+  );
+  const safeMarginPct =
+    Number.isNaN(draftMarginPct) || draftMarginPct < 0 ? 0 : draftMarginPct;
+
+  const suggestedTotal = (suggestions as SuggestionRow[] | null)?.reduce(
+    (total, row) => {
+      const unitPrice = priceByProduct.get(row.product_id) ?? 0;
+      const unitCost = unitPrice * (1 - safeMarginPct / 100);
+      const qty = Math.ceil(Number(row.suggested_qty ?? 0));
+      return total + unitCost * qty;
+    },
+    0,
+  );
+  const suggestedItemsTotal = (suggestions as SuggestionRow[] | null)?.reduce(
+    (total, row) => total + Math.ceil(Number(row.suggested_qty ?? 0)),
+    0,
+  );
+  const priceByProductRecord: Record<string, number> = {};
+  priceByProduct.forEach((value, key) => {
+    priceByProductRecord[key] = value;
+  });
 
   return (
     <PageShell>
@@ -186,7 +300,7 @@ export default async function OrdersPage({
               <option value="draft">Borrador</option>
               <option value="sent">Enviado</option>
               <option value="received">Recibido</option>
-              <option value="reconciled">Conciliado</option>
+              <option value="reconciled">Controlado</option>
             </select>
             <button
               type="submit"
@@ -198,14 +312,14 @@ export default async function OrdersPage({
         </div>
 
         <section className="rounded-2xl bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Nuevo pedido</h2>
-          <form action={createOrder} className="mt-4 grid gap-3 md:grid-cols-3">
+          <h2 className="text-lg font-semibold text-zinc-900">Armar pedido</h2>
+          <form method="get" className="mt-4 grid gap-3 md:grid-cols-4">
             <label className="text-sm text-zinc-600">
               Proveedor
               <select
-                name="supplier_id"
+                name="draft_supplier_id"
+                defaultValue={draftSupplierId}
                 className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                required
               >
                 <option value="">Seleccionar</option>
                 {suppliers?.map((supplier) => (
@@ -218,9 +332,9 @@ export default async function OrdersPage({
             <label className="text-sm text-zinc-600">
               Sucursal
               <select
-                name="branch_id"
+                name="draft_branch_id"
+                defaultValue={draftBranchId}
                 className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                required
               >
                 <option value="">Seleccionar</option>
                 {branches?.map((branch) => (
@@ -230,55 +344,35 @@ export default async function OrdersPage({
                 ))}
               </select>
             </label>
-            <label className="text-sm text-zinc-600 md:col-span-3">
-              Notas
-              <textarea
-                name="notes"
-                rows={2}
+            <label className="text-sm text-zinc-600">
+              Margen de ganancia (%)
+              <input
+                name="draft_margin_pct"
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue={draftMarginPctRaw}
                 className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                placeholder="Ej: 40"
               />
-            </label>
-            <div className="md:col-span-3">
-              <button
-                type="submit"
-                className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
+              <span
+                className="mt-1 block text-xs text-zinc-400"
+                title="Se usa para estimar el costo del articulo en el proveedor."
               >
-                Crear pedido
-              </button>
-            </div>
-          </form>
-          <form method="get" className="mt-6 grid gap-3 md:grid-cols-3">
-            <h3 className="text-sm font-semibold text-zinc-900 md:col-span-3">
-              Sugerencia de pedido (30 días)
-            </h3>
-            <label className="text-sm text-zinc-600">
-              Proveedor
-              <select
-                name="supplier_id"
-                defaultValue={suggestSupplierId}
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              >
-                <option value="">Seleccionar</option>
-                {suppliers?.map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
+                ⓘ Se usa para estimar el costo del articulo en el proveedor.
+              </span>
             </label>
             <label className="text-sm text-zinc-600">
-              Sucursal
+              Promedio
               <select
-                name="suggest_branch_id"
-                defaultValue={suggestBranchId}
+                name="draft_avg_mode"
+                defaultValue={draftAvgMode}
                 className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
               >
-                <option value="">Seleccionar</option>
-                {branches?.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
+                <option value="cycle">Segun proveedor</option>
+                <option value="weekly">Semanal</option>
+                <option value="biweekly">Quincenal</option>
+                <option value="monthly">Mensual</option>
               </select>
             </label>
             <div className="flex items-end">
@@ -286,59 +380,74 @@ export default async function OrdersPage({
                 type="submit"
                 className="rounded border border-zinc-200 px-3 py-2 text-sm"
               >
-                Ver sugerencias
+                Ver articulos
               </button>
             </div>
           </form>
-          {suggestions && suggestions.length > 0 ? (
-            <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200">
-              <table className="min-w-full text-left text-sm">
-                <thead className="bg-zinc-50 text-xs text-zinc-500 uppercase">
-                  <tr>
-                    <th className="px-3 py-2">Producto</th>
-                    <th className="px-3 py-2">Tipo</th>
-                    <th className="px-3 py-2">Stock</th>
-                    <th className="px-3 py-2">Stock min</th>
-                    <th className="px-3 py-2">Promedio 30d</th>
-                    <th className="px-3 py-2">Sugerido</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(suggestions as SuggestionRow[]).map((row) => (
-                    <tr
-                      key={`${row.product_id}-${row.relation_type}`}
-                      className="border-t"
-                    >
-                      <td className="px-3 py-2">
-                        {row.product_name || 'Producto'}
-                      </td>
-                      <td className="px-3 py-2">
-                        {row.relation_type === 'primary'
-                          ? 'Principal'
-                          : 'Secundario'}
-                      </td>
-                      <td className="px-3 py-2">{row.stock_on_hand ?? 0}</td>
-                      <td className="px-3 py-2">{row.safety_stock ?? 0}</td>
-                      <td className="px-3 py-2">
-                        {Number(row.avg_daily_sales_30d ?? 0).toFixed(2)}
-                      </td>
-                      <td className="px-3 py-2 font-semibold">
-                        {Number(row.suggested_qty ?? 0).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+          {draftSupplierId && draftBranchId ? (
+            <form action={createOrder} className="mt-6 grid gap-4">
+              <input type="hidden" name="supplier_id" value={draftSupplierId} />
+              <input type="hidden" name="branch_id" value={draftBranchId} />
+              <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+                Proveedor: {selectedSupplier?.name ?? 'Proveedor'} · Sucursal:{' '}
+                {selectedBranch?.name ?? 'Sucursal'} · Margen:{' '}
+                {safeMarginPct.toFixed(2)}%
+              </div>
+
+              <OrderSuggestionsClient
+                suggestions={suggestions as SuggestionRow[]}
+                priceByProduct={priceByProductRecord}
+                avgMode={
+                  (draftAvgMode as
+                    | 'cycle'
+                    | 'weekly'
+                    | 'biweekly'
+                    | 'monthly') || 'cycle'
+                }
+                safeMarginPct={safeMarginPct}
+              />
+
+              <label className="text-sm text-zinc-600">
+                Notas
+                <textarea
+                  name="notes"
+                  rows={2}
+                  className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                />
+              </label>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm text-zinc-600">
+                  Total estimado:{' '}
+                  <span className="font-semibold text-zinc-900">
+                    {Number(suggestedTotal ?? 0).toFixed(2)}
+                  </span>
+                  {' · '}Cantidad total:{' '}
+                  <span className="font-semibold text-zinc-900">
+                    {suggestedItemsTotal}
+                  </span>
+                </div>
+                <button
+                  type="submit"
+                  className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
+                >
+                  Crear pedido
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="mt-6 rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
+              Selecciona proveedor y sucursal para ver sugeridos.
             </div>
-          ) : null}
+          )}
         </section>
 
         <section className="rounded-2xl bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-zinc-900">Listado</h2>
           <div className="mt-4 space-y-3">
-            {orders && orders.length > 0 ? (
-              (orders as OrderRow[]).map((order) => (
-                <a
+            {pendingOrders.length > 0 ? (
+              pendingOrders.map((order) => (
+                <Link
                   key={order.order_id}
                   href={`/orders/${order.order_id}`}
                   className="block rounded-lg border border-zinc-200 p-4 hover:border-zinc-400"
@@ -350,18 +459,57 @@ export default async function OrdersPage({
                         {order.branch_name || 'Sucursal'}
                       </p>
                       <p className="text-xs text-zinc-500">
-                        Estado: {order.status} · Items: {order.items_count ?? 0}
+                        Estado: {formatStatusLabel(order.status)} · Items:{' '}
+                        {order.items_count ?? 0}
                       </p>
                     </div>
                     <div className="text-xs text-zinc-500">
                       {new Date(order.created_at).toLocaleDateString('es-AR')}
                     </div>
                   </div>
-                </a>
+                </Link>
               ))
             ) : (
-              <div className="text-sm text-zinc-500">Aún no hay pedidos.</div>
+              <div className="text-sm text-zinc-500">
+                No hay pedidos pendientes.
+              </div>
             )}
+          </div>
+          <div className="mt-6 border-t border-zinc-100 pt-6">
+            <h3 className="text-sm font-semibold text-zinc-700">
+              Pedidos controlados
+            </h3>
+            <div className="mt-3 space-y-3">
+              {controlledOrders.length > 0 ? (
+                controlledOrders.map((order) => (
+                  <Link
+                    key={order.order_id}
+                    href={`/orders/${order.order_id}`}
+                    className="block rounded-lg border border-zinc-200 p-4 hover:border-zinc-400"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-900">
+                          {order.supplier_name || 'Proveedor'} ·{' '}
+                          {order.branch_name || 'Sucursal'}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          Estado: {formatStatusLabel(order.status)} · Items:{' '}
+                          {order.items_count ?? 0}
+                        </p>
+                      </div>
+                      <div className="text-xs text-zinc-500">
+                        {new Date(order.created_at).toLocaleDateString('es-AR')}
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="text-sm text-zinc-500">
+                  No hay pedidos controlados.
+                </div>
+              )}
+            </div>
           </div>
         </section>
       </div>

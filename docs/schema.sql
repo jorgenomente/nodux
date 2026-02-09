@@ -843,6 +843,104 @@ $$;
 ALTER FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_items" "jsonb") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_items" "jsonb", "p_received_at" timestamp with time zone DEFAULT NULL::timestamp with time zone, "p_controlled_by_user_id" "uuid" DEFAULT NULL::"uuid", "p_controlled_by_name" "text" DEFAULT NULL::"text") RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
+declare
+  v_item jsonb;
+  v_order record;
+  v_item_id uuid;
+  v_received_qty numeric(14,3);
+  v_product_id uuid;
+  v_shelf_life_days integer;
+  v_expires_on date;
+begin
+  select * into v_order
+  from public.supplier_orders
+  where id = p_order_id and org_id = p_org_id
+  for update;
+
+  if v_order is null then
+    raise exception 'order not found';
+  end if;
+
+  if v_order.status <> 'sent' then
+    raise exception 'order must be sent before received';
+  end if;
+
+  for v_item in select * from jsonb_array_elements(p_items)
+  loop
+    v_item_id := (v_item ->> 'order_item_id')::uuid;
+    v_received_qty := (v_item ->> 'received_qty')::numeric;
+
+    update public.supplier_order_items
+      set received_qty = v_received_qty
+    where id = v_item_id
+      and order_id = p_order_id
+      and org_id = p_org_id
+    returning product_id into v_product_id;
+
+    if v_product_id is null then
+      raise exception 'order item not found %', v_item_id;
+    end if;
+
+    insert into public.stock_items (org_id, branch_id, product_id, quantity_on_hand)
+    values (p_org_id, v_order.branch_id, v_product_id, v_received_qty)
+    on conflict (org_id, branch_id, product_id)
+    do update set quantity_on_hand = public.stock_items.quantity_on_hand + v_received_qty;
+
+    insert into public.stock_movements (
+      org_id, branch_id, product_id, movement_type, quantity_delta, source_type, source_id
+    ) values (
+      p_org_id, v_order.branch_id, v_product_id, 'purchase', v_received_qty, 'purchase', p_order_id
+    );
+
+    if v_received_qty > 0 then
+      select shelf_life_days into v_shelf_life_days
+      from public.products
+      where id = v_product_id and org_id = p_org_id;
+
+      if v_shelf_life_days is not null and v_shelf_life_days > 0 then
+        v_expires_on := current_date + v_shelf_life_days;
+        insert into public.expiration_batches (
+          org_id,
+          branch_id,
+          product_id,
+          expires_on,
+          quantity,
+          source_type,
+          source_ref_id,
+          created_at,
+          updated_at
+        ) values (
+          p_org_id,
+          v_order.branch_id,
+          v_product_id,
+          v_expires_on,
+          v_received_qty,
+          'purchase',
+          p_order_id,
+          now(),
+          now()
+        );
+      end if;
+    end if;
+  end loop;
+
+  update public.supplier_orders
+    set status = 'reconciled',
+        received_at = coalesce(p_received_at, now()),
+        reconciled_at = now(),
+        controlled_by_user_id = p_controlled_by_user_id,
+        controlled_by_name = nullif(p_controlled_by_name, '')
+  where id = p_order_id and org_id = p_org_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_items" "jsonb", "p_received_at" timestamp with time zone, "p_controlled_by_user_id" "uuid", "p_controlled_by_name" "text") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rpc_reconcile_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid") RETURNS "void"
     LANGUAGE "plpgsql"
     AS $$
@@ -868,6 +966,25 @@ $$;
 
 
 ALTER FUNCTION "public"."rpc_reconcile_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_reconcile_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_controlled_by_user_id" "uuid" DEFAULT NULL::"uuid", "p_controlled_by_name" "text" DEFAULT NULL::"text") RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+  update public.supplier_orders
+    set status = 'reconciled',
+        reconciled_at = now(),
+        controlled_by_user_id = p_controlled_by_user_id,
+        controlled_by_name = nullif(p_controlled_by_name, '')
+  where id = p_order_id
+    and org_id = p_org_id
+    and status = 'received';
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_reconcile_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_controlled_by_user_id" "uuid", "p_controlled_by_name" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_remove_supplier_order_item"("p_org_id" "uuid", "p_order_id" "uuid", "p_product_id" "uuid") RETURNS "void"
@@ -1833,7 +1950,9 @@ CREATE TABLE IF NOT EXISTS "public"."supplier_orders" (
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "sent_at" timestamp with time zone,
     "received_at" timestamp with time zone,
-    "reconciled_at" timestamp with time zone
+    "reconciled_at" timestamp with time zone,
+    "controlled_by_user_id" "uuid",
+    "controlled_by_name" "text"
 );
 
 
@@ -2037,6 +2156,9 @@ CREATE OR REPLACE VIEW "public"."v_order_detail_admin" AS
     "so"."sent_at",
     "so"."received_at",
     "so"."reconciled_at",
+    "so"."controlled_by_user_id",
+    "so"."controlled_by_name",
+    "ou"."display_name" AS "controlled_by_user_name",
     "soi"."id" AS "order_item_id",
     "soi"."product_id",
     "p"."name" AS "product_name",
@@ -2044,9 +2166,10 @@ CREATE OR REPLACE VIEW "public"."v_order_detail_admin" AS
     "soi"."received_qty",
     "soi"."unit_cost",
     ("soi"."received_qty" - "soi"."ordered_qty") AS "diff_qty"
-   FROM (((("public"."supplier_orders" "so"
+   FROM ((((("public"."supplier_orders" "so"
      LEFT JOIN "public"."suppliers" "s" ON ((("s"."id" = "so"."supplier_id") AND ("s"."org_id" = "so"."org_id"))))
      LEFT JOIN "public"."branches" "b" ON ((("b"."id" = "so"."branch_id") AND ("b"."org_id" = "so"."org_id"))))
+     LEFT JOIN "public"."org_users" "ou" ON ((("ou"."user_id" = "so"."controlled_by_user_id") AND ("ou"."org_id" = "so"."org_id"))))
      LEFT JOIN "public"."supplier_order_items" "soi" ON ((("soi"."order_id" = "so"."id") AND ("soi"."org_id" = "so"."org_id"))))
      LEFT JOIN "public"."products" "p" ON ((("p"."id" = "soi"."product_id") AND ("p"."org_id" = "so"."org_id"))));
 
@@ -2721,6 +2844,11 @@ ALTER TABLE ONLY "public"."supplier_orders"
 
 
 ALTER TABLE ONLY "public"."supplier_orders"
+    ADD CONSTRAINT "supplier_orders_controlled_by_user_id_fkey" FOREIGN KEY ("controlled_by_user_id") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."supplier_orders"
     ADD CONSTRAINT "supplier_orders_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE RESTRICT;
 
 
@@ -3125,9 +3253,21 @@ GRANT ALL ON FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "
 
 
 
+GRANT ALL ON FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_items" "jsonb", "p_received_at" timestamp with time zone, "p_controlled_by_user_id" "uuid", "p_controlled_by_name" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_items" "jsonb", "p_received_at" timestamp with time zone, "p_controlled_by_user_id" "uuid", "p_controlled_by_name" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_items" "jsonb", "p_received_at" timestamp with time zone, "p_controlled_by_user_id" "uuid", "p_controlled_by_name" "text") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."rpc_reconcile_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_reconcile_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_reconcile_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_reconcile_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_controlled_by_user_id" "uuid", "p_controlled_by_name" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_reconcile_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_controlled_by_user_id" "uuid", "p_controlled_by_name" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_reconcile_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_controlled_by_user_id" "uuid", "p_controlled_by_name" "text") TO "service_role";
 
 
 

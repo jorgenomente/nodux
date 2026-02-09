@@ -38,9 +38,7 @@ Listar pedidos a proveedor y crear nuevos pedidos por sucursal.
 ### Header
 
 - Título: “Pedidos”
-- CTA: “Nuevo pedido”
-- CTA secundaria: “Ver sugeridos”
-- Filtros:
+- Filtros de listado:
   - Sucursal
   - Estado (draft/sent/received/reconciled)
   - Proveedor (opcional MVP)
@@ -61,15 +59,23 @@ Cada row:
 
 ## Acciones (MVP)
 
-### A1) Crear pedido (modal)
+### A1) Crear pedido (inline)
+
+Paso 1: seleccionar proveedor + sucursal + margen de ganancia (%).
+
+Paso 2: ver sugeridos en la misma pantalla y editar cantidades.
+
+Paso 3: agregar notas y crear pedido.
 
 Campos:
 
 - proveedor (selector)
-- sucursal (selector si aplica)
+- sucursal (selector)
+- margen de ganancia (%) para estimar costo
+- cantidades por item (default sugerido)
 - notas (opcional)
 
-Submit → crea order `draft` y redirige a detalle.
+Submit → crea order `draft` y vuelve al listado (sin redirigir).
 
 Validaciones:
 
@@ -123,6 +129,17 @@ Salida mínima:
 - avg_daily_sales_30d
 - cycle_days
 - suggested_qty
+
+Para estimar costo:
+
+- leer `products.unit_price` por product_id
+- calcular costo estimado = unit_price \* (1 - margen_pct/100)
+
+UI:
+
+- Mostrar promedio por ciclo = avg_daily_sales_30d \* cycle_days
+- Cantidad sugerida y cantidad a pedir como entero (redondeo hacia arriba)
+- Permitir selector para mostrar promedio semanal/quincenal/mensual (override manual)
 
 ---
 

@@ -18,6 +18,443 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-09 — Inputs proveedor en alta de productos
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se ajustaron los formularios de alta de productos para renombrar el campo de nombre y capturar nombre/SKU del proveedor al crear productos desde /products y /suppliers/[supplierId].
+
+**Impacto**
+
+- Habilita guardar nombre y SKU del articulo en proveedor en la asociacion primaria.
+- Cambia los formularios de alta en productos y detalle de proveedor.
+- No cambia el schema ni las RPCs existentes.
+
+**Archivos**
+
+- app/products/page.tsx
+- app/suppliers/[supplierId]/page.tsx
+- docs/docs-app-screens-products.md
+- docs/docs-app-screens-supplier-detail.md
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Labels opcionales proveedor
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se agrego “(opcional)” a los labels de nombre/SKU en proveedor en los dos entry points de alta de producto.
+
+**Impacto**
+
+- Mejora claridad de formulario sin cambios funcionales.
+- Cambia solo textos de UI.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/products/page.tsx
+- app/suppliers/[supplierId]/page.tsx
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Label codigo de barras
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se renombro el label de “Barcode” a “Codigo de barras” en los formularios de alta de productos.
+
+**Impacto**
+
+- Mejora consistencia de idioma en la UI.
+- Cambia solo textos de UI.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/products/page.tsx
+- app/suppliers/[supplierId]/page.tsx
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Listado solo de productos principales
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se elimino el formulario de asociar productos en /suppliers/[supplierId] y se dejo solo el listado de productos principales con edicion de SKU/nombre en proveedor.
+
+**Impacto**
+
+- Simplifica el flujo: las asociaciones se crean al alta de producto.
+- Cambia la UI del detalle de proveedor y su contrato de pantalla.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/suppliers/[supplierId]/page.tsx
+- docs/docs-app-screens-supplier-detail.md
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Pedidos inline con sugeridos
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se rehizo /orders para armar pedidos en la misma pantalla: seleccionar proveedor/sucursal, ver sugeridos, editar cantidades, cargar notas y crear pedido. Se agrego margen de ganancia para estimar costo.
+
+**Impacto**
+
+- El flujo de pedidos ocurre inline y el listado queda debajo.
+- Se calcula costo estimado por articulo y total usando margen.
+- No cambia schema ni RPCs; se reutiliza view de sugeridos y RPCs de pedidos.
+
+**Archivos**
+
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Control de recepcion de pedidos
+
+**Tipo:** db
+**Alcance:** db + frontend
+
+**Resumen**
+Se agregaron campos de control en pedidos y se ajusto el flujo de recepcion para capturar fecha/hora real y firma (nombre + usuario). Al recibir se marca como controlado y se ingresa stock.
+
+**Impacto**
+
+- Habilita registrar la hora real de recepcion y quien controla el pedido.
+- Cambia el RPC de recepcion y el detalle de pedido para capturar firma/fecha.
+- No cambia reglas RLS ni otros modulos.
+
+**Archivos**
+
+- supabase/migrations/20260209141000_021_supplier_orders_controlled_fields.sql
+- app/orders/[orderId]/page.tsx
+- app/orders/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/docs-data-model.md
+- docs/schema.sql
+- types/supabase.ts
+
+**Tests:** `npm run db:reset` OK (2026-02-09) · `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Seed demo de compras y ventas
+
+**Tipo:** infra
+**Alcance:** db
+
+**Resumen**
+Se agrego script para poblar datos demo (3 proveedores, 30 productos, ventas 90 dias, 4 pedidos) y se expuso comando de seed.
+
+**Impacto**
+
+- Habilita probar flujo de pedidos, sugeridos y control de recepcion con datos reales.
+- Cambia solo datos locales; no afecta schema ni RPCs.
+- Agrega script de seed reutilizable.
+
+**Archivos**
+
+- scripts/seed-demo-data.js
+- package.json
+
+**Tests:** `node scripts/seed-demo-data.js` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Promedio por ciclo en pedidos
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se ajusto la tabla de sugeridos para mostrar promedio por ciclo (semanal/quincenal/mensual) y forzar cantidades enteras al pedir.
+
+**Impacto**
+
+- El promedio ahora se alinea con la frecuencia del proveedor.
+- Las cantidades sugeridas y editables son enteras.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Selector promedio sugeridos
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se agrego selector para ver promedio semanal/quincenal/mensual en la tabla de sugeridos.
+
+**Impacto**
+
+- Permite comparar el promedio por ciclo del proveedor versus periodos fijos.
+- Cambia solo la UI de sugeridos.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Redondeo promedio sugeridos
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se redondeo el promedio por ciclo a entero (regla de .5 hacia arriba).
+
+**Impacto**
+
+- Mejora consistencia con cantidades enteras en pedidos.
+- Cambia solo la visualizacion del promedio.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/orders/page.tsx
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Total de articulos en pedido
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se agrego la cantidad total de articulos junto al total estimado en la seccion de sugeridos.
+
+**Impacto**
+
+- Permite ver rapidamente el total de unidades a pedir.
+- Cambia solo UI en /orders.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/orders/page.tsx
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Navegacion a detalle de pedidos
+
+**Tipo:** fix
+**Alcance:** frontend
+
+**Resumen**
+Se cambio el listado de pedidos para usar Link y permitir navegar al detalle.
+
+**Impacto**
+
+- El click en el pedido abre `/orders/[orderId]`.
+- No cambia datos ni lógica de pedidos.
+- Solo afecta la UI del listado.
+
+**Archivos**
+
+- app/orders/page.tsx
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Fix params en order detail
+
+**Tipo:** fix
+**Alcance:** frontend
+
+**Resumen**
+Se ajusto el acceso a params en /orders/[orderId] para usar await en params Promise.
+
+**Impacto**
+
+- El detalle de pedido vuelve a renderizar sin error.
+- No cambia datos ni lógica de negocio.
+- Solo afecta el handler de ruta.
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Tooltip margen en pedidos
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se agrego tooltip/ayuda en el input de margen para explicar el costo aproximado.
+
+**Impacto**
+
+- Mejora claridad del calculo de costo en sugeridos.
+- Cambia solo UI en /orders.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/orders/page.tsx
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Vista tarjetas en sugeridos
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se agrego toggle para ver sugeridos en tabla o tarjetas en /orders.
+
+**Impacto**
+
+- Mejora usabilidad en mobile para revisar sugeridos.
+- Cambia solo la UI de sugeridos.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/orders/OrderSuggestionsClient.tsx
+- app/orders/page.tsx
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Persistir vista sugeridos
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se persiste en localStorage la vista elegida (tabla/tarjetas) en sugeridos.
+
+**Impacto**
+
+- Mantiene la preferencia del usuario entre sesiones.
+- Cambia solo UI en /orders.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/orders/OrderSuggestionsClient.tsx
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Separar pedidos controlados
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se dividio el listado de pedidos en pendientes y controlados, mostrando controlados al final.
+
+**Impacto**
+
+- Facilita priorizar pedidos por controlar/enviar.
+- Cambia solo la UI del listado en /orders.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/orders/page.tsx
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Busqueda tokens en POS
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se agrego busqueda por tokens con minimo 3 caracteres en el POS.
+
+**Impacto**
+
+- Mejora relevancia de resultados y evita render masivo.
+- La busqueda acepta tokens en cualquier orden.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/pos/PosClient.tsx
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Busqueda en vivo POS
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se agrego busqueda en vivo (debounce) al tipear en el POS.
+
+**Impacto**
+
+- El filtrado ocurre automaticamente sin boton.
+- Se reduce la friccion en caja.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/pos/PosClient.tsx
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
+## 2026-02-09 — Desplegable ajuste stock
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se convirtio el formulario de ajuste manual de stock en un desplegable.
+
+**Impacto**
+
+- Reduce espacio en la pagina de productos.
+- Cambia solo UI en /products.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/products/page.tsx
+
+**Tests:** `npm run lint` OK (2026-02-09) · `npm run build` OK (2026-02-09)
+**Commit:** N/A
+
 ## 2026-02-08 — Diagnostico docs y baseline de schema
 
 **Tipo:** docs
@@ -1159,4 +1596,72 @@ Se agrego el script `npm run db:reset` que ejecuta reset + seed de usuarios demo
 - docs/prompts.md
 
 **Tests:** No ejecutados (scripts/docs)
+**Commit:** N/A
+
+## 2026-02-09 — Stock minimo global en alta
+
+**Tipo:** ux
+**Alcance:** frontend, docs
+
+**Resumen**
+Se agrego opcion para aplicar stock minimo a todas las sucursales en el alta de productos y se aclaro el campo con tooltip. Se incluyo el campo en alta desde proveedor.
+
+**Impacto**
+
+- Evita confusion al setear stock minimo en una sola sucursal.
+- Mejora claridad del concepto de stock minimo.
+
+**Archivos**
+
+- app/products/page.tsx
+- app/suppliers/[supplierId]/page.tsx
+- docs/docs-app-screens-products.md
+- docs/docs-app-screens-supplier-detail.md
+- docs/prompts.md
+
+**Tests:** No ejecutados (UI microcambio)
+**Commit:** N/A
+
+## 2026-02-09 — Simplificar stock minimo
+
+**Tipo:** ux
+**Alcance:** frontend, docs
+
+**Resumen**
+Se removio el selector de sucursal y el checkbox; el stock minimo ahora se aplica a todas las sucursales por defecto, con tooltip aclaratorio.
+
+**Impacto**
+
+- Simplifica alta de producto.
+- Unifica stock minimo para todas las sucursales.
+
+**Archivos**
+
+- app/products/page.tsx
+- docs/docs-app-screens-products.md
+- docs/prompts.md
+
+**Tests:** No ejecutados (UI microcambio)
+**Commit:** N/A
+
+## 2026-02-09 — Remover stock minimo por sucursal
+
+**Tipo:** ux
+**Alcance:** frontend, docs
+
+**Resumen**
+Se elimino la seccion de stock minimo por sucursal en /products para simplificar el flujo global.
+
+**Impacto**
+
+- Evita duplicidad/confusion en el seteo de stock minimo.
+- Stock minimo se define solo en alta/edicion de producto.
+
+**Archivos**
+
+- app/products/page.tsx
+- docs/docs-app-screens-products.md
+- docs/prompts.md
+
+**Tests:** No ejecutados (UI microcambio)
 **Commit:** N/A

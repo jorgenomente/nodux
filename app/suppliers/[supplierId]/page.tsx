@@ -97,16 +97,6 @@ export default async function SupplierDetailPage({
   const primaryProducts = products.filter(
     (product) => product.relation_type === 'primary',
   );
-  const secondaryProducts = products.filter(
-    (product) => product.relation_type === 'secondary',
-  );
-
-  const { data: productOptions } = await supabase
-    .from('v_products_typeahead_admin')
-    .select('product_id, name, is_active')
-    .eq('org_id', membership.org_id)
-    .eq('is_active', true)
-    .order('name');
 
   const updateSupplier = async (formData: FormData) => {
     'use server';
@@ -140,35 +130,6 @@ export default async function SupplierDetailPage({
     revalidatePath('/suppliers');
   };
 
-  const addSupplierProduct = async (formData: FormData) => {
-    'use server';
-
-    const supabaseServer = await createServerSupabaseClient();
-    const productId = String(formData.get('product_id') ?? '').trim();
-    const supplierSku = String(formData.get('supplier_sku') ?? '').trim();
-    const supplierProductName = String(
-      formData.get('supplier_product_name') ?? '',
-    ).trim();
-    const relationType = String(
-      formData.get('relation_type') ?? 'primary',
-    ).trim();
-    const normalizedRelationType =
-      relationType === 'secondary' ? 'secondary' : 'primary';
-
-    if (!productId) return;
-
-    await supabaseServer.rpc('rpc_upsert_supplier_product', {
-      p_org_id: membership.org_id,
-      p_supplier_id: supplierId,
-      p_product_id: productId,
-      p_supplier_sku: supplierSku,
-      p_supplier_product_name: supplierProductName,
-      p_relation_type: normalizedRelationType,
-    });
-
-    revalidatePath(`/suppliers/${supplierId}`);
-  };
-
   const updateSupplierProduct = async (formData: FormData) => {
     'use server';
 
@@ -178,14 +139,10 @@ export default async function SupplierDetailPage({
     const supplierProductName = String(
       formData.get('supplier_product_name') ?? '',
     ).trim();
-    const relationType = String(
-      formData.get('relation_type') ?? 'primary',
-    ).trim();
     const currentRelationType = String(
       formData.get('current_relation_type') ?? 'primary',
     ).trim();
-    const normalizedRelationType =
-      relationType === 'secondary' ? 'secondary' : 'primary';
+    const normalizedRelationType = 'primary';
     const normalizedCurrentRelationType =
       currentRelationType === 'secondary' ? 'secondary' : 'primary';
 
@@ -241,6 +198,13 @@ export default async function SupplierDetailPage({
     const uom = String(formData.get('uom') ?? '').trim();
     const unitPriceRaw = String(formData.get('unit_price') ?? '0').trim();
     const shelfLifeRaw = String(formData.get('shelf_life_days') ?? '').trim();
+    const safetyStockAllRaw = String(
+      formData.get('safety_stock_all') ?? '',
+    ).trim();
+    const supplierSku = String(formData.get('supplier_sku') ?? '').trim();
+    const supplierProductName = String(
+      formData.get('supplier_product_name') ?? '',
+    ).trim();
 
     if (!name) return;
 
@@ -270,12 +234,34 @@ export default async function SupplierDetailPage({
       p_shelf_life_days: shelfLifeDays,
     });
 
+    if (safetyStockAllRaw !== '') {
+      const safetyStock = Number(safetyStockAllRaw);
+      if (!Number.isNaN(safetyStock) && safetyStock >= 0) {
+        const { data: activeBranches } = await supabaseServer
+          .from('branches')
+          .select('id')
+          .eq('org_id', membership.org_id)
+          .eq('is_active', true);
+
+        await Promise.all(
+          (activeBranches ?? []).map((branch) =>
+            supabaseServer.rpc('rpc_set_safety_stock', {
+              p_org_id: membership.org_id,
+              p_branch_id: branch.id,
+              p_product_id: productId,
+              p_safety_stock: safetyStock,
+            }),
+          ),
+        );
+      }
+    }
+
     await supabaseServer.rpc('rpc_upsert_supplier_product', {
       p_org_id: membership.org_id,
       p_supplier_id: supplierId,
       p_product_id: productId,
-      p_supplier_sku: '',
-      p_supplier_product_name: '',
+      p_supplier_sku: supplierSku,
+      p_supplier_product_name: supplierProductName,
       p_relation_type: 'primary',
     });
 
@@ -429,7 +415,7 @@ export default async function SupplierDetailPage({
             className="mt-4 grid gap-3 md:grid-cols-2"
           >
             <label className="text-sm text-zinc-600">
-              Nombre
+              Nombre de articulo en la tienda
               <input
                 name="product_name"
                 className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
@@ -444,9 +430,23 @@ export default async function SupplierDetailPage({
               />
             </label>
             <label className="text-sm text-zinc-600">
-              Barcode
+              Codigo de barras
               <input
                 name="barcode"
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="text-sm text-zinc-600">
+              Nombre de articulo en proveedor (opcional)
+              <input
+                name="supplier_product_name"
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="text-sm text-zinc-600">
+              SKU en proveedor (opcional)
+              <input
+                name="supplier_sku"
                 className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
               />
             </label>
@@ -491,6 +491,23 @@ export default async function SupplierDetailPage({
                 placeholder="Ej: 30"
               />
             </label>
+            <label className="text-sm text-zinc-600">
+              Stock minimo (todas las sucursales)
+              <input
+                name="safety_stock_all"
+                type="number"
+                step="0.001"
+                min="0"
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                placeholder="0"
+              />
+              <span
+                className="mt-1 block text-xs text-zinc-400"
+                title="Cantidad minima sugerida para evitar quiebres. Se usa en sugerencias de compra."
+              >
+                ⓘ Se aplica a todas las sucursales activas
+              </span>
+            </label>
             <div className="md:col-span-2">
               <button
                 type="submit"
@@ -504,251 +521,86 @@ export default async function SupplierDetailPage({
 
         <section className="rounded-2xl bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-zinc-900">
-            Productos asociados
+            Productos principales
           </h2>
-          <form
-            action={addSupplierProduct}
-            className="mt-4 grid gap-3 md:grid-cols-4"
-          >
-            <label className="text-sm text-zinc-600 md:col-span-2">
-              Producto
-              <select
-                name="product_id"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              >
-                <option value="">Seleccionar</option>
-                {productOptions
-                  ?.filter((product) => Boolean(product.product_id))
-                  .map((product) => (
-                    <option
-                      key={String(product.product_id)}
-                      value={String(product.product_id)}
-                    >
-                      {product.name}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <label className="text-sm text-zinc-600">
-              SKU en proveedor
-              <input
-                name="supplier_sku"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              Nombre del producto en proveedor
-              <input
-                name="supplier_product_name"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              Tipo
-              <select
-                name="relation_type"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                defaultValue="primary"
-              >
-                <option value="primary">Principal</option>
-                <option value="secondary">Secundario</option>
-              </select>
-            </label>
-            <div className="md:col-span-4">
-              <button
-                type="submit"
-                className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
-              >
-                Asociar producto
-              </button>
-            </div>
-          </form>
-
           <div className="mt-4 space-y-3">
-            {products.length === 0 ? (
+            {primaryProducts.length === 0 ? (
               <div className="text-sm text-zinc-500">
-                Este proveedor no tiene productos asociados.
+                Este proveedor no tiene productos principales asociados.
               </div>
             ) : (
-              <>
-                {primaryProducts.length > 0 ? (
-                  <div className="space-y-3">
-                    <p className="text-xs font-semibold text-zinc-500 uppercase">
-                      Productos principales
-                    </p>
-                    {primaryProducts.map((product) => (
-                      <div
-                        key={product.product_id}
-                        className="rounded border border-zinc-200 p-3"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <p className="text-sm font-semibold text-zinc-900">
-                              {product.product_name}
-                            </p>
-                            <p className="text-xs text-zinc-500">
-                              {product.internal_code || 'Sin SKU'} ·{' '}
-                              {product.barcode || 'Sin barcode'}
-                            </p>
-                          </div>
-                          <form action={removeSupplierProduct}>
-                            <input
-                              type="hidden"
-                              name="product_id"
-                              value={product.product_id}
-                            />
-                            <button
-                              type="submit"
-                              className="text-xs font-semibold text-red-600"
-                            >
-                              Remover
-                            </button>
-                          </form>
-                        </div>
-                        <form
-                          action={updateSupplierProduct}
-                          className="mt-3 grid gap-2 md:grid-cols-4"
-                        >
-                          <input
-                            type="hidden"
-                            name="product_id"
-                            value={product.product_id}
-                          />
-                          <input
-                            type="hidden"
-                            name="current_relation_type"
-                            value={product.relation_type}
-                          />
-                          <label className="text-xs text-zinc-600">
-                            SKU en proveedor
-                            <input
-                              name="supplier_sku"
-                              defaultValue={product.supplier_sku ?? ''}
-                              className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                            />
-                          </label>
-                          <label className="text-xs text-zinc-600">
-                            Nombre del producto en proveedor
-                            <input
-                              name="supplier_product_name"
-                              defaultValue={product.supplier_product_name ?? ''}
-                              className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                            />
-                          </label>
-                          <label className="text-xs text-zinc-600">
-                            Tipo
-                            <select
-                              name="relation_type"
-                              defaultValue={product.relation_type}
-                              className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                            >
-                              <option value="primary">Principal</option>
-                              <option value="secondary">Secundario</option>
-                            </select>
-                          </label>
-                          <div className="flex items-end">
-                            <button
-                              type="submit"
-                              className="rounded bg-zinc-900 px-3 py-1 text-xs font-semibold text-white"
-                            >
-                              Guardar
-                            </button>
-                          </div>
-                        </form>
+              <div className="space-y-3">
+                {primaryProducts.map((product) => (
+                  <div
+                    key={product.product_id}
+                    className="rounded border border-zinc-200 p-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-900">
+                          {product.product_name}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          {product.internal_code || 'Sin SKU'} ·{' '}
+                          {product.barcode || 'Sin barcode'}
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                ) : null}
-
-                {secondaryProducts.length > 0 ? (
-                  <div className="space-y-3">
-                    <p className="text-xs font-semibold text-zinc-500 uppercase">
-                      Productos secundarios
-                    </p>
-                    {secondaryProducts.map((product) => (
-                      <div
-                        key={product.product_id}
-                        className="rounded border border-zinc-200 p-3"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <p className="text-sm font-semibold text-zinc-900">
-                              {product.product_name}
-                            </p>
-                            <p className="text-xs text-zinc-500">
-                              {product.internal_code || 'Sin SKU'} ·{' '}
-                              {product.barcode || 'Sin barcode'}
-                            </p>
-                          </div>
-                          <form action={removeSupplierProduct}>
-                            <input
-                              type="hidden"
-                              name="product_id"
-                              value={product.product_id}
-                            />
-                            <button
-                              type="submit"
-                              className="text-xs font-semibold text-red-600"
-                            >
-                              Remover
-                            </button>
-                          </form>
-                        </div>
-                        <form
-                          action={updateSupplierProduct}
-                          className="mt-3 grid gap-2 md:grid-cols-4"
+                      <form action={removeSupplierProduct}>
+                        <input
+                          type="hidden"
+                          name="product_id"
+                          value={product.product_id}
+                        />
+                        <button
+                          type="submit"
+                          className="text-xs font-semibold text-red-600"
                         >
-                          <input
-                            type="hidden"
-                            name="product_id"
-                            value={product.product_id}
-                          />
-                          <input
-                            type="hidden"
-                            name="current_relation_type"
-                            value={product.relation_type}
-                          />
-                          <label className="text-xs text-zinc-600">
-                            SKU en proveedor
-                            <input
-                              name="supplier_sku"
-                              defaultValue={product.supplier_sku ?? ''}
-                              className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                            />
-                          </label>
-                          <label className="text-xs text-zinc-600">
-                            Nombre del producto en proveedor
-                            <input
-                              name="supplier_product_name"
-                              defaultValue={product.supplier_product_name ?? ''}
-                              className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                            />
-                          </label>
-                          <label className="text-xs text-zinc-600">
-                            Tipo
-                            <select
-                              name="relation_type"
-                              defaultValue={product.relation_type}
-                              className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                            >
-                              <option value="primary">Principal</option>
-                              <option value="secondary">Secundario</option>
-                            </select>
-                          </label>
-                          <div className="flex items-end">
-                            <button
-                              type="submit"
-                              className="rounded bg-zinc-900 px-3 py-1 text-xs font-semibold text-white"
-                            >
-                              Guardar
-                            </button>
-                          </div>
-                        </form>
+                          Remover
+                        </button>
+                      </form>
+                    </div>
+                    <form
+                      action={updateSupplierProduct}
+                      className="mt-3 grid gap-2 md:grid-cols-4"
+                    >
+                      <input
+                        type="hidden"
+                        name="product_id"
+                        value={product.product_id}
+                      />
+                      <input
+                        type="hidden"
+                        name="current_relation_type"
+                        value={product.relation_type}
+                      />
+                      <label className="text-xs text-zinc-600">
+                        SKU en proveedor
+                        <input
+                          name="supplier_sku"
+                          defaultValue={product.supplier_sku ?? ''}
+                          className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                        />
+                      </label>
+                      <label className="text-xs text-zinc-600">
+                        Nombre del producto en proveedor
+                        <input
+                          name="supplier_product_name"
+                          defaultValue={product.supplier_product_name ?? ''}
+                          className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                        />
+                      </label>
+                      <div className="flex items-end">
+                        <button
+                          type="submit"
+                          className="rounded bg-zinc-900 px-3 py-1 text-xs font-semibold text-white"
+                        >
+                          Guardar
+                        </button>
                       </div>
-                    ))}
+                    </form>
                   </div>
-                ) : null}
-              </>
+                ))}
+              </div>
             )}
           </div>
         </section>

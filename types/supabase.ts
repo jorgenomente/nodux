@@ -1099,6 +1099,8 @@ export type Database = {
       supplier_orders: {
         Row: {
           branch_id: string;
+          controlled_by_name: string | null;
+          controlled_by_user_id: string | null;
           created_at: string;
           created_by: string;
           id: string;
@@ -1113,6 +1115,8 @@ export type Database = {
         };
         Insert: {
           branch_id: string;
+          controlled_by_name?: string | null;
+          controlled_by_user_id?: string | null;
           created_at?: string;
           created_by: string;
           id?: string;
@@ -1127,6 +1131,8 @@ export type Database = {
         };
         Update: {
           branch_id?: string;
+          controlled_by_name?: string | null;
+          controlled_by_user_id?: string | null;
           created_at?: string;
           created_by?: string;
           id?: string;
@@ -1610,6 +1616,9 @@ export type Database = {
         Row: {
           branch_id: string | null;
           branch_name: string | null;
+          controlled_by_name: string | null;
+          controlled_by_user_id: string | null;
+          controlled_by_user_name: string | null;
           created_at: string | null;
           diff_qty: number | null;
           notes: string | null;
@@ -2357,14 +2366,33 @@ export type Database = {
         };
         Returns: undefined;
       };
-      rpc_receive_supplier_order: {
-        Args: { p_items: Json; p_order_id: string; p_org_id: string };
-        Returns: undefined;
-      };
-      rpc_reconcile_supplier_order: {
-        Args: { p_order_id: string; p_org_id: string };
-        Returns: undefined;
-      };
+      rpc_receive_supplier_order:
+        | {
+            Args: { p_items: Json; p_order_id: string; p_org_id: string };
+            Returns: undefined;
+          }
+        | {
+            Args: {
+              p_controlled_by_name?: string;
+              p_controlled_by_user_id?: string;
+              p_items: Json;
+              p_order_id: string;
+              p_org_id: string;
+              p_received_at?: string;
+            };
+            Returns: undefined;
+          };
+      rpc_reconcile_supplier_order:
+        | { Args: { p_order_id: string; p_org_id: string }; Returns: undefined }
+        | {
+            Args: {
+              p_controlled_by_name?: string;
+              p_controlled_by_user_id?: string;
+              p_order_id: string;
+              p_org_id: string;
+            };
+            Returns: undefined;
+          };
       rpc_remove_supplier_order_item: {
         Args: { p_order_id: string; p_org_id: string; p_product_id: string };
         Returns: undefined;

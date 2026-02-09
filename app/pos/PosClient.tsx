@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
@@ -80,6 +80,8 @@ export default function PosClient({
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const showSearchHint =
+    searchTerm.trim().length > 0 && searchTerm.trim().length < 3;
 
   const total = useMemo(
     () => cart.reduce((sum, item) => sum + item.unit_price * item.quantity, 0),
@@ -99,6 +101,22 @@ export default function PosClient({
         ? 'Corrige las cantidades para cobrar.'
         : '';
 
+  const normalizeText = useCallback((value: string) => {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  }, []);
+
+  const tokenize = useCallback(
+    (value: string) =>
+      normalizeText(value)
+        .split(/\s+/)
+        .map((token) => token.trim())
+        .filter(Boolean),
+    [normalizeText],
+  );
+
   const loadProducts = useCallback(
     async (branchId: string, term?: string) => {
       if (!branchId) return;
@@ -116,22 +134,39 @@ export default function PosClient({
         .order('name')
         .limit(20);
 
-      if (term && term.trim().length > 0) {
-        const safe = term.trim();
-        query = query.or(
-          `name.ilike.%${safe}%,internal_code.ilike.%${safe}%,barcode.ilike.%${safe}%`,
-        );
+      const trimmed = term?.trim() ?? '';
+      if (trimmed.length > 0 && trimmed.length < 3) {
+        setResults([]);
+        setLoading(false);
+        return;
+      }
+
+      if (trimmed.length >= 3) {
+        const tokens = tokenize(trimmed);
+        tokens.forEach((token) => {
+          query = query.or(
+            `name.ilike.%${token}%,internal_code.ilike.%${token}%,barcode.ilike.%${token}%`,
+          );
+        });
       }
 
       const { data, error } = await query;
       if (error) {
         setErrorMessage('No pudimos cargar el catálogo.');
       } else {
-        setResults((data ?? []) as ProductCatalogItem[]);
+        const tokens = trimmed.length >= 3 ? tokenize(trimmed) : [];
+        const filtered = (data ?? []).filter((row) => {
+          if (tokens.length === 0) return true;
+          const haystack = normalizeText(
+            `${row.name ?? ''} ${row.internal_code ?? ''} ${row.barcode ?? ''}`.trim(),
+          );
+          return tokens.every((token) => haystack.includes(token));
+        });
+        setResults(filtered as ProductCatalogItem[]);
       }
       setLoading(false);
     },
-    [orgId, supabase],
+    [normalizeText, orgId, supabase, tokenize],
   );
 
   const addToCart = useCallback((product: ProductCatalogItem) => {
@@ -217,6 +252,14 @@ export default function PosClient({
     setSuccessMessage(null);
     setErrorMessage(null);
   };
+
+  useEffect(() => {
+    if (!activeBranchId) return;
+    const handle = setTimeout(() => {
+      loadProducts(activeBranchId, searchTerm);
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [activeBranchId, loadProducts, searchTerm]);
 
   const handleCheckout = async () => {
     setErrorMessage(null);
@@ -352,17 +395,6 @@ export default function PosClient({
                   placeholder="Nombre, SKU o barcode"
                   className="w-full rounded border border-zinc-200 px-3 py-2 text-sm"
                 />
-                <button
-                  type="button"
-                  onClick={() =>
-                    activeBranchId
-                      ? loadProducts(activeBranchId, searchTerm)
-                      : null
-                  }
-                  className="rounded border border-zinc-200 px-4 py-2 text-sm font-semibold"
-                >
-                  Buscar
-                </button>
               </div>
             </div>
 
@@ -372,7 +404,9 @@ export default function PosClient({
               )}
               {!loading && results.length === 0 && (
                 <div className="text-sm text-zinc-500">
-                  No hay productos para mostrar.
+                  {showSearchHint
+                    ? 'Escribi al menos 3 letras para buscar.'
+                    : 'No hay productos para mostrar.'}
                 </div>
               )}
               <div className="flex max-h-[360px] flex-col gap-2 overflow-y-auto">

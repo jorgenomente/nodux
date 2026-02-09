@@ -83,12 +83,17 @@ Campos mínimos:
 - is_active (default true)
 - vencimiento_aproximado_dias (opcional)
 - proveedor_primario (opcional pero recomendado)
+- nombre_articulo_en_proveedor (opcional, si hay proveedor primario)
+- sku_en_proveedor (opcional, si hay proveedor primario)
 - proveedor_secundario (opcional)
+- stock_minimo (opcional)
+- stock_minimo_aplica_a_todas_las_sucursales (default)
 
 ### A2) Editar producto
 
 - mismos campos
 - no eliminar; solo `is_active=false`
+- stock_minimo editable desde listado
 
 ### A3) Activar/Desactivar
 
@@ -110,18 +115,10 @@ Efecto:
 - genera movimiento append-only `manual_adjustment`
 - stock queda consistente para esa sucursal
 
-### A5) Definir safety stock (por sucursal)
+### A5) Definir stock mínimo (global)
 
-Campos:
-
-- branch_id
-- product_id
-- safety_stock (decimal)
-
-Efecto:
-
-- actualiza `stock_items.safety_stock`
-- no genera movimiento de stock
+- Se define una sola vez al crear/editar producto
+- Aplica a todas las sucursales
 
 ---
 

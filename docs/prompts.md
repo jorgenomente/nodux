@@ -12,6 +12,169 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-09 16:03 — Desplegable ajuste stock
+
+**Lote:** products-collapsible-forms
+**Objetivo:** Hacer desplegable el formulario de ajuste manual de stock.
+
+**Prompt**
+lo mismo con ajuste manual de stock
+
+## 2026-02-09 16:01 — Busqueda en vivo POS
+
+**Lote:** pos-token-search
+**Objetivo:** Disparar busqueda al tipear en POS.
+
+**Prompt**
+el buscador deberia funcionar con tipear las letras y no esperar que yo le de click a buscar
+
+## 2026-02-09 15:59 — Busqueda por tokens en POS
+
+**Lote:** pos-token-search
+**Objetivo:** Busqueda por tokens con minimo 3 caracteres en /pos.
+
+**Prompt**
+tambien en http://localhost:3000/pos en la barra de busqueda por nombres que sea igual. por tokens minimo 3 caracteres para evitar el render de muchos items pero que pueda escribir en cualquier orden o cualquier numero
+
+## 2026-02-09 15:54 — Separar pedidos controlados
+
+**Lote:** orders-list-split
+**Objetivo:** Mostrar pendientes arriba y controlados abajo en el listado de pedidos.
+
+**Prompt**
+en http://localhost:3000/orders en el listado me gustaria dividir estos pedidos. los controlados los enviamos al final en otra seccion y los pendientes por controlar y enviar y eso que queden arriba
+
+## 2026-02-09 15:52 — Persistir vista sugeridos
+
+**Lote:** orders-suggestions-view
+**Objetivo:** Recordar vista tabla/tarjetas en sugeridos.
+
+**Prompt**
+te dije que si
+
+## 2026-02-09 15:48 — Toggle tabla/tarjetas en sugeridos
+
+**Lote:** orders-suggestions-view
+**Objetivo:** Permitir cambiar vista de sugeridos entre tabla y tarjetas.
+
+**Prompt**
+tambien me gustaria poder cambiar la vista de tabla a modo tarjeta asi es mas facil visualizar los datos desde el celular en esa misma pagina en los datos que se muestran
+
+## 2026-02-09 15:46 — Tooltip margen en pedidos
+
+**Lote:** orders-ui-tooltips
+**Objetivo:** Agregar tooltip para explicar el margen de ganancia en pedidos.
+
+**Prompt**
+tambien en pedidos donde esta el input de margen de ganancia agrega un tooltip o algo que indique que se usa para calcular el costo aproximado del articulo en el proveedor
+
+## 2026-02-09 15:40 — Fix params en order detail
+
+**Lote:** orders-detail-fix
+**Objetivo:** Ajustar params async en /orders/[orderId].
+
+**Prompt**
+me dice esto la consola forward-logs-shared.ts:95 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+forward-logs-shared.ts:95 [HMR] connected
+forward-logs-shared.ts:95 Server Error: Route "/orders/[orderId]" used `params.orderId`. `params` is a Promise and must be unwrapped with `await` or `React.use()` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+at OrderDetailPage (page.tsx:74:26)
+
+## 2026-02-09 15:37 — Link en listado de pedidos
+
+**Lote:** orders-list-link
+**Objetivo:** Habilitar navegación al detalle desde el listado de pedidos.
+
+**Prompt**
+ahora tenemos que trabajar en el listado. cuando hago click en el pedido no pasa nada. se supone que ahi deberia poder revisar el pedido y cambiarle el estado y confirmar recepcion y todo eso, no?
+
+## 2026-02-09 15:35 — Total de articulos en pedido
+
+**Lote:** orders-cycle-avg
+**Objetivo:** Mostrar cantidad total de articulos junto al total estimado.
+
+**Prompt**
+luego abajo donde dice total estimado vamos a agregar tambien la cantidad total de articulos en el pedido
+
+## 2026-02-09 15:34 — Redondeo promedio sugeridos
+
+**Lote:** orders-cycle-avg
+**Objetivo:** Redondear promedio por ciclo a entero (>= .5 arriba, <= .4 abajo).
+
+**Prompt**
+vamos a hacer que el promedio tambien sea numero entero se redondea hacia arriba cuando es .5 o mas o hacia abajo cuando es .4 o menos
+
+## 2026-02-09 15:33 — Selector promedio sugeridos
+
+**Lote:** orders-cycle-avg
+**Objetivo:** Agregar selector para ver promedio semanal/quincenal/mensual en sugeridos.
+
+**Prompt**
+si dale
+
+## 2026-02-09 15:32 — Promedio por ciclo y cantidades enteras
+
+**Lote:** orders-cycle-avg
+**Objetivo:** Mostrar promedio por ciclo del proveedor y forzar cantidades enteras en pedidos.
+
+**Prompt**
+ok la cantidad a pedir debe ser numero entero ya que no se piden con decimales. cuando hablamos de proveedor semanales el promedio que aparece en la tabla debe ser semanal, si es quincenal entonces quincenal y cuando es mensual entonces mensual. O quizas podamos hacer click en esa columna donde dicePromedio 30d y quizas ahi pueda cambiar para ver el promedio semanal o quincenal o mensual. que te parece?
+
+## 2026-02-09 15:28 — Seed demo pedidos y ventas
+
+**Lote:** seed-demo-data
+**Objetivo:** Insertar datos ficticios de proveedores, productos, ventas y pedidos para probar flujo de compras.
+
+**Prompt**
+3 proveedores con 10 productos cada proveedor con distinto historial de ventas unos 3 meses en total como si se hubieran vendido en distintas cantidades durante los ultimos 3 meses. tener proveedores semanales, quincenales y mensuales, 2 preparados 2 enviados y yo le doy a controlar y eso para ver como afecta el stock y eso
+
+## 2026-02-09 15:02 — Control de recepcion de pedidos
+
+**Lote:** orders-controlled
+**Objetivo:** Permitir capturar fecha/hora real de recepcion y firma de control al recibir pedidos.
+
+**Prompt**
+si ademas que yo pueda colocar la hora exacta y el dia en el que fue recibido y quien lo controla una especie de firma asi por ejemplo si no se agrego directamente apenas llego es posible que se haya vendido algun articulo y entonces el stock este en negativo asi se sabe a que hora ubo el ingreso y auotmaticamente se resuleve que el stock quede bien otra vez
+
+## 2026-02-09 14:00 — Flujo pedidos con sugeridos
+
+**Lote:** orders-inline-suggestions
+**Objetivo:** Armar pedido en /orders con sugeridos inline, cantidades editables y margen de ganancia.
+
+**Prompt**
+ahora vamos a trabajar en http://localhost:3000/orders aqui yo deberia seleccionar el proveedor y la sucursal y entonces se debe desplegar todos los articulos de ese proveedor junto con las estadisticas de esa sucursal. y alli ver el pedido sugerido todo debe suceder alli mismo. ver el pedido sugerido, modificar la cantidad de articulos si no estoy de acuerdo, luego las notas y luego crear pedido. entonces abajo en el listado me aparece el pedido creado. Tambien debo tener un input de margen de ganancia que me sirve para calcular el precio de los articulos es decir si yo tengo que un articulo cuesta 6000 pesos y el margen de ganancia es de 40% para ese proveedor entonces el costo calculado por articulo desde el proveedor es 6000 - 40% esto para tener un estimado de cuanto voy a gastar en ese pedido. que te parece?
+
+## 2026-02-09 13:49 — Remover asociar producto en proveedor
+
+**Lote:** suppliers-products-list
+**Objetivo:** Quitar inputs/CTA de asociar productos y dejar solo listado de productos principales.
+
+**Prompt**
+luego en suppliers/id hay un area de productos asociados. Eso lo quiero eliminar y dejar solo el listado de productos/articulos. porque al final del dia esa informacion se agrega cuando se agregan productos nuevos. y si no se agrega, se puede editar directamente desde la lista de productos principales. es decir esos inputs de asociar producto estan demas. quita los inputs con el cta y deja la lista de productos principales
+
+## 2026-02-09 13:42 — Label codigo de barras
+
+**Lote:** products-supplier-inputs
+**Objetivo:** Cambiar el label de barcode por codigo de barras en ambos entry points.
+
+**Prompt**
+cambia el texto de barcode por codigo de barras en ambos entry points
+
+## 2026-02-09 13:40 — Labels opcionales proveedor
+
+**Lote:** products-supplier-inputs
+**Objetivo:** Marcar como opcionales los campos de proveedor en alta de producto.
+
+**Prompt**
+esta bien pero agrega entre parentesis (opcional) en ambos entry point
+
+## 2026-02-09 13:36 — Inputs proveedor al crear producto
+
+**Lote:** products-supplier-inputs
+**Objetivo:** Ajustar labels de producto y capturar nombre/SKU del proveedor al crear productos.
+
+**Prompt**
+http://localhost:3000/products tengo el input para nuevo producto, quiero cambiar el nombre a los inputs el de nombre que diga nombre de articulo en la tienda y agregar un nuevo input opcional de nombre de articulo en proveedor y SKU en proveedor. esto mismo cuando desde suppliers/id intento crear producto nuevo, quiero esos inputs opcionales asi ya esa info queda guardada y asociada.
+
 ## 2026-02-08 20:55 — Diagnostico docs y baseline de schema
 
 **Lote:** docs-schema-baseline
@@ -388,3 +551,29 @@ Vamos a avanzar en algo mas, en http://localhost:3000/products en nuevo producto
 
 **Prompt**
 ok vamos con la opcion recomendada
+
+## 2026-02-09 12:29 — Stock minimo global en alta de producto
+
+**Lote:** ui-stock-min-global
+**Objetivo:** Permitir aplicar stock minimo a todas las sucursales y aclarar el campo con tooltip.
+
+**Prompt**
+hay algo que no entiendo en http://localhost:3000/products en nuevo producto hay un input que dice Sucursal (stock minimo) y me da la opcion de elegir sucursal, pero no entiendo por que debo elegir sucursal porque esto me obliga a establecer un stock minimo a 1 sola sucursal y no entiendo como colocarselo a otra sucursal. se me ocurre que esto sea global. o sea este stock minimo es sugerido para cualquier sucursal y asi nos ahorramos el tener que seleccionar sucursal. Pero me gustaria que el stock minimo. me gustaria agregar tambien un icono de info que aclare que es ese dato y para que se usa. que de una explicacion para que la persona no se confunda en cuanto a que colocar en ese input el hover de info deberia decir algo como esta es la cantidad que debe quedar luego de que se haya vendido lo que se vende usualmente para nunca quedar en 0, o alguna explicacion similar quizas no es la mejor manera de decirlo. y me parece que esta opcion no existe cuando registramos un producto desde la pagina del supplier/id
+
+## 2026-02-09 12:33 — Simplificar stock minimo
+
+**Lote:** ui-stock-min-simple
+**Objetivo:** Quitar selector de sucursal y aplicar stock minimo global por defecto.
+
+**Prompt**
+simplemente quitemos el Sucursal (stock minimo) ese input no lo necesitamos y dejamos solo el de Stock minimo
+ⓘ
+el tooltip no parece funcionar. y quitemos Aplicar stock minimo a todas las sucursales (ignora la sucursal). asi todo es mas simple
+
+## 2026-02-09 12:36 — Quitar seccion stock minimo por sucursal
+
+**Lote:** ui-stock-min-remove-section
+**Objetivo:** Eliminar la seccion de stock minimo por sucursal en /products.
+
+**Prompt**
+1

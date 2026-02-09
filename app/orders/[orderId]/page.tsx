@@ -17,6 +17,9 @@ type OrderDetailRow = {
   sent_at: string | null;
   received_at: string | null;
   reconciled_at: string | null;
+  controlled_by_user_id: string | null;
+  controlled_by_name: string | null;
+  controlled_by_user_name: string | null;
   order_item_id: string | null;
   product_id: string | null;
   product_name: string | null;
@@ -26,11 +29,30 @@ type OrderDetailRow = {
   diff_qty: number | null;
 };
 
+const formatStatusLabel = (status: string) => {
+  switch (status) {
+    case 'draft':
+      return 'Borrador';
+    case 'sent':
+      return 'Enviado';
+    case 'received':
+      return 'Recibido';
+    case 'reconciled':
+      return 'Controlado';
+    default:
+      return status;
+  }
+};
+
+const formatDateTime = (value: string | null) =>
+  value ? new Date(value).toLocaleString('es-AR') : '—';
+
 export default async function OrderDetailPage({
   params,
 }: {
-  params: { orderId: string };
+  params: Promise<{ orderId: string }>;
 }) {
+  const resolvedParams = await params;
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -50,7 +72,7 @@ export default async function OrderDetailPage({
     redirect('/no-access');
   }
 
-  const orderId = params.orderId;
+  const orderId = resolvedParams.orderId;
   const { data: detailRows } = await supabase
     .from('v_order_detail_admin')
     .select('*')
@@ -145,14 +167,21 @@ export default async function OrderDetailPage({
     revalidatePath('/orders');
   };
 
-  const reconcileOrder = async () => {
+  const reconcileOrder = async (formData: FormData) => {
     'use server';
 
     const supabaseServer = await createServerSupabaseClient();
+    const controlledByName = String(
+      formData.get('controlled_by_name') ?? '',
+    ).trim();
+    const { data: userData } = await supabaseServer.auth.getUser();
+    const userId = userData.user?.id ?? null;
 
     await supabaseServer.rpc('rpc_reconcile_supplier_order', {
       p_org_id: membership.org_id,
       p_order_id: orderId,
+      p_controlled_by_user_id: userId,
+      p_controlled_by_name: controlledByName,
     });
 
     revalidatePath(`/orders/${orderId}`);
@@ -163,6 +192,17 @@ export default async function OrderDetailPage({
     'use server';
 
     const supabaseServer = await createServerSupabaseClient();
+    const receivedAtRaw = String(formData.get('received_at') ?? '').trim();
+    const controlledByName = String(
+      formData.get('controlled_by_name') ?? '',
+    ).trim();
+    const parsedReceivedAt = receivedAtRaw ? new Date(receivedAtRaw) : null;
+    const receivedAt =
+      parsedReceivedAt && !Number.isNaN(parsedReceivedAt.getTime())
+        ? parsedReceivedAt.toISOString()
+        : null;
+    const { data: userData } = await supabaseServer.auth.getUser();
+    const userId = userData.user?.id ?? null;
     const itemsPayload = items
       .map((item) => {
         const value = Number(
@@ -180,6 +220,9 @@ export default async function OrderDetailPage({
       p_org_id: membership.org_id,
       p_order_id: orderId,
       p_items: itemsPayload,
+      p_received_at: receivedAt,
+      p_controlled_by_user_id: userId,
+      p_controlled_by_name: controlledByName,
     });
 
     revalidatePath(`/orders/${orderId}`);
@@ -189,6 +232,10 @@ export default async function OrderDetailPage({
   const canEdit = order.status === 'draft';
   const canReceive = order.status === 'sent';
   const canReconcile = order.status === 'received';
+  const controlledByLabel =
+    order.controlled_by_name || order.controlled_by_user_name;
+  const receiveDefaultAt = new Date().toISOString().slice(0, 16);
+  const userLabel = user.email ?? user.id;
 
   return (
     <PageShell>
@@ -204,14 +251,21 @@ export default async function OrderDetailPage({
             Pedido {order.order_id}
           </h1>
           <p className="mt-1 text-sm text-zinc-500">
-            {order.supplier_name} · {order.branch_name} · Estado: {order.status}
+            {order.supplier_name} · {order.branch_name} · Estado:{' '}
+            {formatStatusLabel(order.status)}
           </p>
         </div>
 
         <section className="rounded-2xl bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm text-zinc-600">
-              Creado: {new Date(order.created_at).toLocaleString('es-AR')}
+              Creado: {formatDateTime(order.created_at)}
+              {' · '}
+              Enviado: {formatDateTime(order.sent_at)}
+              {' · '}
+              Recibido: {formatDateTime(order.received_at)}
+              {' · '}
+              Controlado: {formatDateTime(order.reconciled_at)}
             </div>
             <div className="flex flex-wrap gap-2">
               {canEdit && (
@@ -225,17 +279,30 @@ export default async function OrderDetailPage({
                 </form>
               )}
               {canReconcile && (
-                <form action={reconcileOrder}>
+                <form action={reconcileOrder} className="flex flex-wrap gap-2">
+                  <input
+                    name="controlled_by_name"
+                    placeholder="Controlado por"
+                    className="rounded border border-zinc-200 px-3 py-2 text-sm"
+                  />
                   <button
                     type="submit"
                     className="rounded bg-zinc-900 px-3 py-2 text-sm font-semibold text-white"
                   >
-                    Conciliar
+                    Marcar como controlado
                   </button>
                 </form>
               )}
             </div>
           </div>
+          {controlledByLabel ? (
+            <div className="mt-2 text-sm text-zinc-500">
+              Controlado por: {controlledByLabel}
+              {order.controlled_by_user_name && order.controlled_by_name
+                ? ` (Usuario: ${order.controlled_by_user_name})`
+                : null}
+            </div>
+          ) : null}
           {order.notes ? (
             <div className="mt-3 text-sm text-zinc-500">
               Notas: {order.notes}
@@ -367,9 +434,31 @@ export default async function OrderDetailPage({
         {canReceive ? (
           <section className="rounded-2xl bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-zinc-900">
-              Recibir mercadería
+              Recibir y controlar mercadería
             </h2>
-            <form action={receiveOrder} className="mt-4 space-y-3">
+            <form action={receiveOrder} className="mt-4 space-y-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="text-sm text-zinc-600">
+                  Fecha y hora de recepción
+                  <input
+                    name="received_at"
+                    type="datetime-local"
+                    defaultValue={receiveDefaultAt}
+                    className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-sm text-zinc-600">
+                  Controlado por (nombre)
+                  <input
+                    name="controlled_by_name"
+                    className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                    placeholder="Ej: Juan Perez"
+                  />
+                  <span className="mt-1 block text-xs text-zinc-400">
+                    Autofirma: {userLabel}
+                  </span>
+                </label>
+              </div>
               {items.map((item) => (
                 <div
                   key={item.order_item_id}

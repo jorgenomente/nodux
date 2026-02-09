@@ -353,6 +353,8 @@ Estado actual:
 - `created_by` (uuid, FK -> auth.users.id)
 - `created_at`, `updated_at`
 - `sent_at`, `received_at`, `reconciled_at` (timestamptz, nullable)
+- `controlled_by_user_id` (uuid, FK -> auth.users.id, nullable)
+- `controlled_by_name` (text, nullable)
 
 ---
 
