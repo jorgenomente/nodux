@@ -21,3 +21,4 @@ Password comun: `prueba123`
 ## Script
 
 - Seed: `scripts/seed-users.js`
+- Reset recomendado (DB + seed): `npm run db:reset`

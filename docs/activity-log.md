@@ -1136,3 +1136,27 @@ Se agrego vencimiento aproximado por producto (dias) y se automatizo la creacion
 - npm run build OK (2026-02-09)
 
 **Commit:** N/A
+
+## 2026-02-09 — Reset con seed automatico
+
+**Tipo:** infra
+**Alcance:** scripts, docs
+
+**Resumen**
+Se agrego el script `npm run db:reset` que ejecuta reset + seed de usuarios demo y se hizo que el seed cargue `.env.local` automaticamente.
+
+**Impacto**
+
+- Evita perder usuarios demo tras `db reset`.
+- Reduce pasos manuales para QA.
+
+**Archivos**
+
+- scripts/seed-users.js
+- package.json
+- AGENTS.md
+- docs/docs-demo-users.md
+- docs/prompts.md
+
+**Tests:** No ejecutados (scripts/docs)
+**Commit:** N/A

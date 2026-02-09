@@ -9,6 +9,7 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "db:reset": "npx supabase db reset && node scripts/seed-users.js",
     "db:schema:snapshot": "npx supabase db dump --schema public --local > docs/schema.sql",
     "types:gen": "npx supabase gen types typescript --local > types/supabase.ts",
     "prepare": "husky"

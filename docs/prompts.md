@@ -380,3 +380,11 @@ Vamos a modificar eso para que se entienda mejor haz el renombre
 
 **Prompt**
 Vamos a avanzar en algo mas, en http://localhost:3000/products en nuevo producto me gustaria agregar un campo que diga fecha de vencimiento aproximada y alli coloco el numero de dias. Esto es importante para generar alertas de vencimiento en caso de que el bach de pedido este alli por mas de este numero de dias o cerca ya se genera una alerta automatica de vencimiento de ese articulo. hay productos que duran 3 meses otros anos otros dias, entonces esto es importante coloquemos un numero de dias aproximado. Cuando se confirma el pedido recibido, que creo que no hemos trabajado en esto, debemos entender que tenemos articulos que tienen esa fecha de vencimiento aproxumado. si esos articulos no se han vendido y estamos llegando a esa fecha aproximada pero si se vendieron entonces no deberia recibir esta alerta. tiene sentido? Al registrar el producto colocamos mas o menos la fecha de vencimiento que trae, la cantidad de dias que dura, luego al confirmar la recepcion de ese pedido entonces empieza a contar la fecha segun la cantidad de articulos que nos quedan o que recibimos, no se si me explico bien.
+
+## 2026-02-09 12:10 — Reset con seed automatico
+
+**Lote:** db-reset-seed
+**Objetivo:** Agregar script db:reset que re-seedee usuarios y cargar .env.local en seed-users.
+
+**Prompt**
+ok vamos con la opcion recomendada

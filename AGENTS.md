@@ -248,7 +248,7 @@ Cuando hay:
 
 Ejecutar:
 
-- `npx supabase db reset`
+- `npm run db:reset` (incluye seed de usuarios demo)
 
 Y verificar como mínimo:
 
