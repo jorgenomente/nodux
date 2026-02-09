@@ -64,6 +64,7 @@ Columnas:
 ### A1) Agregar ítem
 
 - Selector typeahead de productos (ideal: productos asociados al proveedor primero)
+- Mostrar si el producto es proveedor primario/secundario
 - Define ordered_qty
 - UPSERT item
 

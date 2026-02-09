@@ -1,4 +1,4 @@
-1. Screen Contract — Products (Org Admin)
+# Screen Contract — Products (Org Admin)
 
 ## Guía rápida (para diseño)
 
@@ -8,229 +8,210 @@
 - No inventes campos ni acciones: usa lo definido en el contrato de datos.
 - Si algo no está definido, marca la duda y consulta antes de decidir.
 
-  Ruta
+## Ruta
 
-/products
+- `/products`
 
-Rol / Acceso
+## Rol / Acceso
 
-Org Admin (OA)
+- Org Admin (OA)
+- Superadmin (SA) dentro de una org (soporte/impersonation controlado)
+- Staff: NO (en MVP, Staff solo `/products/lookup`)
 
-Superadmin (SA) dentro de una org (soporte/impersonation controlado)
-
-Staff: NO (en MVP, Staff solo /products/lookup)
-
-Propósito
+## Propósito
 
 Gestionar el catálogo de productos y el stock por sucursal, con operación real:
 
-alta/edición básica de productos
+- alta/edición básica de productos
+- activación/desactivación
+- ajustes manuales de stock (inventario inicial, corrección, merma no por vencimiento)
+- visibilidad por sucursal (desglose) + total
+- asociación de proveedor primario/secundario
+- safety stock por sucursal
 
-activación/desactivación
+## Contexto de sucursal (branch context)
 
-ajustes manuales de stock (inventario inicial, corrección, merma no por vencimiento)
+- OA ve todas las sucursales.
+- El listado muestra **stock total** y **detalle por sucursal**.
+- En MVP no hay selector; el detalle por sucursal reemplaza el selector.
 
-visibilidad por sucursal + vista agregada
+---
 
-Contexto de sucursal (branch context)
+## UI: Layout (alto nivel)
 
-Selector: “Todas” + sucursal
+### Header
 
-Default:
+- Título: “Productos”
+- CTA principal: “Nuevo producto”
+- Search: nombre / barcode / SKU interno
 
-si hay 1 sucursal → esa sucursal
-
-si hay >1 → “todas”
-
-Nota:
-
-el stock siempre es por sucursal; “todas” es solo vista agregada / comparativa
-
-UI: Layout (alto nivel)
-Header
-
-Título: “Productos”
-
-CTA principal: “Nuevo producto”
-
-Search: nombre / barcode / SKU interno
-
-Selector sucursal (scope)
-
-Sección A — Lista de productos
+### Sección A — Lista de productos
 
 Cada row:
 
-nombre
+- nombre
+- SKU interno / barcode (si existe)
+- precio actual
+- stock total
+- stock por sucursal (ej: “Sucursal A: 5 · Sucursal B: 2”)
+- badge activo/inactivo
+- acción: editar / activar-desactivar
 
-SKU interno / barcode (si existe)
+### Sección B — Acciones rápidas por producto (MVP)
 
-precio actual
-
-stock (si scope = una sucursal) o “stock total” (si scope = todas)
-
-badge activo/inactivo
-
-acción: “Editar” / “Ver”
-
-Sección B — Acciones rápidas por producto (MVP)
-
-Editar producto (sheet/modal)
-
-Activar/Desactivar (confirmación)
-
-Ajustar stock (modal) cuando scope = una sucursal
+- Editar producto (inline)
+- Activar/Desactivar
+- Ajustar stock (formulario separado)
 
 MVP: no construir “detalle de producto” en subruta a menos que sea estrictamente necesario.
-Si crece, Post-MVP o siguiente lote: /products/[productId].
+Si crece, Post-MVP o siguiente lote: `/products/[productId]`.
 
-Acciones del usuario (MVP)
-A1) Crear producto
+---
+
+## Acciones del usuario (MVP)
+
+### A1) Crear producto
 
 Campos mínimos:
 
-name (requerido)
+- name (requerido)
+- internal_code (opcional, recomendado)
+- barcode (opcional)
+- sell_unit_type: unit | weight | bulk
+- uom (ej: kg)
+- unit_price (>= 0)
+- is_active (default true)
+- proveedor_primario (opcional pero recomendado)
+- proveedor_secundario (opcional)
 
-internal_code (opcional, recomendado)
+### A2) Editar producto
 
-barcode (opcional)
+- mismos campos
+- no eliminar; solo `is_active=false`
 
-sell_unit_type: unit | weight | bulk
+### A3) Activar/Desactivar
 
-uom (ej: kg)
+- Desactivar: el producto deja de ser vendible y no aparece en lookup/POS
 
-unit_price (>= 0)
-
-is_active (default true)
-
-A2) Editar producto
-
-mismos campos
-
-no eliminar; solo is_active=false
-
-A3) Activar/Desactivar
-
-Desactivar: el producto deja de ser vendible y no aparece en lookup/POS
-
-A4) Ajuste manual de stock (por sucursal)
+### A4) Ajuste manual de stock (por sucursal)
 
 Modal “Ajustar stock”
 
 Campos:
 
-branch_id (implícito por selector)
-
-product_id
-
-new_quantity_on_hand (decimal) o delta (decisión UX)
-
-reason (text, requerido)
+- branch_id
+- product_id
+- new_quantity_on_hand
+- reason (text, requerido)
 
 Efecto:
 
-genera movimiento append-only manual_adjustment
+- genera movimiento append-only `manual_adjustment`
+- stock queda consistente para esa sucursal
 
-stock queda consistente para esa sucursal
+### A5) Definir safety stock (por sucursal)
 
-Estados UI
+Campos:
 
-Loading: skeleton lista + toolbar
+- branch_id
+- product_id
+- safety_stock (decimal)
 
-Empty: “No tenés productos aún.” + CTA “Nuevo producto”
+Efecto:
 
-Error: banner “No pudimos cargar productos” + reintentar
+- actualiza `stock_items.safety_stock`
+- no genera movimiento de stock
 
-Success: toast “Producto guardado / Stock ajustado”
+---
 
-Data Contract (One Screen = One Data Contract)
-Lectura principal (lista + stock)
+## Estados UI
 
-View recomendada: v_products_admin(scope_branch_id nullable, search text nullable)
+- Loading: skeleton lista + toolbar
+- Empty: “No tenés productos aún.” + CTA “Nuevo producto”
+- Error: banner “No pudimos cargar productos” + reintentar
+- Success: toast “Producto guardado / Stock ajustado”
+
+---
+
+## Data Contract (One Screen = One Data Contract)
+
+### Lectura principal (lista + stock)
+
+View recomendada: `v_products_admin`
 Salida mínima por fila:
 
-product_id
+- product_id
+- name
+- internal_code
+- barcode
+- sell_unit_type
+- uom
+- unit_price
+- is_active
+- stock_total
+- stock_by_branch[] (branch_id, branch_name, quantity_on_hand)
+- safety_stock_by_branch[] (branch_id, safety_stock) (si se expone en view)
 
-name
+Nota: el desglose por sucursal evita el selector en MVP.
 
-internal_code
+### Escrituras
 
-barcode
+RPC 1: `rpc_upsert_product(input)`
 
-sell_unit_type
+- product_id
+- name, internal_code, barcode, sell_unit_type, uom, unit_price, is_active
 
-uom
+RPC 2: `rpc_adjust_stock_manual(input)`
 
-unit_price
+- branch_id
+- product_id
+- new_quantity_on_hand
+- reason (text, requerido)
 
-is_active
+RPC 3: `rpc_upsert_supplier_product(input)`
 
-stock_on_hand (si branch_id no-null) o stock_total (si null)
+- supplier_id
+- product_id
+- relation_type (primary | secondary)
+- supplier_sku optional
+- supplier_product_name optional
 
-updated_at (opcional)
+RPC 4: `rpc_remove_supplier_product_relation(input)`
 
-Nota: si “todas” requiere desglose por sucursal, NO en MVP (sería otra pantalla o modo avanzado).
+- product_id
+- relation_type
 
-Escrituras
+RPC 5: `rpc_set_safety_stock(input)`
 
-RPC 1: rpc_upsert_product(input)
+- branch_id
+- product_id
+- safety_stock
 
-product_id nullable
+---
 
-name, internal_code, barcode, sell_unit_type, uom, unit_price, is_active
-Output:
+## Seguridad (RLS)
 
-product_id + snapshot básico
+- OA: puede leer/escribir productos y stock dentro de su org
+- Debe validar:
+  - branch_id pertenece a org del usuario
+- Staff:
+  - NO acceso a esta pantalla ni a RPCs admin
 
-RPC 2: rpc_adjust_stock_manual(input)
+---
 
-branch_id
+## Edge cases
 
-product_id
+- Producto inactivo con stock > 0
+  - Visible en admin (con badge)
+  - No vendible en POS/lookup
+- Producto sin barcode / sin SKU
+  - debe seguir siendo buscable por nombre
 
-new_quantity_on_hand (o delta_qty)
+---
 
-reason (text, requerido)
-Output:
+## Smoke tests (manual)
 
-movement_id
-
-resulting_quantity_on_hand
-
-Seguridad (RLS)
-
-OA: puede leer/escribir productos y stock dentro de su org
-
-Debe validar:
-
-branch_id pertenece a org del usuario
-
-Staff:
-
-NO acceso a esta pantalla ni a RPCs admin
-
-Edge cases
-
-Producto inactivo con stock > 0
-
-Visible en admin (con badge)
-
-No vendible en POS/lookup
-
-Cambio de sucursal mientras modal de ajuste está abierto
-
-cerrar modal o recalcular contexto (evitar writes a branch equivocada)
-
-Producto sin barcode / sin SKU
-
-debe seguir siendo buscable por nombre
-
-Smoke tests (manual)
-
-PR-01: Crear producto y verlo en lista
-
-PR-02: Ajustar stock en sucursal A y verificar stock cambia solo allí
-
-PR-03: Desactivar producto y confirmar que no aparece en /pos y /products/lookup
-
-PR-04: Search por barcode y por nombre
+- PR-01: Crear producto y verlo en lista
+- PR-02: Ajustar stock en sucursal A y ver desglose actualizado
+- PR-03: Desactivar producto y confirmar que no aparece en /pos y /products/lookup
+- PR-04: Search por barcode y por nombre

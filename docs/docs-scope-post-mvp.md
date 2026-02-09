@@ -46,6 +46,7 @@ Idea → Epic → Lote → Código.
 ## Categoría 5 — Operación avanzada
 
 - Transferencias entre sucursales
+- Pantalla de movimiento de stock masivo entre sucursales
 - Conteo cíclico de inventario
 - Lotes / seriales
 - Multi-depósito

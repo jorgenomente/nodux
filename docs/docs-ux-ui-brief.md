@@ -10,6 +10,13 @@ NODUX es un sistema operativo simple para tiendas retail: **vender rápido, cont
 
 ---
 
+## 1.1) Idioma preferido
+
+- El idioma base del producto es **español** (labels, mensajes, tooltips y estados).
+- Evitar términos técnicos en inglés si existe una alternativa clara en español.
+
+---
+
 ## 2) Alcance MVP (qué sí y qué no)
 
 ### Sí incluye (MVP)

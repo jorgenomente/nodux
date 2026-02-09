@@ -22,6 +22,8 @@
 
 Listar pedidos a proveedor y crear nuevos pedidos por sucursal.
 
+- Permitir ver sugeridos de compra por proveedor y sucursal (MVP simple).
+
 ---
 
 ## Contexto de sucursal
@@ -37,6 +39,7 @@ Listar pedidos a proveedor y crear nuevos pedidos por sucursal.
 
 - Título: “Pedidos”
 - CTA: “Nuevo pedido”
+- CTA secundaria: “Ver sugeridos”
 - Filtros:
   - Sucursal
   - Estado (draft/sent/received/reconciled)
@@ -107,6 +110,19 @@ RPC: `rpc_create_supplier_order(input)`
 - notes optional
   Output:
 - order_id
+
+### Sugeridos (MVP simple)
+
+View: `v_supplier_product_suggestions(supplier_id, branch_id)`
+Salida mínima:
+
+- product_id, product_name
+- relation_type
+- stock_on_hand
+- safety_stock
+- avg_daily_sales_30d
+- cycle_days
+- suggested_qty
 
 ---
 

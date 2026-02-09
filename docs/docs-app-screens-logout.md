@@ -1,4 +1,4 @@
-Screen Contract — Logout
+# Screen Contract — Logout
 
 ## Guía rápida (para diseño)
 
@@ -8,24 +8,24 @@ Screen Contract — Logout
 - No inventes campos ni acciones: usa lo definido en el contrato de datos.
 - Si algo no está definido, marca la duda y consulta antes de decidir.
 
-Ruta
+## Ruta
 
-/logout
+- `/logout`
 
-Rol / Acceso
+## Rol / Acceso
 
-SA / OA / ST (autenticados)
+- SA / OA / ST (autenticados)
 
-Propósito
+## Proposito
 
-Cerrar sesión y redirigir a /login.
+Cerrar sesion y redirigir a `/login`.
 
-Data Contract
+## Data Contract
 
-No requiere lecturas
+No requiere lecturas.
 
-Acción: signOut() + redirect
+Accion: `signOut()` + redirect.
 
-Smoke test
+## Smoke test
 
-LO-01: logout desde cualquier rol vuelve a login y bloquea rutas privadas
+LO-01: logout desde cualquier rol vuelve a login y bloquea rutas privadas.

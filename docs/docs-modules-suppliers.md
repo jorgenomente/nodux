@@ -38,6 +38,9 @@ Campos clave (conceptual):
 - email (text, optional)
 - notes (text, optional)
 - is_active (boolean, default true)
+- order_frequency (order_frequency, optional)
+- order_day (weekday, optional)
+- receive_day (weekday, optional)
 - created_at
 - updated_at
 
@@ -54,11 +57,13 @@ Campos clave (conceptual):
 - supplier_sku (text, optional)
 - supplier_product_name (text, optional)
 - default_purchase_uom (text, optional)
+- relation_type (supplier_product_relation_type, default 'primary')
 - created_at
 
 Constraints:
 
 - unique (org_id, supplier_id, product_id)
+- unique (org_id, product_id, relation_type)
 
 > Nota: `supplier_product_name` permite mostrar “nombre del proveedor” vs “nombre interno”.
 
@@ -77,9 +82,9 @@ Constraints:
 
 ### R3) Asociación producto↔proveedor
 
-- Un producto puede tener múltiples proveedores
-- Un proveedor puede tener múltiples productos
-- En MVP no definimos “proveedor preferido” (Post-MVP)
+- Un producto tiene 1 proveedor primario y puede tener 1 proveedor secundario
+- Un proveedor puede tener múltiples productos (primarios y secundarios)
+- No se permite que un producto tenga 2 proveedores primarios
 
 ### R4) Eliminación
 
@@ -99,12 +104,14 @@ Constraints:
 ### O1) CRUD Proveedor
 
 - Crear/editar datos básicos
+- Definir frecuencia de pedido y días de pedido/recepción
 - Activar/desactivar
 
 ### O2) Asociar productos al proveedor
 
 - Buscar producto y asociarlo
 - Opcional: setear supplier_sku y supplier_product_name
+- Definir si la relación es primaria o secundaria
 - Remover asociación (si no hay referencias a pedidos; si hay, marcar inactiva Post-MVP)
 
 ### O3) Vista “Detalle proveedor”

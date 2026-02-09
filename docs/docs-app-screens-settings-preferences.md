@@ -33,6 +33,8 @@ warning_days (default 7)
 (opcional MVP) preferencias UX menores (ej: orden módulos staff)
 Si no está definido, se posterga.
 
+allow_negative_stock (default true)
+
 UI
 
 Sección “Alertas de vencimientos”

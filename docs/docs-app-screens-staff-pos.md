@@ -125,8 +125,8 @@ Una venta es un registro con:
 
 - Cada ítem descuenta stock de la sucursal.
 - Política MVP:
-  - Permitir stock negativo: **NO por defecto**
-  - Si no hay stock suficiente → error “Stock insuficiente”
+  - Permitir stock negativo: **SI por defecto** (para evitar bloqueos por desincronización)
+  - Si no hay stock suficiente y se deshabilita negativos → error “Stock insuficiente”
   - (Recomendación futura) Toggle “permitir negativo” por sucursal (Post-MVP)
 
 ### R3) Productos por peso/granel

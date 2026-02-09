@@ -97,6 +97,7 @@ Subrutas:
 - `/settings/branches`
 - `/settings/staff-permissions`
 - `/settings/preferences`
+- `/settings/audit-log`
 
 Acceso:
 
@@ -169,6 +170,7 @@ Acceso:
 - `/settings/branches`
 - `/settings/staff-permissions`
 - `/settings/preferences`
+- `/settings/audit-log`
 - `/superadmin`
 
 ---

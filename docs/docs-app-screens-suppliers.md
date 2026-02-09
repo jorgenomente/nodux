@@ -68,6 +68,9 @@ Campos:
 - phone
 - email
 - notes
+- order_frequency (weekly | biweekly | every_3_weeks | monthly)
+- order_day (weekday)
+- receive_day (weekday)
 
 Submit → upsert
 
@@ -85,6 +88,7 @@ Submit → upsert
 - buscar producto (typeahead)
 - seleccionar y asociar
 - opcional: supplier_sku, supplier_product_name
+- definir relation_type: primary | secondary
 
 ### A5) Remover asociación
 
@@ -150,6 +154,7 @@ Salida:
   - product_is_active
   - supplier_sku
   - supplier_product_name
+  - relation_type
 
 ### Escrituras
 
@@ -164,11 +169,17 @@ RPC 2: `rpc_upsert_supplier_product(input)`
 - product_id
 - supplier_sku optional
 - supplier_product_name optional
+- relation_type (primary | secondary)
 
 RPC 3: `rpc_remove_supplier_product(input)`
 
 - supplier_id
 - product_id
+
+RPC 4: `rpc_remove_supplier_product_relation(input)`
+
+- product_id
+- relation_type
 
 ---
 

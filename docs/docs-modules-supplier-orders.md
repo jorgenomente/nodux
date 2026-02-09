@@ -18,6 +18,7 @@ Facilitar y ordenar compras a proveedores:
 - conciliar pedido vs recibido
 - ingresar stock automáticamente
 - mantener historial y trazabilidad
+- sugerir cantidades basadas en ventas recientes + safety stock (MVP simple)
 
 ---
 
@@ -130,6 +131,12 @@ Siempre `branch_id` (recepción e ingreso de stock ocurren en esa sucursal).
 
 - No se puede crear pedido nuevo con proveedor inactivo
 
+### R6) Sugeridos (MVP simple)
+
+- Sugerido = promedio ventas 30 días \* ciclo + safety_stock - stock_on_hand
+- El ciclo se calcula por `order_frequency` (mensual = 30 días)
+- Se recomienda mostrar sugerido como ayuda, no obligatorio
+
 ---
 
 ## Pantallas asociadas
@@ -143,6 +150,7 @@ Siempre `branch_id` (recepción e ingreso de stock ocurren en esa sucursal).
 
 - View: `v_orders_admin` (lista)
 - View: `v_order_detail_admin(order_id)`
+- View: `v_supplier_product_suggestions(supplier_id, branch_id)`
 - RPC: `rpc_create_supplier_order(...)`
 - RPC: `rpc_upsert_supplier_order_item(...)`
 - RPC: `rpc_set_supplier_order_status(...)`

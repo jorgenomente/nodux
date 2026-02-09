@@ -52,6 +52,7 @@ Campos clave:
 - branch_id
 - product_id
 - quantity_on_hand (decimal)
+- safety_stock (decimal, default 0)
 - updated_at
 
 > Nota: en MVP el stock se mantiene derivado de movimientos.
@@ -83,6 +84,15 @@ Campos clave:
   - No aparece en lookup
   - No se puede pedir
 
+### R5) Stock negativo (MVP)
+
+- En MVP se permite stock negativo para evitar bloqueos por desincronización.
+
+### R6) Safety stock por sucursal (MVP)
+
+- El safety stock se define por sucursal y producto.
+- Se usa para sugerencias de compra (módulo pedidos a proveedor).
+
 ---
 
 ## Pantallas asociadas
@@ -106,6 +116,11 @@ Campos clave:
 
 - Ingreso manual (ej: inventario inicial)
 - Ajuste genera movimiento `manual_adjustment`
+
+### Definir safety stock (OA)
+
+- Se registra safety stock por sucursal
+- No afecta stock real, solo sugerencias
 
 ---
 
@@ -138,6 +153,12 @@ Cada movimiento:
 - Producto con stock 0 → visible pero no vendible
 - Producto sin barcode → solo búsqueda por nombre
 - Eliminación → NO (solo `is_active=false`)
+
+---
+
+## Post-MVP (documentado)
+
+- Transferencias masivas entre sucursales (pantalla de movimiento de stock).
 
 ---
 

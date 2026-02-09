@@ -182,11 +182,17 @@ Regla base:
     - Módulo: Preferencias
     - Propósito: parámetros simples (alertas, UX)
 
+22. `/settings/audit-log`
+    - Roles: OA (SA en soporte)
+    - Tipo: Secondary
+    - Módulo: Auditoría
+    - Propósito: ver registro de acciones importantes dentro de la org
+
 ---
 
 ## 6) Superadmin (Primary)
 
-22. `/superadmin`
+23. `/superadmin`
     - Roles: SA
     - Tipo: Primary
     - Módulo: SaaS Admin
@@ -214,11 +220,12 @@ Regla base:
 - `/settings/users`
 - `/settings/branches`
 - `/settings/preferences`
+- `/settings/audit-log`
 - `/superadmin`
 
 ### Pendientes de documentar (siguientes)
 
-- `/logout` (opcional: contrato corto, pantalla utility)
+- Ninguna (todas las pantallas del MVP tienen contrato documentado)
 
 ---
 

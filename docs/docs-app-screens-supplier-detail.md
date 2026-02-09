@@ -25,6 +25,7 @@ Gestionar un proveedor en profundidad:
 - ver/editar datos del proveedor
 - asociar/remover productos
 - ver historial de pedidos (MVP: link/preview simple)
+- crear producto desde el detalle (entry point alterno)
 
 ---
 
@@ -55,6 +56,7 @@ MVP recomendado (secciones verticales):
 ### A1) Editar proveedor
 
 - Abre modal o sheet con campos (name, contacto, phone, email, notes)
+- Incluye frecuencia y días de pedido/recepción
 - Guarda con RPC upsert
 
 ### A2) Activar/Desactivar proveedor
@@ -68,6 +70,7 @@ MVP recomendado (secciones verticales):
 - Al seleccionar:
   - crea asociación
   - opcional: completar supplier_sku, supplier_product_name
+  - definir relation_type (primary | secondary)
 
 ### A4) Editar datos de asociación
 
@@ -80,6 +83,11 @@ MVP recomendado (secciones verticales):
 - Si en el futuro hay referencias (orders):
   - Post-MVP: soft-remove (is_active=false en la relación)
 - MVP: permitir remover si no rompe integridad
+
+### A6) Crear producto desde proveedor
+
+- Formulario mínimo para crear producto nuevo
+- Al crear, se asocia automáticamente como proveedor primario
 
 ---
 
@@ -120,6 +128,9 @@ Salida:
   - email
   - notes
   - is_active
+  - order_frequency
+  - order_day
+  - receive_day
   - created_at
 - products[]:
   - product_id
@@ -129,6 +140,7 @@ Salida:
   - internal_code (opcional)
   - supplier_sku
   - supplier_product_name
+  - relation_type
 
 ### Escrituras
 
@@ -143,11 +155,17 @@ RPC 2: `rpc_upsert_supplier_product(input)`
 - product_id
 - supplier_sku optional
 - supplier_product_name optional
+- relation_type (primary | secondary)
 
 RPC 3: `rpc_remove_supplier_product(input)`
 
 - supplier_id
 - product_id
+
+RPC 4: `rpc_remove_supplier_product_relation(input)`
+
+- product_id
+- relation_type
 
 ### Typeahead productos
 

@@ -17,6 +17,9 @@ Antes de actuar, el agente debe leer (según aplique):
 - `docs/docs-app-screens-index.md`
 - `docs/docs-app-screens-*.md` (contratos de pantalla)
 - `docs/docs-modules-*.md` (módulos y reglas)
+- `docs/docs-roadmap.md` (orden operativo vivo)
+- `docs/docs-demo-users.md` (usuarios demo locales)
+- `docs/context-summary.md` (resumen de contexto vivo)
 - `AGENTS.md` (este archivo)
 
 ## 1) Rol del agente
@@ -71,6 +74,7 @@ Leer los documentos relevantes en /docs, incluyendo (según aplique):
 - `docs/docs-app-screens-index.md`
 - `docs/docs-app-screens-*.md`
 - `docs/docs-modules-*.md`
+- `docs/context-summary.md`
 
 Inspeccionar el repo para identificar:
 
@@ -176,8 +180,13 @@ Estos documentos son vivos y deben mantenerse actualizados ante cualquier cambio
 
 - `docs/docs-data-model.md` (tablas, campos, enums, relaciones)
 - `docs/docs-rls-matrix.md` (rol x entidad x acción)
+- `docs/docs-roadmap.md` (orden de avance y fases)
 
 Si se agrega/modifica una tabla, view, RPC o policy RLS, estos docs deben actualizarse en el mismo lote.
+
+## 6.2) Roadmap vivo
+
+El roadmap en `docs/docs-roadmap.md` es obligatorio y debe actualizarse cada vez que una fase avance, se cierre o se reordene.
 
 ## 7) Pipeline obligatorio de trabajo
 
@@ -211,6 +220,7 @@ Ejecutar validaciones según el tipo de cambio (ver sección 8).
 ### 7.5) COMMIT + PUSH
 
 Commit y push solo con confirmación explícita del usuario.
+Cuando el usuario confirme, el commit + push es obligatorio al cierre del lote.
 Si se requiere rama, usar prefijo `codex/`.
 
 ## 8) Política de validaciones y tests

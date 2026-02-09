@@ -19,6 +19,7 @@ El MVP debe ser usable en producción real por una tienda.
 - Creación y gestión de sucursales
 - Multi-tenant real con RLS
 - App shell con navegación por rol
+- Auditoría de acciones (audit log) para OA/SA
 
 ### Roles
 
