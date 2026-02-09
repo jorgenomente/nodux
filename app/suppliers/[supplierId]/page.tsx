@@ -240,11 +240,20 @@ export default async function SupplierDetailPage({
       | 'bulk';
     const uom = String(formData.get('uom') ?? '').trim();
     const unitPriceRaw = String(formData.get('unit_price') ?? '0').trim();
+    const shelfLifeRaw = String(formData.get('shelf_life_days') ?? '').trim();
 
     if (!name) return;
 
     const unitPrice = Number(unitPriceRaw);
     if (Number.isNaN(unitPrice) || unitPrice < 0) return;
+    const shelfLifeDays =
+      shelfLifeRaw === '' ? null : Number.parseInt(shelfLifeRaw, 10);
+    if (
+      shelfLifeDays !== null &&
+      (Number.isNaN(shelfLifeDays) || shelfLifeDays < 0)
+    ) {
+      return;
+    }
 
     const productId = randomUUID();
 
@@ -258,6 +267,7 @@ export default async function SupplierDetailPage({
       p_uom: uom || 'unit',
       p_unit_price: unitPrice,
       p_is_active: true,
+      p_shelf_life_days: shelfLifeDays,
     });
 
     await supabaseServer.rpc('rpc_upsert_supplier_product', {
@@ -470,6 +480,17 @@ export default async function SupplierDetailPage({
                 className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
               />
             </label>
+            <label className="text-sm text-zinc-600">
+              Vencimiento aproximado (días)
+              <input
+                name="shelf_life_days"
+                type="number"
+                step="1"
+                min="0"
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                placeholder="Ej: 30"
+              />
+            </label>
             <div className="md:col-span-2">
               <button
                 type="submit"
@@ -509,14 +530,14 @@ export default async function SupplierDetailPage({
               </select>
             </label>
             <label className="text-sm text-zinc-600">
-              SKU proveedor
+              SKU en proveedor
               <input
                 name="supplier_sku"
                 className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
               />
             </label>
             <label className="text-sm text-zinc-600">
-              Nombre proveedor
+              Nombre del producto en proveedor
               <input
                 name="supplier_product_name"
                 className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
@@ -599,7 +620,7 @@ export default async function SupplierDetailPage({
                             value={product.relation_type}
                           />
                           <label className="text-xs text-zinc-600">
-                            SKU proveedor
+                            SKU en proveedor
                             <input
                               name="supplier_sku"
                               defaultValue={product.supplier_sku ?? ''}
@@ -607,7 +628,7 @@ export default async function SupplierDetailPage({
                             />
                           </label>
                           <label className="text-xs text-zinc-600">
-                            Nombre proveedor
+                            Nombre del producto en proveedor
                             <input
                               name="supplier_product_name"
                               defaultValue={product.supplier_product_name ?? ''}
@@ -688,7 +709,7 @@ export default async function SupplierDetailPage({
                             value={product.relation_type}
                           />
                           <label className="text-xs text-zinc-600">
-                            SKU proveedor
+                            SKU en proveedor
                             <input
                               name="supplier_sku"
                               defaultValue={product.supplier_sku ?? ''}
@@ -696,7 +717,7 @@ export default async function SupplierDetailPage({
                             />
                           </label>
                           <label className="text-xs text-zinc-600">
-                            Nombre proveedor
+                            Nombre del producto en proveedor
                             <input
                               name="supplier_product_name"
                               defaultValue={product.supplier_product_name ?? ''}

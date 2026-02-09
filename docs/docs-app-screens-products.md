@@ -81,6 +81,7 @@ Campos mínimos:
 - uom (ej: kg)
 - unit_price (>= 0)
 - is_active (default true)
+- vencimiento_aproximado_dias (opcional)
 - proveedor_primario (opcional pero recomendado)
 - proveedor_secundario (opcional)
 
@@ -148,8 +149,10 @@ Salida mínima por fila:
 - uom
 - unit_price
 - is_active
+- vencimiento_aproximado_dias
 - stock_total
 - stock_by_branch[] (branch_id, branch_name, quantity_on_hand)
+- shelf_life_days (int, nullable)
 - safety_stock_by_branch[] (branch_id, safety_stock) (si se expone en view)
 
 Nota: el desglose por sucursal evita el selector en MVP.
@@ -160,6 +163,7 @@ RPC 1: `rpc_upsert_product(input)`
 
 - product_id
 - name, internal_code, barcode, sell_unit_type, uom, unit_price, is_active
+- shelf_life_days (int, nullable)
 
 RPC 2: `rpc_adjust_stock_manual(input)`
 

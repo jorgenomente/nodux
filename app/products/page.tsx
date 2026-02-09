@@ -181,6 +181,7 @@ export default async function ProductsPage() {
       | 'bulk';
     const uom = String(formData.get('uom') ?? '').trim();
     const unitPriceRaw = String(formData.get('unit_price') ?? '0').trim();
+    const shelfLifeRaw = String(formData.get('shelf_life_days') ?? '').trim();
     const primarySupplierId = String(
       formData.get('primary_supplier_id') ?? '',
     ).trim();
@@ -196,6 +197,14 @@ export default async function ProductsPage() {
 
     const unitPrice = Number(unitPriceRaw);
     if (Number.isNaN(unitPrice) || unitPrice < 0) return;
+    const shelfLifeDays =
+      shelfLifeRaw === '' ? null : Number.parseInt(shelfLifeRaw, 10);
+    if (
+      shelfLifeDays !== null &&
+      (Number.isNaN(shelfLifeDays) || shelfLifeDays < 0)
+    ) {
+      return;
+    }
 
     const { data: userData } = await supabaseServer.auth.getUser();
     const userId = userData.user?.id;
@@ -221,6 +230,7 @@ export default async function ProductsPage() {
       p_uom: uom || 'unit',
       p_unit_price: unitPrice,
       p_is_active: true,
+      p_shelf_life_days: shelfLifeDays,
     });
 
     if (primarySupplierId) {
@@ -275,6 +285,9 @@ export default async function ProductsPage() {
     ) as 'unit' | 'weight' | 'bulk';
     const uom = String(formData.get('edit_uom') ?? '').trim();
     const unitPriceRaw = String(formData.get('edit_unit_price') ?? '0').trim();
+    const shelfLifeRaw = String(
+      formData.get('edit_shelf_life_days') ?? '',
+    ).trim();
     const isActive = formData.get('is_active') === 'true';
     const primarySupplierId = String(
       formData.get('primary_supplier_id') ?? '',
@@ -287,6 +300,14 @@ export default async function ProductsPage() {
 
     const unitPrice = Number(unitPriceRaw);
     if (Number.isNaN(unitPrice) || unitPrice < 0) return;
+    const shelfLifeDays =
+      shelfLifeRaw === '' ? null : Number.parseInt(shelfLifeRaw, 10);
+    if (
+      shelfLifeDays !== null &&
+      (Number.isNaN(shelfLifeDays) || shelfLifeDays < 0)
+    ) {
+      return;
+    }
 
     const { data: userData } = await supabaseServer.auth.getUser();
     const userId = userData.user?.id;
@@ -310,6 +331,7 @@ export default async function ProductsPage() {
       p_uom: uom || 'unit',
       p_unit_price: unitPrice,
       p_is_active: isActive,
+      p_shelf_life_days: shelfLifeDays,
     });
 
     const secondarySupplierId =
@@ -497,6 +519,17 @@ export default async function ProductsPage() {
                 step="0.01"
                 className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
                 defaultValue="0"
+              />
+            </label>
+            <label className="text-sm font-medium text-zinc-700">
+              Vencimiento aproximado (días)
+              <input
+                name="shelf_life_days"
+                type="number"
+                step="1"
+                min="0"
+                className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                placeholder="Ej: 30"
               />
             </label>
             <label className="text-sm font-medium text-zinc-700">
@@ -730,6 +763,10 @@ export default async function ProductsPage() {
                         {formatStockByBranch(product.stock_by_branch)}
                       </div>
                       <div className="text-xs text-zinc-500">
+                        Vencimiento aprox:{' '}
+                        {product.shelf_life_days ?? 'Sin definir'} días
+                      </div>
+                      <div className="text-xs text-zinc-500">
                         Stock minimo:{' '}
                         {formatSafetyStockByBranch(
                           safetyStockByProduct.get(String(product.product_id)),
@@ -759,6 +796,11 @@ export default async function ProductsPage() {
                           uom={product.uom ?? 'unit'}
                           unitPrice={Number(product.unit_price ?? 0)}
                           isActive={Boolean(product.is_active)}
+                          shelfLifeDays={
+                            product.shelf_life_days == null
+                              ? null
+                              : Number(product.shelf_life_days)
+                          }
                           primarySupplierId={
                             supplierByProduct.get(String(product.product_id))
                               ?.primary?.id ?? ''

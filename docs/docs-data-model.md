@@ -16,6 +16,12 @@ Estado actual:
 - RPC safety stock en `supabase/migrations/20260209173000_012_safety_stock_rpc.sql`.
 - RPC suppliers con schedule en `supabase/migrations/20260209174000_013_rpc_upsert_supplier_schedule.sql`.
 - Views suppliers con schedule en `supabase/migrations/20260209175000_014_view_suppliers_schedule.sql`.
+- Shelf life days producto en `supabase/migrations/20260209180000_015_products_shelf_life_days.sql`.
+- RPC product shelf life en `supabase/migrations/20260209181000_016_rpc_upsert_product_shelf_life.sql`.
+- View products con shelf life en `supabase/migrations/20260209182000_017_view_products_admin_shelf_life.sql`.
+- Vencimientos con cantidad > 0 en `supabase/migrations/20260209183000_018_expirations_due_quantity_filter.sql`.
+- Recepcion de pedido crea batches en `supabase/migrations/20260209184000_019_receive_order_create_batches.sql`.
+- Ventas consumen batches FEFO en `supabase/migrations/20260209185000_020_create_sale_consume_batches.sql`.
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 
@@ -186,6 +192,7 @@ Estado actual:
 - `sell_unit_type` (sell_unit_type)
 - `uom` (text)
 - `unit_price` (numeric)
+- `shelf_life_days` (int, nullable)
 - `is_active` (boolean)
 - `created_at`, `updated_at`
 

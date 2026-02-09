@@ -185,6 +185,7 @@ Constraints:
 - `sell_unit_type` (sell_unit_type)
 - `uom` (text, required) -- unidad base (ej: kg)
 - `unit_price` (numeric(12,2), default 0)
+- `shelf_life_days` (int, nullable)
 - `is_active` (boolean, default true)
 - `created_at`, `updated_at`
 

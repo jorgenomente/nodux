@@ -95,7 +95,7 @@ RPC status change:
 - Confirmar recepción:
   - registra received_at
   - genera movimientos purchase por item (stock +)
-  - opcional: captura vencimientos (Post-MVP o MVP mínimo si querés)
+  - genera batches de vencimiento si el producto tiene `shelf_life_days`
     RPC: `rpc_receive_supplier_order(order_id, received_items[])`
 
 ### A6) Conciliar (received → reconciled)

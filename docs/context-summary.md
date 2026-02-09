@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-02-09 11:29
+Ultima actualizacion: 2026-02-09 12:06
 
 ## Estado general
 
@@ -32,6 +32,8 @@ Ultima actualizacion: 2026-02-09 11:29
 
 - UI actualizada: /products, /suppliers y /suppliers/[supplierId] con proveedores primario/secundario y safety stock.
 - Sugeridos simples en /orders usando ventas 30 dias + safety stock.
+- Productos con vencimiento aproximado (dias) y batches automaticos al recibir pedidos.
+- Ventas consumen batches FEFO (best-effort) para evitar alertas falsas.
 
 ## Post-MVP ya registrado
 

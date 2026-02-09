@@ -1068,3 +1068,71 @@ Se actualizo AGENTS para exigir commit + push al cierre de lote cuando el usuari
 
 **Tests:** No ejecutados (docs-only)
 **Commit:** N/A
+
+## 2026-02-09 — Renombre labels proveedor
+
+**Tipo:** ux
+**Alcance:** frontend, docs
+
+**Resumen**
+Se renombraron labels de SKU/Nombre del proveedor para clarificar que son datos del producto en el proveedor.
+
+**Impacto**
+
+- Mejora claridad en /suppliers/[supplierId].
+- No cambia datos ni contratos.
+
+**Archivos**
+
+- app/suppliers/[supplierId]/page.tsx
+- docs/docs-app-screens-supplier-detail.md
+- docs/prompts.md
+
+**Tests:** No ejecutados (UI microcambio)
+**Commit:** N/A
+
+## 2026-02-09 — Shelf life y FEFO
+
+**Tipo:** feature
+**Alcance:** db, frontend, docs, tests
+
+**Resumen**
+Se agrego vencimiento aproximado por producto (dias) y se automatizo la creacion/consumo de batches al recibir pedidos y vender (FEFO best-effort). Se filtro expirations por cantidad > 0.
+
+**Impacto**
+
+- Permite alertas de vencimiento basadas en días aproximados.
+- Evita alertas falsas al consumir batches en ventas.
+- Mantiene ventas sin bloqueo si faltan batches.
+
+**Archivos**
+
+- app/products/page.tsx
+- app/products/ProductActions.tsx
+- app/suppliers/[supplierId]/page.tsx
+- supabase/migrations/20260209180000_015_products_shelf_life_days.sql
+- supabase/migrations/20260209181000_016_rpc_upsert_product_shelf_life.sql
+- supabase/migrations/20260209182000_017_view_products_admin_shelf_life.sql
+- supabase/migrations/20260209183000_018_expirations_due_quantity_filter.sql
+- supabase/migrations/20260209184000_019_receive_order_create_batches.sql
+- supabase/migrations/20260209185000_020_create_sale_consume_batches.sql
+- docs/docs-data-model.md
+- docs/docs-schema-model.md
+- docs/docs-modules-expirations.md
+- docs/docs-modules-products-stock.md
+- docs/docs-modules-supplier-orders.md
+- docs/docs-app-screens-products.md
+- docs/docs-app-screens-order-detail.md
+- docs/docs-app-screens-supplier-detail.md
+- docs/context-summary.md
+- docs/schema.sql
+- types/supabase.ts
+- docs/prompts.md
+
+**Tests:**
+
+- npx supabase db reset OK (2026-02-09)
+- npm run lint OK (2026-02-09)
+- npm run build OK (2026-02-09)
+
+**Commit:** N/A

@@ -69,7 +69,7 @@ MVP recomendado (secciones verticales):
 - Input typeahead de productos activos
 - Al seleccionar:
   - crea asociación
-  - opcional: completar supplier_sku, supplier_product_name
+  - opcional: completar SKU en proveedor y nombre del producto en proveedor
   - definir relation_type (primary | secondary)
 
 ### A4) Editar datos de asociación
@@ -87,6 +87,7 @@ MVP recomendado (secciones verticales):
 ### A6) Crear producto desde proveedor
 
 - Formulario mínimo para crear producto nuevo
+- Incluir vencimiento aproximado (días)
 - Al crear, se asocia automáticamente como proveedor primario
 
 ---

@@ -111,6 +111,7 @@ Campos clave:
   - name obligatorio
   - sell_unit_type coherente
   - precio ≥ 0
+- vencimiento aproximado (días) opcional
 
 ### Ajuste de stock (OA)
 

@@ -299,8 +299,7 @@ declare
   v_sale_id uuid := gen_random_uuid();
   v_total numeric(12,2) := 0;
   v_created_at timestamptz := now();
-  v_allow_negative boolean := true;
-  v_pos_enabled boolean := false;
+  v_allow_negative boolean := false;
   v_item jsonb;
   v_product_id uuid;
   v_qty numeric(14,3);
@@ -308,53 +307,15 @@ declare
   v_name text;
   v_line_total numeric(12,2);
   v_current numeric(14,3);
-  v_items_count int := 0;
+  v_remaining numeric(14,3);
+  v_batch record;
 begin
-  if auth.uid() is null then
-    raise exception 'not authenticated';
-  end if;
-
-  if not public.is_org_admin_or_superadmin(p_org_id) then
-    if not exists (
-      select 1
-      from public.org_users ou
-      where ou.org_id = p_org_id
-        and ou.user_id = auth.uid()
-        and ou.is_active = true
-        and ou.role = 'staff'
-    ) then
-      raise exception 'not authorized';
-    end if;
-
-    select coalesce(
-      (select sma.is_enabled
-       from public.staff_module_access sma
-       where sma.org_id = p_org_id
-         and sma.branch_id = p_branch_id
-         and sma.role = 'staff'
-         and sma.module_key = 'pos'
-       limit 1),
-      (select sma.is_enabled
-       from public.staff_module_access sma
-       where sma.org_id = p_org_id
-         and sma.branch_id is null
-         and sma.role = 'staff'
-         and sma.module_key = 'pos'
-       limit 1),
-      false
-    ) into v_pos_enabled;
-
-    if not v_pos_enabled then
-      raise exception 'pos module disabled';
-    end if;
-  end if;
-
   select allow_negative_stock into v_allow_negative
   from public.org_preferences
   where org_id = p_org_id;
 
   if v_allow_negative is null then
-    v_allow_negative := true;
+    v_allow_negative := false;
   end if;
 
   insert into public.sales (id, org_id, branch_id, created_by, payment_method, total_amount, created_at)
@@ -362,7 +323,6 @@ begin
 
   for v_item in select * from jsonb_array_elements(p_items)
   loop
-    v_items_count := v_items_count + 1;
     v_product_id := (v_item ->> 'product_id')::uuid;
     v_qty := (v_item ->> 'quantity')::numeric;
 
@@ -419,23 +379,38 @@ begin
     ) values (
       p_org_id, p_branch_id, v_product_id, 'sale', -v_qty, 'sale', v_sale_id
     );
+
+    -- Consume expiration batches (FEFO)
+    v_remaining := v_qty;
+    for v_batch in
+      select id, quantity
+      from public.expiration_batches
+      where org_id = p_org_id
+        and branch_id = p_branch_id
+        and product_id = v_product_id
+        and quantity > 0
+      order by expires_on asc, created_at asc
+      for update
+    loop
+      exit when v_remaining <= 0;
+
+      if v_batch.quantity >= v_remaining then
+        update public.expiration_batches
+          set quantity = quantity - v_remaining,
+              updated_at = now()
+        where id = v_batch.id;
+        v_remaining := 0;
+      else
+        update public.expiration_batches
+          set quantity = 0,
+              updated_at = now()
+        where id = v_batch.id;
+        v_remaining := v_remaining - v_batch.quantity;
+      end if;
+    end loop;
   end loop;
 
   update public.sales set total_amount = v_total where id = v_sale_id;
-
-  perform public.rpc_log_audit_event(
-    p_org_id,
-    'sale_created',
-    'sale',
-    v_sale_id,
-    p_branch_id,
-    jsonb_build_object(
-      'total', v_total,
-      'payment_method', p_payment_method,
-      'items_count', v_items_count
-    ),
-    null
-  );
 
   return query select v_sale_id, v_total, v_created_at;
 end;
@@ -782,7 +757,8 @@ declare
   v_item_id uuid;
   v_received_qty numeric(14,3);
   v_product_id uuid;
-  v_items_count int := 0;
+  v_shelf_life_days integer;
+  v_expires_on date;
 begin
   select * into v_order
   from public.supplier_orders
@@ -799,7 +775,6 @@ begin
 
   for v_item in select * from jsonb_array_elements(p_items)
   loop
-    v_items_count := v_items_count + 1;
     v_item_id := (v_item ->> 'order_item_id')::uuid;
     v_received_qty := (v_item ->> 'received_qty')::numeric;
 
@@ -824,22 +799,43 @@ begin
     ) values (
       p_org_id, v_order.branch_id, v_product_id, 'purchase', v_received_qty, 'purchase', p_order_id
     );
+
+    if v_received_qty > 0 then
+      select shelf_life_days into v_shelf_life_days
+      from public.products
+      where id = v_product_id and org_id = p_org_id;
+
+      if v_shelf_life_days is not null and v_shelf_life_days > 0 then
+        v_expires_on := current_date + v_shelf_life_days;
+        insert into public.expiration_batches (
+          org_id,
+          branch_id,
+          product_id,
+          expires_on,
+          quantity,
+          source_type,
+          source_ref_id,
+          created_at,
+          updated_at
+        ) values (
+          p_org_id,
+          v_order.branch_id,
+          v_product_id,
+          v_expires_on,
+          v_received_qty,
+          'purchase',
+          p_order_id,
+          now(),
+          now()
+        );
+      end if;
+    end if;
   end loop;
 
   update public.supplier_orders
     set status = 'received',
         received_at = now()
   where id = p_order_id and org_id = p_org_id;
-
-  perform public.rpc_log_audit_event(
-    p_org_id,
-    'supplier_order_received',
-    'supplier_order',
-    p_order_id,
-    v_order.branch_id,
-    jsonb_build_object('items_count', v_items_count),
-    null
-  );
 end;
 $$;
 
@@ -1293,6 +1289,71 @@ $$;
 ALTER FUNCTION "public"."rpc_upsert_product"("p_product_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_internal_code" "text", "p_barcode" "text", "p_sell_unit_type" "public"."sell_unit_type", "p_uom" "text", "p_unit_price" numeric, "p_is_active" boolean) OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."rpc_upsert_product"("p_product_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_internal_code" "text", "p_barcode" "text", "p_sell_unit_type" "public"."sell_unit_type", "p_uom" "text", "p_unit_price" numeric, "p_is_active" boolean, "p_shelf_life_days" integer DEFAULT NULL::integer) RETURNS TABLE("product_id" "uuid")
+    LANGUAGE "sql"
+    AS $$
+  with upserted as (
+    insert into public.products (
+      id,
+      org_id,
+      name,
+      internal_code,
+      barcode,
+      sell_unit_type,
+      uom,
+      unit_price,
+      is_active,
+      shelf_life_days
+    )
+    values (
+      coalesce(p_product_id, gen_random_uuid()),
+      p_org_id,
+      p_name,
+      p_internal_code,
+      p_barcode,
+      p_sell_unit_type,
+      p_uom,
+      p_unit_price,
+      coalesce(p_is_active, true),
+      p_shelf_life_days
+    )
+    on conflict (id) do update set
+      name = excluded.name,
+      internal_code = excluded.internal_code,
+      barcode = excluded.barcode,
+      sell_unit_type = excluded.sell_unit_type,
+      uom = excluded.uom,
+      unit_price = excluded.unit_price,
+      is_active = excluded.is_active,
+      shelf_life_days = excluded.shelf_life_days
+    returning id
+  ), logged as (
+    select public.rpc_log_audit_event(
+      p_org_id,
+      'product_upsert',
+      'product',
+      (select id from upserted),
+      null,
+      jsonb_build_object(
+        'name', p_name,
+        'internal_code', p_internal_code,
+        'barcode', p_barcode,
+        'sell_unit_type', p_sell_unit_type,
+        'uom', p_uom,
+        'unit_price', p_unit_price,
+        'is_active', p_is_active,
+        'shelf_life_days', p_shelf_life_days
+      ),
+      null
+    )
+  )
+  select id from upserted;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_upsert_product"("p_product_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_internal_code" "text", "p_barcode" "text", "p_sell_unit_type" "public"."sell_unit_type", "p_uom" "text", "p_unit_price" numeric, "p_is_active" boolean, "p_shelf_life_days" integer) OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rpc_upsert_supplier"("p_supplier_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_contact_name" "text", "p_phone" "text", "p_email" "text", "p_notes" "text", "p_is_active" boolean) RETURNS TABLE("supplier_id" "uuid")
     LANGUAGE "sql"
     AS $$
@@ -1660,7 +1721,9 @@ CREATE TABLE IF NOT EXISTS "public"."products" (
     "unit_price" numeric(12,2) DEFAULT 0 NOT NULL,
     "is_active" boolean DEFAULT true NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "shelf_life_days" integer,
+    CONSTRAINT "products_shelf_life_days_nonnegative" CHECK ((("shelf_life_days" IS NULL) OR ("shelf_life_days" >= 0)))
 );
 
 
@@ -1954,7 +2017,8 @@ CREATE OR REPLACE VIEW "public"."v_expirations_due" AS
    FROM ((("public"."expiration_batches" "eb"
      LEFT JOIN "public"."products" "p" ON ((("p"."id" = "eb"."product_id") AND ("p"."org_id" = "eb"."org_id"))))
      LEFT JOIN "public"."branches" "b" ON ((("b"."id" = "eb"."branch_id") AND ("b"."org_id" = "eb"."org_id"))))
-     LEFT JOIN "public"."org_preferences" "op" ON (("op"."org_id" = "eb"."org_id")));
+     LEFT JOIN "public"."org_preferences" "op" ON (("op"."org_id" = "eb"."org_id")))
+  WHERE ("eb"."quantity" > (0)::numeric);
 
 
 ALTER VIEW "public"."v_expirations_due" OWNER TO "postgres";
@@ -2049,7 +2113,8 @@ SELECT
     NULL::timestamp with time zone AS "created_at",
     NULL::timestamp with time zone AS "updated_at",
     NULL::numeric AS "stock_total",
-    NULL::"jsonb" AS "stock_by_branch";
+    NULL::"jsonb" AS "stock_by_branch",
+    NULL::integer AS "shelf_life_days";
 
 
 ALTER VIEW "public"."v_products_admin" OWNER TO "postgres";
@@ -2409,7 +2474,8 @@ CREATE OR REPLACE VIEW "public"."v_products_admin" AS
     "p"."created_at",
     "p"."updated_at",
     COALESCE("sum"(COALESCE("si"."quantity_on_hand", (0)::numeric)), (0)::numeric) AS "stock_total",
-    "jsonb_agg"("jsonb_build_object"('branch_id', "b"."id", 'branch_name', "b"."name", 'quantity_on_hand', COALESCE("si"."quantity_on_hand", (0)::numeric)) ORDER BY "b"."name") AS "stock_by_branch"
+    "jsonb_agg"("jsonb_build_object"('branch_id', "b"."id", 'branch_name', "b"."name", 'quantity_on_hand', COALESCE("si"."quantity_on_hand", (0)::numeric)) ORDER BY "b"."name") AS "stock_by_branch",
+    "p"."shelf_life_days"
    FROM (("public"."products" "p"
      JOIN "public"."branches" "b" ON (("b"."org_id" = "p"."org_id")))
      LEFT JOIN "public"."stock_items" "si" ON ((("si"."product_id" = "p"."id") AND ("si"."branch_id" = "b"."id") AND ("si"."org_id" = "p"."org_id"))))
@@ -3128,6 +3194,12 @@ GRANT ALL ON FUNCTION "public"."rpc_upsert_client"("p_client_id" "uuid", "p_org_
 GRANT ALL ON FUNCTION "public"."rpc_upsert_product"("p_product_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_internal_code" "text", "p_barcode" "text", "p_sell_unit_type" "public"."sell_unit_type", "p_uom" "text", "p_unit_price" numeric, "p_is_active" boolean) TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_upsert_product"("p_product_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_internal_code" "text", "p_barcode" "text", "p_sell_unit_type" "public"."sell_unit_type", "p_uom" "text", "p_unit_price" numeric, "p_is_active" boolean) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_upsert_product"("p_product_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_internal_code" "text", "p_barcode" "text", "p_sell_unit_type" "public"."sell_unit_type", "p_uom" "text", "p_unit_price" numeric, "p_is_active" boolean) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_upsert_product"("p_product_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_internal_code" "text", "p_barcode" "text", "p_sell_unit_type" "public"."sell_unit_type", "p_uom" "text", "p_unit_price" numeric, "p_is_active" boolean, "p_shelf_life_days" integer) TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_upsert_product"("p_product_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_internal_code" "text", "p_barcode" "text", "p_sell_unit_type" "public"."sell_unit_type", "p_uom" "text", "p_unit_price" numeric, "p_is_active" boolean, "p_shelf_life_days" integer) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_upsert_product"("p_product_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_internal_code" "text", "p_barcode" "text", "p_sell_unit_type" "public"."sell_unit_type", "p_uom" "text", "p_unit_price" numeric, "p_is_active" boolean, "p_shelf_life_days" integer) TO "service_role";
 
 
 

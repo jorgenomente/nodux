@@ -15,6 +15,7 @@ type EditPayload = {
   isActive: boolean;
   primarySupplierId: string;
   secondarySupplierId: string;
+  shelfLifeDays: string;
 };
 
 type SupplierOption = {
@@ -32,6 +33,7 @@ type Props = {
   uom: string;
   unitPrice: number;
   isActive: boolean;
+  shelfLifeDays: number | null;
   primarySupplierId: string;
   secondarySupplierId: string;
   suppliers: SupplierOption[];
@@ -47,6 +49,7 @@ export default function ProductActions({
   uom,
   unitPrice,
   isActive,
+  shelfLifeDays,
   primarySupplierId,
   secondarySupplierId,
   suppliers,
@@ -66,6 +69,7 @@ export default function ProductActions({
     formData.append('is_active', String(payload.isActive));
     formData.append('primary_supplier_id', payload.primarySupplierId);
     formData.append('secondary_supplier_id', payload.secondarySupplierId);
+    formData.append('edit_shelf_life_days', payload.shelfLifeDays);
     return formData;
   };
 
@@ -93,6 +97,7 @@ export default function ProductActions({
       isActive: !isActive,
       primarySupplierId,
       secondarySupplierId,
+      shelfLifeDays: shelfLifeDays == null ? '' : String(shelfLifeDays),
     });
     onSubmit(formData);
   };
@@ -156,6 +161,17 @@ export default function ProductActions({
             type="number"
             step="0.01"
             defaultValue={unitPrice ?? 0}
+            className="rounded border border-zinc-200 px-2 py-1"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          Vencimiento aprox (días)
+          <input
+            name="edit_shelf_life_days"
+            type="number"
+            step="1"
+            min="0"
+            defaultValue={shelfLifeDays ?? ''}
             className="rounded border border-zinc-200 px-2 py-1"
           />
         </label>

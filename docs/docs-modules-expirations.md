@@ -85,6 +85,13 @@ Cuando una venta descuenta stock, si se usa batches:
 
 > Decisión MVP recomendada: “best effort” FEFO + alerta, no bloquear ventas.
 
+### R4.1) Creación automática de batches (MVP)
+
+- Al recibir pedidos a proveedor, si el producto tiene `shelf_life_days`, se crea un batch:
+  - `expires_on = fecha_recepcion + shelf_life_days`
+  - `quantity = received_qty`
+- Si `shelf_life_days` es null/0, no se generan batches automáticos.
+
 ### R5) Registro manual desde góndola (MVP)
 
 OA puede registrar batches manualmente:

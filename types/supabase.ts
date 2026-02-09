@@ -552,6 +552,7 @@ export type Database = {
           name: string;
           org_id: string;
           sell_unit_type: Database['public']['Enums']['sell_unit_type'];
+          shelf_life_days: number | null;
           unit_price: number;
           uom: string;
           updated_at: string;
@@ -565,6 +566,7 @@ export type Database = {
           name: string;
           org_id: string;
           sell_unit_type: Database['public']['Enums']['sell_unit_type'];
+          shelf_life_days?: number | null;
           unit_price?: number;
           uom: string;
           updated_at?: string;
@@ -578,6 +580,7 @@ export type Database = {
           name?: string;
           org_id?: string;
           sell_unit_type?: Database['public']['Enums']['sell_unit_type'];
+          shelf_life_days?: number | null;
           unit_price?: number;
           uom?: string;
           updated_at?: string;
@@ -1820,6 +1823,7 @@ export type Database = {
           org_id: string | null;
           product_id: string | null;
           sell_unit_type: Database['public']['Enums']['sell_unit_type'] | null;
+          shelf_life_days: number | null;
           stock_by_branch: Json | null;
           stock_total: number | null;
           unit_price: number | null;
@@ -2449,22 +2453,40 @@ export type Database = {
           client_id: string;
         }[];
       };
-      rpc_upsert_product: {
-        Args: {
-          p_barcode: string;
-          p_internal_code: string;
-          p_is_active: boolean;
-          p_name: string;
-          p_org_id: string;
-          p_product_id: string;
-          p_sell_unit_type: Database['public']['Enums']['sell_unit_type'];
-          p_unit_price: number;
-          p_uom: string;
-        };
-        Returns: {
-          product_id: string;
-        }[];
-      };
+      rpc_upsert_product:
+        | {
+            Args: {
+              p_barcode: string;
+              p_internal_code: string;
+              p_is_active: boolean;
+              p_name: string;
+              p_org_id: string;
+              p_product_id: string;
+              p_sell_unit_type: Database['public']['Enums']['sell_unit_type'];
+              p_unit_price: number;
+              p_uom: string;
+            };
+            Returns: {
+              product_id: string;
+            }[];
+          }
+        | {
+            Args: {
+              p_barcode: string;
+              p_internal_code: string;
+              p_is_active: boolean;
+              p_name: string;
+              p_org_id: string;
+              p_product_id: string;
+              p_sell_unit_type: Database['public']['Enums']['sell_unit_type'];
+              p_shelf_life_days?: number;
+              p_unit_price: number;
+              p_uom: string;
+            };
+            Returns: {
+              product_id: string;
+            }[];
+          };
       rpc_upsert_supplier:
         | {
             Args: {

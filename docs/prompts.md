@@ -364,3 +364,19 @@ si adelante con lo recomiendes
 
 **Prompt**
 antes de hacer QA te queria preguntar si esta contemplado en el AGENTS.md hacer el commit y push caada vez que sea necesario. si no, agregalo, y hagamos el commit de todo lo pendiente y push
+
+## 2026-02-09 11:48 — Renombrar labels proveedor
+
+**Lote:** ui-labels-supplier
+**Objetivo:** Renombrar labels de SKU/Nombre en proveedor para evitar confusion.
+
+**Prompt**
+Vamos a modificar eso para que se entienda mejor haz el renombre
+
+## 2026-02-09 12:06 — Vencimiento aproximado y batches automaticos
+
+**Lote:** expirations-shelf-life
+**Objetivo:** Agregar shelf life en productos y automatizar batches/FEFO en recepcion y ventas.
+
+**Prompt**
+Vamos a avanzar en algo mas, en http://localhost:3000/products en nuevo producto me gustaria agregar un campo que diga fecha de vencimiento aproximada y alli coloco el numero de dias. Esto es importante para generar alertas de vencimiento en caso de que el bach de pedido este alli por mas de este numero de dias o cerca ya se genera una alerta automatica de vencimiento de ese articulo. hay productos que duran 3 meses otros anos otros dias, entonces esto es importante coloquemos un numero de dias aproximado. Cuando se confirma el pedido recibido, que creo que no hemos trabajado en esto, debemos entender que tenemos articulos que tienen esa fecha de vencimiento aproxumado. si esos articulos no se han vendido y estamos llegando a esa fecha aproximada pero si se vendieron entonces no deberia recibir esta alerta. tiene sentido? Al registrar el producto colocamos mas o menos la fecha de vencimiento que trae, la cantidad de dias que dura, luego al confirmar la recepcion de ese pedido entonces empieza a contar la fecha segun la cantidad de articulos que nos quedan o que recibimos, no se si me explico bien.

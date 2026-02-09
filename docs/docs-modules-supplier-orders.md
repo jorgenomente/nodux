@@ -121,6 +121,7 @@ Siempre `branch_id` (recepción e ingreso de stock ocurren en esa sucursal).
 - El ingreso se hace al pasar a `received` (o en acción explícita “Recibir”)
 - Cada item genera movimiento `purchase` (append-only) referenciando order_id y item_id.
 - Stock se incrementa por `received_qty`.
+- Si el producto tiene `shelf_life_days`, se crea un batch de vencimiento automático.
 
 ### R4) Diferencias pedido vs recibido
 
