@@ -12,6 +12,61 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-11 10:23 — Fix POS: created_at ambiguo
+
+**Lote:** pos-sale-ambiguous-created-at
+**Objetivo:** Corregir error 42702 en rpc_create_sale.
+
+**Prompt**
+este es el mesaje {
+"message": "column reference \"created_at\" is ambiguous",
+"details": "It could refer to either a PL/pgSQL variable or a table column.",
+"hint": null,
+"code": "42702"
+}
+
+## 2026-02-11 10:21 — Debug POS venta
+
+**Lote:** pos-sale-debug
+**Objetivo:** Exponer error detallado del RPC de venta para diagnostico.
+
+**Prompt**
+lo estoy haciendo manual todo funciona bien excepto al final al cobrar que me dice No pudimos registrar la venta. la consola dice esto forward-logs-shared.ts:95 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+forward-logs-shared.ts:95 [HMR] connected
+127.0.0.1:54321/rest/v1/rpc/rpc_create_sale:1 Failed to load resource: the server responded with a status of 400 (Bad Request)
+no se si podemos hacer un diagnostico me gustaria que haya un log o algo pareceido para determinar que pasa, sabes que podemos hacer?
+
+## 2026-02-11 10:11 — Smoke test POS + seed real
+
+**Lote:** smoke-pos-seed
+**Objetivo:** Crear smoke test y datos reales para proveedores, productos, stock y clientes.
+
+**Prompt**
+vamos a crear un smoke test para esto. necesito incorporar proveedores, articulos, stock, clientes, etc. que sean nombres reales por ejemplo cafe, mate, chocolate, todo lo necesario para hacer esta prueba. me puedes ayudar con eso?
+
+## 2026-02-11 10:04 — POS: error al cobrar
+
+**Lote:** pos-sale-rls-fix
+**Objetivo:** Resolver error 400 al cobrar en POS causado por RLS.
+
+**Prompt**
+todo funciona bien excepto al final en el pos cuando le doy cobrar me dice esto la consola forward-logs-shared.ts:95 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+forward-logs-shared.ts:95 [HMR] connected
+fetch.ts:7 POST http://127.0.0.1:54321/rest/v1/rpc/rpc_create_sale 400 (Bad Request)
+(anonymous) @ fetch.ts:7
+(anonymous) @ fetch.ts:34
+await in (anonymous)
+then @ PostgrestBuilder.ts:122
+y la UI me dice No pudimos registrar la venta.
+
+## 2026-02-11 09:51 — Pedidos especiales + POS
+
+**Lote:** special-orders-pos
+**Objetivo:** Integrar pedidos especiales con items, proveedores, alertas en pedidos y cobro en POS.
+
+**Prompt**
+muy bien me gusta. ahora vamos a trabajar para conectar todo y hacer esto bien funcional. veo que cuando hgo click en el cliente me muestra todo para editar al cliente, esta bien, pero me gustaria que eso aparezca cuando le de click a editar asi no esta siempre visible y me quite espacio. lo mismo para nuevo pedido especial, que me aparezca esa info cuando le de click a nuevo pedido especial. luego debemos encontrar una manera de que esto tambien se sincronice con el stock porque si entregamos algo que se le pidio a un cliente y fue ordenado y entregado eso se debe contar, entonces como se hace para saber que es lo que el cliente esta pidiendo? Supongo que a la hora de crear este pedido especial yo debo seleccionar entre los articulos registrados en la tienda a traves de un buscador y que pueda ir marcando y agregando al pedido lo que estoy pidiendo. Por otra parte tambien me gustaria que se generara una especie de alerta en ese proveedor por ese articulo que estoy pidiendo asi no me olvido. si yo voy a pedidos y selecciono un proveedor deberia alli decirme que tengo que tomar en cuenta tambien tal cliente que esta haciendo tal pedido de encargo. se entiende?
+
 ## 2026-02-10 10:15 — Modulo vencimientos (UI)
 
 **Lote:** expirations-module-ui
@@ -59,6 +114,14 @@ me gustaria que contemples en el AGENTS.md si no lo haces ya, que cualquier modi
 
 **Prompt**
 perfecto, ahora revisa las paginas que hemos hecho hasta ahora y comparalas con su doc correspondiente. Asegurate de explicar las funciones y ediciones adicionales que hemos hecho en su respectivo doc asi todo esta mejor explicado y documentado
+
+## 2026-02-10 13:10 — Modulo clientes
+
+**Lote:** clients-module-ui
+**Objetivo:** Implementar /clients con lista, detalle y pedidos especiales.
+
+**Prompt**
+dale vamos con clients
 
 ## 2026-02-09 16:03 — Desplegable ajuste stock
 

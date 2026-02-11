@@ -74,7 +74,7 @@ Estado: **baseline**. Este documento define una base de datos mínima coherente 
 - `sell_unit_type`: `unit` | `weight` | `bulk`
 - `stock_movement_type`: `sale` | `purchase` | `manual_adjustment` | `expiration_adjustment`
 - `supplier_order_status`: `draft` | `sent` | `received` | `reconciled`
-- `special_order_status`: `pending` | `ordered` | `received` | `delivered`
+- `special_order_status`: `pending` | `ordered` | `partial` | `delivered` | `cancelled`
 - `payment_method`: `cash` | `debit` | `credit` | `transfer` | `other`
 - `alert_severity` (si se materializa): `critical` | `warning` | `info`
 - `order_frequency`: `weekly` | `biweekly` | `every_3_weeks` | `monthly`
@@ -348,8 +348,23 @@ Constraints:
 - `client_id` (uuid, FK)
 - `description` (text, required)
 - `quantity` (numeric(14,3), nullable)
+- `notes` (text, nullable)
 - `status` (special_order_status)
 - `created_by` (uuid, FK -> auth.users.id)
+- `created_at`, `updated_at`
+
+**`client_special_order_items`**
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `special_order_id` (uuid, FK)
+- `product_id` (uuid, FK)
+- `supplier_id` (uuid, nullable FK)
+- `supplier_order_id` (uuid, nullable FK)
+- `requested_qty` (numeric(14,3))
+- `fulfilled_qty` (numeric(14,3), default 0)
+- `is_ordered` (boolean, default false)
+- `ordered_at` (timestamptz, nullable)
 - `created_at`, `updated_at`
 
 ---
@@ -366,6 +381,7 @@ Constraints:
 - `v_supplier_product_suggestions(supplier_id, branch_id)`
 - `v_orders_admin(branch_id nullable, status nullable, supplier_id nullable)`
 - `v_order_detail_admin(order_id)`
+- `v_special_order_items_pending`
 - `v_expirations_due(branch_id nullable)`
 - `v_expiration_batch_detail(batch_id)`
 - `v_settings_users_admin`
@@ -396,6 +412,8 @@ Constraints:
 - `rpc_upsert_client(input)`
 - `rpc_create_special_order(input)`
 - `rpc_set_special_order_status(input)`
+- `rpc_mark_special_order_items_ordered(input)`
+- `rpc_get_special_order_for_pos(input)`
 - `rpc_invite_user_to_org(input)`
 - `rpc_update_user_membership(input)`
 - `rpc_upsert_branch(input)`

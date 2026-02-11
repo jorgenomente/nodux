@@ -54,6 +54,13 @@ Cada row:
 - acción: “Ver” → `/orders/[orderId]`
 - Listado separado: pendientes arriba, controlados abajo
 
+### Pedidos especiales pendientes
+
+- Visible al seleccionar proveedor + sucursal
+- Lista ítems de pedidos especiales por cliente
+- Muestra sucursal y proveedor de cada ítem
+- Botón “Agregar al pedido”
+
 ---
 
 ## Acciones (MVP)
@@ -141,6 +148,23 @@ UI:
 - Selector para mostrar promedio semanal/quincenal/mensual (override manual)
 - Toggle de vista: tabla/tarjetas (persistido en localStorage)
 - Totales: costo estimado + cantidad total de items
+
+### Pedidos especiales pendientes
+
+View: `v_special_order_items_pending`
+Salida mínima:
+
+- item_id
+- special_order_id
+- client_name
+- product_id, product_name
+- remaining_qty
+- supplier_id
+- supplier_name (opcional, para UI)
+- branch_id
+- is_ordered
+
+RPC: `rpc_mark_special_order_items_ordered(p_item_ids[], p_supplier_order_id)`
 
 ---
 

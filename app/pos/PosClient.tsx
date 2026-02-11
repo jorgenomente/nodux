@@ -32,6 +32,18 @@ type Props = {
   branches: BranchOption[];
   defaultBranchId: string | null;
   initialProducts: ProductCatalogItem[];
+  specialOrder?: {
+    specialOrderId: string | null;
+    clientName: string | null;
+    items: Array<{
+      product_id: string;
+      name: string;
+      sell_unit_type: 'unit' | 'weight' | 'bulk';
+      uom: string;
+      unit_price: number;
+      quantity: number;
+    }>;
+  };
 };
 
 const PAYMENT_METHODS = [
@@ -67,6 +79,7 @@ export default function PosClient({
   branches,
   defaultBranchId,
   initialProducts,
+  specialOrder,
 }: Props) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [activeBranchId, setActiveBranchId] = useState<string | ''>(
@@ -75,11 +88,36 @@ export default function PosClient({
   const [searchTerm, setSearchTerm] = useState('');
   const [barcodeTerm, setBarcodeTerm] = useState('');
   const [results, setResults] = useState<ProductCatalogItem[]>(initialProducts);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    if (!specialOrder?.specialOrderId) return [];
+    return specialOrder.items
+      .filter((item) => item.quantity > 0)
+      .map((item) => ({
+        product_id: item.product_id,
+        name: item.name,
+        internal_code: null,
+        barcode: null,
+        sell_unit_type: item.sell_unit_type,
+        uom: item.uom,
+        unit_price: item.unit_price,
+        stock_on_hand: 0,
+        is_active: true,
+        quantity: item.quantity,
+        quantityInput: String(item.quantity),
+      }));
+  });
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [debugMessage, setDebugMessage] = useState<string | null>(null);
+  const [specialOrderId, setSpecialOrderId] = useState<string | null>(
+    specialOrder?.specialOrderId ?? null,
+  );
+  const [specialOrderClientName, setSpecialOrderClientName] = useState<
+    string | null
+  >(specialOrder?.clientName ?? null);
+  const [closeSpecialOrder, setCloseSpecialOrder] = useState(true);
   const showSearchHint =
     searchTerm.trim().length > 0 && searchTerm.trim().length < 3;
 
@@ -251,6 +289,7 @@ export default function PosClient({
     setCart([]);
     setSuccessMessage(null);
     setErrorMessage(null);
+    setDebugMessage(null);
   };
 
   useEffect(() => {
@@ -264,6 +303,7 @@ export default function PosClient({
   const handleCheckout = async () => {
     setErrorMessage(null);
     setSuccessMessage(null);
+    setDebugMessage(null);
 
     if (!activeBranchId) {
       setErrorMessage('Selecciona una sucursal antes de cobrar.');
@@ -290,6 +330,8 @@ export default function PosClient({
       p_branch_id: activeBranchId,
       p_payment_method: paymentMethod,
       p_items: items,
+      p_special_order_id: specialOrderId ?? undefined,
+      p_close_special_order: closeSpecialOrder,
     });
 
     if (error) {
@@ -299,6 +341,20 @@ export default function PosClient({
           ? 'El módulo POS está deshabilitado.'
           : 'No pudimos registrar la venta.';
       setErrorMessage(message);
+      setDebugMessage(
+        process.env.NODE_ENV !== 'production'
+          ? JSON.stringify(
+              {
+                message: error.message,
+                details: error.details,
+                hint: error.hint,
+                code: error.code,
+              },
+              null,
+              2,
+            )
+          : null,
+      );
       return;
     }
 
@@ -309,6 +365,8 @@ export default function PosClient({
       `Venta registrada. Total: ${formatCurrency(totalAmount)} (${paymentMethod}).`,
     );
     setCart([]);
+    setSpecialOrderId(null);
+    setSpecialOrderClientName(null);
     if (activeBranchId) {
       loadProducts(activeBranchId, searchTerm);
     }
@@ -352,6 +410,24 @@ export default function PosClient({
             </select>
           </div>
         </div>
+        {specialOrderId ? (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <div>
+              Pedido especial en POS
+              {specialOrderClientName
+                ? ` · Cliente: ${specialOrderClientName}`
+                : ''}
+            </div>
+            <label className="flex items-center gap-2 text-xs text-amber-800">
+              <input
+                type="checkbox"
+                checked={closeSpecialOrder}
+                onChange={(event) => setCloseSpecialOrder(event.target.checked)}
+              />
+              Cerrar pedido especial al cobrar
+            </label>
+          </div>
+        ) : null}
 
         <div className="mt-6 grid gap-4 md:grid-cols-[1.2fr_1fr]">
           <div className="rounded-xl border border-zinc-200 p-4">
@@ -556,6 +632,11 @@ export default function PosClient({
                 <div className="mt-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
                   {errorMessage}
                 </div>
+              )}
+              {debugMessage && (
+                <pre className="mt-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs whitespace-pre-wrap text-red-700">
+                  {debugMessage}
+                </pre>
               )}
               {successMessage && (
                 <div className="mt-4 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">

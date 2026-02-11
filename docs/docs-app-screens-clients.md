@@ -1,6 +1,6 @@
 # Screen Contract — Clients (Org Admin + Staff, scope limitado)
 
-**Estado actual**: placeholder MVP (pantalla estática, sin listado real).
+**Estado actual**: implementado (lista + detalle + pedidos especiales con ítems).
 
 ## Guía rápida (para diseño)
 
@@ -10,219 +10,175 @@
 - No inventes campos ni acciones: usa lo definido en el contrato de datos.
 - Si algo no está definido, marca la duda y consulta antes de decidir.
 
-  Ruta
+## Ruta
 
-/clients
+- `/clients`
 
-Rol / Acceso
+## Rol / Acceso
 
-Org Admin (OA): full
+- Org Admin (OA): full
+- Staff (ST): solo si módulo `clients` habilitado
+- Superadmin (SA) dentro de org: soporte (redirige a /superadmin)
 
-Staff (ST): solo si módulo clients habilitado, con capacidades limitadas
-
-Superadmin (SA) dentro de org: soporte
-
-Propósito
+## Propósito
 
 Gestionar clientes y pedidos especiales (lo que la tienda debe conseguir para un cliente):
 
-crear/editar cliente
-
-crear pedido especial
-
-cambiar estado del pedido especial
-
-ver historial simple (MVP)
+- crear/editar cliente
+- crear pedido especial con ítems de catálogo
+- cambiar estado del pedido especial
+- ver historial simple (MVP)
 
 MVP: esto NO es “ecommerce” ni “CRM avanzado”.
 
-Contexto de sucursal
+## Contexto de sucursal
 
-OA:
+- OA: puede filtrar por sucursal (opción “Todas” para el listado).
+- ST: solo su sucursal activa (sin “todas”).
+- Pedidos especiales siempre requieren `branch_id`.
 
-vista “Todas” + selector sucursal
+## Entidades
 
-pedidos especiales siempre asociados a una sucursal (branch_id)
-
-ST:
-
-solo su sucursal activa (sin “todas”)
-
-Entidades (conceptuales, para orientar contrato)
-
-clients
-
-client_special_orders (o similar)
-
-status: pending | ordered | received | delivered (según dashboard doc)
+- clients
+- client_special_orders (o similar)
+- status: pending | ordered | partial | delivered | cancelled
 
 Importante: esto define el contrato funcional, no el schema final.
 El schema real se confirma repo-aware cuando se implemente.
 
-UI: Layout (alto nivel)
-Header
+## UI: Layout (alto nivel)
 
-Título: “Clientes”
+### Header
 
-Search: nombre / teléfono / email (según exista)
+- Título: “Clientes”
+- Search: nombre / teléfono / email (según exista)
+- Selector sucursal (solo OA)
 
-Selector sucursal (solo OA)
-
-Sección A — Lista de clientes
+### Sección A — Lista de clientes
 
 Cada row:
 
-nombre
+- nombre
+- contacto (tel/email)
+- “Pedidos activos” (count, opcional MVP)
+- acción: seleccionar fila (abre detalle debajo)
 
-contacto (tel/email)
+### Sección B — Detalle cliente (panel inline)
 
-“Pedidos activos” (count, opcional MVP)
+- Datos cliente
+- Lista de pedidos especiales del cliente (últimos N)
+- CTA: “Nuevo pedido especial”
 
-acción: “Ver” (abre panel lateral/modal)
+### Sección C — Pedidos especiales (creación/edición)
 
-Sección B — Panel cliente (sheet/modal)
+Sección dentro del panel:
 
-Datos cliente
+- selector de productos del catálogo (múltiples)
+- cantidad (entera)
+- proveedor sugerido (primario) + override manual
+- notas
+- estado
+- sucursal (solo OA si está en “todas”)
 
-Lista de pedidos especiales del cliente (últimos N)
+## Acciones del usuario (MVP)
 
-CTA: “Nuevo pedido especial”
-
-Sección C — Pedidos especiales (creación/edición)
-
-Modal o sección dentro del panel:
-
-descripción del pedido (“Yerba X 1kg”, “Proteína marca Y”)
-
-cantidad (opcional)
-
-notas
-
-estado
-
-sucursal (solo OA si está en “todas”)
-
-Acciones del usuario (MVP)
-A1) Crear cliente
+### A1) Crear cliente
 
 Campos mínimos:
 
-name (requerido)
+- name (requerido)
+- phone (opcional)
+- email (opcional)
+- notes (opcional)
 
-phone (opcional)
+### A2) Editar cliente
 
-email (opcional)
+- update simple
 
-notes (opcional)
-
-A2) Editar cliente
-
-update simple
-
-A3) Crear pedido especial
+### A3) Crear pedido especial
 
 Campos:
 
-client_id
+- client_id
+- branch_id (según contexto; OA debe seleccionar sucursal si está en “todas”)
+- items[] (producto + cantidad + proveedor opcional)
+- notas (opcional)
+- status inicial: pending
 
-branch_id (según contexto)
+### A4) Cambiar estado de pedido especial
 
-title/description (requerido)
+pending → ordered → partial → delivered
+cancelled (solo cancelación total)
 
-quantity (opcional)
+### A5) Ir a POS
 
-status inicial: pending
-
-A4) Cambiar estado de pedido especial
-
-pending → ordered → received → delivered
+- Desde el pedido especial se puede abrir `/pos` con los ítems precargados.
+- El stock se descuenta en POS al cobrar.
 
 timestamps opcionales (Post-MVP); en MVP basta updated_at
 
-Estados UI
+## Estados UI
 
-Loading: skeleton lista
+- Loading: skeleton lista (pendiente de UI)
+- Empty: “No hay clientes para este filtro.”
+- Empty pedidos: “Este cliente no tiene pedidos especiales.”
+- Error: banner + reintentar
+- Success: cambios visibles tras guardar (sin toast global)
 
-Empty: “Aún no hay clientes.” + CTA “Nuevo cliente”
+## Data Contract (One Screen = One Data Contract)
 
-Empty pedidos: “Este cliente no tiene pedidos especiales activos.”
+### Lectura principal
 
-Error: banner + reintentar
+RPC: `rpc_list_clients(scope_branch_id nullable, search nullable, limit, offset)`
 
-Success: toast
-
-Data Contract (One Screen = One Data Contract)
-Lectura principal
-
-View/RPC recomendada: rpc_get_clients_screen(scope_branch_id nullable, search nullable)
-Output shape:
+Salida:
 
 clients[]:
 
-client_id
+- client_id
+- name
+- phone, email
+- active_special_orders_count (opcional)
+- last_order_status (opcional)
+- special_orders_by_client (opcional en MVP)
 
-name
+Detalle: `rpc_get_client_detail(client_id)` al seleccionar cliente (incluye ítems).
 
-phone, email
+### Escrituras
 
-active_special_orders_count (opcional)
+RPC: `rpc_upsert_client(input)`
 
-last_order_status (opcional)
+- client_id nullable
+- name, phone, email, notes
 
-special_orders_by_client (opcional en MVP)
+RPC: `rpc_create_special_order(input)`
 
-Alternativa: cargar detalle on-demand con otra lectura (pero rompe “one screen”).
+- client_id
+- branch_id
+- items (jsonb)
+- notes optional
 
-Recomendación MVP: incluir top pedidos por cliente en la misma lectura solo para cliente seleccionado vía RPC.
+RPC: `rpc_set_special_order_status(input)`
 
-Implementación sugerida (sin sobre-ingeniería):
+- special_order_id
+- new_status
+- reason optional (MVP: opcional; recomendable requerido para “cancelled”)
 
-RPC 1 (lista): rpc_list_clients(scope_branch_id, search, limit, offset)
-
-RPC 2 (detalle): rpc_get_client_detail(client_id)
-Si querés cumplir estricto “one screen”, el detalle se considera “subestado” y se obtiene al seleccionar (aceptable en UI moderna). El contrato principal sigue siendo la lista.
-
-Escrituras
-
-RPC: rpc_upsert_client(input)
-
-client_id nullable
-
-name, phone, email, notes
-
-RPC: rpc_create_special_order(input)
-
-client_id
-
-branch_id
-
-description
-
-quantity optional
-
-RPC: rpc_set_special_order_status(input)
-
-special_order_id
-
-new_status
-
-reason optional (MVP: opcional; recomendable requerido para “cancelled” si existiera, pero cancelled es Post-MVP)
-
-Seguridad (RLS)
+## Seguridad (RLS)
 
 OA:
 
-read/write dentro de org, todas las sucursales
+- read/write dentro de org, todas las sucursales
 
 ST:
 
-read/write solo dentro de su branch asignada/activa
+- read/write solo dentro de su branch asignada/activa
 
 enforcement adicional: módulo clients habilitado (como se hace en POS)
 
-No cross-org
+No cross-org.
 
-Edge cases
+## Edge cases
 
 Cliente duplicado (mismo teléfono)
 
@@ -232,7 +188,7 @@ Pedido especial creado por Staff, visto por OA
 
 debe reflejar branch_name y actor (si existe)
 
-Smoke tests (manual)
+## Smoke tests (manual)
 
 CL-01: OA crea cliente + pedido especial y lo ve en lista
 

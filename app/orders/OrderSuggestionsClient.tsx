@@ -18,7 +18,19 @@ type Props = {
   priceByProduct: Record<string, number>;
   avgMode: 'cycle' | 'weekly' | 'biweekly' | 'monthly';
   safeMarginPct: number;
+  specialOrders?: Array<{
+    item_id: string;
+    client_name: string | null;
+    product_id: string;
+    product_name: string | null;
+    remaining_qty: number | null;
+    supplier_name: string | null;
+    special_order_id: string;
+    branch_name: string | null;
+  }>;
 };
+
+type SpecialOrderItem = NonNullable<Props['specialOrders']>[number];
 
 const avgDaysForMode = (mode: Props['avgMode'], cycleDays: number): number => {
   switch (mode) {
@@ -38,6 +50,7 @@ export default function OrderSuggestionsClient({
   priceByProduct,
   avgMode,
   safeMarginPct,
+  specialOrders = [],
 }: Props) {
   const [view, setView] = useState<'table' | 'cards'>(() => {
     if (typeof window === 'undefined') return 'table';
@@ -49,13 +62,14 @@ export default function OrderSuggestionsClient({
     window.localStorage.setItem('orders_suggestions_view', view);
   }, [view]);
 
-  if (suggestions.length === 0) {
-    return (
-      <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
-        No hay sugerencias para este proveedor y sucursal.
-      </div>
-    );
-  }
+  const [quantities, setQuantities] = useState<Record<string, number>>(() => {
+    const next: Record<string, number> = {};
+    suggestions.forEach((row) => {
+      next[row.product_id] = Math.ceil(Number(row.suggested_qty ?? 0));
+    });
+    return next;
+  });
+  const [specialOrderItemIds, setSpecialOrderItemIds] = useState<string[]>([]);
 
   const renderRow = (row: SuggestionRow) => {
     const cycleDays = Number(row.cycle_days ?? 30);
@@ -64,19 +78,101 @@ export default function OrderSuggestionsClient({
     const unitPrice = priceByProduct[row.product_id] ?? 0;
     const unitCost = unitPrice * (1 - safeMarginPct / 100);
     const suggestedQty = Math.ceil(Number(row.suggested_qty ?? 0));
-    const subtotal = unitCost * suggestedQty;
+    const currentQty = quantities[row.product_id] ?? suggestedQty;
+    const subtotal = unitCost * currentQty;
 
     return {
       avgCycle,
       unitPrice,
       unitCost,
       suggestedQty,
+      currentQty,
       subtotal,
     };
   };
 
+  const handleQtyChange = (productId: string, value: string) => {
+    const parsed = Math.max(0, Math.round(Number(value)));
+    setQuantities((prev) => ({
+      ...prev,
+      [productId]: Number.isNaN(parsed) ? 0 : parsed,
+    }));
+  };
+
+  const handleAddSpecialOrderItem = (item: SpecialOrderItem) => {
+    const remaining = Math.ceil(Number(item.remaining_qty ?? 0));
+    setQuantities((prev) => {
+      const current = prev[item.product_id] ?? 0;
+      return {
+        ...prev,
+        [item.product_id]: current + Math.max(remaining, 0),
+      };
+    });
+    setSpecialOrderItemIds((prev) =>
+      prev.includes(item.item_id) ? prev : [...prev, item.item_id],
+    );
+  };
+
+  const totalItems = suggestions.reduce(
+    (total, row) => total + (quantities[row.product_id] ?? 0),
+    0,
+  );
+  const totalCost = suggestions.reduce((total, row) => {
+    const unitPrice = priceByProduct[row.product_id] ?? 0;
+    const unitCost = unitPrice * (1 - safeMarginPct / 100);
+    const qty = quantities[row.product_id] ?? 0;
+    return total + unitCost * qty;
+  }, 0);
+
+  if (suggestions.length === 0) {
+    return (
+      <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
+        No hay sugerencias para este proveedor y sucursal.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
+      <input
+        type="hidden"
+        name="special_order_item_ids"
+        value={JSON.stringify(specialOrderItemIds)}
+      />
+      {specialOrders.length > 0 ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="text-xs font-semibold text-amber-700 uppercase">
+            Pedidos especiales pendientes
+          </p>
+          <div className="mt-3 space-y-2 text-xs text-amber-900">
+            {specialOrders.map((item) => (
+              <div
+                key={item.item_id}
+                className="flex flex-wrap items-center justify-between gap-2"
+              >
+                <div>
+                  {item.product_name || 'Producto'} ·{' '}
+                  {item.client_name || 'Cliente'}
+                  {item.branch_name ? ` · ${item.branch_name}` : ''}
+                  {item.supplier_name ? ` · ${item.supplier_name}` : ''}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>
+                    Pendiente: {Math.ceil(Number(item.remaining_qty ?? 0))}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleAddSpecialOrderItem(item)}
+                    className="rounded border border-amber-300 bg-white px-2 py-1 text-xs font-semibold text-amber-800"
+                  >
+                    Agregar al pedido
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-zinc-500">
           Vista: {view === 'table' ? 'Tabla' : 'Tarjetas'}
@@ -122,6 +218,7 @@ export default function OrderSuggestionsClient({
                   unitPrice,
                   unitCost,
                   suggestedQty,
+                  currentQty,
                   subtotal,
                 } = renderRow(row);
 
@@ -140,7 +237,10 @@ export default function OrderSuggestionsClient({
                         type="number"
                         min="0"
                         step="1"
-                        defaultValue={suggestedQty}
+                        value={currentQty}
+                        onChange={(event) =>
+                          handleQtyChange(row.product_id, event.target.value)
+                        }
                         className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm"
                       />
                     </td>
@@ -156,8 +256,14 @@ export default function OrderSuggestionsClient({
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {suggestions.map((row) => {
-            const { avgCycle, unitPrice, unitCost, suggestedQty, subtotal } =
-              renderRow(row);
+            const {
+              avgCycle,
+              unitPrice,
+              unitCost,
+              suggestedQty,
+              currentQty,
+              subtotal,
+            } = renderRow(row);
 
             return (
               <div
@@ -192,7 +298,10 @@ export default function OrderSuggestionsClient({
                       type="number"
                       min="0"
                       step="1"
-                      defaultValue={suggestedQty}
+                      value={currentQty}
+                      onChange={(event) =>
+                        handleQtyChange(row.product_id, event.target.value)
+                      }
                       className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm"
                     />
                   </label>
@@ -214,6 +323,18 @@ export default function OrderSuggestionsClient({
           })}
         </div>
       )}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-600">
+        <div>
+          Total estimado:{' '}
+          <span className="font-semibold text-zinc-900">
+            {Number(totalCost).toFixed(2)}
+          </span>
+        </div>
+        <div>
+          Cantidad total:{' '}
+          <span className="font-semibold text-zinc-900">{totalItems}</span>
+        </div>
+      </div>
     </div>
   );
 }

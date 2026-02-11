@@ -18,6 +18,140 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-11 — Pedidos especiales con items y POS
+
+**Tipo:** db
+**Alcance:** db + frontend + docs
+
+**Resumen**
+Se extendieron los pedidos especiales para manejar ítems con proveedores, estado partial/cancelled, alertas en /orders y cobro desde POS con cierre opcional. Se actualizaron contratos y documentación viva.
+
+**Impacto**
+
+- Permite registrar pedidos especiales por ítems del catálogo.
+- Conecta pedidos especiales con pedidos a proveedor y POS (stock se descuenta al cobrar).
+- Se agrega opción de cierre al cobrar y soporte de entrega parcial.
+
+**Archivos**
+
+- supabase/migrations/20260210133000_023_special_order_status_extend.sql
+- supabase/migrations/20260210140000_024_clients_special_orders_items.sql
+- app/clients/page.tsx
+- app/clients/ClientSpecialOrderItemsClient.tsx
+- app/orders/page.tsx
+- app/orders/OrderSuggestionsClient.tsx
+- app/pos/page.tsx
+- app/pos/PosClient.tsx
+- docs/docs-app-screens-clients.md
+- docs/docs-app-screens-orders.md
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-modules-clients.md
+- docs/docs-modules-supplier-orders.md
+- docs/docs-data-model.md
+- docs/docs-schema-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/schema.sql
+- types/supabase.ts
+
+**Tests:** `npm run db:reset` OK (2026-02-11) · `npm run db:schema:snapshot` OK (2026-02-11) · `npm run types:gen` OK (2026-02-11) · `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
+## 2026-02-11 — Fix POS: RLS en ventas
+
+**Tipo:** fix
+**Alcance:** db
+
+**Resumen**
+Se ajusto `rpc_create_sale` como security definer con validaciones de acceso para permitir ventas de Staff sin romper RLS.
+
+**Impacto**
+
+- POS funciona para Staff con módulo habilitado y sucursal asignada.
+- Se mantiene control de acceso por módulo y sucursal.
+- No cambia el flujo de negocio ni UI.
+
+**Archivos**
+
+- supabase/migrations/20260211095500_025_rpc_create_sale_security_definer.sql
+- docs/docs-data-model.md
+- docs/schema.sql
+- types/supabase.ts
+
+**Tests:** `npm run db:reset` OK (2026-02-11) · `npm run db:schema:snapshot` OK (2026-02-11) · `npm run types:gen` OK (2026-02-11)
+**Commit:** N/A
+
+## 2026-02-11 — Smoke test POS + seed real
+
+**Tipo:** tests
+**Alcance:** tests + infra + data
+
+**Resumen**
+Se agrego smoke test de POS (venta rapida + pedido especial) y se extendio seed demo con proveedores, productos y clientes reales para pruebas manuales.
+
+**Impacto**
+
+- Permite validar el flujo POS y pedidos especiales con datos reales.
+- Agrega datos smoke sin afectar logica de negocio.
+- No cambia UI ni contratos.
+
+**Archivos**
+
+- e2e/smoke-pos.spec.ts
+- playwright.config.ts
+- scripts/seed-demo-data.js
+- docs/prompts.md
+
+**Tests:** `npx playwright test -g "smoke"` FAIL (2026-02-11) — `browserType.launch` permission denied (MachPortRendezvousServer)
+**Commit:** N/A
+
+## 2026-02-11 — Debug POS venta
+
+**Tipo:** fix
+**Alcance:** frontend
+
+**Resumen**
+Se agregó salida de error detallada (modo dev) en POS para diagnosticar fallos del RPC de venta.
+
+**Impacto**
+
+- Facilita identificar causa del 400 en `rpc_create_sale`.
+- No cambia lógica de negocio ni seguridad.
+- Visible solo en entorno no producción.
+
+**Archivos**
+
+- app/pos/PosClient.tsx
+- docs/prompts.md
+
+**Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
+## 2026-02-11 — Fix POS: created_at ambiguo
+
+**Tipo:** fix
+**Alcance:** db
+
+**Resumen**
+Se corrigieron referencias ambiguas a `created_at` dentro de `rpc_create_sale` calificando columnas.
+
+**Impacto**
+
+- Evita error 42702 al cobrar en POS.
+- Mantiene el mismo comportamiento funcional.
+- No cambia UI.
+
+**Archivos**
+
+- supabase/migrations/20260211103000_026_rpc_create_sale_orderby_fix.sql
+- docs/docs-data-model.md
+- docs/schema.sql
+- types/supabase.ts
+
+**Tests:** `npm run db:reset` OK (2026-02-11) · `node scripts/seed-demo-data.js` OK (2026-02-11) · `npm run db:schema:snapshot` OK (2026-02-11) · `npm run types:gen` OK (2026-02-11)
+**Commit:** N/A
+
 ## 2026-02-10 — Modulo vencimientos (UI)
 
 **Tipo:** ux
@@ -174,6 +308,30 @@ Se auditaron pantallas implementadas y se ajustaron contratos de pantalla para r
 - docs/docs-app-screens-settings-audit-log.md
 
 **Tests:** No ejecutados (docs-only)
+**Commit:** N/A
+
+## 2026-02-10 — Modulo clientes (UI)
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se implemento `/clients` con listado, detalle inline, alta/edicion de clientes y pedidos especiales por sucursal.
+
+**Impacto**
+
+- Habilita flujo de clientes y pedidos especiales en MVP.
+- OA puede filtrar por sucursal; ST opera solo su sucursal activa.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/clients/page.tsx
+- docs/docs-app-screens-clients.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+
+**Tests:** `npm run lint` OK (2026-02-10) · `npm run build` OK (2026-02-10)
 **Commit:** N/A
 
 ## 2026-02-09 — Inputs proveedor en alta de productos

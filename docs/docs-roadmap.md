@@ -157,7 +157,13 @@ Estado actual: **MVP en progreso** (Fase 4 — módulos core).
 
 **Objetivo**: clientes + pedidos especiales con estados.
 
-**Estado**: PENDIENTE
+**Estado**: COMPLETA
+
+**Notas**:
+
+- /clients implementado con lista, detalle y pedidos especiales con ítems.
+- Integración POS para entrega/cobro.
+- RPCs usadas: rpc_list_clients, rpc_get_client_detail, rpc_upsert_client, rpc_create_special_order, rpc_set_special_order_status, rpc_get_special_order_for_pos.
 
 ### 4.6 Dashboard (OA)
 

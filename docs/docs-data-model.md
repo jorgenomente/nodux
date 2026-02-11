@@ -24,6 +24,10 @@ Estado actual:
 - Ventas consumen batches FEFO en `supabase/migrations/20260209185000_020_create_sale_consume_batches.sql`.
 - RPC correccion fecha vencimiento en `supabase/migrations/20260210110000_022_expiration_batch_update_date.sql`.
 - Batch code por recepcion en `supabase/migrations/20260210113000_023_expiration_batch_code.sql`.
+- Enum status pedidos especiales en `supabase/migrations/20260210133000_023_special_order_status_extend.sql`.
+- Items de pedidos especiales en `supabase/migrations/20260210140000_024_clients_special_orders_items.sql`.
+- RPC ventas con security definer en `supabase/migrations/20260211095500_025_rpc_create_sale_security_definer.sql`.
+- Fix created_at ambiguo en `supabase/migrations/20260211103000_026_rpc_create_sale_orderby_fix.sql`.
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 
@@ -46,7 +50,7 @@ Estado actual:
 - `sell_unit_type`: `unit` | `weight` | `bulk`
 - `stock_movement_type`: `sale` | `purchase` | `manual_adjustment` | `expiration_adjustment`
 - `supplier_order_status`: `draft` | `sent` | `received` | `reconciled`
-- `special_order_status`: `pending` | `ordered` | `received` | `delivered`
+- `special_order_status`: `pending` | `ordered` | `partial` | `delivered` | `cancelled`
 - `payment_method`: `cash` | `debit` | `credit` | `transfer` | `other`
 - `order_frequency`: `weekly` | `biweekly` | `every_3_weeks` | `monthly`
 - `weekday`: `mon` | `tue` | `wed` | `thu` | `fri` | `sat` | `sun`
@@ -411,8 +415,29 @@ Estado actual:
 - `client_id` (uuid, FK)
 - `description` (text)
 - `quantity` (numeric, nullable)
+- `notes` (text, nullable)
 - `status` (special_order_status)
 - `created_by` (uuid, FK -> auth.users.id)
+- `created_at`, `updated_at`
+
+---
+
+### client_special_order_items
+
+**Proposito**: items de pedidos especiales por cliente.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `special_order_id` (uuid, FK)
+- `product_id` (uuid, FK)
+- `supplier_id` (uuid, nullable FK)
+- `supplier_order_id` (uuid, nullable FK)
+- `requested_qty` (numeric)
+- `fulfilled_qty` (numeric)
+- `is_ordered` (boolean)
+- `ordered_at` (timestamptz, nullable)
 - `created_at`, `updated_at`
 
 ---

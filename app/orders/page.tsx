@@ -45,6 +45,19 @@ type ProductPriceRow = {
   unit_price: number | null;
 };
 
+type SpecialOrderItemRow = {
+  item_id: string;
+  special_order_id: string;
+  client_name: string | null;
+  product_id: string;
+  product_name: string | null;
+  remaining_qty: number | null;
+  supplier_id: string | null;
+  supplier_name: string | null;
+  branch_id: string | null;
+  is_ordered: boolean | null;
+};
+
 const formatStatusLabel = (status: string) => {
   switch (status) {
     case 'draft':
@@ -167,6 +180,19 @@ export default async function OrdersPage({
           .order('product_name')
       : { data: [] };
 
+  const { data: specialOrderItems } =
+    draftSupplierId && draftBranchId
+      ? await supabase
+          .from('v_special_order_items_pending')
+          .select(
+            'item_id, special_order_id, client_name, product_id, product_name, remaining_qty, supplier_id, supplier_name, branch_id, is_ordered',
+          )
+          .eq('org_id', membership.org_id)
+          .eq('supplier_id', draftSupplierId)
+          .eq('branch_id', draftBranchId)
+          .eq('is_ordered', false)
+      : { data: [] };
+
   const suggestionIds = (suggestions as SuggestionRow[] | null)
     ?.map((row) => row.product_id)
     .filter(Boolean) as string[] | undefined;
@@ -238,6 +264,24 @@ export default async function OrdersPage({
       ),
     );
 
+    const specialOrderItemIdsRaw = String(
+      formData.get('special_order_item_ids') ?? '',
+    ).trim();
+    if (specialOrderItemIdsRaw) {
+      try {
+        const itemIds = JSON.parse(specialOrderItemIdsRaw) as string[];
+        if (Array.isArray(itemIds) && itemIds.length > 0) {
+          await supabaseServer.rpc('rpc_mark_special_order_items_ordered', {
+            p_org_id: membership.org_id,
+            p_item_ids: itemIds,
+            p_supplier_order_id: orderId,
+          });
+        }
+      } catch {
+        // ignore invalid payload
+      }
+    }
+
     revalidatePath('/orders');
   };
 
@@ -249,24 +293,20 @@ export default async function OrdersPage({
   );
   const safeMarginPct =
     Number.isNaN(draftMarginPct) || draftMarginPct < 0 ? 0 : draftMarginPct;
-
-  const suggestedTotal = (suggestions as SuggestionRow[] | null)?.reduce(
-    (total, row) => {
-      const unitPrice = priceByProduct.get(row.product_id) ?? 0;
-      const unitCost = unitPrice * (1 - safeMarginPct / 100);
-      const qty = Math.ceil(Number(row.suggested_qty ?? 0));
-      return total + unitCost * qty;
-    },
-    0,
-  );
-  const suggestedItemsTotal = (suggestions as SuggestionRow[] | null)?.reduce(
-    (total, row) => total + Math.ceil(Number(row.suggested_qty ?? 0)),
-    0,
-  );
   const priceByProductRecord: Record<string, number> = {};
   priceByProduct.forEach((value, key) => {
     priceByProductRecord[key] = value;
   });
+  const branchNameById = new Map<string, string>();
+  branches?.forEach((branch) => {
+    branchNameById.set(branch.id, branch.name);
+  });
+  const specialOrderItemsWithBranch = (specialOrderItems ?? []).map((item) => ({
+    ...(item as SpecialOrderItemRow),
+    branch_name: item.branch_id
+      ? (branchNameById.get(item.branch_id) ?? null)
+      : null,
+  }));
 
   return (
     <PageShell>
@@ -396,6 +436,7 @@ export default async function OrdersPage({
               </div>
 
               <OrderSuggestionsClient
+                key={`${draftSupplierId}-${draftBranchId}`}
                 suggestions={suggestions as SuggestionRow[]}
                 priceByProduct={priceByProductRecord}
                 avgMode={
@@ -406,6 +447,11 @@ export default async function OrdersPage({
                     | 'monthly') || 'cycle'
                 }
                 safeMarginPct={safeMarginPct}
+                specialOrders={
+                  specialOrderItemsWithBranch as Array<
+                    SpecialOrderItemRow & { branch_name: string | null }
+                  >
+                }
               />
 
               <label className="text-sm text-zinc-600">
@@ -416,17 +462,7 @@ export default async function OrdersPage({
                   className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
                 />
               </label>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm text-zinc-600">
-                  Total estimado:{' '}
-                  <span className="font-semibold text-zinc-900">
-                    {Number(suggestedTotal ?? 0).toFixed(2)}
-                  </span>
-                  {' · '}Cantidad total:{' '}
-                  <span className="font-semibold text-zinc-900">
-                    {suggestedItemsTotal}
-                  </span>
-                </div>
+              <div className="flex flex-wrap items-center justify-end gap-3">
                 <button
                   type="submit"
                   className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"

@@ -113,6 +113,12 @@ Una venta es un registro con:
 - Ejecuta RPC server-authoritative (ver Data Contract)
 - Muestra “Venta realizada” + recibo simple (pantalla/modal) + opción “Nueva venta”
 
+### A7) Pedido especial (si aplica)
+
+- Si se abre desde `/clients`, el POS precarga ítems del pedido especial.
+- El stock se descuenta al cobrar.
+- Opción: “Cerrar pedido especial al cobrar”.
+
 ---
 
 ## Reglas de negocio (invariantes)
@@ -231,6 +237,8 @@ Una venta es un registro con:
   - branch_id
   - payment_method
   - items: [{ product_id, quantity }]
+  - special_order_id (opcional)
+  - close_special_order (opcional)
 - Output:
   - sale_id
   - total

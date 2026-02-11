@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-02-10 12:05
+Ultima actualizacion: 2026-02-10 14:10
 
 ## Estado general
 
@@ -36,6 +36,8 @@ Ultima actualizacion: 2026-02-10 12:05
 - Ventas consumen batches FEFO (best-effort) para evitar alertas falsas.
 - /expirations operativo por sucursal con filtros 0-3 y 4-7 dias y correccion de fecha.
 - batch_code generado al recibir pedidos: <SUP>-<YYYYMMDD>-<NNN>.
+- /clients operativo con lista, detalle y pedidos especiales por sucursal.
+- Pedidos especiales usan items de catálogo y se entregan desde POS (stock se descuenta al cobrar).
 
 ## Post-MVP ya registrado
 

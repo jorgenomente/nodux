@@ -22,27 +22,28 @@ Estado actual:
 
 ## Matriz (MVP - propuesta)
 
-| Entidad                 | SA                 | OA                 | ST                            | Notas                               |
-| ----------------------- | ------------------ | ------------------ | ----------------------------- | ----------------------------------- |
-| `orgs`                  | read               | read               | no                            | SA global; OA solo su org           |
-| `branches`              | read/insert/update | read/insert/update | read (solo asignadas)         | ST solo lectura de sus branches     |
-| `org_users`             | read/insert/update | read/insert/update | no                            | Gestion de usuarios                 |
-| `branch_memberships`    | read/insert/update | read/insert/update | read (propias)                | ST ve sus asignaciones              |
-| `staff_module_access`   | read/insert/update | read/insert/update | no                            | ST usa view efectiva                |
-| `org_preferences`       | read/insert/update | read/insert/update | read (propia org)             | ST solo lectura si se expone        |
-| `audit_log`             | read               | read               | no                            | Append-only, solo lectura OA/SA     |
-| `products`              | read/insert/update | read/insert/update | read (lookup)                 | ST sin escritura                    |
-| `stock_items`           | read/insert/update | read/insert/update | read (lookup)                 | ST sin ajustes                      |
-| `stock_movements`       | read               | read/insert        | insert (via RPC)              | ST no lectura historica por defecto |
-| `sales`                 | read               | read/insert        | insert (via RPC)              | ST crea ventas en su branch         |
-| `sale_items`            | read               | read/insert        | insert (via RPC)              | derivado de venta                   |
-| `expiration_batches`    | read/insert/update | read/insert/update | read/insert (si modulo)       | ST sin ajustes avanzados            |
-| `suppliers`             | read/insert/update | read/insert/update | no                            | ST sin acceso                       |
-| `supplier_products`     | read/insert/update | read/insert/update | no                            | ST sin acceso                       |
-| `supplier_orders`       | read/insert/update | read/insert/update | no                            | ST no en MVP                        |
-| `supplier_order_items`  | read/insert/update | read/insert/update | no                            | ST no en MVP                        |
-| `clients`               | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo en branch asignada          |
-| `client_special_orders` | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo su branch                   |
+| Entidad                      | SA                 | OA                 | ST                            | Notas                               |
+| ---------------------------- | ------------------ | ------------------ | ----------------------------- | ----------------------------------- |
+| `orgs`                       | read               | read               | no                            | SA global; OA solo su org           |
+| `branches`                   | read/insert/update | read/insert/update | read (solo asignadas)         | ST solo lectura de sus branches     |
+| `org_users`                  | read/insert/update | read/insert/update | no                            | Gestion de usuarios                 |
+| `branch_memberships`         | read/insert/update | read/insert/update | read (propias)                | ST ve sus asignaciones              |
+| `staff_module_access`        | read/insert/update | read/insert/update | no                            | ST usa view efectiva                |
+| `org_preferences`            | read/insert/update | read/insert/update | read (propia org)             | ST solo lectura si se expone        |
+| `audit_log`                  | read               | read               | no                            | Append-only, solo lectura OA/SA     |
+| `products`                   | read/insert/update | read/insert/update | read (lookup)                 | ST sin escritura                    |
+| `stock_items`                | read/insert/update | read/insert/update | read (lookup)                 | ST sin ajustes                      |
+| `stock_movements`            | read               | read/insert        | insert (via RPC)              | ST no lectura historica por defecto |
+| `sales`                      | read               | read/insert        | insert (via RPC)              | ST crea ventas en su branch         |
+| `sale_items`                 | read               | read/insert        | insert (via RPC)              | derivado de venta                   |
+| `expiration_batches`         | read/insert/update | read/insert/update | read/insert (si modulo)       | ST sin ajustes avanzados            |
+| `suppliers`                  | read/insert/update | read/insert/update | no                            | ST sin acceso                       |
+| `supplier_products`          | read/insert/update | read/insert/update | no                            | ST sin acceso                       |
+| `supplier_orders`            | read/insert/update | read/insert/update | no                            | ST no en MVP                        |
+| `supplier_order_items`       | read/insert/update | read/insert/update | no                            | ST no en MVP                        |
+| `clients`                    | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo en branch asignada          |
+| `client_special_orders`      | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo su branch                   |
+| `client_special_order_items` | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo su branch                   |
 
 ---
 

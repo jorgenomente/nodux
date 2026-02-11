@@ -210,14 +210,152 @@ export type Database = {
           },
         ];
       };
+      client_special_order_items: {
+        Row: {
+          created_at: string;
+          fulfilled_qty: number;
+          id: string;
+          is_ordered: boolean;
+          ordered_at: string | null;
+          org_id: string;
+          product_id: string;
+          requested_qty: number;
+          special_order_id: string;
+          supplier_id: string | null;
+          supplier_order_id: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          fulfilled_qty?: number;
+          id?: string;
+          is_ordered?: boolean;
+          ordered_at?: string | null;
+          org_id: string;
+          product_id: string;
+          requested_qty: number;
+          special_order_id: string;
+          supplier_id?: string | null;
+          supplier_order_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          fulfilled_qty?: number;
+          id?: string;
+          is_ordered?: boolean;
+          ordered_at?: string | null;
+          org_id?: string;
+          product_id?: string;
+          requested_qty?: number;
+          special_order_id?: string;
+          supplier_id?: string | null;
+          supplier_order_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'client_special_order_items_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'products';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['product_id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_products_admin';
+            referencedColumns: ['product_id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_products_typeahead_admin';
+            referencedColumns: ['product_id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_special_order_id_fkey';
+            columns: ['special_order_id'];
+            isOneToOne: false;
+            referencedRelation: 'client_special_orders';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_special_order_id_fkey';
+            columns: ['special_order_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_special_order_items_pending';
+            referencedColumns: ['special_order_id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'suppliers';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_detail_admin';
+            referencedColumns: ['supplier_id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_suppliers_admin';
+            referencedColumns: ['supplier_id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_supplier_order_id_fkey';
+            columns: ['supplier_order_id'];
+            isOneToOne: false;
+            referencedRelation: 'supplier_orders';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_supplier_order_id_fkey';
+            columns: ['supplier_order_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_order_detail_admin';
+            referencedColumns: ['order_id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_supplier_order_id_fkey';
+            columns: ['supplier_order_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_orders_admin';
+            referencedColumns: ['order_id'];
+          },
+        ];
+      };
       client_special_orders: {
         Row: {
           branch_id: string;
           client_id: string;
           created_at: string;
           created_by: string;
-          description: string;
+          description: string | null;
           id: string;
+          notes: string | null;
           org_id: string;
           quantity: number | null;
           status: Database['public']['Enums']['special_order_status'];
@@ -228,8 +366,9 @@ export type Database = {
           client_id: string;
           created_at?: string;
           created_by: string;
-          description: string;
+          description?: string | null;
           id?: string;
+          notes?: string | null;
           org_id: string;
           quantity?: number | null;
           status?: Database['public']['Enums']['special_order_status'];
@@ -240,8 +379,9 @@ export type Database = {
           client_id?: string;
           created_at?: string;
           created_by?: string;
-          description?: string;
+          description?: string | null;
           id?: string;
+          notes?: string | null;
           org_id?: string;
           quantity?: number | null;
           status?: Database['public']['Enums']['special_order_status'];
@@ -282,6 +422,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'clients';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'client_special_orders_client_id_fkey';
+            columns: ['client_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_special_order_items_pending';
+            referencedColumns: ['client_id'];
           },
           {
             foreignKeyName: 'client_special_orders_org_id_fkey';
@@ -1904,6 +2051,93 @@ export type Database = {
           },
         ];
       };
+      v_special_order_items_pending: {
+        Row: {
+          branch_id: string | null;
+          client_id: string | null;
+          client_name: string | null;
+          fulfilled_qty: number | null;
+          is_ordered: boolean | null;
+          item_id: string | null;
+          ordered_at: string | null;
+          org_id: string | null;
+          product_id: string | null;
+          product_name: string | null;
+          remaining_qty: number | null;
+          requested_qty: number | null;
+          special_order_id: string | null;
+          special_order_status:
+            | Database['public']['Enums']['special_order_status']
+            | null;
+          supplier_id: string | null;
+          supplier_name: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'client_special_order_items_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'products';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['product_id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_products_admin';
+            referencedColumns: ['product_id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_products_typeahead_admin';
+            referencedColumns: ['product_id'];
+          },
+          {
+            foreignKeyName: 'client_special_orders_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'client_special_orders_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_branches_admin';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'client_special_orders_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'client_special_orders_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_product_suggestions';
+            referencedColumns: ['branch_id'];
+          },
+        ];
+      };
       v_staff_effective_modules: {
         Row: {
           branch_id: string | null;
@@ -2249,9 +2483,11 @@ export type Database = {
       rpc_create_sale: {
         Args: {
           p_branch_id: string;
+          p_close_special_order?: boolean;
           p_items: Json;
           p_org_id: string;
           p_payment_method: Database['public']['Enums']['payment_method'];
+          p_special_order_id?: string;
         };
         Returns: {
           created_at: string;
@@ -2263,9 +2499,9 @@ export type Database = {
         Args: {
           p_branch_id: string;
           p_client_id: string;
-          p_description: string;
+          p_items: Json;
+          p_notes: string;
           p_org_id: string;
-          p_quantity: number;
         };
         Returns: {
           special_order_id: string;
@@ -2285,18 +2521,24 @@ export type Database = {
       rpc_get_client_detail: {
         Args: { p_client_id: string; p_org_id: string };
         Returns: {
-          branch_id: string;
           client_id: string;
-          created_at: string;
-          description: string;
           email: string;
+          fulfilled_qty: number;
           is_active: boolean;
+          item_id: string;
           name: string;
           notes: string;
           phone: string;
-          quantity: number;
+          product_id: string;
+          product_name: string;
+          requested_qty: number;
+          special_order_branch_id: string;
+          special_order_created_at: string;
           special_order_id: string;
-          status: Database['public']['Enums']['special_order_status'];
+          special_order_notes: string;
+          special_order_status: Database['public']['Enums']['special_order_status'];
+          supplier_id: string;
+          supplier_name: string;
         }[];
       };
       rpc_get_dashboard_admin: {
@@ -2312,6 +2554,21 @@ export type Database = {
           sales_today_total: number;
           sales_week_total: number;
           supplier_orders_pending_count: number;
+        }[];
+      };
+      rpc_get_special_order_for_pos: {
+        Args: { p_org_id: string; p_special_order_id: string };
+        Returns: {
+          branch_id: string;
+          client_id: string;
+          client_name: string;
+          product_id: string;
+          product_name: string;
+          remaining_qty: number;
+          sell_unit_type: Database['public']['Enums']['sell_unit_type'];
+          special_order_id: string;
+          unit_price: number;
+          uom: string;
         }[];
       };
       rpc_get_staff_effective_modules: {
@@ -2368,6 +2625,14 @@ export type Database = {
           p_entity_type: string;
           p_metadata: Json;
           p_org_id: string;
+        };
+        Returns: undefined;
+      };
+      rpc_mark_special_order_items_ordered: {
+        Args: {
+          p_item_ids: string[];
+          p_org_id: string;
+          p_supplier_order_id: string;
         };
         Returns: undefined;
       };
@@ -2606,7 +2871,13 @@ export type Database = {
       order_frequency: 'weekly' | 'biweekly' | 'every_3_weeks' | 'monthly';
       payment_method: 'cash' | 'debit' | 'credit' | 'transfer' | 'other';
       sell_unit_type: 'unit' | 'weight' | 'bulk';
-      special_order_status: 'pending' | 'ordered' | 'received' | 'delivered';
+      special_order_status:
+        | 'pending'
+        | 'ordered'
+        | 'received'
+        | 'delivered'
+        | 'partial'
+        | 'cancelled';
       stock_movement_type:
         | 'sale'
         | 'purchase'
@@ -2752,7 +3023,14 @@ export const Constants = {
       order_frequency: ['weekly', 'biweekly', 'every_3_weeks', 'monthly'],
       payment_method: ['cash', 'debit', 'credit', 'transfer', 'other'],
       sell_unit_type: ['unit', 'weight', 'bulk'],
-      special_order_status: ['pending', 'ordered', 'received', 'delivered'],
+      special_order_status: [
+        'pending',
+        'ordered',
+        'received',
+        'delivered',
+        'partial',
+        'cancelled',
+      ],
       stock_movement_type: [
         'sale',
         'purchase',

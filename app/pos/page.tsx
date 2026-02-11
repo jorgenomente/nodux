@@ -37,7 +37,12 @@ const resolveStaffHome = (
   return moduleToRoute[enabled[0].module_key] ?? '/no-access';
 };
 
-export default async function PosPage() {
+export default async function PosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ special_order_id?: string }>;
+}) {
+  const resolvedSearchParams = await searchParams;
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -111,7 +116,47 @@ export default async function PosPage() {
     branches = branchRows ?? [];
   }
 
-  const defaultBranchId = branches.length > 0 ? branches[0].id : null;
+  let defaultBranchId = branches.length > 0 ? branches[0].id : null;
+
+  const specialOrderId =
+    typeof resolvedSearchParams.special_order_id === 'string'
+      ? resolvedSearchParams.special_order_id
+      : '';
+
+  const { data: specialOrderItems } = specialOrderId
+    ? await supabase.rpc('rpc_get_special_order_for_pos', {
+        p_org_id: membership.org_id,
+        p_special_order_id: specialOrderId,
+      })
+    : { data: null };
+
+  const specialOrderRows =
+    (specialOrderItems as Array<{
+      special_order_id: string;
+      client_id: string;
+      client_name: string;
+      branch_id: string;
+      product_id: string;
+      product_name: string;
+      sell_unit_type: 'unit' | 'weight' | 'bulk';
+      uom: string;
+      unit_price: number | null;
+      remaining_qty: number | null;
+    }>) ?? [];
+
+  const specialOrderMeta = specialOrderRows[0];
+
+  if (specialOrderMeta?.branch_id) {
+    if (membership.role === 'staff') {
+      const allowed = branches.some(
+        (branch) => branch.id === specialOrderMeta.branch_id,
+      );
+      if (!allowed) {
+        redirect('/no-access');
+      }
+    }
+    defaultBranchId = specialOrderMeta.branch_id;
+  }
 
   const { data: initialProducts } = defaultBranchId
     ? await supabase
@@ -146,6 +191,18 @@ export default async function PosPage() {
             is_active: boolean;
           }>
         }
+        specialOrder={{
+          specialOrderId: specialOrderMeta?.special_order_id ?? null,
+          clientName: specialOrderMeta?.client_name ?? null,
+          items: specialOrderRows.map((row) => ({
+            product_id: row.product_id,
+            name: row.product_name,
+            sell_unit_type: row.sell_unit_type,
+            uom: row.uom,
+            unit_price: Number(row.unit_price ?? 0),
+            quantity: Number(row.remaining_qty ?? 0),
+          })),
+        }}
       />
     </PageShell>
   );

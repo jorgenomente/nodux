@@ -138,6 +138,12 @@ Siempre `branch_id` (recepción e ingreso de stock ocurren en esa sucursal).
 - El ciclo se calcula por `order_frequency` (mensual = 30 días)
 - Se recomienda mostrar sugerido como ayuda, no obligatorio
 
+### R7) Pedidos especiales de clientes (MVP)
+
+- Al seleccionar proveedor + sucursal, se muestran ítems pendientes por cliente.
+- “Agregar al pedido” suma esos ítems y los marca como ordenados.
+- El pedido especial no descuenta stock; el stock se descuenta en POS al cobrar.
+
 ---
 
 ## Pantallas asociadas
@@ -152,10 +158,12 @@ Siempre `branch_id` (recepción e ingreso de stock ocurren en esa sucursal).
 - View: `v_orders_admin` (lista)
 - View: `v_order_detail_admin(order_id)`
 - View: `v_supplier_product_suggestions(supplier_id, branch_id)`
+- View: `v_special_order_items_pending`
 - RPC: `rpc_create_supplier_order(...)`
 - RPC: `rpc_upsert_supplier_order_item(...)`
 - RPC: `rpc_set_supplier_order_status(...)`
 - RPC: `rpc_receive_supplier_order(...)` (si se separa del status)
+- RPC: `rpc_mark_special_order_items_ordered(...)`
 - (opcional) RPC: `rpc_reconcile_supplier_order(...)`
 
 ---

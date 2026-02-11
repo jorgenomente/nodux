@@ -60,7 +60,9 @@ CREATE TYPE "public"."special_order_status" AS ENUM (
     'pending',
     'ordered',
     'received',
-    'delivered'
+    'delivered',
+    'partial',
+    'cancelled'
 );
 
 
@@ -292,14 +294,17 @@ $$;
 ALTER FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_expires_on" "date", "p_quantity" numeric, "p_source_ref_id" "uuid") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb") RETURNS TABLE("sale_id" "uuid", "total" numeric, "created_at" timestamp with time zone)
-    LANGUAGE "plpgsql"
+CREATE OR REPLACE FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid" DEFAULT NULL::"uuid", "p_close_special_order" boolean DEFAULT false) RETURNS TABLE("sale_id" "uuid", "total" numeric, "created_at" timestamp with time zone)
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
     AS $$
 declare
   v_sale_id uuid := gen_random_uuid();
   v_total numeric(12,2) := 0;
   v_created_at timestamptz := now();
-  v_allow_negative boolean := false;
+  v_allow_negative boolean := true;
+  v_pos_enabled boolean := false;
   v_item jsonb;
   v_product_id uuid;
   v_qty numeric(14,3);
@@ -309,13 +314,68 @@ declare
   v_current numeric(14,3);
   v_remaining numeric(14,3);
   v_batch record;
+  v_items_count int := 0;
+  v_remaining_items bigint;
+  v_item_rows record;
+  v_to_apply numeric(14,3);
+  v_order_status public.special_order_status;
 begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_org_admin_or_superadmin(p_org_id) then
+    if not exists (
+      select 1
+      from public.org_users ou
+      where ou.org_id = p_org_id
+        and ou.user_id = auth.uid()
+        and ou.is_active = true
+        and ou.role = 'staff'
+    ) then
+      raise exception 'not authorized';
+    end if;
+
+    if not exists (
+      select 1
+      from public.branch_memberships bm
+      where bm.org_id = p_org_id
+        and bm.user_id = auth.uid()
+        and bm.branch_id = p_branch_id
+        and bm.is_active = true
+    ) then
+      raise exception 'branch not allowed';
+    end if;
+
+    select coalesce(
+      (select sma.is_enabled
+       from public.staff_module_access sma
+       where sma.org_id = p_org_id
+         and sma.branch_id = p_branch_id
+         and sma.role = 'staff'
+         and sma.module_key = 'pos'
+       limit 1),
+      (select sma.is_enabled
+       from public.staff_module_access sma
+       where sma.org_id = p_org_id
+         and sma.branch_id is null
+         and sma.role = 'staff'
+         and sma.module_key = 'pos'
+       limit 1),
+      false
+    ) into v_pos_enabled;
+
+    if not v_pos_enabled then
+      raise exception 'pos module disabled';
+    end if;
+  end if;
+
   select allow_negative_stock into v_allow_negative
   from public.org_preferences
   where org_id = p_org_id;
 
   if v_allow_negative is null then
-    v_allow_negative := false;
+    v_allow_negative := true;
   end if;
 
   insert into public.sales (id, org_id, branch_id, created_by, payment_method, total_amount, created_at)
@@ -323,6 +383,7 @@ begin
 
   for v_item in select * from jsonb_array_elements(p_items)
   loop
+    v_items_count := v_items_count + 1;
     v_product_id := (v_item ->> 'product_id')::uuid;
     v_qty := (v_item ->> 'quantity')::numeric;
 
@@ -389,7 +450,7 @@ begin
         and branch_id = p_branch_id
         and product_id = v_product_id
         and quantity > 0
-      order by expires_on asc, created_at asc
+      order by expires_on asc, public.expiration_batches.created_at asc
       for update
     loop
       exit when v_remaining <= 0;
@@ -408,48 +469,163 @@ begin
         v_remaining := v_remaining - v_batch.quantity;
       end if;
     end loop;
+
+    -- Apply fulfillment to special order items
+    if p_special_order_id is not null then
+      for v_item_rows in
+        select id, requested_qty, fulfilled_qty
+        from public.client_special_order_items
+        where org_id = p_org_id
+          and special_order_id = p_special_order_id
+          and product_id = v_product_id
+        order by public.client_special_order_items.created_at
+        for update
+      loop
+        exit when v_qty <= 0;
+        v_to_apply := least(v_qty, v_item_rows.requested_qty - v_item_rows.fulfilled_qty);
+        if v_to_apply > 0 then
+          update public.client_special_order_items
+            set fulfilled_qty = fulfilled_qty + v_to_apply
+          where id = v_item_rows.id;
+          v_qty := v_qty - v_to_apply;
+        end if;
+      end loop;
+    end if;
   end loop;
 
   update public.sales set total_amount = v_total where id = v_sale_id;
+
+  if p_special_order_id is not null then
+    select status into v_order_status
+    from public.client_special_orders
+    where org_id = p_org_id and id = p_special_order_id;
+
+    select count(*) into v_remaining_items
+    from public.client_special_order_items
+    where org_id = p_org_id
+      and special_order_id = p_special_order_id
+      and (requested_qty - fulfilled_qty) > 0;
+
+    if p_close_special_order then
+      update public.client_special_orders
+        set status = 'delivered'
+      where org_id = p_org_id and id = p_special_order_id;
+    else
+      if v_remaining_items = 0 then
+        update public.client_special_orders
+          set status = 'delivered'
+        where org_id = p_org_id and id = p_special_order_id;
+      else
+        update public.client_special_orders
+          set status = 'partial'
+        where org_id = p_org_id and id = p_special_order_id;
+      end if;
+    end if;
+  end if;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'sale_created',
+    'sale',
+    v_sale_id,
+    p_branch_id,
+    jsonb_build_object(
+      'total', v_total,
+      'payment_method', p_payment_method,
+      'items_count', v_items_count
+    ),
+    null
+  );
 
   return query select v_sale_id, v_total, v_created_at;
 end;
 $$;
 
 
-ALTER FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb") OWNER TO "postgres";
+ALTER FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean) OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."rpc_create_special_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_client_id" "uuid", "p_description" "text", "p_quantity" numeric) RETURNS TABLE("special_order_id" "uuid")
-    LANGUAGE "sql"
+CREATE OR REPLACE FUNCTION "public"."rpc_create_special_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_client_id" "uuid", "p_items" "jsonb", "p_notes" "text") RETURNS TABLE("special_order_id" "uuid")
+    LANGUAGE "plpgsql"
     AS $$
-  with inserted as (
-    insert into public.client_special_orders (
-      org_id, branch_id, client_id, description, quantity, status, created_by
+declare
+  v_order_id uuid;
+  v_item jsonb;
+  v_product_id uuid;
+  v_requested_qty numeric(14,3);
+  v_supplier_id uuid;
+  v_notes text;
+  v_description text;
+begin
+  v_notes := nullif(trim(coalesce(p_notes, '')), '');
+  v_description := coalesce(v_notes, 'Pedido especial');
+
+  insert into public.client_special_orders (
+    org_id,
+    branch_id,
+    client_id,
+    description,
+    quantity,
+    status,
+    created_by,
+    notes
+  ) values (
+    p_org_id,
+    p_branch_id,
+    p_client_id,
+    v_description,
+    null,
+    'pending',
+    auth.uid(),
+    v_notes
+  ) returning id into v_order_id;
+
+  for v_item in select * from jsonb_array_elements(coalesce(p_items, '[]'::jsonb))
+  loop
+    v_product_id := (v_item ->> 'product_id')::uuid;
+    v_requested_qty := (v_item ->> 'requested_qty')::numeric;
+    v_supplier_id := nullif((v_item ->> 'supplier_id')::text, '')::uuid;
+
+    if v_product_id is null or v_requested_qty is null or v_requested_qty <= 0 then
+      raise exception 'invalid special order item';
+    end if;
+
+    insert into public.client_special_order_items (
+      org_id,
+      special_order_id,
+      product_id,
+      supplier_id,
+      requested_qty,
+      fulfilled_qty
     ) values (
-      p_org_id, p_branch_id, p_client_id, p_description, p_quantity, 'pending', auth.uid()
-    )
-    returning id
-  ), logged as (
-    select public.rpc_log_audit_event(
       p_org_id,
-      'special_order_created',
-      'special_order',
-      (select id from inserted),
-      p_branch_id,
-      jsonb_build_object(
-        'client_id', p_client_id,
-        'quantity', p_quantity,
-        'status', 'pending'
-      ),
-      null
-    )
-  )
-  select id from inserted;
+      v_order_id,
+      v_product_id,
+      v_supplier_id,
+      v_requested_qty,
+      0
+    );
+  end loop;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'special_order_created',
+    'special_order',
+    v_order_id,
+    p_branch_id,
+    jsonb_build_object(
+      'client_id', p_client_id,
+      'items_count', jsonb_array_length(coalesce(p_items, '[]'::jsonb))
+    ),
+    null
+  );
+
+  return query select v_order_id;
+end;
 $$;
 
 
-ALTER FUNCTION "public"."rpc_create_special_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_client_id" "uuid", "p_description" "text", "p_quantity" numeric) OWNER TO "postgres";
+ALTER FUNCTION "public"."rpc_create_special_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_client_id" "uuid", "p_items" "jsonb", "p_notes" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_create_supplier_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_supplier_id" "uuid", "p_notes" "text") RETURNS TABLE("order_id" "uuid")
@@ -484,7 +660,7 @@ $$;
 ALTER FUNCTION "public"."rpc_create_supplier_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_supplier_id" "uuid", "p_notes" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."rpc_get_client_detail"("p_org_id" "uuid", "p_client_id" "uuid") RETURNS TABLE("client_id" "uuid", "name" "text", "phone" "text", "email" "text", "notes" "text", "is_active" boolean, "special_order_id" "uuid", "description" "text", "quantity" numeric, "status" "public"."special_order_status", "branch_id" "uuid", "created_at" timestamp with time zone)
+CREATE OR REPLACE FUNCTION "public"."rpc_get_client_detail"("p_org_id" "uuid", "p_client_id" "uuid") RETURNS TABLE("client_id" "uuid", "name" "text", "phone" "text", "email" "text", "notes" "text", "is_active" boolean, "special_order_id" "uuid", "special_order_status" "public"."special_order_status", "special_order_notes" "text", "special_order_branch_id" "uuid", "special_order_created_at" timestamp with time zone, "item_id" "uuid", "product_id" "uuid", "product_name" "text", "requested_qty" numeric, "fulfilled_qty" numeric, "supplier_id" "uuid", "supplier_name" "text")
     LANGUAGE "sql"
     AS $$
   select
@@ -494,19 +670,34 @@ CREATE OR REPLACE FUNCTION "public"."rpc_get_client_detail"("p_org_id" "uuid", "
     c.email,
     c.notes,
     c.is_active,
-    co.id as special_order_id,
-    co.description,
-    co.quantity,
-    co.status,
-    co.branch_id,
-    co.created_at
+    so.id as special_order_id,
+    so.status as special_order_status,
+    so.notes as special_order_notes,
+    so.branch_id as special_order_branch_id,
+    so.created_at as special_order_created_at,
+    soi.id as item_id,
+    soi.product_id,
+    p.name as product_name,
+    soi.requested_qty,
+    soi.fulfilled_qty,
+    soi.supplier_id,
+    s.name as supplier_name
   from public.clients c
-  left join public.client_special_orders co
-    on co.client_id = c.id
-    and co.org_id = c.org_id
+  left join public.client_special_orders so
+    on so.client_id = c.id
+    and so.org_id = c.org_id
+  left join public.client_special_order_items soi
+    on soi.special_order_id = so.id
+    and soi.org_id = so.org_id
+  left join public.products p
+    on p.id = soi.product_id
+    and p.org_id = so.org_id
+  left join public.suppliers s
+    on s.id = soi.supplier_id
+    and s.org_id = so.org_id
   where c.org_id = p_org_id
     and c.id = p_client_id
-  order by co.created_at desc nulls last;
+  order by so.created_at desc nulls last, p.name;
 $$;
 
 
@@ -537,6 +728,40 @@ $$;
 
 
 ALTER FUNCTION "public"."rpc_get_dashboard_admin"("p_org_id" "uuid", "p_branch_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_get_special_order_for_pos"("p_org_id" "uuid", "p_special_order_id" "uuid") RETURNS TABLE("special_order_id" "uuid", "client_id" "uuid", "client_name" "text", "branch_id" "uuid", "product_id" "uuid", "product_name" "text", "sell_unit_type" "public"."sell_unit_type", "uom" "text", "unit_price" numeric, "remaining_qty" numeric)
+    LANGUAGE "sql"
+    AS $$
+  select
+    so.id as special_order_id,
+    c.id as client_id,
+    c.name as client_name,
+    so.branch_id,
+    soi.product_id,
+    p.name as product_name,
+    p.sell_unit_type,
+    p.uom,
+    p.unit_price,
+    (soi.requested_qty - soi.fulfilled_qty) as remaining_qty
+  from public.client_special_orders so
+  join public.clients c
+    on c.id = so.client_id
+    and c.org_id = so.org_id
+  join public.client_special_order_items soi
+    on soi.special_order_id = so.id
+    and soi.org_id = so.org_id
+  join public.products p
+    on p.id = soi.product_id
+    and p.org_id = so.org_id
+  where so.org_id = p_org_id
+    and so.id = p_special_order_id
+    and (soi.requested_qty - soi.fulfilled_qty) > 0
+  order by p.name;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_get_special_order_for_pos"("p_org_id" "uuid", "p_special_order_id" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_get_staff_effective_modules"() RETURNS TABLE("org_id" "uuid", "branch_id" "uuid", "module_key" "text", "is_enabled" boolean, "source_scope" "text")
@@ -746,6 +971,33 @@ $$;
 
 
 ALTER FUNCTION "public"."rpc_log_audit_event"("p_org_id" "uuid", "p_action_key" "text", "p_entity_type" "text", "p_entity_id" "uuid", "p_branch_id" "uuid", "p_metadata" "jsonb", "p_actor_user_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_mark_special_order_items_ordered"("p_org_id" "uuid", "p_item_ids" "uuid"[], "p_supplier_order_id" "uuid") RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+  update public.client_special_order_items
+    set is_ordered = true,
+        ordered_at = now(),
+        supplier_order_id = p_supplier_order_id
+  where org_id = p_org_id
+    and id = any(p_item_ids);
+
+  update public.client_special_orders so
+    set status = 'ordered'
+  where so.org_id = p_org_id
+    and so.id in (
+      select distinct special_order_id
+      from public.client_special_order_items
+      where org_id = p_org_id and id = any(p_item_ids)
+    )
+    and so.status = 'pending';
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_mark_special_order_items_ordered"("p_org_id" "uuid", "p_item_ids" "uuid"[], "p_supplier_order_id" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_items" "jsonb") RETURNS "void"
@@ -1806,17 +2058,37 @@ CREATE TABLE IF NOT EXISTS "public"."branches" (
 ALTER TABLE "public"."branches" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."client_special_order_items" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "org_id" "uuid" NOT NULL,
+    "special_order_id" "uuid" NOT NULL,
+    "product_id" "uuid" NOT NULL,
+    "supplier_id" "uuid",
+    "supplier_order_id" "uuid",
+    "requested_qty" numeric(14,3) NOT NULL,
+    "fulfilled_qty" numeric(14,3) DEFAULT 0 NOT NULL,
+    "is_ordered" boolean DEFAULT false NOT NULL,
+    "ordered_at" timestamp with time zone,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."client_special_order_items" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."client_special_orders" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "org_id" "uuid" NOT NULL,
     "branch_id" "uuid" NOT NULL,
     "client_id" "uuid" NOT NULL,
-    "description" "text" NOT NULL,
+    "description" "text",
     "quantity" numeric(14,3),
     "status" "public"."special_order_status" DEFAULT 'pending'::"public"."special_order_status" NOT NULL,
     "created_by" "uuid" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "notes" "text"
 );
 
 
@@ -2345,6 +2617,35 @@ CREATE OR REPLACE VIEW "public"."v_settings_users_admin" AS
 ALTER VIEW "public"."v_settings_users_admin" OWNER TO "postgres";
 
 
+CREATE OR REPLACE VIEW "public"."v_special_order_items_pending" AS
+ SELECT "soi"."id" AS "item_id",
+    "soi"."org_id",
+    "so"."id" AS "special_order_id",
+    "so"."status" AS "special_order_status",
+    "so"."branch_id",
+    "c"."id" AS "client_id",
+    "c"."name" AS "client_name",
+    "soi"."product_id",
+    "p"."name" AS "product_name",
+    COALESCE("soi"."supplier_id", "sp"."supplier_id") AS "supplier_id",
+    "sup"."name" AS "supplier_name",
+    "soi"."requested_qty",
+    "soi"."fulfilled_qty",
+    ("soi"."requested_qty" - "soi"."fulfilled_qty") AS "remaining_qty",
+    "soi"."is_ordered",
+    "soi"."ordered_at"
+   FROM ((((("public"."client_special_order_items" "soi"
+     LEFT JOIN "public"."client_special_orders" "so" ON ((("so"."id" = "soi"."special_order_id") AND ("so"."org_id" = "soi"."org_id"))))
+     LEFT JOIN "public"."clients" "c" ON ((("c"."id" = "so"."client_id") AND ("c"."org_id" = "so"."org_id"))))
+     LEFT JOIN "public"."products" "p" ON ((("p"."id" = "soi"."product_id") AND ("p"."org_id" = "soi"."org_id"))))
+     LEFT JOIN "public"."supplier_products" "sp" ON ((("sp"."product_id" = "soi"."product_id") AND ("sp"."org_id" = "soi"."org_id") AND ("sp"."relation_type" = 'primary'::"public"."supplier_product_relation_type"))))
+     LEFT JOIN "public"."suppliers" "sup" ON ((("sup"."id" = COALESCE("soi"."supplier_id", "sp"."supplier_id")) AND ("sup"."org_id" = "soi"."org_id"))))
+  WHERE (("so"."status" = ANY (ARRAY['pending'::"public"."special_order_status", 'ordered'::"public"."special_order_status", 'partial'::"public"."special_order_status"])) AND (("soi"."requested_qty" - "soi"."fulfilled_qty") > (0)::numeric));
+
+
+ALTER VIEW "public"."v_special_order_items_pending" OWNER TO "postgres";
+
+
 CREATE OR REPLACE VIEW "public"."v_staff_effective_modules" AS
  WITH "memberships" AS (
          SELECT "bm"."org_id",
@@ -2527,6 +2828,16 @@ ALTER TABLE ONLY "public"."branches"
 
 
 
+ALTER TABLE ONLY "public"."client_special_order_items"
+    ADD CONSTRAINT "client_special_order_items_org_id_special_order_id_product__key" UNIQUE ("org_id", "special_order_id", "product_id");
+
+
+
+ALTER TABLE ONLY "public"."client_special_order_items"
+    ADD CONSTRAINT "client_special_order_items_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."client_special_orders"
     ADD CONSTRAINT "client_special_orders_pkey" PRIMARY KEY ("id");
 
@@ -2687,6 +2998,10 @@ CREATE OR REPLACE TRIGGER "set_branches_updated_at" BEFORE UPDATE ON "public"."b
 
 
 
+CREATE OR REPLACE TRIGGER "set_client_special_order_items_updated_at" BEFORE UPDATE ON "public"."client_special_order_items" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
+
+
+
 CREATE OR REPLACE TRIGGER "set_client_special_orders_updated_at" BEFORE UPDATE ON "public"."client_special_orders" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
 
 
@@ -2763,6 +3078,31 @@ ALTER TABLE ONLY "public"."branch_memberships"
 
 ALTER TABLE ONLY "public"."branches"
     ADD CONSTRAINT "branches_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."client_special_order_items"
+    ADD CONSTRAINT "client_special_order_items_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."client_special_order_items"
+    ADD CONSTRAINT "client_special_order_items_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."client_special_order_items"
+    ADD CONSTRAINT "client_special_order_items_special_order_id_fkey" FOREIGN KEY ("special_order_id") REFERENCES "public"."client_special_orders"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."client_special_order_items"
+    ADD CONSTRAINT "client_special_order_items_supplier_id_fkey" FOREIGN KEY ("supplier_id") REFERENCES "public"."suppliers"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."client_special_order_items"
+    ADD CONSTRAINT "client_special_order_items_supplier_order_id_fkey" FOREIGN KEY ("supplier_order_id") REFERENCES "public"."supplier_orders"("id") ON DELETE SET NULL;
 
 
 
@@ -2990,6 +3330,21 @@ CREATE POLICY "branches_update" ON "public"."branches" FOR UPDATE USING ("public
 
 
 CREATE POLICY "branches_write" ON "public"."branches" FOR INSERT WITH CHECK ("public"."is_org_admin"("org_id"));
+
+
+
+ALTER TABLE "public"."client_special_order_items" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "client_special_order_items_select" ON "public"."client_special_order_items" FOR SELECT USING ("public"."is_org_member"("org_id"));
+
+
+
+CREATE POLICY "client_special_order_items_update" ON "public"."client_special_order_items" FOR UPDATE USING ("public"."is_org_member"("org_id"));
+
+
+
+CREATE POLICY "client_special_order_items_write" ON "public"."client_special_order_items" FOR INSERT WITH CHECK ("public"."is_org_member"("org_id"));
 
 
 
@@ -3260,15 +3615,15 @@ GRANT ALL ON FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "
 
 
 
-GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb") TO "anon";
-GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb") TO "service_role";
+GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean) TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean) TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."rpc_create_special_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_client_id" "uuid", "p_description" "text", "p_quantity" numeric) TO "anon";
-GRANT ALL ON FUNCTION "public"."rpc_create_special_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_client_id" "uuid", "p_description" "text", "p_quantity" numeric) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."rpc_create_special_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_client_id" "uuid", "p_description" "text", "p_quantity" numeric) TO "service_role";
+GRANT ALL ON FUNCTION "public"."rpc_create_special_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_client_id" "uuid", "p_items" "jsonb", "p_notes" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_create_special_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_client_id" "uuid", "p_items" "jsonb", "p_notes" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_create_special_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_client_id" "uuid", "p_items" "jsonb", "p_notes" "text") TO "service_role";
 
 
 
@@ -3287,6 +3642,12 @@ GRANT ALL ON FUNCTION "public"."rpc_get_client_detail"("p_org_id" "uuid", "p_cli
 GRANT ALL ON FUNCTION "public"."rpc_get_dashboard_admin"("p_org_id" "uuid", "p_branch_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_get_dashboard_admin"("p_org_id" "uuid", "p_branch_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_get_dashboard_admin"("p_org_id" "uuid", "p_branch_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_get_special_order_for_pos"("p_org_id" "uuid", "p_special_order_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_get_special_order_for_pos"("p_org_id" "uuid", "p_special_order_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_get_special_order_for_pos"("p_org_id" "uuid", "p_special_order_id" "uuid") TO "service_role";
 
 
 
@@ -3317,6 +3678,12 @@ GRANT ALL ON FUNCTION "public"."rpc_list_clients"("p_org_id" "uuid", "p_branch_i
 GRANT ALL ON FUNCTION "public"."rpc_log_audit_event"("p_org_id" "uuid", "p_action_key" "text", "p_entity_type" "text", "p_entity_id" "uuid", "p_branch_id" "uuid", "p_metadata" "jsonb", "p_actor_user_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_log_audit_event"("p_org_id" "uuid", "p_action_key" "text", "p_entity_type" "text", "p_entity_id" "uuid", "p_branch_id" "uuid", "p_metadata" "jsonb", "p_actor_user_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_log_audit_event"("p_org_id" "uuid", "p_action_key" "text", "p_entity_type" "text", "p_entity_id" "uuid", "p_branch_id" "uuid", "p_metadata" "jsonb", "p_actor_user_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_mark_special_order_items_ordered"("p_org_id" "uuid", "p_item_ids" "uuid"[], "p_supplier_order_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_mark_special_order_items_ordered"("p_org_id" "uuid", "p_item_ids" "uuid"[], "p_supplier_order_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_mark_special_order_items_ordered"("p_org_id" "uuid", "p_item_ids" "uuid"[], "p_supplier_order_id" "uuid") TO "service_role";
 
 
 
@@ -3473,6 +3840,12 @@ GRANT ALL ON TABLE "public"."branch_memberships" TO "service_role";
 GRANT ALL ON TABLE "public"."branches" TO "anon";
 GRANT ALL ON TABLE "public"."branches" TO "authenticated";
 GRANT ALL ON TABLE "public"."branches" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."client_special_order_items" TO "anon";
+GRANT ALL ON TABLE "public"."client_special_order_items" TO "authenticated";
+GRANT ALL ON TABLE "public"."client_special_order_items" TO "service_role";
 
 
 
@@ -3635,6 +4008,12 @@ GRANT ALL ON TABLE "public"."v_products_typeahead_admin" TO "service_role";
 GRANT ALL ON TABLE "public"."v_settings_users_admin" TO "anon";
 GRANT ALL ON TABLE "public"."v_settings_users_admin" TO "authenticated";
 GRANT ALL ON TABLE "public"."v_settings_users_admin" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."v_special_order_items_pending" TO "anon";
+GRANT ALL ON TABLE "public"."v_special_order_items_pending" TO "authenticated";
+GRANT ALL ON TABLE "public"."v_special_order_items_pending" TO "service_role";
 
 
 

@@ -75,6 +75,87 @@ const suppliersSeed = [
   },
 ];
 
+const suppliersSmoke = [
+  {
+    id: '44444444-4444-4444-4444-444444444444',
+    name: 'Distribuidora Cafe Real',
+    order_frequency: 'weekly',
+    order_day: 'mon',
+    receive_day: 'tue',
+  },
+  {
+    id: '55555555-5555-5555-5555-555555555555',
+    name: 'Yerba y Afines Norte',
+    order_frequency: 'biweekly',
+    order_day: 'wed',
+    receive_day: 'thu',
+  },
+  {
+    id: '66666666-6666-6666-6666-666666666666',
+    name: 'Dulces del Litoral',
+    order_frequency: 'monthly',
+    order_day: 'fri',
+    receive_day: 'sat',
+  },
+];
+
+const smokeProducts = [
+  {
+    id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+    name: 'Cafe Molido 500g',
+    internal_code: 'SMOKE-CAFE-500',
+    barcode: '7790001000011',
+    unit_price: 5500,
+    shelf_life_days: 180,
+    supplier_id: suppliersSmoke[0].id,
+  },
+  {
+    id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2',
+    name: 'Cafe en Granos 1kg',
+    internal_code: 'SMOKE-CAFE-1K',
+    barcode: '7790001000028',
+    unit_price: 11200,
+    shelf_life_days: 240,
+    supplier_id: suppliersSmoke[0].id,
+  },
+  {
+    id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1',
+    name: 'Yerba Mate 1kg',
+    internal_code: 'SMOKE-MATE-1K',
+    barcode: '7790002000018',
+    unit_price: 4200,
+    shelf_life_days: 365,
+    supplier_id: suppliersSmoke[1].id,
+  },
+  {
+    id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2',
+    name: 'Yerba Mate Suave 500g',
+    internal_code: 'SMOKE-MATE-500',
+    barcode: '7790002000025',
+    unit_price: 2500,
+    shelf_life_days: 365,
+    supplier_id: suppliersSmoke[1].id,
+  },
+  {
+    id: 'cccccccc-cccc-cccc-cccc-ccccccccccc1',
+    name: 'Chocolate Amargo 70%',
+    internal_code: 'SMOKE-CHOCO-70',
+    barcode: '7790003000015',
+    unit_price: 3800,
+    shelf_life_days: 365,
+    supplier_id: suppliersSmoke[2].id,
+  },
+  {
+    id: 'cccccccc-cccc-cccc-cccc-ccccccccccc2',
+    name: 'Chocolate con Leche 100g',
+    internal_code: 'SMOKE-CHOCO-ML',
+    barcode: '7790003000022',
+    unit_price: 2600,
+    shelf_life_days: 300,
+    supplier_id: suppliersSmoke[2].id,
+  },
+];
+
 const buildProducts = (supplierIndex) => {
   const productPrefix = `DEMO-S${supplierIndex + 1}`;
   const baseName = supplierIndex + 1;
@@ -140,9 +221,23 @@ const daysAgo = (days, hour = 10, minute = 0) => {
     receive_day: supplier.receive_day,
   }));
 
+  const smokeSuppliers = suppliersSmoke.map((supplier) => ({
+    id: supplier.id,
+    org_id: ORG_ID,
+    name: supplier.name,
+    contact_name: 'Contacto Smoke',
+    phone: '1133445566',
+    email: 'smoke@proveedor.com',
+    notes: 'Proveedor smoke test',
+    is_active: true,
+    order_frequency: supplier.order_frequency,
+    order_day: supplier.order_day,
+    receive_day: supplier.receive_day,
+  }));
+
   const { error: supplierError } = await supabase
     .from('suppliers')
-    .upsert(suppliers, { onConflict: 'id' });
+    .upsert([...suppliers, ...smokeSuppliers], { onConflict: 'id' });
   if (supplierError) throw supplierError;
 
   const productsSeed = suppliers.flatMap((supplier, idx) =>
@@ -153,21 +248,37 @@ const daysAgo = (days, hour = 10, minute = 0) => {
     })),
   );
 
+  const smokeProductsSeed = smokeProducts.map((product) => ({
+    id: product.id,
+    org_id: ORG_ID,
+    name: product.name,
+    internal_code: product.internal_code,
+    barcode: product.barcode,
+    sell_unit_type: 'unit',
+    uom: 'unit',
+    unit_price: product.unit_price,
+    shelf_life_days: product.shelf_life_days,
+    is_active: true,
+  }));
+
   const { data: existingProducts } = await supabase
     .from('products')
     .select('id, internal_code')
     .eq('org_id', ORG_ID)
     .in(
       'internal_code',
-      productsSeed.map((product) => product.internal_code),
+      [...productsSeed, ...smokeProductsSeed].map(
+        (product) => product.internal_code,
+      ),
     );
 
   const productIdByCode = new Map(
     (existingProducts ?? []).map((row) => [row.internal_code, row.id]),
   );
 
-  const products = productsSeed.map((product) => ({
-    id: productIdByCode.get(product.internal_code) ?? randomUUID(),
+  const products = [...productsSeed, ...smokeProductsSeed].map((product) => ({
+    id:
+      productIdByCode.get(product.internal_code) ?? product.id ?? randomUUID(),
     org_id: ORG_ID,
     name: product.name,
     internal_code: product.internal_code,
@@ -184,10 +295,27 @@ const daysAgo = (days, hour = 10, minute = 0) => {
     .upsert(products, { onConflict: 'id' });
   if (productsError) throw productsError;
 
+  const productIdByInternalCode = new Map(
+    products.map((product) => [product.internal_code, product.id]),
+  );
+
   const productsBySupplier = suppliers.map((supplier, idx) => ({
     supplier,
     products: products.filter((product) =>
       product.internal_code.startsWith(`DEMO-S${idx + 1}`),
+    ),
+  }));
+
+  const smokeProductsBySupplier = suppliersSmoke.map((supplier) => ({
+    supplier,
+    products: products.filter(
+      (product) =>
+        product.internal_code.startsWith('SMOKE-') &&
+        smokeProducts.some(
+          (seed) =>
+            seed.internal_code === product.internal_code &&
+            seed.supplier_id === supplier.id,
+        ),
     ),
   }));
 
@@ -202,9 +330,20 @@ const daysAgo = (days, hour = 10, minute = 0) => {
     })),
   );
 
+  const smokeSupplierProducts = smokeProductsBySupplier.flatMap((entry) =>
+    entry.products.map((product) => ({
+      org_id: ORG_ID,
+      supplier_id: entry.supplier.id,
+      product_id: product.id,
+      supplier_sku: `SKU-${product.internal_code}`,
+      supplier_product_name: `${product.name} (${entry.supplier.name})`,
+      relation_type: 'primary',
+    })),
+  );
+
   const { error: supplierProductsError } = await supabase
     .from('supplier_products')
-    .upsert(supplierProducts, {
+    .upsert([...supplierProducts, ...smokeSupplierProducts], {
       onConflict: 'org_id,supplier_id,product_id',
     });
   if (supplierProductsError) throw supplierProductsError;
@@ -214,14 +353,18 @@ const daysAgo = (days, hour = 10, minute = 0) => {
       org_id: ORG_ID,
       branch_id: BRANCH_A,
       product_id: product.id,
-      quantity_on_hand: rand(-5, 60),
+      quantity_on_hand: product.internal_code.startsWith('SMOKE-')
+        ? rand(10, 40)
+        : rand(-5, 60),
       safety_stock: rand(5, 15),
     },
     {
       org_id: ORG_ID,
       branch_id: BRANCH_B,
       product_id: product.id,
-      quantity_on_hand: rand(-5, 60),
+      quantity_on_hand: product.internal_code.startsWith('SMOKE-')
+        ? rand(10, 40)
+        : rand(-5, 60),
       safety_stock: rand(5, 15),
     },
   ]);
@@ -388,9 +531,118 @@ const daysAgo = (days, hour = 10, minute = 0) => {
     .insert(orderItemsPayload);
   if (orderItemsError) throw orderItemsError;
 
+  const clientsSeed = [
+    {
+      id: '77777777-7777-7777-7777-777777777777',
+      name: 'Juan Perez',
+      phone: '1130001111',
+      email: 'juan.perez@demo.com',
+    },
+    {
+      id: '88888888-8888-8888-8888-888888888888',
+      name: 'Maria Gomez',
+      phone: '1130002222',
+      email: 'maria.gomez@demo.com',
+    },
+  ];
+
+  const { error: clientsError } = await supabase.from('clients').upsert(
+    clientsSeed.map((client) => ({
+      id: client.id,
+      org_id: ORG_ID,
+      name: client.name,
+      phone: client.phone,
+      email: client.email,
+      notes: 'Cliente smoke test',
+      is_active: true,
+    })),
+    { onConflict: 'id' },
+  );
+  if (clientsError) throw clientsError;
+
+  const specialOrdersSeed = [
+    {
+      id: '99999999-9999-9999-9999-999999999999',
+      client_id: clientsSeed[0].id,
+      branch_id: BRANCH_A,
+      notes: 'Pedido de cafe y yerba',
+    },
+    {
+      id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab',
+      client_id: clientsSeed[1].id,
+      branch_id: BRANCH_B,
+      notes: 'Pedido de chocolates',
+    },
+  ];
+
+  const { error: specialOrdersError } = await supabase
+    .from('client_special_orders')
+    .upsert(
+      specialOrdersSeed.map((order) => ({
+        id: order.id,
+        org_id: ORG_ID,
+        branch_id: order.branch_id,
+        client_id: order.client_id,
+        description: order.notes,
+        quantity: null,
+        status: 'pending',
+        created_by: adminUserId,
+        notes: order.notes,
+      })),
+      { onConflict: 'id' },
+    );
+  if (specialOrdersError) throw specialOrdersError;
+
+  const specialOrderItemsSeed = [
+    {
+      id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb3',
+      special_order_id: specialOrdersSeed[0].id,
+      product_id: productIdByInternalCode.get('SMOKE-CAFE-500'),
+      requested_qty: 2,
+      supplier_id: suppliersSmoke[0].id,
+    },
+    {
+      id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb4',
+      special_order_id: specialOrdersSeed[0].id,
+      product_id: productIdByInternalCode.get('SMOKE-MATE-1K'),
+      requested_qty: 1,
+      supplier_id: suppliersSmoke[1].id,
+    },
+    {
+      id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb5',
+      special_order_id: specialOrdersSeed[1].id,
+      product_id: productIdByInternalCode.get('SMOKE-CHOCO-70'),
+      requested_qty: 3,
+      supplier_id: suppliersSmoke[2].id,
+    },
+  ];
+
+  const { error: specialOrderItemsError } = await supabase
+    .from('client_special_order_items')
+    .upsert(
+      specialOrderItemsSeed
+        .filter((item) => item.product_id)
+        .map((item) => ({
+          id: item.id,
+          org_id: ORG_ID,
+          special_order_id: item.special_order_id,
+          product_id: item.product_id,
+          supplier_id: item.supplier_id,
+          requested_qty: item.requested_qty,
+          fulfilled_qty: 0,
+          is_ordered: false,
+        })),
+      { onConflict: 'org_id,special_order_id,product_id' },
+    );
+  if (specialOrderItemsError) throw specialOrderItemsError;
+
   console.log('Demo data seeded:');
   console.log('- Suppliers:', suppliers.length);
   console.log('- Products:', products.length);
+  console.log('- Smoke suppliers:', suppliersSmoke.length);
+  console.log('- Smoke products:', smokeProducts.length);
+  console.log('- Smoke clients:', clientsSeed.length);
+  console.log('- Smoke special orders:', specialOrdersSeed.length);
   console.log('- Sales:', salesPayload.length);
   console.log('- Orders:', orderPayload.length);
 })().catch((err) => {
