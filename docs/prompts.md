@@ -12,6 +12,14 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-11 10:43 — Refrescar estado pedido especial
+
+**Lote:** clients-status-refresh
+**Objetivo:** Reflejar cambio de estado inmediatamente en /clients.
+
+**Prompt**
+estoy viendo que si yo intento actualizar el estado del pedido de pendiente a pedido, por ejemplo y le doy a actualizar, tengo que actualizar la pagina para ver el cambio reflejado. es posible que se vea el cambio reflejado inmediatamente esto en clients/id
+
 ## 2026-02-11 10:23 — Fix POS: created_at ambiguo
 
 **Lote:** pos-sale-ambiguous-created-at

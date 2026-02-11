@@ -206,6 +206,11 @@ export default async function ClientsPage({
     typeof resolvedSearchParams.client_id === 'string'
       ? resolvedSearchParams.client_id
       : '';
+  const currentParams = new URLSearchParams();
+  if (query) currentParams.set('q', query);
+  if (selectedBranchId) currentParams.set('branch_id', selectedBranchId);
+  if (selectedClientId) currentParams.set('client_id', selectedClientId);
+  const returnTo = `/clients${currentParams.toString() ? `?${currentParams.toString()}` : ''}`;
 
   const { data: clientDetailData } = selectedClientId
     ? await supabase.rpc('rpc_get_client_detail', {
@@ -444,6 +449,10 @@ export default async function ClientsPage({
     });
 
     revalidatePath('/clients');
+    const returnToPath = String(formData.get('return_to') ?? '').trim();
+    if (returnToPath) {
+      redirect(returnToPath);
+    }
   };
 
   return (
@@ -560,9 +569,7 @@ export default async function ClientsPage({
             <div className="mt-6 grid gap-3">
               {clients.map((client) => {
                 const isActive = client.client_id === selectedClientId;
-                const params = new URLSearchParams();
-                if (query) params.set('q', query);
-                if (selectedBranchId) params.set('branch_id', selectedBranchId);
+                const params = new URLSearchParams(currentParams);
                 params.set('client_id', client.client_id);
                 return (
                   <Link
@@ -821,6 +828,11 @@ export default async function ClientsPage({
                           type="hidden"
                           name="special_order_id"
                           value={order.special_order_id ?? ''}
+                        />
+                        <input
+                          type="hidden"
+                          name="return_to"
+                          value={returnTo}
                         />
                         <label className="text-xs text-zinc-600">
                           Estado

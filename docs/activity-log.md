@@ -152,6 +152,28 @@ Se corrigieron referencias ambiguas a `created_at` dentro de `rpc_create_sale` c
 **Tests:** `npm run db:reset` OK (2026-02-11) · `node scripts/seed-demo-data.js` OK (2026-02-11) · `npm run db:schema:snapshot` OK (2026-02-11) · `npm run types:gen` OK (2026-02-11)
 **Commit:** N/A
 
+## 2026-02-11 — Clients: refresh estado pedido especial
+
+**Tipo:** fix
+**Alcance:** frontend
+
+**Resumen**
+Se fuerza redirect al mismo filtro al actualizar estado para reflejar cambios sin recargar manualmente.
+
+**Impacto**
+
+- Estado actualizado se ve inmediatamente.
+- No cambia reglas de negocio ni DB.
+- Mantiene filtros y cliente seleccionado.
+
+**Archivos**
+
+- app/clients/page.tsx
+- docs/prompts.md
+
+**Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
 ## 2026-02-10 — Modulo vencimientos (UI)
 
 **Tipo:** ux
