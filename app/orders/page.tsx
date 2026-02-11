@@ -73,6 +73,19 @@ const formatStatusLabel = (status: string) => {
   }
 };
 
+const formatAvgModeLabel = (mode: string) => {
+  switch (mode) {
+    case 'weekly':
+      return 'Semanal';
+    case 'biweekly':
+      return 'Quincenal';
+    case 'monthly':
+      return 'Mensual';
+    default:
+      return 'Segun proveedor';
+  }
+};
+
 export default async function OrdersPage({
   searchParams,
 }: {
@@ -264,6 +277,15 @@ export default async function OrdersPage({
       ),
     );
 
+    const action = String(formData.get('order_action') ?? 'draft').trim();
+    if (action === 'sent') {
+      await supabaseServer.rpc('rpc_set_supplier_order_status', {
+        p_org_id: membership.org_id,
+        p_order_id: orderId,
+        p_status: 'sent',
+      });
+    }
+
     const specialOrderItemIdsRaw = String(
       formData.get('special_order_item_ids') ?? '',
     ).trim();
@@ -352,130 +374,188 @@ export default async function OrdersPage({
         </div>
 
         <section className="rounded-2xl bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Armar pedido</h2>
-          <form method="get" className="mt-4 grid gap-3 md:grid-cols-4">
-            <label className="text-sm text-zinc-600">
-              Proveedor
-              <select
-                name="draft_supplier_id"
-                defaultValue={draftSupplierId}
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              >
-                <option value="">Seleccionar</option>
-                {suppliers?.map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm text-zinc-600">
-              Sucursal
-              <select
-                name="draft_branch_id"
-                defaultValue={draftBranchId}
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              >
-                <option value="">Seleccionar</option>
-                {branches?.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm text-zinc-600">
-              Margen de ganancia (%)
-              <input
-                name="draft_margin_pct"
-                type="number"
-                min="0"
-                step="0.01"
-                defaultValue={draftMarginPctRaw}
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                placeholder="Ej: 40"
-              />
-              <span
-                className="mt-1 block text-xs text-zinc-400"
-                title="Se usa para estimar el costo del articulo en el proveedor."
-              >
-                ⓘ Se usa para estimar el costo del articulo en el proveedor.
+          <details className="group">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-lg font-semibold text-zinc-900">
+              Armar pedido
+              <span className="text-sm font-medium text-zinc-500 transition group-open:rotate-180">
+                ▾
               </span>
-            </label>
-            <label className="text-sm text-zinc-600">
-              Promedio
-              <select
-                name="draft_avg_mode"
-                defaultValue={draftAvgMode}
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              >
-                <option value="cycle">Segun proveedor</option>
-                <option value="weekly">Semanal</option>
-                <option value="biweekly">Quincenal</option>
-                <option value="monthly">Mensual</option>
-              </select>
-            </label>
-            <div className="flex items-end">
-              <button
-                type="submit"
-                className="rounded border border-zinc-200 px-3 py-2 text-sm"
-              >
-                Ver articulos
-              </button>
-            </div>
-          </form>
-
-          {draftSupplierId && draftBranchId ? (
-            <form action={createOrder} className="mt-6 grid gap-4">
-              <input type="hidden" name="supplier_id" value={draftSupplierId} />
-              <input type="hidden" name="branch_id" value={draftBranchId} />
-              <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-                Proveedor: {selectedSupplier?.name ?? 'Proveedor'} · Sucursal:{' '}
-                {selectedBranch?.name ?? 'Sucursal'} · Margen:{' '}
-                {safeMarginPct.toFixed(2)}%
-              </div>
-
-              <OrderSuggestionsClient
-                key={`${draftSupplierId}-${draftBranchId}`}
-                suggestions={suggestions as SuggestionRow[]}
-                priceByProduct={priceByProductRecord}
-                avgMode={
-                  (draftAvgMode as
-                    | 'cycle'
-                    | 'weekly'
-                    | 'biweekly'
-                    | 'monthly') || 'cycle'
-                }
-                safeMarginPct={safeMarginPct}
-                specialOrders={
-                  specialOrderItemsWithBranch as Array<
-                    SpecialOrderItemRow & { branch_name: string | null }
+            </summary>
+            <div className="mt-4">
+              <form method="get" className="grid gap-3 md:grid-cols-3">
+                <label className="text-sm text-zinc-600">
+                  Proveedor
+                  <select
+                    name="draft_supplier_id"
+                    defaultValue={draftSupplierId}
+                    className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
                   >
-                }
-              />
+                    <option value="">Seleccionar</option>
+                    {suppliers?.map((supplier) => (
+                      <option key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm text-zinc-600">
+                  Sucursal
+                  <select
+                    name="draft_branch_id"
+                    defaultValue={draftBranchId}
+                    className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                  >
+                    <option value="">Seleccionar</option>
+                    {branches?.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    className="rounded border border-zinc-200 px-3 py-2 text-sm"
+                  >
+                    Ver articulos
+                  </button>
+                </div>
+              </form>
 
-              <label className="text-sm text-zinc-600">
-                Notas
-                <textarea
-                  name="notes"
-                  rows={2}
-                  className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                />
-              </label>
-              <div className="flex flex-wrap items-center justify-end gap-3">
-                <button
-                  type="submit"
-                  className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
-                >
-                  Crear pedido
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="mt-6 rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
-              Selecciona proveedor y sucursal para ver sugeridos.
+              {draftSupplierId && draftBranchId ? (
+                <div className="mt-6 grid gap-4">
+                  <form
+                    method="get"
+                    className="rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700"
+                  >
+                    <p className="text-xs font-semibold text-zinc-500 uppercase">
+                      Ajustes de sugeridos
+                    </p>
+                    <div className="mt-3 grid gap-3 md:grid-cols-3">
+                      <label className="text-sm text-zinc-600">
+                        Margen de ganancia (%)
+                        <input
+                          name="draft_margin_pct"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          defaultValue={draftMarginPctRaw}
+                          className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                          placeholder="Ej: 40"
+                        />
+                        <span
+                          className="mt-1 block text-xs text-zinc-400"
+                          title="Se usa para estimar el costo del articulo en el proveedor."
+                        >
+                          ⓘ Se usa para estimar el costo del articulo en el
+                          proveedor.
+                        </span>
+                      </label>
+                      <label className="text-sm text-zinc-600">
+                        Promedio de ventas
+                        <select
+                          name="draft_avg_mode"
+                          defaultValue={draftAvgMode}
+                          className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                        >
+                          <option value="cycle">Segun proveedor</option>
+                          <option value="weekly">Semanal</option>
+                          <option value="biweekly">Quincenal</option>
+                          <option value="monthly">Mensual</option>
+                        </select>
+                        <span className="mt-1 block text-xs text-zinc-400">
+                          ⓘ Se usa para mostrar estadisticas de venta por
+                          periodo.
+                        </span>
+                      </label>
+                      <div className="flex items-end">
+                        <button
+                          type="submit"
+                          className="rounded border border-zinc-200 px-3 py-2 text-sm"
+                        >
+                          Aplicar
+                        </button>
+                      </div>
+                    </div>
+                    <input
+                      type="hidden"
+                      name="draft_supplier_id"
+                      value={draftSupplierId}
+                    />
+                    <input
+                      type="hidden"
+                      name="draft_branch_id"
+                      value={draftBranchId}
+                    />
+                  </form>
+
+                  <form action={createOrder} className="grid gap-4">
+                    <input
+                      type="hidden"
+                      name="supplier_id"
+                      value={draftSupplierId}
+                    />
+                    <input
+                      type="hidden"
+                      name="branch_id"
+                      value={draftBranchId}
+                    />
+                    <OrderSuggestionsClient
+                      key={`${draftSupplierId}-${draftBranchId}`}
+                      suggestions={suggestions as SuggestionRow[]}
+                      priceByProduct={priceByProductRecord}
+                      avgMode={
+                        (draftAvgMode as
+                          | 'cycle'
+                          | 'weekly'
+                          | 'biweekly'
+                          | 'monthly') || 'cycle'
+                      }
+                      safeMarginPct={safeMarginPct}
+                      showingSummary={`${selectedSupplier?.name ?? 'Proveedor'} · ${selectedBranch?.name ?? 'Sucursal'} · Margen: ${safeMarginPct.toFixed(2)}% · Promedio: ${formatAvgModeLabel(draftAvgMode)}`}
+                      specialOrders={
+                        specialOrderItemsWithBranch as Array<
+                          SpecialOrderItemRow & { branch_name: string | null }
+                        >
+                      }
+                    />
+
+                    <label className="text-sm text-zinc-600">
+                      Notas
+                      <textarea
+                        name="notes"
+                        rows={2}
+                        className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                      />
+                    </label>
+                    <div className="flex flex-wrap items-center justify-end gap-3">
+                      <button
+                        type="submit"
+                        name="order_action"
+                        value="draft"
+                        className="rounded border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700"
+                      >
+                        Guardar borrador
+                      </button>
+                      <button
+                        type="submit"
+                        name="order_action"
+                        value="sent"
+                        className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
+                      >
+                        Enviar pedido
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              ) : (
+                <div className="mt-6 rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
+                  Selecciona proveedor y sucursal para ver sugeridos.
+                </div>
+              )}
             </div>
-          )}
+          </details>
         </section>
 
         <section className="rounded-2xl bg-white p-6 shadow-sm">

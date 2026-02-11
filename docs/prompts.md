@@ -12,6 +12,62 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-11 14:17 — Mostrar fuera de especiales
+
+**Lote:** orders-showing-separate
+**Objetivo:** Mover el texto “Mostrando” fuera de la caja de pedidos especiales.
+
+**Prompt**
+pero por fuera de la seccion, porque se confunde. debajo en una seccion aparte
+
+## 2026-02-11 14:16 — Mover mostrando debajo de especiales
+
+**Lote:** orders-showing-below-specials
+**Objetivo:** Ubicar el texto “Mostrando” debajo de pedidos especiales pendientes.
+
+**Prompt**
+mejor colocalo debajo de pedidos especiales pendientes
+
+## 2026-02-11 13:57 — Mover texto mostrando
+
+**Lote:** orders-showing-text
+**Objetivo:** Mover texto de configuración debajo de ajustes sugeridos.
+
+**Prompt**
+justo debajo de proveedor y sucursal y ver articulos me sale un texto que me explica la configuracion actual de la busqueda. vamos a moverlo debajo de ajjustes sugeridos y le ponemos un texto antes que diga mostrando: asi ese texto lo que hace es indicarme lo que estoy viendo en los resultados. tiene sentido?
+
+## 2026-02-11 13:32 — Botones borrador/enviar pedido
+
+**Lote:** orders-draft-sent-buttons
+**Objetivo:** Separar guardar borrador y enviar pedido en /orders.
+
+**Prompt**
+ahora me gustaria que haya dos botones en la seccion de armar pedidos, quiero cambiar el de crear pededido por guardar borrador y agregar un boton mas que diga enviar pedido. esto lo que me permite es que los pedidos se guarden con estados distintos, si le doy a guardar borrador entonces es para terminarlo luego, si le doy a enviar entonces el estado que me aparece en el listado es enviado
+
+## 2026-02-11 11:57 — Colapsar armar pedido
+
+**Lote:** orders-collapsible-builder
+**Objetivo:** Hacer colapsable la sección de armar pedido en /orders.
+
+**Prompt**
+me gustaria que la seccion de armar pedido sea desplegable asi puedo ahorrar espacio y vista al entrar si no quiero armar un pedido y solo quiero ver la lista
+
+## 2026-02-11 11:52 — Ajuste label promedio
+
+**Lote:** orders-avg-label
+**Objetivo:** Renombrar promedio y aclarar uso del selector.
+
+**Prompt**
+al input de promedio cambiale el nombre a promedio de ventas y un tooltip o aclaracion que diga se usa para mostrar estadisticas de los articulos, o algo parecido que explique para que es
+
+## 2026-02-11 11:50 — Ajustes sugeridos en pedidos
+
+**Lote:** orders-suggestions-adjustments
+**Objetivo:** Mover ajustes de margen/promedio debajo del listado.
+
+**Prompt**
+si ahora en /orders vemos que tenemos la seccion de armar pedido dice proveedor, sucursal margen y promedio. me gustaria que fuera solo proveedor y sucursal y el boton de ver articulos. despues de que salen los articulos alli abajo es que deberia salirme lo del margen y el promedio. que sean como ajustes de la tabla y le doy aplicar. esto para que sea mas entendible para el usuario que lo usa. me explico?
+
 ## 2026-02-11 10:43 — Refrescar estado pedido especial
 
 **Lote:** clients-status-refresh

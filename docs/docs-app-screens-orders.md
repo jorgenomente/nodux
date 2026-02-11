@@ -67,21 +67,25 @@ Cada row:
 
 ### A1) Crear pedido (inline)
 
-Paso 1: seleccionar proveedor + sucursal + margen de ganancia (%).
+Paso 1: seleccionar proveedor + sucursal.
 
 Paso 2: ver sugeridos en la misma pantalla y editar cantidades.
 
-Paso 3: agregar notas y crear pedido.
+Paso 3: ajustar margen y promedio (sección “Ajustes de sugeridos”) y aplicar.
+
+Paso 4: agregar notas y guardar borrador / enviar pedido.
 
 Campos:
 
 - proveedor (selector)
 - sucursal (selector)
-- margen de ganancia (%) para estimar costo
+- ajustes de sugeridos: margen de ganancia (%) + promedio de ventas (ciclo/semanal/quincenal/mensual)
 - cantidades por item (default sugerido)
 - notas (opcional)
 
-Submit → crea order `draft` y vuelve al listado (sin redirigir).
+UI: la sección “Armar pedido” es colapsable para ahorrar espacio.
+
+Submit → crea order `draft` o `sent` según botón y vuelve al listado (sin redirigir).
 
 Validaciones:
 

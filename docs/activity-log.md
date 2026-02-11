@@ -174,6 +174,165 @@ Se fuerza redirect al mismo filtro al actualizar estado para reflejar cambios si
 **Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
 **Commit:** N/A
 
+## 2026-02-11 — Orders: ajustes sugeridos debajo
+
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se movieron los ajustes de margen/promedio para que aparezcan debajo del listado de sugeridos y se apliquen con botón separado.
+
+**Impacto**
+
+- El usuario primero selecciona proveedor/sucursal.
+- Los ajustes se aplican como configuración del listado.
+- No cambia lógica de negocio ni RPCs.
+
+**Archivos**
+
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+
+**Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
+## 2026-02-11 — Orders: label promedio de ventas
+
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se renombro el selector de promedio a “Promedio de ventas” y se agrego aclaracion de uso.
+
+**Impacto**
+
+- Mejora claridad del ajuste.
+- No cambia calculos ni lógica.
+- No impacta DB.
+
+**Archivos**
+
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+
+**Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
+## 2026-02-11 — Orders: armar pedido colapsable
+
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se hizo colapsable la sección “Armar pedido” para priorizar el listado.
+
+**Impacto**
+
+- Reduce ruido visual al entrar a /orders.
+- Mantiene el flujo actual sin cambios funcionales.
+- No impacta DB.
+
+**Archivos**
+
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+
+**Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
+## 2026-02-11 — Orders: borrador vs enviado
+
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se agregaron botones para guardar como borrador o enviar pedido, actualizando el estado en el listado.
+
+**Impacto**
+
+- Permite distinguir borradores y pedidos enviados desde la creación.
+- No cambia schema ni contratos.
+- Mantiene el flujo de sugeridos.
+
+**Archivos**
+
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+
+**Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
+## 2026-02-11 — Orders: texto mostrando
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se movio el texto de configuracion actual debajo de “Ajustes de sugeridos” y se prefijo con “Mostrando:”.
+
+**Impacto**
+
+- Mejora claridad de lo que se visualiza en los resultados.
+- No cambia lógica de negocio ni datos.
+- No afecta DB.
+
+**Archivos**
+
+- app/orders/page.tsx
+- docs/prompts.md
+
+**Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
+## 2026-02-11 — Orders: mostrar debajo de especiales
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se movio el texto “Mostrando” debajo de la sección de pedidos especiales pendientes.
+
+**Impacto**
+
+- La configuración visible queda junto a las alertas.
+- No cambia cálculos ni datos.
+- Sin impacto en DB.
+
+**Archivos**
+
+- app/orders/page.tsx
+- app/orders/OrderSuggestionsClient.tsx
+- docs/prompts.md
+
+**Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
+## 2026-02-11 — Orders: mostrar separado
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se movio el texto “Mostrando” fuera de la caja de pedidos especiales a una sección aparte.
+
+**Impacto**
+
+- Evita confusión entre alertas y contexto.
+- No cambia cálculos ni datos.
+- Sin impacto en DB.
+
+**Archivos**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/prompts.md
+
+**Tests:** Pendiente
+**Commit:** N/A
+
 ## 2026-02-10 — Modulo vencimientos (UI)
 
 **Tipo:** ux

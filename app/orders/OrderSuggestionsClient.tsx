@@ -18,6 +18,7 @@ type Props = {
   priceByProduct: Record<string, number>;
   avgMode: 'cycle' | 'weekly' | 'biweekly' | 'monthly';
   safeMarginPct: number;
+  showingSummary?: string | null;
   specialOrders?: Array<{
     item_id: string;
     client_name: string | null;
@@ -50,6 +51,7 @@ export default function OrderSuggestionsClient({
   priceByProduct,
   avgMode,
   safeMarginPct,
+  showingSummary,
   specialOrders = [],
 }: Props) {
   const [view, setView] = useState<'table' | 'cards'>(() => {
@@ -171,6 +173,11 @@ export default function OrderSuggestionsClient({
               </div>
             ))}
           </div>
+        </div>
+      ) : null}
+      {showingSummary ? (
+        <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3 text-xs text-zinc-600">
+          Mostrando: {showingSummary}
         </div>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
