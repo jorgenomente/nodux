@@ -25,10 +25,10 @@ Visualizar y gestionar productos por vencer por sucursal, con alertas accionable
 
 ## Contexto de sucursal (branch context)
 
-- Selector: “Todas” + sucursal
+- Selector: sucursal (obligatorio)
 - Default:
-  - OA: “todas” (si >1 sucursal)
-  - ST: sucursal activa (sin “todas”)
+  - OA: primera sucursal activa
+  - ST: sucursal activa
 
 ---
 
@@ -38,7 +38,7 @@ Visualizar y gestionar productos por vencer por sucursal, con alertas accionable
 
 - Título “Vencimientos”
 - Selector de sucursal
-- Chips de severidad: Critical / Warning / All
+- Chips de filtro: Critico (0-3 dias) / Pronto (4-7 dias) / Todas
 
 ### Lista priorizada
 
@@ -48,8 +48,8 @@ Cada row:
 - Fecha vencimiento
 - Días restantes (badge)
 - Cantidad (si aplica)
-- Sucursal (si scope = todas)
-- CTA: “Ver” (detalle) / “Ajustar” (solo OA)
+- Batch code (si existe)
+- CTA: “Ajustar cantidad” / “Corregir fecha” (solo OA)
 
 ### Acciones
 
@@ -61,16 +61,16 @@ Cada row:
 
 ### A1) Filtrar por severidad y sucursal
 
-- Refresca lista
+- Refresca lista (filtros por rango de días)
 
 ### A2) Registrar vencimiento manual (modal)
 
 Campos:
 
-- Producto (search)
+- Producto (select)
 - Fecha vencimiento (date picker)
 - Cantidad (decimal)
-- Sucursal (si OA y scope=todas)
+  (Sucursal tomada del selector actual)
   Submit → crea batch manual
 
 ### A3) Ajustar batch (solo OA)
@@ -80,6 +80,13 @@ Desde row/detalle:
 - “Marcar como agotado” (quantity=0)
 - “Ajustar cantidad” (nuevo valor)
   Submit → RPC ajuste (append-only en movimientos)
+
+### A4) Corregir fecha (solo OA)
+
+Desde row/detalle:
+
+- “Corregir fecha” (date + motivo)
+  Submit → RPC actualizar fecha con audit log
 
 ---
 
@@ -100,7 +107,7 @@ Desde row/detalle:
 
 ### Success
 
-- Toast “Vencimiento registrado/ajustado”
+- Banner “Vencimiento registrado/ajustado”
 
 ---
 
@@ -116,8 +123,9 @@ Salida mínima:
 - product_name
 - expires_on
 - days_left
-- severity (critical|warning|info)
+- severity (critical|warning|info) — la UI filtra por `days_left` (0-3 / 4-7)
 - quantity
+- batch_code
 - branch_id
 - branch_name
 
@@ -134,6 +142,12 @@ RPC 2 (OA): `rpc_adjust_expiration_batch(input)`
 
 - batch_id
 - new_quantity
+- reason (text, required)
+
+RPC 3 (OA): `rpc_update_expiration_batch_date(input)`
+
+- batch_id
+- new_expires_on
 - reason (text, required)
 
 ---
@@ -194,5 +208,10 @@ RPC 2 (OA): `rpc_adjust_expiration_batch(input)`
 
 ### EX-03: Filtros
 
-1. Filtrar critical/warning
+1. Filtrar critico/pronto
 2. Validar que cambia listado
+
+### EX-04: Corregir fecha
+
+1. Corregir fecha con motivo
+2. Ver actualización en lista

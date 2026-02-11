@@ -28,6 +28,8 @@ Dar una visión operativa clara del negocio, con foco en:
 - pedidos especiales de clientes
 - alertas in-app accionables
 
+**Estado actual**: placeholder MVP (no hay KPIs ni alertas en UI).
+
 ---
 
 ## Contexto de sucursal (branch context)

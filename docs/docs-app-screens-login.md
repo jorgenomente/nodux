@@ -33,12 +33,13 @@ según rol y permisos.
 ### CTA
 
 - Botón: “Iniciar sesión”
+- Estado loading: “Ingresando...”
 
 ### Estados auxiliares
 
 - Error de credenciales
 - Loading
-- Link “Olvidé mi contraseña” (opcional MVP)
+- Link “Olvidé mi contraseña” (presente pero deshabilitado)
 
 ---
 
@@ -48,7 +49,7 @@ según rol y permisos.
 
 - Envía credenciales a Supabase Auth
 - Maneja loading y errores
-- En éxito → ejecutar lógica de redirect post-login
+- En éxito → redirect a `/` (root resuelve el home)
 
 ---
 

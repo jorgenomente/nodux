@@ -259,6 +259,7 @@ Constraints:
 - `product_id` (uuid, FK)
 - `expires_on` (date)
 - `quantity` (numeric(14,3))
+- `batch_code` (text, nullable)
 - `source_type` (text) -- purchase | manual | adjustment
 - `source_ref_id` (uuid, nullable)
 - `created_at`, `updated_at`
@@ -391,6 +392,7 @@ Constraints:
 - `rpc_reconcile_supplier_order(input)`
 - `rpc_create_expiration_batch_manual(input)`
 - `rpc_adjust_expiration_batch(input)`
+- `rpc_update_expiration_batch_date(input)`
 - `rpc_upsert_client(input)`
 - `rpc_create_special_order(input)`
 - `rpc_set_special_order_status(input)`

@@ -28,8 +28,8 @@ Listar pedidos a proveedor y crear nuevos pedidos por sucursal.
 
 ## Contexto de sucursal
 
-- Filtro por sucursal: “Todas” + branch selector
-- Crear pedido requiere seleccionar sucursal (si scope=todas)
+- Filtro por sucursal (opcional) + estado
+- Crear pedido requiere seleccionar sucursal
 
 ---
 
@@ -41,8 +41,6 @@ Listar pedidos a proveedor y crear nuevos pedidos por sucursal.
 - Filtros de listado:
   - Sucursal
   - Estado (draft/sent/received/reconciled)
-  - Proveedor (opcional MVP)
-  - Search (opcional MVP)
 
 ### Lista (tabla/cards)
 
@@ -54,6 +52,7 @@ Cada row:
 - estado
 - fecha (created_at / sent_at)
 - acción: “Ver” → `/orders/[orderId]`
+- Listado separado: pendientes arriba, controlados abajo
 
 ---
 
@@ -137,9 +136,11 @@ Para estimar costo:
 
 UI:
 
-- Mostrar promedio por ciclo = avg_daily_sales_30d \* cycle_days
+- Mostrar promedio por ciclo = avg_daily_sales_30d \* días
 - Cantidad sugerida y cantidad a pedir como entero (redondeo hacia arriba)
-- Permitir selector para mostrar promedio semanal/quincenal/mensual (override manual)
+- Selector para mostrar promedio semanal/quincenal/mensual (override manual)
+- Toggle de vista: tabla/tarjetas (persistido en localStorage)
+- Totales: costo estimado + cantidad total de items
 
 ---
 

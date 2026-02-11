@@ -12,6 +12,8 @@
 
 - `/logout`
 
+Nota: es un `route.ts` (handler GET), no una página con UI.
+
 ## Rol / Acceso
 
 - SA / OA / ST (autenticados)

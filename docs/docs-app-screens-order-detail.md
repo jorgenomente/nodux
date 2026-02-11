@@ -24,8 +24,7 @@ Gestionar un pedido end-to-end:
 
 - editar items en draft
 - enviar pedido
-- recibir mercadería (received_qty)
-- conciliar y bloquear
+- recibir y controlar mercadería (received_qty)
 
 ---
 
@@ -38,8 +37,7 @@ Gestionar un pedido end-to-end:
 - Info: proveedor, sucursal, fechas
 - Acciones por estado:
   - Draft: “Enviar pedido”
-  - Sent: “Recibir mercadería”
-  - Received: “Conciliar”
+  - Sent: “Recibir y controlar mercadería”
   - Reconciled: sin acciones
 
 ### Sección Items (tabla)
@@ -63,8 +61,7 @@ Columnas:
 
 ### A1) Agregar ítem
 
-- Selector typeahead de productos (ideal: productos asociados al proveedor primero)
-- Mostrar si el producto es proveedor primario/secundario
+- Selector simple (lista de productos activos)
 - Define ordered_qty
 - UPSERT item
 
@@ -88,7 +85,7 @@ RPC status change:
 
 - set status sent + sent_at
 
-### A5) Recibir mercadería (sent → received)
+### A5) Recibir mercadería (sent → reconciled)
 
 - UI cambia a modo recepción + control:
   - received_qty por item (default = ordered_qty)
@@ -101,13 +98,6 @@ RPC status change:
   - genera movimientos purchase por item (stock +)
   - genera batches de vencimiento si el producto tiene `shelf_life_days`
     RPC: `rpc_receive_supplier_order(order_id, received_items[], received_at, controlled_by)`
-
-### A6) Conciliar (received → reconciled)
-
-- Confirmación
-- set reconciled_at y bloquear edición
-- opcional: nombre de quien controla (si venía de estado received)
-  RPC: `rpc_reconcile_supplier_order(order_id, controlled_by)`
 
 ---
 
@@ -164,7 +154,7 @@ RPC 4: `rpc_receive_supplier_order(input)`
 - order_id
 - items: [{ order_item_id, received_qty }]
   Efectos:
-- status → received
+- status → reconciled
 - received_at
 - movimientos purchase (append-only)
 - update stock

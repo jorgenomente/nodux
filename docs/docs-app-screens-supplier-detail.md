@@ -24,7 +24,6 @@ Gestionar un proveedor en profundidad:
 
 - ver/editar datos del proveedor
 - ver/editar productos principales asociados
-- ver historial de pedidos (MVP: link/preview simple)
 - crear producto desde el detalle (entry point alterno)
 
 ---
@@ -41,13 +40,11 @@ Gestionar un proveedor en profundidad:
   - “Activar/Desactivar”
   - (opcional) “Nuevo pedido” (cuando exista módulo orders)
 
-### Tabs o secciones (MVP)
+### Secciones (MVP actual)
 
-MVP recomendado (secciones verticales):
-
-1. Datos del proveedor
-2. Productos principales asociados
-3. Historial de pedidos (placeholder MVP o link)
+1. Datos del proveedor (form inline)
+2. Crear producto nuevo (asocia como primario)
+3. Productos principales asociados (editar SKU/nombre y remover)
 
 ---
 
@@ -55,18 +52,17 @@ MVP recomendado (secciones verticales):
 
 ### A1) Editar proveedor
 
-- Abre modal o sheet con campos (name, contacto, phone, email, notes)
+- Formulario inline con campos (name, contacto, phone, email, notes)
 - Incluye frecuencia y días de pedido/recepción
 - Guarda con RPC upsert
 
 ### A2) Activar/Desactivar proveedor
 
-- Confirmación simple
-- Guarda con RPC upsert (is_active)
+- Se cambia desde el selector de estado (activo/inactivo)
 
 ### A3) Editar datos de asociación
 
-- Editar supplier_sku y supplier_product_name inline o modal
+- Editar supplier_sku y supplier_product_name inline
 - Guarda con RPC upsert_supplier_product
 
 ### A4) Remover asociación
@@ -94,8 +90,7 @@ MVP recomendado (secciones verticales):
 
 ### Empty — sin productos asociados
 
-- “Este proveedor no tiene productos asociados.”
-- CTA: “Asociar productos”
+- “Este proveedor no tiene productos principales asociados.”
 
 ### Error
 
@@ -135,7 +130,7 @@ Salida:
   - internal_code (opcional)
   - supplier_sku
   - supplier_product_name
-  - relation_type
+  - relation_type (se usa lista de primarios)
 
 ### Escrituras
 

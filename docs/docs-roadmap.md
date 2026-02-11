@@ -3,7 +3,7 @@
 Este documento ordena el trabajo en fases logicas para avanzar el MVP de forma consistente.
 Debe actualizarse cada vez que se complete una fase o se cambie el plan.
 
-Estado actual: **baseline docs** (sin migraciones ni DB real).
+Estado actual: **MVP en progreso** (Fase 4 — módulos core).
 
 ---
 
@@ -146,7 +146,12 @@ Estado actual: **baseline docs** (sin migraciones ni DB real).
 
 **Objetivo**: batches, alertas y ajustes.
 
-**Estado**: PENDIENTE
+**Estado**: COMPLETA
+
+**Notas**:
+
+- /expirations implementado con lectura de `v_expirations_due`.
+- Alta manual y ajustes via RPCs de vencimientos.
 
 ### 4.5 Clientes y pedidos especiales
 

@@ -1,4 +1,4 @@
-Screen Contract — Superadmin
+# Screen Contract — Superadmin
 
 ## Guía rápida (para diseño)
 
@@ -8,15 +8,15 @@ Screen Contract — Superadmin
 - No inventes campos ni acciones: usa lo definido en el contrato de datos.
 - Si algo no está definido, marca la duda y consulta antes de decidir.
 
-Ruta
+## Ruta
 
-/superadmin
+- `/superadmin`
 
-Rol / Acceso
+## Rol / Acceso
 
-Solo Superadmin (SA)
+- Solo Superadmin (SA)
 
-Propósito (MVP)
+## Propósito (MVP)
 
 Control global del SaaS con alcance mínimo:
 
@@ -28,8 +28,11 @@ ver detalle básico (org + sucursales + usuarios count)
 
 MVP: nada de billing, nada de analítica avanzada, nada de RBAC fino.
 
-UI
-Header
+**Estado actual**: placeholder MVP (pantalla informativa, sin listado real).
+
+## UI
+
+### Header
 
 Título: “Superadmin”
 
@@ -55,8 +58,9 @@ info básica
 
 botón “Entrar a dashboard de esta org” (si impersonation existe)
 
-Data Contract
-Lectura
+## Data Contract
+
+### Lectura
 
 View: v_superadmin_orgs
 
@@ -70,19 +74,19 @@ users_count
 
 created_at
 
-Lectura detalle (opcional)
+### Lectura detalle (opcional)
 
 View: v_superadmin_org_detail(org_id)
 
 org + branches + users summary
 
-Seguridad
+## Seguridad
 
 RLS: SA global
 
 Nada de datos operativos de ventas/stock sin impersonation explícita
 
-Smoke tests
+## Smoke tests
 
 SA-01: SA ve listado de orgs
 

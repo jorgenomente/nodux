@@ -85,8 +85,10 @@ Una venta es un registro con:
 ### A2) Agregar producto por búsqueda
 
 - Búsqueda por nombre / código interno
-- Resultados rápidos (top N)
+- Resultados rápidos (top N, limit 20)
 - Tap para agregar al carrito
+- Regla UX: mínimo 3 caracteres
+- Búsqueda por tokens (orden libre) y debounce
 
 ### A3) Ajustar cantidad
 

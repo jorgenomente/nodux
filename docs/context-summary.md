@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-02-09 12:06
+Ultima actualizacion: 2026-02-10 12:05
 
 ## Estado general
 
@@ -34,6 +34,8 @@ Ultima actualizacion: 2026-02-09 12:06
 - Sugeridos simples en /orders usando ventas 30 dias + safety stock.
 - Productos con vencimiento aproximado (dias) y batches automaticos al recibir pedidos.
 - Ventas consumen batches FEFO (best-effort) para evitar alertas falsas.
+- /expirations operativo por sucursal con filtros 0-3 y 4-7 dias y correccion de fecha.
+- batch_code generado al recibir pedidos: <SUP>-<YYYYMMDD>-<NNN>.
 
 ## Post-MVP ya registrado
 

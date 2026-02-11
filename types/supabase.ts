@@ -338,6 +338,7 @@ export type Database = {
       };
       expiration_batches: {
         Row: {
+          batch_code: string | null;
           branch_id: string;
           created_at: string;
           expires_on: string;
@@ -350,6 +351,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          batch_code?: string | null;
           branch_id: string;
           created_at?: string;
           expires_on: string;
@@ -362,6 +364,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          batch_code?: string | null;
           branch_id?: string;
           created_at?: string;
           expires_on?: string;
@@ -1452,10 +1455,12 @@ export type Database = {
       };
       v_expiration_batch_detail: {
         Row: {
+          batch_code: string | null;
           batch_id: string | null;
           branch_id: string | null;
           branch_name: string | null;
           created_at: string | null;
+          days_left: number | null;
           expires_on: string | null;
           org_id: string | null;
           product_id: string | null;
@@ -1463,7 +1468,6 @@ export type Database = {
           quantity: number | null;
           source_ref_id: string | null;
           source_type: string | null;
-          updated_at: string | null;
         };
         Relationships: [
           {
@@ -1533,6 +1537,7 @@ export type Database = {
       };
       v_expirations_due: {
         Row: {
+          batch_code: string | null;
           batch_id: string | null;
           branch_id: string | null;
           branch_name: string | null;
@@ -2441,6 +2446,15 @@ export type Database = {
           p_order_id: string;
           p_org_id: string;
           p_status: Database['public']['Enums']['supplier_order_status'];
+        };
+        Returns: undefined;
+      };
+      rpc_update_expiration_batch_date: {
+        Args: {
+          p_batch_id: string;
+          p_new_expires_on: string;
+          p_org_id: string;
+          p_reason: string;
         };
         Returns: undefined;
       };

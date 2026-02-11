@@ -845,7 +845,7 @@ ALTER FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order
 
 CREATE OR REPLACE FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_items" "jsonb", "p_received_at" timestamp with time zone DEFAULT NULL::timestamp with time zone, "p_controlled_by_user_id" "uuid" DEFAULT NULL::"uuid", "p_controlled_by_name" "text" DEFAULT NULL::"text") RETURNS "void"
     LANGUAGE "plpgsql"
-    AS $$
+    AS $_$
 declare
   v_item jsonb;
   v_order record;
@@ -854,6 +854,12 @@ declare
   v_product_id uuid;
   v_shelf_life_days integer;
   v_expires_on date;
+  v_received_ts timestamptz;
+  v_received_date date;
+  v_supplier_name text;
+  v_supplier_code text;
+  v_seq int;
+  v_batch_code text;
 begin
   select * into v_order
   from public.supplier_orders
@@ -866,6 +872,27 @@ begin
 
   if v_order.status <> 'sent' then
     raise exception 'order must be sent before received';
+  end if;
+
+  v_received_ts := coalesce(p_received_at, now());
+  v_received_date := v_received_ts::date;
+
+  select name into v_supplier_name
+  from public.suppliers
+  where id = v_order.supplier_id and org_id = p_org_id;
+
+  v_supplier_code := upper(left(
+    regexp_replace(
+      translate(coalesce(v_supplier_name, ''), 'áéíóúÁÉÍÓÚñÑ', 'aeiouAEIOUnN'),
+      '[^A-Za-z]',
+      '',
+      'g'
+    ),
+    3
+  ));
+
+  if v_supplier_code is null or length(v_supplier_code) < 3 then
+    v_supplier_code := 'SUP';
   end if;
 
   for v_item in select * from jsonb_array_elements(p_items)
@@ -901,7 +928,20 @@ begin
       where id = v_product_id and org_id = p_org_id;
 
       if v_shelf_life_days is not null and v_shelf_life_days > 0 then
-        v_expires_on := current_date + v_shelf_life_days;
+        v_expires_on := v_received_date + v_shelf_life_days;
+
+        select coalesce(
+          max((regexp_match(batch_code, '-(\\d{3})$'))[1]::int),
+          0
+        ) + 1
+        into v_seq
+        from public.expiration_batches
+        where org_id = p_org_id
+          and branch_id = v_order.branch_id
+          and batch_code like (v_supplier_code || '-' || to_char(v_received_date, 'YYYYMMDD') || '-%');
+
+        v_batch_code := v_supplier_code || '-' || to_char(v_received_date, 'YYYYMMDD') || '-' || lpad(v_seq::text, 3, '0');
+
         insert into public.expiration_batches (
           org_id,
           branch_id,
@@ -910,6 +950,7 @@ begin
           quantity,
           source_type,
           source_ref_id,
+          batch_code,
           created_at,
           updated_at
         ) values (
@@ -920,6 +961,7 @@ begin
           v_received_qty,
           'purchase',
           p_order_id,
+          v_batch_code,
           now(),
           now()
         );
@@ -929,13 +971,13 @@ begin
 
   update public.supplier_orders
     set status = 'reconciled',
-        received_at = coalesce(p_received_at, now()),
+        received_at = v_received_ts,
         reconciled_at = now(),
         controlled_by_user_id = p_controlled_by_user_id,
         controlled_by_name = nullif(p_controlled_by_name, '')
   where id = p_order_id and org_id = p_org_id;
 end;
-$$;
+$_$;
 
 
 ALTER FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_items" "jsonb", "p_received_at" timestamp with time zone, "p_controlled_by_user_id" "uuid", "p_controlled_by_name" "text") OWNER TO "postgres";
@@ -1229,6 +1271,34 @@ $$;
 
 
 ALTER FUNCTION "public"."rpc_set_supplier_order_status"("p_org_id" "uuid", "p_order_id" "uuid", "p_status" "public"."supplier_order_status") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_update_expiration_batch_date"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_expires_on" "date", "p_reason" "text") RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+  update public.expiration_batches
+    set expires_on = p_new_expires_on
+  where id = p_batch_id
+    and org_id = p_org_id;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'expiration_batch_date_corrected',
+    'expiration_batch',
+    p_batch_id,
+    null,
+    jsonb_build_object(
+      'new_expires_on', p_new_expires_on,
+      'reason', coalesce(p_reason, '')
+    ),
+    null
+  );
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_update_expiration_batch_date"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_expires_on" "date", "p_reason" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_update_user_membership"("p_org_id" "uuid", "p_user_id" "uuid", "p_role" "public"."user_role", "p_is_active" boolean, "p_display_name" "text", "p_branch_ids" "uuid"[]) RETURNS "void"
@@ -1779,7 +1849,8 @@ CREATE TABLE IF NOT EXISTS "public"."expiration_batches" (
     "source_type" "text" NOT NULL,
     "source_ref_id" "uuid",
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "batch_code" "text"
 );
 
 
@@ -2103,11 +2174,12 @@ CREATE OR REPLACE VIEW "public"."v_expiration_batch_detail" AS
     "eb"."product_id",
     "p"."name" AS "product_name",
     "eb"."expires_on",
+    ("eb"."expires_on" - CURRENT_DATE) AS "days_left",
     "eb"."quantity",
+    "eb"."batch_code",
     "eb"."source_type",
     "eb"."source_ref_id",
-    "eb"."created_at",
-    "eb"."updated_at"
+    "eb"."created_at"
    FROM (("public"."expiration_batches" "eb"
      LEFT JOIN "public"."products" "p" ON ((("p"."id" = "eb"."product_id") AND ("p"."org_id" = "eb"."org_id"))))
      LEFT JOIN "public"."branches" "b" ON ((("b"."id" = "eb"."branch_id") AND ("b"."org_id" = "eb"."org_id"))));
@@ -2126,6 +2198,7 @@ CREATE OR REPLACE VIEW "public"."v_expirations_due" AS
     "eb"."expires_on",
     ("eb"."expires_on" - CURRENT_DATE) AS "days_left",
     "eb"."quantity",
+    "eb"."batch_code",
     "op"."critical_days",
     "op"."warning_days",
         CASE
@@ -3310,6 +3383,12 @@ GRANT ALL ON FUNCTION "public"."rpc_set_staff_module_access"("p_org_id" "uuid", 
 GRANT ALL ON FUNCTION "public"."rpc_set_supplier_order_status"("p_org_id" "uuid", "p_order_id" "uuid", "p_status" "public"."supplier_order_status") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_set_supplier_order_status"("p_org_id" "uuid", "p_order_id" "uuid", "p_status" "public"."supplier_order_status") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_set_supplier_order_status"("p_org_id" "uuid", "p_order_id" "uuid", "p_status" "public"."supplier_order_status") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_update_expiration_batch_date"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_expires_on" "date", "p_reason" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_update_expiration_batch_date"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_expires_on" "date", "p_reason" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_update_expiration_batch_date"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_expires_on" "date", "p_reason" "text") TO "service_role";
 
 
 

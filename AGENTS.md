@@ -184,6 +184,12 @@ Estos documentos son vivos y deben mantenerse actualizados ante cualquier cambio
 
 Si se agrega/modifica una tabla, view, RPC o policy RLS, estos docs deben actualizarse en el mismo lote.
 
+Además, toda feature/ajuste debe reflejarse en su documentación correspondiente:
+
+- contrato de pantalla (`docs/docs-app-screens-*.md`)
+- módulo (`docs/docs-modules-*.md`)
+- cualquier doc vivo relacionado
+
 ## 6.2) Roadmap vivo
 
 El roadmap en `docs/docs-roadmap.md` es obligatorio y debe actualizarse cada vez que una fase avance, se cierre o se reordene.

@@ -1,4 +1,6 @@
-2. Screen Contract — Clients (Org Admin + Staff, scope limitado)
+# Screen Contract — Clients (Org Admin + Staff, scope limitado)
+
+**Estado actual**: placeholder MVP (pantalla estática, sin listado real).
 
 ## Guía rápida (para diseño)
 

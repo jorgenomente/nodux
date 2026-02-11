@@ -42,8 +42,7 @@ Gestionar el catálogo de productos y el stock por sucursal, con operación real
 ### Header
 
 - Título: “Productos”
-- CTA principal: “Nuevo producto”
-- Search: nombre / barcode / SKU interno
+- CTA principal: “Nuevo producto” (formulario desplegable)
 
 ### Sección A — Lista de productos
 
@@ -61,7 +60,7 @@ Cada row:
 
 - Editar producto (inline)
 - Activar/Desactivar
-- Ajustar stock (formulario separado)
+- Ajustar stock (formulario desplegable en sección dedicada)
 
 MVP: no construir “detalle de producto” en subruta a menos que sea estrictamente necesario.
 Si crece, Post-MVP o siguiente lote: `/products/[productId]`.
@@ -86,14 +85,13 @@ Campos mínimos:
 - nombre_articulo_en_proveedor (opcional, si hay proveedor primario)
 - sku_en_proveedor (opcional, si hay proveedor primario)
 - proveedor_secundario (opcional)
-- stock_minimo (opcional)
-- stock_minimo_aplica_a_todas_las_sucursales (default)
+- stock_minimo (opcional, se aplica a todas las sucursales activas)
 
 ### A2) Editar producto
 
 - mismos campos
 - no eliminar; solo `is_active=false`
-- stock_minimo editable desde listado
+- stock_minimo editable desde listado (aplica a todas las sucursales activas)
 
 ### A3) Activar/Desactivar
 
@@ -108,7 +106,7 @@ Campos:
 - branch_id
 - product_id
 - new_quantity_on_hand
-- reason (text, requerido)
+- reason (text, opcional; default "manual")
 
 Efecto:
 
@@ -117,8 +115,8 @@ Efecto:
 
 ### A5) Definir stock mínimo (global)
 
-- Se define una sola vez al crear/editar producto
-- Aplica a todas las sucursales
+- Se define al crear/editar producto
+- Se replica a todas las sucursales activas
 
 ---
 
@@ -127,7 +125,7 @@ Efecto:
 - Loading: skeleton lista + toolbar
 - Empty: “No tenés productos aún.” + CTA “Nuevo producto”
 - Error: banner “No pudimos cargar productos” + reintentar
-- Success: toast “Producto guardado / Stock ajustado”
+- Success: estado visible tras guardar (sin toast global)
 
 ---
 

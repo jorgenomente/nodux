@@ -16,6 +16,7 @@ Evitar pérdidas por productos vencidos mediante:
 - visibilidad centralizada
 - alertas in-app por severidad
 - reglas claras de consumo/ajuste (MVP)
+- trazabilidad de lotes por recepcion (batch_code)
 
 ---
 
@@ -89,6 +90,7 @@ Cuando una venta descuenta stock, si se usa batches:
 
 - Al recibir pedidos a proveedor, si el producto tiene `shelf_life_days`, se crea un batch:
   - `expires_on = fecha_recepcion + shelf_life_days`
+  - `batch_code = <SUP>-<YYYYMMDD>-<NNN>` (SUP = 3 letras proveedor)
   - `quantity = received_qty`
 - Si `shelf_life_days` es null/0, no se generan batches automáticos.
 
@@ -99,8 +101,9 @@ OA puede registrar batches manualmente:
 - selecciona producto
 - fecha de vencimiento
 - cantidad estimada
-- branch
+  (branch actual seleccionado)
   Esto crea `expiration_batches` con `source_type=manual`.
+  `batch_code` queda vacío.
 
 ### R6) Ajustes (MVP)
 
@@ -111,6 +114,11 @@ Ajuste de vencimientos se registra como movimiento append-only:
   Permite:
 - corregir cantidad (por merma/vencido)
 - marcar batch como agotado (quantity=0)
+
+### R7) Correccion de fecha (MVP)
+
+- Permite corregir fecha de vencimiento aproximada a la fecha real.
+- Registra audit log con motivo.
 
 ---
 
@@ -126,8 +134,8 @@ Ajuste de vencimientos se registra como movimiento append-only:
 1. Lista por vencer (ordenada por urgencia)
 2. Filtros:
    - sucursal (branch)
-   - severidad
-   - producto (search)
+   - rango por días (0-3 / 4-7 / todas)
+   - la severidad en view sigue basada en org_preferences
 3. Crear batch manual
 4. Ajuste de batch (OA)
 5. “Inconsistencias” (alertas):
@@ -142,6 +150,7 @@ Ajuste de vencimientos se registra como movimiento append-only:
 - View: `v_expiration_batch_detail` (detalle + historial)
 - RPC: `rpc_create_expiration_batch_manual(...)`
 - RPC: `rpc_adjust_expiration_batch(...)`
+- RPC: `rpc_update_expiration_batch_date(...)`
 
 ---
 
@@ -167,4 +176,5 @@ Ajuste de vencimientos se registra como movimiento append-only:
 - Crear batch manual
 - Ver aparición en lista “por vencer”
 - Ajustar batch (quantity → 0) y verificar que desaparece o cambia estado
+- Corregir fecha y verificar orden en lista
 - Crear venta y verificar consumo FEFO (si implementado)

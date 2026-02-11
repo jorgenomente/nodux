@@ -22,6 +22,8 @@ Estado actual:
 - Vencimientos con cantidad > 0 en `supabase/migrations/20260209183000_018_expirations_due_quantity_filter.sql`.
 - Recepcion de pedido crea batches en `supabase/migrations/20260209184000_019_receive_order_create_batches.sql`.
 - Ventas consumen batches FEFO en `supabase/migrations/20260209185000_020_create_sale_consume_batches.sql`.
+- RPC correccion fecha vencimiento en `supabase/migrations/20260210110000_022_expiration_batch_update_date.sql`.
+- Batch code por recepcion en `supabase/migrations/20260210113000_023_expiration_batch_code.sql`.
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 
@@ -288,6 +290,7 @@ Estado actual:
 - `product_id` (uuid, FK)
 - `expires_on` (date)
 - `quantity` (numeric)
+- `batch_code` (text, nullable) — prefijo proveedor + fecha recepcion + secuencia
 - `source_type` (text)
 - `source_ref_id` (uuid, nullable)
 - `created_at`, `updated_at`

@@ -18,6 +18,164 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-10 — Modulo vencimientos (UI)
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se implemento la pantalla `/expirations` con filtros por sucursal y severidad, listado de vencimientos y acciones de alta manual y ajuste para OA.
+
+**Impacto**
+
+- Habilita operar vencimientos con batches automaticos y manuales.
+- Expone alertas por severidad usando `v_expirations_due`.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/expirations/page.tsx
+- app/expirations/loading.tsx
+- docs/docs-roadmap.md
+
+**Tests:** `npm run lint` OK (2026-02-10) · `npm run build` OK (2026-02-10)
+**Commit:** N/A
+
+## 2026-02-10 — Ajustes UX vencimientos
+
+**Tipo:** ux
+**Alcance:** frontend
+
+**Resumen**
+Se forzo la seleccion de sucursal, se removio el scope "todas" y se ajustaron los filtros a rangos por dias (critico 0-3, pronto 4-7).
+
+**Impacto**
+
+- El listado es siempre por sucursal seleccionada.
+- La alta manual hereda la sucursal seleccionada.
+- No cambia schema ni RPCs.
+
+**Archivos**
+
+- app/expirations/page.tsx
+
+**Tests:** `npm run lint` OK (2026-02-10) · `npm run build` OK (2026-02-10)
+**Commit:** N/A
+
+## 2026-02-10 — Correccion fecha vencimiento
+
+**Tipo:** db
+**Alcance:** db + frontend + docs
+
+**Resumen**
+Se agrego RPC para corregir la fecha de vencimiento con audit log y se expuso la accion en /expirations. Se actualizaron contratos y docs vivos.
+
+**Impacto**
+
+- Permite ajustar fechas aproximadas a fechas reales.
+- Mantiene trazabilidad via audit log.
+- No cambia otras reglas de negocio.
+
+**Archivos**
+
+- supabase/migrations/20260210110000_022_expiration_batch_update_date.sql
+- app/expirations/page.tsx
+- docs/docs-app-screens-expirations.md
+- docs/docs-modules-expirations.md
+- docs/docs-data-model.md
+- docs/docs-schema-model.md
+- docs/schema.sql
+- types/supabase.ts
+
+**Tests:** `npm run db:reset` OK (2026-02-10) · `npm run db:schema:snapshot` OK (2026-02-10) · `npm run types:gen` OK (2026-02-10) · `npm run lint` OK (2026-02-10) · `npm run build` OK (2026-02-10)
+**Commit:** N/A
+
+## 2026-02-10 — Batch code por recepcion
+
+**Tipo:** db
+**Alcance:** db + frontend + docs
+
+**Resumen**
+Se agrego batch_code en expiration_batches, se genera al recibir pedidos con prefijo de proveedor + fecha + secuencia y se muestra en /expirations.
+
+**Impacto**
+
+- Trazabilidad clara de lotes por recepcion.
+- Facilita verificacion fisica por sucursal y proveedor.
+- No altera consumo FEFO ni calculo de vencimientos.
+
+**Archivos**
+
+- supabase/migrations/20260210113000_023_expiration_batch_code.sql
+- app/expirations/page.tsx
+- docs/docs-app-screens-expirations.md
+- docs/docs-modules-expirations.md
+- docs/docs-data-model.md
+- docs/docs-schema-model.md
+- docs/schema.sql
+- types/supabase.ts
+
+**Tests:** `npm run db:reset` OK (2026-02-10) · `npm run db:schema:snapshot` OK (2026-02-10) · `npm run types:gen` OK (2026-02-10) · `npm run lint` OK (2026-02-10) · `npm run build` OK (2026-02-10)
+**Commit:** N/A
+
+## 2026-02-10 — Auditoria docs vencimientos
+
+**Tipo:** docs
+**Alcance:** docs
+
+**Resumen**
+Se auditaron y ajustaron los docs de vencimientos para reflejar el estado real (filtros por días, batch_code, corrección de fecha). Se reforzó en AGENTS la obligación de actualizar docs por cada feature.
+
+**Impacto**
+
+- Documentación fiel al comportamiento actual.
+- Refuerza disciplina de actualización de docs.
+- No cambia runtime ni DB.
+
+**Archivos**
+
+- AGENTS.md
+- docs/docs-app-screens-expirations.md
+- docs/docs-modules-expirations.md
+- docs/context-summary.md
+
+**Tests:** No ejecutados (docs-only)
+**Commit:** N/A
+
+## 2026-02-10 — Auditoria docs pantallas MVP
+
+**Tipo:** docs
+**Alcance:** docs
+
+**Resumen**
+Se auditaron pantallas implementadas y se ajustaron contratos de pantalla para reflejar el estado real (placeholders, filtros, flujos y UI existente).
+
+**Impacto**
+
+- Documentación alineada con la app actual.
+- Reduce drift entre UI y contratos.
+- No cambia runtime ni DB.
+
+**Archivos**
+
+- docs/docs-app-screens-login.md
+- docs/docs-app-screens-logout.md
+- docs/docs-app-screens-no-access.md
+- docs/docs-app-screens-admin-dashboard.md
+- docs/docs-app-screens-superadmin.md
+- docs/docs-app-screens-clients.md
+- docs/docs-app-screens-products.md
+- docs/docs-app-screens-products-lookup.md
+- docs/docs-app-screens-suppliers.md
+- docs/docs-app-screens-supplier-detail.md
+- docs/docs-app-screens-orders.md
+- docs/docs-app-screens-order-detail.md
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-app-screens-settings-audit-log.md
+
+**Tests:** No ejecutados (docs-only)
+**Commit:** N/A
+
 ## 2026-02-09 — Inputs proveedor en alta de productos
 
 **Tipo:** ux

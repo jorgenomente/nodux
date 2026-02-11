@@ -49,17 +49,15 @@ La app debe redirigir a `/no-access` cuando:
 
 ### CTA
 
-- Botón: “Cerrar sesión”
-  - Acción: logout → `/login`
+- No hay CTA (pantalla informativa).
 
 ---
 
 ## Acciones del usuario
 
-### A1) Cerrar sesión
+### A1) Consultar al admin
 
-- Ejecuta logout
-- Redirige a `/login`
+- Acción externa (sin UI en pantalla)
 
 ---
 
@@ -107,7 +105,6 @@ La app debe redirigir a `/no-access` cuando:
 ## Métricas / eventos
 
 - `no_access_viewed`
-- `no_access_logout_clicked`
 
 ---
 

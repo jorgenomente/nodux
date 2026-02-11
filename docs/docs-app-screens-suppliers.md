@@ -29,7 +29,7 @@ Gestionar proveedores y asociar productos para habilitar compras/pedidos.
 ### Header
 
 - Título: “Proveedores”
-- CTA principal: “Nuevo proveedor”
+- CTA principal: “Nuevo proveedor” (formulario en la misma página)
 - Search: por nombre / contacto
 
 ### Lista (tabla o cards)
@@ -41,9 +41,9 @@ Cada row:
 - teléfono/email (opcional)
 - estado (activo/inactivo)
 - conteo de productos asociados
-- acción: “Ver / Editar”
+- acción: “Ver” + edición inline (toggle)
 
-### Panel/Modal de detalle (MVP)
+### Detalle (MVP)
 
 - Alternativa A: navegación a subruta `/suppliers/[id]` (recomendado por claridad)
 - Alternativa B: modal de detalle (rápido pero puede crecer)
@@ -51,9 +51,7 @@ Cada row:
 > Recomendación: usar subruta (mejor “no pages huérfanas” y shareable URL).
 > Si elegimos subruta, agregarla al índice de pantallas.
 
-Para no expandir alcance ahora:
-
-- MVP puede usar modal y luego migrar a subruta.
+Estado actual: se usa subruta `/suppliers/[supplierId]`.
 
 ---
 
@@ -85,14 +83,12 @@ Submit → upsert
 
 ### A4) Asociar productos (en “detalle”)
 
-- buscar producto (typeahead)
-- seleccionar y asociar
-- opcional: supplier_sku, supplier_product_name
-- definir relation_type: primary | secondary
+- En MVP actual no hay búsqueda para asociar productos existentes.
+- La asociación ocurre al crear producto desde el detalle.
 
 ### A5) Remover asociación
 
-- acción “remover”
+- acción “remover” (desde detalle)
 - si hay referencias futuras (orders), definir soft-remove Post-MVP
 
 ---
@@ -111,7 +107,7 @@ Submit → upsert
 ### Empty (proveedor sin productos)
 
 - “Este proveedor no tiene productos asociados.”
-- CTA: “Asociar productos”
+  (CTA ocurre en detalle al crear producto)
 
 ### Error
 

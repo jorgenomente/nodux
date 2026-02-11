@@ -12,6 +12,54 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-10 10:15 — Modulo vencimientos (UI)
+
+**Lote:** expirations-module-ui
+**Objetivo:** Implementar la pantalla /expirations segun contrato MVP.
+
+**Prompt**
+perfecto, empecemos entonces por lo que recomiendes hacer
+
+## 2026-02-10 10:42 — Ajustes UX vencimientos
+
+**Lote:** expirations-module-ui
+**Objetivo:** Forzar selección de sucursal, ajustar filtros por días y simplificar alta manual.
+
+**Prompt**
+para este caso de vencimientos si me gustaria hacerlo por sucursal, es decir primero selecciono la sucursal y ahi veo los articulos de esa sucursal y sus fechas de vencimientos. deben estar ordenados automaticamente desde los que se vencen mas pronto hasta los que se vencen de ultimo. Las fechas de vencimientos son aproximadas, entonces debemos agregar un boton para corregir y ajustar la fecha de vencimiento para colocar la correcta en caso de que sea necesario. Como ya la sucursal tiene que estar seleccionada para ver los vencimientos entonces al agregar el vencimiento ya no deberia hacer falta seleccionar sucursal. en ese caso veo que hay un desplegable que me permite filtrar por sucursal aunque hay una opcion de todas. esa opcion de todas la quitamos y dejamos solo seleccionar la sucursal especifica. luego tambien los otros filtros de todas, critico, alerta vamos a cambiarlo, el de todas esta bien para ver todos los vecimientos, el de critico coresponde a los items que se vencen en los proximos 3 dias, vamos a agregar otro que diga pronto que corresponde de 4 a 7 dias y esos serian las opciones de filtrar por fecha, asi puedo ver lo mas cercano, pronto o todas
+
+## 2026-02-10 11:15 — Correccion fecha vencimiento (DB + UI)
+
+**Lote:** expirations-date-correction
+**Objetivo:** Agregar RPC para corregir fecha de vencimiento y exponerla en /expirations con audit log.
+
+**Prompt**
+si hazlo y actualiza los docs que sean necesarios para que este todo documentado
+
+## 2026-02-10 11:35 — Batch code por recepcion
+
+**Lote:** expirations-batch-code
+**Objetivo:** Generar batch code por recepcion con prefijo de proveedor y mostrarlo en vencimientos.
+
+**Prompt**
+Si exacto, esto quedaria aplicado cuando se confirma la recepccion de acuerdo a la fecha de recibido asi entendemos a que batch corresponde esa cantidad de articulos y si hay varios batches entonces en vencimientos entonces se entiende que corresponde a productos que se recibieron en distinta fecha. tambien eso sirve como para confirmar productos en fisico con respecto a lo que hay en el sistema. me gusta.
+
+## 2026-02-10 12:10 — Auditoria docs vencimientos
+
+**Lote:** expirations-docs-audit
+**Objetivo:** Auditar y ajustar docs de vencimientos para reflejar el estado actual.
+
+**Prompt**
+me gustaria que contemples en el AGENTS.md si no lo haces ya, que cualquier modificacion adicional, cualquier feature adicional y todos estos tipo de ajustes se vean reflejados y actualizados en su documento correspondiente. Por ejemplo todo esto que hicimos debe verse cambiado en la documentacion de vencimientos, asi podemos tener una documentacion fiel al proyecto. dicho esto realiza una auditoria de lo que hemos implementados y comparalo y verificalo con su documento correspondiente solo para chequear de que es fiel. no debemos cambiar nada de la app sino solo los docs para que siempre reflejen el estado actual del proyecto. Estos docs despues seran mi columna vertebral en caso de que quiera hacer un proyecto parecido o duplicarlo o lo que sea. que piensas?
+
+## 2026-02-10 12:30 — Auditoria docs pantallas MVP
+
+**Lote:** screens-docs-audit
+**Objetivo:** Revisar pantallas implementadas y ajustar sus docs para reflejar el estado actual.
+
+**Prompt**
+perfecto, ahora revisa las paginas que hemos hecho hasta ahora y comparalas con su doc correspondiente. Asegurate de explicar las funciones y ediciones adicionales que hemos hecho en su respectivo doc asi todo esta mejor explicado y documentado
+
 ## 2026-02-09 16:03 — Desplegable ajuste stock
 
 **Lote:** products-collapsible-forms

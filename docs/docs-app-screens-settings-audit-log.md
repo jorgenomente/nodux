@@ -50,6 +50,7 @@ Cada fila incluye:
 - Actor (nombre + rol)
 - Entidad (entity_type + entity_id)
 - Resumen breve (desde `metadata` si aplica)
+- Acceso a metadata completa con desplegable
 
 ### Detalle (opcional MVP)
 
@@ -62,7 +63,7 @@ Cada fila incluye:
 ### A1) Ver lista de auditoría
 
 - Orden por `created_at DESC`
-- Paginación simple (limit + offset)
+- Paginación simple (limit + offset, 50 por página)
 
 ### A2) Filtrar
 
