@@ -24,7 +24,7 @@ Gestionar un pedido end-to-end:
 
 - editar items en draft
 - enviar pedido
-- recibir y controlar mercadería (received_qty)
+- recibir y controlar mercadería (received_qty) en un solo paso
 
 ---
 
@@ -34,7 +34,8 @@ Gestionar un pedido end-to-end:
 
 - Breadcrumb: Pedidos → {orderId}
 - Estado (badge)
-- Info: proveedor, sucursal, fechas
+- Info: proveedor, sucursal, fechas (creado / enviado / controlado)
+- Selector de estado (borrador/enviado) + botón “Actualizar estado”
 - Acciones por estado:
   - Draft: “Enviar pedido”
   - Sent: “Recibir y controlar mercadería”
@@ -46,7 +47,7 @@ Columnas:
 
 - producto
 - ordered_qty (editable en draft)
-- received_qty (editable en recepción/received)
+- received_qty (editable en recepción/control)
 - diferencia (computed)
 - acciones: remover (solo draft)
 
@@ -85,12 +86,12 @@ RPC status change:
 
 - set status sent + sent_at
 
-### A5) Recibir mercadería (sent → reconciled)
+### A5) Recibir mercadería y controlar (sent → reconciled)
 
 - UI cambia a modo recepción + control:
   - received_qty por item (default = ordered_qty)
   - fecha/hora de recepción editable
-  - nombre de quien controla (editable) + autofirma
+  - nombre de quien controla (obligatorio) + autofirma
 - Confirmar recepción/control:
   - registra received_at (manual)
   - registra controlado por (nombre + user)
@@ -98,6 +99,11 @@ RPC status change:
   - genera movimientos purchase por item (stock +)
   - genera batches de vencimiento si el producto tiene `shelf_life_days`
     RPC: `rpc_receive_supplier_order(order_id, received_items[], received_at, controlled_by)`
+
+### A6) Actualizar estado manual (draft/sent)
+
+- Selector de estado (solo borrador/enviado)
+- Recibido/controlado se realizan solo via recepcion
 
 ---
 

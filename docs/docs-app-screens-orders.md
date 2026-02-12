@@ -40,7 +40,7 @@ Listar pedidos a proveedor y crear nuevos pedidos por sucursal.
 - Título: “Pedidos”
 - Filtros de listado:
   - Sucursal
-  - Estado (draft/sent/received/reconciled)
+  - Estado (draft/sent/reconciled)
 
 ### Lista (tabla/cards)
 
@@ -67,7 +67,7 @@ Cada row:
 
 ### A1) Crear pedido (inline)
 
-Paso 1: seleccionar proveedor + sucursal.
+Paso 1: seleccionar proveedor + sucursal (auto carga sugeridos).
 
 Paso 2: ver sugeridos en la misma pantalla y editar cantidades.
 

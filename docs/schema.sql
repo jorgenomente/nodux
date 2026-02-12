@@ -1000,6 +1000,203 @@ $$;
 ALTER FUNCTION "public"."rpc_mark_special_order_items_ordered"("p_org_id" "uuid", "p_item_ids" "uuid"[], "p_supplier_order_id" "uuid") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."rpc_move_expiration_batch_to_waste"("p_org_id" "uuid", "p_batch_id" "uuid", "p_expected_qty" numeric) RETURNS TABLE("waste_id" "uuid", "total_amount" numeric)
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_batch record;
+  v_unit_price numeric(12,2);
+  v_total numeric(12,2);
+  v_waste_id uuid;
+  v_current numeric(14,3);
+  v_exp_enabled boolean := false;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  select
+    eb.id as batch_id,
+    eb.branch_id,
+    eb.product_id,
+    eb.quantity,
+    eb.expires_on
+  into v_batch
+  from public.expiration_batches eb
+  where eb.org_id = p_org_id
+    and eb.id = p_batch_id
+  for update;
+
+  if v_batch.batch_id is null then
+    raise exception 'batch not found';
+  end if;
+
+  if v_batch.expires_on >= current_date then
+    raise exception 'batch not expired';
+  end if;
+
+  if v_batch.quantity <= 0 then
+    raise exception 'batch empty';
+  end if;
+
+  if p_expected_qty is not null and p_expected_qty <> v_batch.quantity then
+    raise exception 'quantity mismatch';
+  end if;
+
+  if not public.is_org_admin_or_superadmin(p_org_id) then
+    if not exists (
+      select 1
+      from public.org_users ou
+      where ou.org_id = p_org_id
+        and ou.user_id = auth.uid()
+        and ou.is_active = true
+        and ou.role = 'staff'
+    ) then
+      raise exception 'not authorized';
+    end if;
+
+    if not exists (
+      select 1
+      from public.branch_memberships bm
+      where bm.org_id = p_org_id
+        and bm.user_id = auth.uid()
+        and bm.branch_id = v_batch.branch_id
+        and bm.is_active = true
+    ) then
+      raise exception 'branch not allowed';
+    end if;
+
+    select coalesce(
+      (select sma.is_enabled
+       from public.staff_module_access sma
+       where sma.org_id = p_org_id
+         and sma.branch_id = v_batch.branch_id
+         and sma.role = 'staff'
+         and sma.module_key = 'expirations'
+       limit 1),
+      (select sma.is_enabled
+       from public.staff_module_access sma
+       where sma.org_id = p_org_id
+         and sma.branch_id is null
+         and sma.role = 'staff'
+         and sma.module_key = 'expirations'
+       limit 1),
+      false
+    ) into v_exp_enabled;
+
+    if not v_exp_enabled then
+      raise exception 'expirations module disabled';
+    end if;
+  end if;
+
+  select unit_price
+    into v_unit_price
+  from public.products
+  where id = v_batch.product_id
+    and org_id = p_org_id;
+
+  if v_unit_price is null then
+    v_unit_price := 0;
+  end if;
+
+  v_total := v_unit_price * v_batch.quantity;
+
+  insert into public.expiration_waste (
+    org_id,
+    branch_id,
+    product_id,
+    batch_id,
+    quantity,
+    unit_price_snapshot,
+    total_amount,
+    created_by
+  ) values (
+    p_org_id,
+    v_batch.branch_id,
+    v_batch.product_id,
+    v_batch.batch_id,
+    v_batch.quantity,
+    v_unit_price,
+    v_total,
+    auth.uid()
+  ) returning id into v_waste_id;
+
+  update public.expiration_batches
+    set quantity = 0,
+        updated_at = now()
+  where id = v_batch.batch_id;
+
+  select quantity_on_hand
+    into v_current
+  from public.stock_items
+  where org_id = p_org_id
+    and branch_id = v_batch.branch_id
+    and product_id = v_batch.product_id
+  for update;
+
+  if v_current is null then
+    insert into public.stock_items (
+      org_id, branch_id, product_id, quantity_on_hand
+    ) values (
+      p_org_id, v_batch.branch_id, v_batch.product_id, 0 - v_batch.quantity
+    )
+    on conflict (org_id, branch_id, product_id)
+    do update set quantity_on_hand = public.stock_items.quantity_on_hand - v_batch.quantity;
+  else
+    update public.stock_items
+      set quantity_on_hand = quantity_on_hand - v_batch.quantity
+    where org_id = p_org_id
+      and branch_id = v_batch.branch_id
+      and product_id = v_batch.product_id;
+  end if;
+
+  insert into public.stock_movements (
+    org_id,
+    branch_id,
+    product_id,
+    movement_type,
+    quantity_delta,
+    reason,
+    source_type,
+    source_id,
+    expiration_batch_id
+  ) values (
+    p_org_id,
+    v_batch.branch_id,
+    v_batch.product_id,
+    'expiration_adjustment',
+    0 - v_batch.quantity,
+    'waste',
+    'expiration_waste',
+    v_waste_id,
+    v_batch.batch_id
+  );
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'expiration_waste_recorded',
+    'expiration_waste',
+    v_waste_id,
+    v_batch.branch_id,
+    jsonb_build_object(
+      'batch_id', v_batch.batch_id,
+      'product_id', v_batch.product_id,
+      'quantity', v_batch.quantity,
+      'total_amount', v_total
+    ),
+    null
+  );
+
+  return query select v_waste_id, v_total;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_move_expiration_batch_to_waste"("p_org_id" "uuid", "p_batch_id" "uuid", "p_expected_qty" numeric) OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_items" "jsonb") RETURNS "void"
     LANGUAGE "plpgsql"
     AS $$
@@ -2129,6 +2326,23 @@ CREATE TABLE IF NOT EXISTS "public"."expiration_batches" (
 ALTER TABLE "public"."expiration_batches" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."expiration_waste" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "org_id" "uuid" NOT NULL,
+    "branch_id" "uuid" NOT NULL,
+    "product_id" "uuid" NOT NULL,
+    "batch_id" "uuid",
+    "quantity" numeric(14,3) NOT NULL,
+    "unit_price_snapshot" numeric(12,2) DEFAULT 0 NOT NULL,
+    "total_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "created_by" "uuid" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."expiration_waste" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."org_preferences" (
     "org_id" "uuid" NOT NULL,
     "critical_days" integer DEFAULT 3 NOT NULL,
@@ -2460,6 +2674,38 @@ CREATE OR REPLACE VIEW "public"."v_expiration_batch_detail" AS
 ALTER VIEW "public"."v_expiration_batch_detail" OWNER TO "postgres";
 
 
+CREATE OR REPLACE VIEW "public"."v_expiration_waste_detail" AS
+ SELECT "ew"."id" AS "waste_id",
+    "ew"."org_id",
+    "ew"."branch_id",
+    "b"."name" AS "branch_name",
+    "ew"."product_id",
+    "p"."name" AS "product_name",
+    "ew"."quantity",
+    "ew"."unit_price_snapshot",
+    "ew"."total_amount",
+    "ew"."created_at"
+   FROM (("public"."expiration_waste" "ew"
+     JOIN "public"."products" "p" ON ((("p"."id" = "ew"."product_id") AND ("p"."org_id" = "ew"."org_id"))))
+     JOIN "public"."branches" "b" ON ((("b"."id" = "ew"."branch_id") AND ("b"."org_id" = "ew"."org_id"))));
+
+
+ALTER VIEW "public"."v_expiration_waste_detail" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."v_expiration_waste_summary" AS
+ SELECT "org_id",
+    "branch_id",
+    "sum"("total_amount") AS "total_amount",
+    "sum"("quantity") AS "total_quantity",
+    "max"("created_at") AS "last_created_at"
+   FROM "public"."expiration_waste"
+  GROUP BY "org_id", "branch_id";
+
+
+ALTER VIEW "public"."v_expiration_waste_summary" OWNER TO "postgres";
+
+
 CREATE OR REPLACE VIEW "public"."v_expirations_due" AS
  SELECT "eb"."id" AS "batch_id",
     "eb"."org_id",
@@ -2486,6 +2732,28 @@ CREATE OR REPLACE VIEW "public"."v_expirations_due" AS
 
 
 ALTER VIEW "public"."v_expirations_due" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."v_expirations_expired" AS
+ SELECT "eb"."id" AS "batch_id",
+    "eb"."org_id",
+    "eb"."branch_id",
+    "b"."name" AS "branch_name",
+    "eb"."product_id",
+    "p"."name" AS "product_name",
+    "eb"."expires_on",
+    (CURRENT_DATE - "eb"."expires_on") AS "days_expired",
+    "eb"."quantity",
+    "eb"."batch_code",
+    "p"."unit_price",
+    ("eb"."quantity" * COALESCE("p"."unit_price", (0)::numeric)) AS "total_value"
+   FROM (("public"."expiration_batches" "eb"
+     JOIN "public"."products" "p" ON ((("p"."id" = "eb"."product_id") AND ("p"."org_id" = "eb"."org_id"))))
+     JOIN "public"."branches" "b" ON ((("b"."id" = "eb"."branch_id") AND ("b"."org_id" = "eb"."org_id"))))
+  WHERE (("eb"."quantity" > (0)::numeric) AND ("eb"."expires_on" < CURRENT_DATE));
+
+
+ALTER VIEW "public"."v_expirations_expired" OWNER TO "postgres";
 
 
 CREATE OR REPLACE VIEW "public"."v_order_detail_admin" AS
@@ -2853,6 +3121,11 @@ ALTER TABLE ONLY "public"."expiration_batches"
 
 
 
+ALTER TABLE ONLY "public"."expiration_waste"
+    ADD CONSTRAINT "expiration_waste_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."org_preferences"
     ADD CONSTRAINT "org_preferences_pkey" PRIMARY KEY ("org_id");
 
@@ -2957,6 +3230,10 @@ CREATE INDEX "audit_log_org_actor_idx" ON "public"."audit_log" USING "btree" ("o
 
 
 CREATE INDEX "audit_log_org_created_at_idx" ON "public"."audit_log" USING "btree" ("org_id", "created_at" DESC);
+
+
+
+CREATE INDEX "expiration_waste_org_branch_idx" ON "public"."expiration_waste" USING "btree" ("org_id", "branch_id", "created_at" DESC);
 
 
 
@@ -3143,6 +3420,31 @@ ALTER TABLE ONLY "public"."expiration_batches"
 
 ALTER TABLE ONLY "public"."expiration_batches"
     ADD CONSTRAINT "expiration_batches_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."expiration_waste"
+    ADD CONSTRAINT "expiration_waste_batch_id_fkey" FOREIGN KEY ("batch_id") REFERENCES "public"."expiration_batches"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."expiration_waste"
+    ADD CONSTRAINT "expiration_waste_branch_id_fkey" FOREIGN KEY ("branch_id") REFERENCES "public"."branches"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."expiration_waste"
+    ADD CONSTRAINT "expiration_waste_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."expiration_waste"
+    ADD CONSTRAINT "expiration_waste_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."expiration_waste"
+    ADD CONSTRAINT "expiration_waste_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE RESTRICT;
 
 
 
@@ -3390,6 +3692,13 @@ CREATE POLICY "expiration_batches_update" ON "public"."expiration_batches" FOR U
 
 
 CREATE POLICY "expiration_batches_write" ON "public"."expiration_batches" FOR INSERT WITH CHECK ("public"."is_org_admin"("org_id"));
+
+
+
+ALTER TABLE "public"."expiration_waste" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "expiration_waste_select" ON "public"."expiration_waste" FOR SELECT USING ("public"."is_org_member"("org_id"));
 
 
 
@@ -3687,6 +3996,12 @@ GRANT ALL ON FUNCTION "public"."rpc_mark_special_order_items_ordered"("p_org_id"
 
 
 
+GRANT ALL ON FUNCTION "public"."rpc_move_expiration_batch_to_waste"("p_org_id" "uuid", "p_batch_id" "uuid", "p_expected_qty" numeric) TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_move_expiration_batch_to_waste"("p_org_id" "uuid", "p_batch_id" "uuid", "p_expected_qty" numeric) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_move_expiration_batch_to_waste"("p_org_id" "uuid", "p_batch_id" "uuid", "p_expected_qty" numeric) TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_items" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_items" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_items" "jsonb") TO "service_role";
@@ -3867,6 +4182,12 @@ GRANT ALL ON TABLE "public"."expiration_batches" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."expiration_waste" TO "anon";
+GRANT ALL ON TABLE "public"."expiration_waste" TO "authenticated";
+GRANT ALL ON TABLE "public"."expiration_waste" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."org_preferences" TO "anon";
 GRANT ALL ON TABLE "public"."org_preferences" TO "authenticated";
 GRANT ALL ON TABLE "public"."org_preferences" TO "service_role";
@@ -3969,9 +4290,27 @@ GRANT ALL ON TABLE "public"."v_expiration_batch_detail" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."v_expiration_waste_detail" TO "anon";
+GRANT ALL ON TABLE "public"."v_expiration_waste_detail" TO "authenticated";
+GRANT ALL ON TABLE "public"."v_expiration_waste_detail" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."v_expiration_waste_summary" TO "anon";
+GRANT ALL ON TABLE "public"."v_expiration_waste_summary" TO "authenticated";
+GRANT ALL ON TABLE "public"."v_expiration_waste_summary" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."v_expirations_due" TO "anon";
 GRANT ALL ON TABLE "public"."v_expirations_due" TO "authenticated";
 GRANT ALL ON TABLE "public"."v_expirations_due" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."v_expirations_expired" TO "anon";
+GRANT ALL ON TABLE "public"."v_expirations_expired" TO "authenticated";
+GRANT ALL ON TABLE "public"."v_expirations_expired" TO "service_role";
 
 
 

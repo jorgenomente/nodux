@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
+import OrderDraftFiltersClient from '@/app/orders/OrderDraftFiltersClient';
 import OrderSuggestionsClient from '@/app/orders/OrderSuggestionsClient';
 import PageShell from '@/app/components/PageShell';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
@@ -65,7 +66,7 @@ const formatStatusLabel = (status: string) => {
     case 'sent':
       return 'Enviado';
     case 'received':
-      return 'Recibido';
+      return 'Controlado';
     case 'reconciled':
       return 'Controlado';
     default:
@@ -162,10 +163,8 @@ export default async function OrdersPage({
     orderQuery = orderQuery.eq('branch_id', selectedBranchId);
   }
 
-  const statusValue = ['draft', 'sent', 'received', 'reconciled'].includes(
-    selectedStatus,
-  )
-    ? (selectedStatus as 'draft' | 'sent' | 'received' | 'reconciled')
+  const statusValue = ['draft', 'sent', 'reconciled'].includes(selectedStatus)
+    ? (selectedStatus as 'draft' | 'sent' | 'reconciled')
     : '';
 
   if (statusValue) {
@@ -361,7 +360,6 @@ export default async function OrdersPage({
               <option value="">Todos los estados</option>
               <option value="draft">Borrador</option>
               <option value="sent">Enviado</option>
-              <option value="received">Recibido</option>
               <option value="reconciled">Controlado</option>
             </select>
             <button
@@ -374,7 +372,10 @@ export default async function OrdersPage({
         </div>
 
         <section className="rounded-2xl bg-white p-6 shadow-sm">
-          <details className="group">
+          <details
+            className="group"
+            open={Boolean(draftSupplierId && draftBranchId)}
+          >
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-lg font-semibold text-zinc-900">
               Armar pedido
               <span className="text-sm font-medium text-zinc-500 transition group-open:rotate-180">
@@ -382,46 +383,18 @@ export default async function OrdersPage({
               </span>
             </summary>
             <div className="mt-4">
-              <form method="get" className="grid gap-3 md:grid-cols-3">
-                <label className="text-sm text-zinc-600">
-                  Proveedor
-                  <select
-                    name="draft_supplier_id"
-                    defaultValue={draftSupplierId}
-                    className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                  >
-                    <option value="">Seleccionar</option>
-                    {suppliers?.map((supplier) => (
-                      <option key={supplier.id} value={supplier.id}>
-                        {supplier.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-sm text-zinc-600">
-                  Sucursal
-                  <select
-                    name="draft_branch_id"
-                    defaultValue={draftBranchId}
-                    className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                  >
-                    <option value="">Seleccionar</option>
-                    {branches?.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className="flex items-end">
-                  <button
-                    type="submit"
-                    className="rounded border border-zinc-200 px-3 py-2 text-sm"
-                  >
-                    Ver articulos
-                  </button>
-                </div>
-              </form>
+              <OrderDraftFiltersClient
+                suppliers={
+                  (suppliers ?? []) as Array<{ id: string; name: string }>
+                }
+                branches={
+                  (branches ?? []) as Array<{ id: string; name: string }>
+                }
+                draftSupplierId={draftSupplierId}
+                draftBranchId={draftBranchId}
+                draftMarginPct={draftMarginPctRaw}
+                draftAvgMode={draftAvgMode}
+              />
 
               {draftSupplierId && draftBranchId ? (
                 <div className="mt-6 grid gap-4">

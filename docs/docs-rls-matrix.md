@@ -37,6 +37,7 @@ Estado actual:
 | `sales`                      | read               | read/insert        | insert (via RPC)              | ST crea ventas en su branch         |
 | `sale_items`                 | read               | read/insert        | insert (via RPC)              | derivado de venta                   |
 | `expiration_batches`         | read/insert/update | read/insert/update | read/insert (si modulo)       | ST sin ajustes avanzados            |
+| `expiration_waste`           | read               | read/insert        | read (via view/RPC)           | Registro de desperdicio             |
 | `suppliers`                  | read/insert/update | read/insert/update | no                            | ST sin acceso                       |
 | `supplier_products`          | read/insert/update | read/insert/update | no                            | ST sin acceso                       |
 | `supplier_orders`            | read/insert/update | read/insert/update | no                            | ST no en MVP                        |

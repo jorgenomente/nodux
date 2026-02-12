@@ -18,6 +18,148 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-11 — Expirations: vencidos unificados
+
+**Tipo:** docs
+**Alcance:** docs
+
+**Resumen**
+Se actualizo la documentacion de vencimientos para reflejar la lista unificada (vencidos primero) y el filtro “Vencidos”.
+
+**Impacto**
+
+- La pantalla /expirations queda documentada con lista unificada y accion de mover a desperdicio.
+- El modulo de vencimientos refleja el flujo actualizado.
+- No cambia la app ni la base de datos.
+
+**Archivos**
+
+- docs/docs-app-screens-expirations.md
+- docs/docs-modules-expirations.md
+- docs/context-summary.md
+- docs/prompts.md
+
+**Tests:** N/A
+**Commit:** N/A
+
+## 2026-02-11 — Expirations: auto filtro por sucursal
+
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se actualizo el selector de sucursal para que refresque automaticamente la lista de vencimientos sin boton de filtrar.
+
+**Impacto**
+
+- Cambiar sucursal actualiza la lista al instante.
+- No cambia reglas de negocio ni base de datos.
+- Se actualiza el contrato de pantalla para reflejar el comportamiento.
+
+**Archivos**
+
+- app/expirations/ExpirationsFiltersClient.tsx
+- app/expirations/page.tsx
+- docs/docs-app-screens-expirations.md
+- docs/prompts.md
+
+**Tests:** N/A
+**Commit:** N/A
+
+## 2026-02-11 — Orders: selector de estado en detalle
+
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se agrego selector de estado (borrador/enviado) en /orders/[orderId] y se documenta que “recibido/controlado” requieren sus flujos dedicados.
+
+**Impacto**
+
+- Permite ajustar el estado del pedido desde el header.
+- Mantiene la recepcion y control como acciones dedicadas.
+- No cambia RPCs ni modelo de datos.
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/prompts.md
+
+**Tests:** N/A
+**Commit:** N/A
+
+## 2026-02-11 — Orders: recibido/controlado unificados en UI
+
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se unifico el estado “recibido” con “controlado” en la UI de detalle, manteniendo la recepcion/control como un solo paso.
+
+**Impacto**
+
+- El selector de estado solo permite borrador/enviado.
+- La recepcion aplica controlado en un solo flujo.
+- No cambia RPCs ni modelo de datos.
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/prompts.md
+
+**Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
+## 2026-02-11 — Orders: refresh estado al enviar
+
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se fuerza redirect con aviso para que el estado se actualice inmediatamente al enviar pedido.
+
+**Impacto**
+
+- El estado cambia sin refrescar manualmente.
+- Se mantiene el flujo actual de estados.
+- No cambia DB ni RPCs.
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- docs/prompts.md
+
+**Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
+## 2026-02-11 — Orders: controlado obligatorio + auto sugeridos
+
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se obliga a indicar “controlado por” al recibir pedidos, se elimina “recibido” en la UI y se auto cargan sugeridos al elegir proveedor/sucursal.
+
+**Impacto**
+
+- La recepcion exige nombre de control.
+- La cabecera muestra solo creado/enviado/controlado.
+- El armado de pedido no requiere boton “Ver articulos”.
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- app/orders/OrderDraftFiltersClient.tsx
+- app/orders/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+
+**Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
 ## 2026-02-11 — Pedidos especiales con items y POS
 
 **Tipo:** db
@@ -330,7 +472,63 @@ Se movio el texto “Mostrando” fuera de la caja de pedidos especiales a una s
 - app/orders/OrderSuggestionsClient.tsx
 - docs/prompts.md
 
-**Tests:** Pendiente
+**Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
+## 2026-02-11 — Expirations: vencidos y desperdicio
+
+**Tipo:** feature
+**Alcance:** db + frontend + docs
+
+**Resumen**
+Se agregó sección de vencidos con acción de mover a desperdicio, cálculo de pérdida monetaria y registro en DB.
+
+**Impacto**
+
+- Permite registrar desperdicio por vencimiento.
+- Descuenta stock al mover a desperdicio.
+- Muestra total de pérdidas por sucursal.
+
+**Archivos**
+
+- supabase/migrations/20260211140000_027_expiration_waste.sql
+- app/expirations/page.tsx
+- docs/docs-app-screens-expirations.md
+- docs/docs-modules-expirations.md
+- docs/docs-data-model.md
+- docs/docs-schema-model.md
+- docs/docs-rls-matrix.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/schema.sql
+- types/supabase.ts
+
+**Tests:** `npm run db:reset` OK (2026-02-11) · `npm run db:schema:snapshot` OK (2026-02-11) · `npm run types:gen` OK (2026-02-11) · `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
+## 2026-02-11 — Expirations: desperdicio confirmado
+
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se separó “Vencidos” de “Desperdicio”; solo aparece en desperdicio cuando se confirma el movimiento.
+
+**Impacto**
+
+- Los vencidos pendientes se mantienen visibles hasta confirmar.
+- Desperdicio muestra solo registros confirmados.
+- No cambia cálculos ni DB.
+
+**Archivos**
+
+- app/expirations/page.tsx
+- docs/docs-app-screens-expirations.md
+- docs/docs-modules-expirations.md
+- docs/docs-schema-model.md
+- docs/prompts.md
+
+**Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
 **Commit:** N/A
 
 ## 2026-02-10 — Modulo vencimientos (UI)

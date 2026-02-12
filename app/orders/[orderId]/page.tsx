@@ -36,7 +36,7 @@ const formatStatusLabel = (status: string) => {
     case 'sent':
       return 'Enviado';
     case 'received':
-      return 'Recibido';
+      return 'Controlado';
     case 'reconciled':
       return 'Controlado';
     default:
@@ -47,12 +47,20 @@ const formatStatusLabel = (status: string) => {
 const formatDateTime = (value: string | null) =>
   value ? new Date(value).toLocaleString('es-AR') : '—';
 
+const statusOptions = [
+  { value: 'draft', label: 'Borrador' },
+  { value: 'sent', label: 'Enviado' },
+];
+
 export default async function OrderDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ orderId: string }>;
+  searchParams?: Promise<{ notice?: string }>;
 }) {
   const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -163,29 +171,32 @@ export default async function OrderDetailPage({
       p_status: 'sent',
     });
 
-    revalidatePath(`/orders/${orderId}`);
     revalidatePath('/orders');
+    redirect(`/orders/${orderId}?notice=sent`);
   };
 
-  const reconcileOrder = async (formData: FormData) => {
+  const setOrderStatus = async (formData: FormData) => {
     'use server';
 
     const supabaseServer = await createServerSupabaseClient();
-    const controlledByName = String(
-      formData.get('controlled_by_name') ?? '',
-    ).trim();
-    const { data: userData } = await supabaseServer.auth.getUser();
-    const userId = userData.user?.id ?? null;
+    const nextStatus = formData.get('next_status');
 
-    await supabaseServer.rpc('rpc_reconcile_supplier_order', {
+    if (nextStatus !== 'draft' && nextStatus !== 'sent') {
+      return;
+    }
+
+    if (nextStatus === order.status) {
+      return;
+    }
+
+    await supabaseServer.rpc('rpc_set_supplier_order_status', {
       p_org_id: membership.org_id,
       p_order_id: orderId,
-      p_controlled_by_user_id: userId,
-      p_controlled_by_name: controlledByName,
+      p_status: nextStatus,
     });
 
-    revalidatePath(`/orders/${orderId}`);
     revalidatePath('/orders');
+    redirect(`/orders/${orderId}?notice=status`);
   };
 
   const receiveOrder = async (formData: FormData) => {
@@ -196,6 +207,10 @@ export default async function OrderDetailPage({
     const controlledByName = String(
       formData.get('controlled_by_name') ?? '',
     ).trim();
+
+    if (!controlledByName) {
+      redirect(`/orders/${orderId}?notice=controlled_required`);
+    }
     const parsedReceivedAt = receivedAtRaw ? new Date(receivedAtRaw) : null;
     const receivedAt =
       parsedReceivedAt && !Number.isNaN(parsedReceivedAt.getTime())
@@ -231,11 +246,23 @@ export default async function OrderDetailPage({
 
   const canEdit = order.status === 'draft';
   const canReceive = order.status === 'sent';
-  const canReconcile = order.status === 'received';
   const controlledByLabel =
     order.controlled_by_name || order.controlled_by_user_name;
   const receiveDefaultAt = new Date().toISOString().slice(0, 16);
   const userLabel = user.email ?? user.id;
+  const isFinalized =
+    order.status === 'reconciled' || order.status === 'received';
+  const notice =
+    resolvedSearchParams?.notice === 'sent'
+      ? { tone: 'success', message: 'Pedido enviado.' }
+      : resolvedSearchParams?.notice === 'status'
+        ? { tone: 'success', message: 'Estado actualizado.' }
+        : resolvedSearchParams?.notice === 'controlled_required'
+          ? {
+              tone: 'error',
+              message: 'Indicá quién controló el pedido.',
+            }
+          : null;
 
   return (
     <PageShell>
@@ -256,6 +283,18 @@ export default async function OrderDetailPage({
           </p>
         </div>
 
+        {notice ? (
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm ${
+              notice.tone === 'success'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : 'border-rose-200 bg-rose-50 text-rose-700'
+            }`}
+          >
+            {notice.message}
+          </div>
+        ) : null}
+
         <section className="rounded-2xl bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm text-zinc-600">
@@ -263,11 +302,33 @@ export default async function OrderDetailPage({
               {' · '}
               Enviado: {formatDateTime(order.sent_at)}
               {' · '}
-              Recibido: {formatDateTime(order.received_at)}
-              {' · '}
               Controlado: {formatDateTime(order.reconciled_at)}
             </div>
             <div className="flex flex-wrap gap-2">
+              {!isFinalized ? (
+                <form action={setOrderStatus} className="flex flex-wrap gap-2">
+                  <label className="text-xs font-semibold text-zinc-600">
+                    Estado
+                    <select
+                      name="next_status"
+                      defaultValue={order.status}
+                      className="ml-2 rounded border border-zinc-200 px-2 py-1 text-xs"
+                    >
+                      {statusOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="submit"
+                    className="rounded border border-zinc-200 px-3 py-1 text-xs font-semibold text-zinc-700"
+                  >
+                    Actualizar estado
+                  </button>
+                </form>
+              ) : null}
               {canEdit && (
                 <form action={sendOrder}>
                   <button
@@ -275,21 +336,6 @@ export default async function OrderDetailPage({
                     className="rounded bg-zinc-900 px-3 py-2 text-sm font-semibold text-white"
                   >
                     Enviar pedido
-                  </button>
-                </form>
-              )}
-              {canReconcile && (
-                <form action={reconcileOrder} className="flex flex-wrap gap-2">
-                  <input
-                    name="controlled_by_name"
-                    placeholder="Controlado por"
-                    className="rounded border border-zinc-200 px-3 py-2 text-sm"
-                  />
-                  <button
-                    type="submit"
-                    className="rounded bg-zinc-900 px-3 py-2 text-sm font-semibold text-white"
-                  >
-                    Marcar como controlado
                   </button>
                 </form>
               )}
@@ -301,6 +347,12 @@ export default async function OrderDetailPage({
               {order.controlled_by_user_name && order.controlled_by_name
                 ? ` (Usuario: ${order.controlled_by_user_name})`
                 : null}
+            </div>
+          ) : null}
+          {!isFinalized ? (
+            <div className="mt-2 text-xs text-zinc-500">
+              La recepcion y el control se confirman desde “Recibir y controlar
+              mercadería”.
             </div>
           ) : null}
           {order.notes ? (
@@ -453,6 +505,7 @@ export default async function OrderDetailPage({
                     name="controlled_by_name"
                     className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
                     placeholder="Ej: Juan Perez"
+                    required
                   />
                   <span className="mt-1 block text-xs text-zinc-400">
                     Autofirma: {userLabel}

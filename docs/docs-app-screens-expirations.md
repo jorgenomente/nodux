@@ -15,7 +15,7 @@
 ## Rol / Acceso
 
 - Org Admin (OA): full
-- Staff (ST): opcional si módulo habilitado (recomendación MVP: lectura + crear manual simple; sin ajustes)
+- Staff (ST): opcional si módulo habilitado (lectura + mover a desperdicio; sin ajustes avanzados)
 
 ## Propósito
 
@@ -38,7 +38,7 @@ Visualizar y gestionar productos por vencer por sucursal, con alertas accionable
 
 - Título “Vencimientos”
 - Selector de sucursal
-- Chips de filtro: Critico (0-3 dias) / Pronto (4-7 dias) / Todas
+- Chips de filtro: Vencidos / Critico (0-3 dias) / Pronto (4-7 dias) / Todas
 
 ### Lista priorizada
 
@@ -50,6 +50,25 @@ Cada row:
 - Cantidad (si aplica)
 - Batch code (si existe)
 - CTA: “Ajustar cantidad” / “Corregir fecha” (solo OA)
+- Si está vencido (days_left < 0), se muestra:
+  - Fecha vencida + días desde vencimiento
+  - Precio unitario
+  - Pérdida estimada (cantidad \* precio)
+  - CTA: “Mover a desperdicio” (OA + ST)
+
+### Sección “Desperdicio”
+
+Cada row:
+
+- Producto
+- Fecha de registro
+- Cantidad
+- Precio unitario
+- Pérdida registrada
+
+Resumen:
+
+- Total desperdicio (ARS) por sucursal
 
 ### Acciones
 
@@ -61,7 +80,7 @@ Cada row:
 
 ### A1) Filtrar por severidad y sucursal
 
-- Refresca lista (filtros por rango de días)
+- Refresca lista automaticamente al cambiar sucursal o severidad
 
 ### A2) Registrar vencimiento manual (modal)
 
@@ -87,6 +106,13 @@ Desde row/detalle:
 
 - “Corregir fecha” (date + motivo)
   Submit → RPC actualizar fecha con audit log
+
+### A5) Mover vencidos a desperdicio (OA + ST)
+
+- Confirma cantidad vencida del batch
+- Mueve todo el batch a desperdicio
+- Descuenta stock y registra pérdida
+  Los vencidos se muestran en la lista principal hasta que se confirma el desperdicio.
 
 ---
 
@@ -123,11 +149,29 @@ Salida mínima:
 - product_name
 - expires_on
 - days_left
-- severity (critical|warning|info) — la UI filtra por `days_left` (0-3 / 4-7)
+- severity (critical|warning|info) — la UI filtra por `days_left` (vencidos < 0 / 0-3 / 4-7)
 - quantity
 - batch_code
+- unit_price (solo vencidos)
+- total_value (solo vencidos)
 - branch_id
 - branch_name
+
+View: `v_expiration_waste_summary(branch_id)`
+Salida mínima:
+
+- total_amount
+- total_quantity
+
+View: `v_expiration_waste_detail(branch_id)`
+Salida mínima:
+
+- waste_id
+- product_id, product_name
+- quantity
+- unit_price_snapshot
+- total_amount
+- created_at
 
 ### Escrituras
 
@@ -150,6 +194,11 @@ RPC 3 (OA): `rpc_update_expiration_batch_date(input)`
 - new_expires_on
 - reason (text, required)
 
+RPC 4 (OA + ST): `rpc_move_expiration_batch_to_waste(input)`
+
+- batch_id
+- expected_qty
+
 ---
 
 ## Permisos y seguridad (RLS)
@@ -158,6 +207,7 @@ RPC 3 (OA): `rpc_update_expiration_batch_date(input)`
 - ST:
   - lectura solo de sucursal asignada/activa
   - escritura manual solo en sucursal asignada/activa
+  - Puede mover vencidos a desperdicio (MVP)
   - NO puede ajustar batches (MVP)
 
 - Enforcements:

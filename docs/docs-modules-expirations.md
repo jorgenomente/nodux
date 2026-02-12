@@ -49,6 +49,17 @@ Campos clave (conceptual):
 > Nota: En MVP, `quantity` puede representar “cantidad existente en ese lote” sin necesidad de trazabilidad perfecta
 > por proveedor/lote real. Lo importante es FEFO + alertas + ajuste.
 
+### expiration_waste
+
+Registro de desperdicio por vencimiento:
+
+- batch_id
+- product_id
+- quantity
+- unit_price_snapshot
+- total_amount
+- created_by, created_at
+
 ---
 
 ## Reglas de negocio (invariantes)
@@ -120,6 +131,12 @@ Ajuste de vencimientos se registra como movimiento append-only:
 - Permite corregir fecha de vencimiento aproximada a la fecha real.
 - Registra audit log con motivo.
 
+### R8) Desperdicio por vencimiento (MVP)
+
+- Solo para batches vencidos (expires_on < hoy).
+- Mueve el batch completo a desperdicio.
+- Descuenta stock y registra pérdida monetaria.
+
 ---
 
 ## Pantallas asociadas
@@ -134,13 +151,17 @@ Ajuste de vencimientos se registra como movimiento append-only:
 1. Lista por vencer (ordenada por urgencia)
 2. Filtros:
    - sucursal (branch)
-   - rango por días (0-3 / 4-7 / todas)
+   - rango por días (vencidos / 0-3 / 4-7 / todas)
    - la severidad en view sigue basada en org_preferences
 3. Crear batch manual
 4. Ajuste de batch (OA)
 5. “Inconsistencias” (alertas):
-   - producto con stock pero sin batches
-   - batches con cantidad pero stock 0 (desalineación)
+
+- producto con stock pero sin batches
+- batches con cantidad pero stock 0 (desalineación)
+
+6. Lista unificada (vencidos primero)
+7. Desperdicio (registrado)
 
 ---
 
@@ -151,6 +172,8 @@ Ajuste de vencimientos se registra como movimiento append-only:
 - RPC: `rpc_create_expiration_batch_manual(...)`
 - RPC: `rpc_adjust_expiration_batch(...)`
 - RPC: `rpc_update_expiration_batch_date(...)`
+- RPC: `rpc_move_expiration_batch_to_waste(...)`
+- View: `v_expiration_waste_summary`
 
 ---
 
@@ -168,6 +191,7 @@ Ajuste de vencimientos se registra como movimiento append-only:
 - % ventas con consumo FEFO exitoso
 - conteo alertas críticas por sucursal
 - pérdidas registradas por vencimiento (Post-MVP si se agrega costo)
+- pérdidas monetarias por sucursal (MVP con expiration_waste)
 
 ---
 

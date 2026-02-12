@@ -21,6 +21,9 @@ Estado: **baseline**. Este documento define una base de datos mínima coherente 
 - [x] `v_order_detail_admin`
 - [x] `v_expirations_due`
 - [x] `v_expiration_batch_detail`
+- [x] `v_expirations_expired`
+- [x] `v_expiration_waste_summary`
+- [x] `v_expiration_waste_detail`
 - [x] `v_settings_users_admin`
 - [x] `v_branches_admin`
 - [x] `v_staff_effective_modules`
@@ -43,6 +46,7 @@ Estado: **baseline**. Este documento define una base de datos mínima coherente 
 - [x] `rpc_create_expiration_batch_manual`
 - [x] `rpc_adjust_expiration_batch`
 - [x] `rpc_upsert_client`
+- [x] `rpc_move_expiration_batch_to_waste`
 - [x] `rpc_create_special_order`
 - [x] `rpc_set_special_order_status`
 - [x] `rpc_invite_user_to_org`

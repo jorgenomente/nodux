@@ -28,6 +28,7 @@ Estado actual:
 - Items de pedidos especiales en `supabase/migrations/20260210140000_024_clients_special_orders_items.sql`.
 - RPC ventas con security definer en `supabase/migrations/20260211095500_025_rpc_create_sale_security_definer.sql`.
 - Fix created_at ambiguo en `supabase/migrations/20260211103000_026_rpc_create_sale_orderby_fix.sql`.
+- Desperdicio de vencidos en `supabase/migrations/20260211140000_027_expiration_waste.sql`.
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 
@@ -298,6 +299,25 @@ Estado actual:
 - `source_type` (text)
 - `source_ref_id` (uuid, nullable)
 - `created_at`, `updated_at`
+
+---
+
+### expiration_waste
+
+**Proposito**: registro de desperdicio por vencimiento.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `branch_id` (uuid, FK)
+- `product_id` (uuid, FK)
+- `batch_id` (uuid, FK, nullable)
+- `quantity` (numeric)
+- `unit_price_snapshot` (numeric)
+- `total_amount` (numeric)
+- `created_by` (uuid, FK auth.users)
+- `created_at`
 
 ---
 

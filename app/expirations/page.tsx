@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
+import ExpirationsFiltersClient from '@/app/expirations/ExpirationsFiltersClient';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 const STAFF_MODULE_ORDER = [
@@ -55,7 +56,27 @@ type ExpirationRow = {
   days_left: number | null;
   quantity: number | null;
   batch_code: string | null;
+  unit_price: number | null;
+  total_value: number | null;
   severity: 'critical' | 'warning' | 'info' | string | null;
+};
+
+type WasteRow = {
+  waste_id: string;
+  org_id: string;
+  branch_id: string | null;
+  branch_name: string | null;
+  product_id: string | null;
+  product_name: string | null;
+  quantity: number | null;
+  unit_price_snapshot: number | null;
+  total_amount: number | null;
+  created_at: string;
+};
+
+type WasteSummary = {
+  total_amount: number | null;
+  total_quantity: number | null;
 };
 
 type ProductOption = {
@@ -71,11 +92,13 @@ type BranchOption = {
 
 const severityLabels: Record<string, string> = {
   all: 'Todas',
+  expired: 'Vencidos',
   critical: 'Critico (0-3 dias)',
   soon: 'Pronto (4-7 dias)',
 };
 
 const severityBadge: Record<string, string> = {
+  expired: 'bg-rose-100 text-rose-700 border-rose-200',
   critical: 'bg-rose-100 text-rose-700 border-rose-200',
   soon: 'bg-amber-100 text-amber-700 border-amber-200',
   info: 'bg-zinc-100 text-zinc-600 border-zinc-200',
@@ -93,6 +116,10 @@ const buildSearchParams = (base: SearchParams, updates: SearchParams) => {
 
 const formatDate = (value: string | null) =>
   value ? new Date(value).toLocaleDateString('es-AR') : '-';
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(
+    value,
+  );
 
 export default async function ExpirationsPage({
   searchParams,
@@ -188,8 +215,10 @@ export default async function ExpirationsPage({
     typeof resolvedSearchParams.severity === 'string'
       ? resolvedSearchParams.severity
       : '';
-  const severityFilter = ['critical', 'soon'].includes(selectedSeverity)
-    ? (selectedSeverity as 'critical' | 'soon')
+  const severityFilter = ['critical', 'soon', 'expired'].includes(
+    selectedSeverity,
+  )
+    ? (selectedSeverity as 'critical' | 'soon' | 'expired')
     : '';
 
   let expirationsQuery = supabase
@@ -211,8 +240,36 @@ export default async function ExpirationsPage({
     expirationsQuery = expirationsQuery.gte('days_left', 4).lte('days_left', 7);
   }
 
+  if (severityFilter === 'expired') {
+    expirationsQuery = expirationsQuery.lt('days_left', 0);
+  }
+
   const { data: expirations, error: expirationsError } = await expirationsQuery;
-  const expirationRows = (expirations as ExpirationRow[]) ?? [];
+  const expirationRows = (expirations ?? []) as unknown as ExpirationRow[];
+
+  let wasteQuery = supabase
+    .from('v_expiration_waste_detail')
+    .select('*')
+    .eq('org_id', membership.org_id)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (selectedBranchId) {
+    wasteQuery = wasteQuery.eq('branch_id', selectedBranchId);
+  }
+
+  const { data: wasteRowsData } = await wasteQuery;
+  const wasteRows = (wasteRowsData as WasteRow[]) ?? [];
+
+  const { data: wasteSummary } = selectedBranchId
+    ? await supabase
+        .from('v_expiration_waste_summary')
+        .select('total_amount, total_quantity')
+        .eq('org_id', membership.org_id)
+        .eq('branch_id', selectedBranchId)
+        .maybeSingle()
+    : { data: null };
+  const wasteTotals = (wasteSummary as WasteSummary | null) ?? null;
 
   const { data: products } =
     membership.role === 'org_admin'
@@ -408,6 +465,63 @@ export default async function ExpirationsPage({
     redirect(`/expirations?${params.toString()}`);
   };
 
+  const moveToWaste = async (formData: FormData) => {
+    'use server';
+
+    const supabaseServer = await createServerSupabaseClient();
+    const {
+      data: { user: actionUser },
+    } = await supabaseServer.auth.getUser();
+
+    if (!actionUser) {
+      redirect('/login');
+    }
+
+    const { data: actionMembership } = await supabaseServer
+      .from('org_users')
+      .select('org_id, role')
+      .eq('user_id', actionUser.id)
+      .maybeSingle();
+
+    if (!actionMembership?.org_id) {
+      redirect('/no-access');
+    }
+
+    const batchId = String(formData.get('batch_id') ?? '').trim();
+    const expectedQtyRaw = String(formData.get('expected_qty') ?? '').trim();
+    const expectedQty = Number.parseFloat(expectedQtyRaw);
+    const returnBranchId = String(
+      formData.get('return_branch_id') ?? '',
+    ).trim();
+    const returnSeverity = String(formData.get('return_severity') ?? '').trim();
+    const params = new URLSearchParams();
+    if (returnBranchId) params.set('branch_id', returnBranchId);
+    if (returnSeverity) params.set('severity', returnSeverity);
+
+    if (!batchId || Number.isNaN(expectedQty)) {
+      params.set('notice', 'error');
+      redirect(`/expirations?${params.toString()}`);
+    }
+
+    const { error } = await supabaseServer.rpc(
+      'rpc_move_expiration_batch_to_waste',
+      {
+        p_org_id: actionMembership.org_id,
+        p_batch_id: batchId,
+        p_expected_qty: expectedQty,
+      },
+    );
+
+    if (error) {
+      params.set('notice', 'error');
+      redirect(`/expirations?${params.toString()}`);
+    }
+
+    revalidatePath('/expirations');
+    params.set('notice', 'wasted');
+    redirect(`/expirations?${params.toString()}`);
+  };
+
   const notice =
     resolvedSearchParams.notice === 'created'
       ? { tone: 'success', message: 'Vencimiento registrado.' }
@@ -415,9 +529,14 @@ export default async function ExpirationsPage({
         ? { tone: 'success', message: 'Vencimiento ajustado.' }
         : resolvedSearchParams.notice === 'dated'
           ? { tone: 'success', message: 'Fecha de vencimiento corregida.' }
-          : resolvedSearchParams.notice === 'error'
-            ? { tone: 'error', message: 'No pudimos guardar el vencimiento.' }
-            : null;
+          : resolvedSearchParams.notice === 'wasted'
+            ? {
+                tone: 'success',
+                message: 'Batch movido a desperdicio.',
+              }
+            : resolvedSearchParams.notice === 'error'
+              ? { tone: 'error', message: 'No pudimos guardar el vencimiento.' }
+              : null;
 
   return (
     <PageShell>
@@ -444,32 +563,15 @@ export default async function ExpirationsPage({
 
         <section className="grid gap-4 rounded-2xl bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <form className="flex flex-wrap items-end gap-3" method="get">
-              <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-                Sucursal
-                <select
-                  name="branch_id"
-                  className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  defaultValue={selectedBranchId}
-                  required
-                >
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <input type="hidden" name="severity" value={severityFilter} />
-              <button
-                type="submit"
-                className="rounded-lg border border-zinc-200 px-4 py-2 text-sm text-zinc-700"
-              >
-                Filtrar
-              </button>
-            </form>
+            <div className="flex flex-wrap items-end gap-3">
+              <ExpirationsFiltersClient
+                branches={branches}
+                selectedBranchId={selectedBranchId}
+                severityFilter={severityFilter}
+              />
+            </div>
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              {['all', 'critical', 'soon'].map((key) => {
+              {['all', 'expired', 'critical', 'soon'].map((key) => {
                 const isActive =
                   (key === 'all' && !severityFilter) || severityFilter === key;
                 const params = buildSearchParams(resolvedSearchParams, {
@@ -584,11 +686,13 @@ export default async function ExpirationsPage({
               {expirationRows.map((row) => {
                 const daysLeft = row.days_left ?? null;
                 const severity =
-                  daysLeft !== null && daysLeft <= 3
-                    ? 'critical'
-                    : daysLeft !== null && daysLeft <= 7
-                      ? 'soon'
-                      : 'info';
+                  daysLeft !== null && daysLeft < 0
+                    ? 'expired'
+                    : daysLeft !== null && daysLeft <= 3
+                      ? 'critical'
+                      : daysLeft !== null && daysLeft <= 7
+                        ? 'soon'
+                        : 'info';
                 return (
                   <div
                     key={row.batch_id}
@@ -607,6 +711,9 @@ export default async function ExpirationsPage({
                       </div>
                       <div className="text-sm text-zinc-500">
                         Vence: {formatDate(row.expires_on)}
+                        {daysLeft !== null && daysLeft < 0
+                          ? ` · Hace ${Math.abs(daysLeft)} días`
+                          : ''}
                       </div>
                       <div className="flex flex-wrap gap-4 text-xs text-zinc-500">
                         {row.batch_code ? (
@@ -618,15 +725,31 @@ export default async function ExpirationsPage({
                           </span>
                         ) : null}
                         <span>
-                          Dias restantes:{' '}
-                          <strong className="text-zinc-700">
-                            {row.days_left ?? '-'}
-                          </strong>
-                        </span>
-                        <span>
                           Cantidad:{' '}
                           <strong className="text-zinc-700">
                             {Number(row.quantity ?? 0).toLocaleString('es-AR')}
+                          </strong>
+                        </span>
+                        {severity === 'expired' ? (
+                          <>
+                            <span>
+                              Precio:{' '}
+                              <strong className="text-zinc-700">
+                                {formatCurrency(Number(row.unit_price ?? 0))}
+                              </strong>
+                            </span>
+                            <span>
+                              Perdida:{' '}
+                              <strong className="text-zinc-700">
+                                {formatCurrency(Number(row.total_value ?? 0))}
+                              </strong>
+                            </span>
+                          </>
+                        ) : null}
+                        <span>
+                          Dias restantes:{' '}
+                          <strong className="text-zinc-700">
+                            {row.days_left ?? '-'}
                           </strong>
                         </span>
                         {selectedBranchId === '' && row.branch_name ? (
@@ -639,108 +762,211 @@ export default async function ExpirationsPage({
                         ) : null}
                       </div>
                     </div>
-                    {membership.role === 'org_admin' ? (
-                      <div className="flex w-full flex-col gap-2 md:w-64">
-                        <details className="rounded-xl border border-zinc-100 bg-zinc-50 p-3">
-                          <summary className="cursor-pointer text-xs font-semibold text-zinc-700">
-                            Ajustar cantidad
-                          </summary>
-                          <form
-                            action={adjustBatch}
-                            className="mt-3 grid gap-2"
-                          >
-                            <input
-                              type="hidden"
-                              name="batch_id"
-                              value={row.batch_id}
-                            />
-                            <input
-                              type="hidden"
-                              name="return_branch_id"
-                              value={selectedBranchId}
-                            />
-                            <input
-                              type="hidden"
-                              name="return_severity"
-                              value={severityFilter}
-                            />
-                            <label className="text-xs font-medium text-zinc-600">
-                              Nueva cantidad
-                              <input
-                                type="number"
-                                name="new_quantity"
-                                step="0.01"
-                                min="0"
-                                defaultValue={row.quantity ?? 0}
-                                className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                              />
-                            </label>
-                            <button
-                              type="submit"
-                              className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700"
+                    <div className="flex w-full flex-col gap-2 md:w-64">
+                      {membership.role === 'org_admin' ? (
+                        <>
+                          <details className="rounded-xl border border-zinc-100 bg-zinc-50 p-3">
+                            <summary className="cursor-pointer text-xs font-semibold text-zinc-700">
+                              Ajustar cantidad
+                            </summary>
+                            <form
+                              action={adjustBatch}
+                              className="mt-3 grid gap-2"
                             >
-                              Guardar ajuste
-                            </button>
-                          </form>
-                        </details>
-                        <details className="rounded-xl border border-zinc-100 bg-zinc-50 p-3">
-                          <summary className="cursor-pointer text-xs font-semibold text-zinc-700">
-                            Corregir fecha
-                          </summary>
-                          <form
-                            action={updateBatchDate}
-                            className="mt-3 grid gap-2"
-                          >
-                            <input
-                              type="hidden"
-                              name="batch_id"
-                              value={row.batch_id}
-                            />
-                            <input
-                              type="hidden"
-                              name="return_branch_id"
-                              value={selectedBranchId}
-                            />
-                            <input
-                              type="hidden"
-                              name="return_severity"
-                              value={severityFilter}
-                            />
-                            <label className="text-xs font-medium text-zinc-600">
-                              Nueva fecha
                               <input
-                                type="date"
-                                name="new_expires_on"
-                                defaultValue={row.expires_on ?? ''}
-                                className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                                required
+                                type="hidden"
+                                name="batch_id"
+                                value={row.batch_id}
                               />
-                            </label>
-                            <label className="text-xs font-medium text-zinc-600">
-                              Motivo
                               <input
-                                type="text"
-                                name="reason"
-                                className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                                placeholder="Ej: fecha real del proveedor"
-                                required
+                                type="hidden"
+                                name="return_branch_id"
+                                value={selectedBranchId}
                               />
-                            </label>
-                            <button
-                              type="submit"
-                              className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700"
+                              <input
+                                type="hidden"
+                                name="return_severity"
+                                value={severityFilter}
+                              />
+                              <label className="text-xs font-medium text-zinc-600">
+                                Nueva cantidad
+                                <input
+                                  type="number"
+                                  name="new_quantity"
+                                  step="0.01"
+                                  min="0"
+                                  defaultValue={row.quantity ?? 0}
+                                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                                />
+                              </label>
+                              <button
+                                type="submit"
+                                className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700"
+                              >
+                                Guardar ajuste
+                              </button>
+                            </form>
+                          </details>
+                          <details className="rounded-xl border border-zinc-100 bg-zinc-50 p-3">
+                            <summary className="cursor-pointer text-xs font-semibold text-zinc-700">
+                              Corregir fecha
+                            </summary>
+                            <form
+                              action={updateBatchDate}
+                              className="mt-3 grid gap-2"
                             >
-                              Guardar fecha
-                            </button>
-                          </form>
-                        </details>
-                      </div>
-                    ) : null}
+                              <input
+                                type="hidden"
+                                name="batch_id"
+                                value={row.batch_id}
+                              />
+                              <input
+                                type="hidden"
+                                name="return_branch_id"
+                                value={selectedBranchId}
+                              />
+                              <input
+                                type="hidden"
+                                name="return_severity"
+                                value={severityFilter}
+                              />
+                              <label className="text-xs font-medium text-zinc-600">
+                                Nueva fecha
+                                <input
+                                  type="date"
+                                  name="new_expires_on"
+                                  defaultValue={row.expires_on ?? ''}
+                                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                                  required
+                                />
+                              </label>
+                              <label className="text-xs font-medium text-zinc-600">
+                                Motivo
+                                <input
+                                  type="text"
+                                  name="reason"
+                                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                                  placeholder="Ej: fecha real del proveedor"
+                                  required
+                                />
+                              </label>
+                              <button
+                                type="submit"
+                                className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700"
+                              >
+                                Guardar fecha
+                              </button>
+                            </form>
+                          </details>
+                        </>
+                      ) : null}
+                      {severity === 'expired' ? (
+                        <form
+                          action={moveToWaste}
+                          className="flex items-center gap-2"
+                        >
+                          <input
+                            type="hidden"
+                            name="batch_id"
+                            value={row.batch_id}
+                          />
+                          <input
+                            type="hidden"
+                            name="expected_qty"
+                            value={row.quantity ?? 0}
+                          />
+                          <input
+                            type="hidden"
+                            name="return_branch_id"
+                            value={selectedBranchId}
+                          />
+                          <input
+                            type="hidden"
+                            name="return_severity"
+                            value={severityFilter}
+                          />
+                          <button
+                            type="submit"
+                            className="rounded border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700"
+                          >
+                            Mover a desperdicio ({row.quantity ?? 0})
+                          </button>
+                        </form>
+                      ) : null}
+                    </div>
                   </div>
                 );
               })}
             </div>
           ) : null}
+        </section>
+
+        <section className="rounded-2xl bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-900">
+                Desperdicio
+              </h2>
+              <p className="text-sm text-zinc-500">
+                Registros confirmados de productos vencidos.
+              </p>
+            </div>
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+              Total desperdicio:{' '}
+              <span className="font-semibold text-zinc-900">
+                {formatCurrency(Number(wasteTotals?.total_amount ?? 0))}
+              </span>
+            </div>
+          </div>
+
+          {wasteRows.length === 0 ? (
+            <div className="mt-4 rounded-xl border border-dashed border-zinc-200 px-4 py-8 text-center text-sm text-zinc-500">
+              Todavía no hay desperdicio registrado.
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-3">
+              {wasteRows.map((row) => (
+                <div
+                  key={row.waste_id}
+                  className="flex flex-col gap-3 rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between"
+                >
+                  <div className="flex flex-1 flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base font-semibold text-zinc-900">
+                        {row.product_name ?? 'Producto'}
+                      </h3>
+                      <span className="rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-600 uppercase">
+                        Desperdicio
+                      </span>
+                    </div>
+                    <div className="text-sm text-zinc-500">
+                      Registrado: {formatDate(row.created_at)}
+                    </div>
+                    <div className="flex flex-wrap gap-4 text-xs text-zinc-500">
+                      <span>
+                        Cantidad:{' '}
+                        <strong className="text-zinc-700">
+                          {row.quantity ?? 0}
+                        </strong>
+                      </span>
+                      <span>
+                        Precio:{' '}
+                        <strong className="text-zinc-700">
+                          {formatCurrency(Number(row.unit_price_snapshot ?? 0))}
+                        </strong>
+                      </span>
+                      <span>
+                        Perdida:{' '}
+                        <strong className="text-zinc-700">
+                          {formatCurrency(Number(row.total_amount ?? 0))}
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </PageShell>

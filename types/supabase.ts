@@ -589,6 +589,137 @@ export type Database = {
           },
         ];
       };
+      expiration_waste: {
+        Row: {
+          batch_id: string | null;
+          branch_id: string;
+          created_at: string;
+          created_by: string;
+          id: string;
+          org_id: string;
+          product_id: string;
+          quantity: number;
+          total_amount: number;
+          unit_price_snapshot: number;
+        };
+        Insert: {
+          batch_id?: string | null;
+          branch_id: string;
+          created_at?: string;
+          created_by: string;
+          id?: string;
+          org_id: string;
+          product_id: string;
+          quantity: number;
+          total_amount?: number;
+          unit_price_snapshot?: number;
+        };
+        Update: {
+          batch_id?: string | null;
+          branch_id?: string;
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          org_id?: string;
+          product_id?: string;
+          quantity?: number;
+          total_amount?: number;
+          unit_price_snapshot?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'expiration_waste_batch_id_fkey';
+            columns: ['batch_id'];
+            isOneToOne: false;
+            referencedRelation: 'expiration_batches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_batch_id_fkey';
+            columns: ['batch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_expiration_batch_detail';
+            referencedColumns: ['batch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_batch_id_fkey';
+            columns: ['batch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_expirations_due';
+            referencedColumns: ['batch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_batch_id_fkey';
+            columns: ['batch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_expirations_expired';
+            referencedColumns: ['batch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_branches_admin';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_product_suggestions';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'products';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['product_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_products_admin';
+            referencedColumns: ['product_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_products_typeahead_admin';
+            referencedColumns: ['product_id'];
+          },
+        ];
+      };
       org_preferences: {
         Row: {
           allow_negative_stock: boolean;
@@ -1682,6 +1813,131 @@ export type Database = {
           },
         ];
       };
+      v_expiration_waste_detail: {
+        Row: {
+          branch_id: string | null;
+          branch_name: string | null;
+          created_at: string | null;
+          org_id: string | null;
+          product_id: string | null;
+          product_name: string | null;
+          quantity: number | null;
+          total_amount: number | null;
+          unit_price_snapshot: number | null;
+          waste_id: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'expiration_waste_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_branches_admin';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_product_suggestions';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'products';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['product_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_products_admin';
+            referencedColumns: ['product_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_products_typeahead_admin';
+            referencedColumns: ['product_id'];
+          },
+        ];
+      };
+      v_expiration_waste_summary: {
+        Row: {
+          branch_id: string | null;
+          last_created_at: string | null;
+          org_id: string | null;
+          total_amount: number | null;
+          total_quantity: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'expiration_waste_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_branches_admin';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_product_suggestions';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       v_expirations_due: {
         Row: {
           batch_code: string | null;
@@ -1697,6 +1953,87 @@ export type Database = {
           quantity: number | null;
           severity: string | null;
           warning_days: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'expiration_batches_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_branches_admin';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_product_suggestions';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'products';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['product_id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_products_admin';
+            referencedColumns: ['product_id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_products_typeahead_admin';
+            referencedColumns: ['product_id'];
+          },
+        ];
+      };
+      v_expirations_expired: {
+        Row: {
+          batch_code: string | null;
+          batch_id: string | null;
+          branch_id: string | null;
+          branch_name: string | null;
+          days_expired: number | null;
+          expires_on: string | null;
+          org_id: string | null;
+          product_id: string | null;
+          product_name: string | null;
+          quantity: number | null;
+          total_value: number | null;
+          unit_price: number | null;
         };
         Relationships: [
           {
@@ -2635,6 +2972,13 @@ export type Database = {
           p_supplier_order_id: string;
         };
         Returns: undefined;
+      };
+      rpc_move_expiration_batch_to_waste: {
+        Args: { p_batch_id: string; p_expected_qty: number; p_org_id: string };
+        Returns: {
+          total_amount: number;
+          waste_id: string;
+        }[];
       };
       rpc_receive_supplier_order:
         | {

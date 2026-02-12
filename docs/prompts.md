@@ -12,6 +12,70 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-11 15:24 — Vencidos unificados
+
+**Lote:** expirations-expired-unified
+**Objetivo:** Unificar vencidos en la lista principal con filtro y mover a desperdicio.
+
+**Prompt**
+ok me gustaria unir la seccion de vencidos con la otra secion donde esta el resto de los productos y los vencidos tienen que salir de primero, luego los criticos y asi, desde el vencido hasta el ultimo por vencer. agregamos un boton mas al filtro que diga vencidos junto a todas critico y pronto. asi evitamos ver eso duplicado y es mas ordenado. en los prodcutos vencidos entonces debe habilitarse este boton de mover a desperdicio
+
+## 2026-02-11 15:33 — Auto filtrar sucursal
+
+**Lote:** expirations-branch-autofilter
+**Objetivo:** Cambiar sucursal sin boton de filtrar en /expirations.
+
+**Prompt**
+cuando yo selecciono sucursal deberia cambiarse la info de una vez y no esperar a que le de al boton filtrar en esta pagina de vencimientos. lo podemos hacer asi?
+
+## 2026-02-11 15:50 — Estado pedido en UI
+
+**Lote:** orders-detail-status-ui
+**Objetivo:** Permitir seleccionar estado en UI con controlado via flujo dedicado.
+
+**Prompt**
+prefiero un boton donde yo pueda seleccionar el estado. El unico que no puede ser seleccionado sin accion adicional es el de controlado ya que ese requiere que controlemos el pedido tal como ya esta establecido. ese paso es crucial porque alli es donde ingresa el stock
+
+## 2026-02-11 15:58 — Recibido = controlado
+
+**Lote:** orders-detail-status-merge
+**Objetivo:** Unificar recibido y controlado en un solo paso de recepcion.
+
+**Prompt**
+ok pero recibido y controlado deberia ser el mismo estado ya que cuando se recibe se controla, y recien alli uno se mete a decir si todo esta ok y hacer el ingreso
+
+## 2026-02-11 16:06 — Refrescar estado al enviar pedido
+
+**Lote:** orders-detail-send-refresh
+**Objetivo:** Reflejar cambio de estado al enviar pedido sin recargar manualmente.
+
+**Prompt**
+cuando el pedido esta en borrador y uso el boton de enviar pedido. no me cambia el estado inmediatamente sino que tengo que actualizar la pagina podemos arreglar eso
+
+## 2026-02-11 16:20 — Estado controlado y autofiltro en pedidos
+
+**Lote:** orders-detail-status-receive
+**Objetivo:** Unificar controlado al recibir y auto mostrar sugeridos al elegir proveedor/sucursal.
+
+**Prompt**
+tambien hagamos que el controlado por sea obligatorio colocar alli el nombre. veo que me sale la informacion con la fecha del estado dice creado, enviado, recibido controlado. deberia ser solo 3 estados, el de creado debe ser la fecha que se hizo el borrador, me parece que asi esta ahora, luego el enviado es la fecha que se envio. si yo use el boton de enviar pedido entonces la fecha de creado y enviado es la misma. luego el proximo estado es controlado. no necesitamos el de recibido. Tambien despues en http://localhost:3000/orders cuando yo le doy al boton de ver articulos despues de seleccionar proveedor y sucursal, se me cierra el desplegable y tengo que volverlo abrir para ver la informacion, podemos arreglar eso? Es mas, quitemos el boton de ver articulos, y simplemente al seleccionar el proveedor y la sucursal ya deberia aparecerme la informacion
+
+## 2026-02-11 15:15 — Vencidos vs desperdicio
+
+**Lote:** expirations-expired-separate
+**Objetivo:** Mostrar desperdicio solo cuando se confirma el movimiento.
+
+**Prompt**
+ok no. me gustaria que solo aparezcan en la seccion de desperdicio cuando yo les de al boton de mover a desperdicio. si no simplemente me aparecen alli como criticos/vencidos. se entiende?
+
+## 2026-02-11 14:46 — Vencidos y desperdicio
+
+**Lote:** expirations-waste
+**Objetivo:** Agregar sección de vencidos con acción de mover a desperdicio y cálculo de pérdidas.
+
+**Prompt**
+en expirations me gustaria tambien agregar un apartado de vencidos. es decir los productos que ya se vencieron que van a desperdicio. me gustaria que se habilite un boton de mover a desperdicio de aquellos productos que ya se vencieron. Lo mas importante de esta nueva seccion de desperdicio es que se va a calcular el monto en dinero de los desperdicios asi se sabe cuanto se esta perdiendo normalmente por cosas que se vencen. esto quiere decir que en este caso los productos tienen que tener el precio, pero seria solo en esta pagina de desperdicios dentro de vencimientos. que te parece?
+
 ## 2026-02-11 14:17 — Mostrar fuera de especiales
 
 **Lote:** orders-showing-separate

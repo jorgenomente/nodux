@@ -35,6 +35,7 @@ Ultima actualizacion: 2026-02-10 14:10
 - Productos con vencimiento aproximado (dias) y batches automaticos al recibir pedidos.
 - Ventas consumen batches FEFO (best-effort) para evitar alertas falsas.
 - /expirations operativo por sucursal con filtros 0-3 y 4-7 dias y correccion de fecha.
+- Vencidos se muestran en la lista principal de vencimientos y se pueden mover manualmente a desperdicio (monto en ARS, descuenta stock).
 - batch_code generado al recibir pedidos: <SUP>-<YYYYMMDD>-<NNN>.
 - /clients operativo con lista, detalle y pedidos especiales por sucursal.
 - Pedidos especiales usan items de catálogo y se entregan desde POS (stock se descuenta al cobrar).
