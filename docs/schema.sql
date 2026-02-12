@@ -2717,6 +2717,8 @@ CREATE OR REPLACE VIEW "public"."v_expirations_due" AS
     ("eb"."expires_on" - CURRENT_DATE) AS "days_left",
     "eb"."quantity",
     "eb"."batch_code",
+    "p"."unit_price",
+    ("eb"."quantity" * COALESCE("p"."unit_price", (0)::numeric)) AS "total_value",
     "op"."critical_days",
     "op"."warning_days",
         CASE

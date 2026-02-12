@@ -60,6 +60,14 @@ cuando el pedido esta en borrador y uso el boton de enviar pedido. no me cambia 
 **Prompt**
 tambien hagamos que el controlado por sea obligatorio colocar alli el nombre. veo que me sale la informacion con la fecha del estado dice creado, enviado, recibido controlado. deberia ser solo 3 estados, el de creado debe ser la fecha que se hizo el borrador, me parece que asi esta ahora, luego el enviado es la fecha que se envio. si yo use el boton de enviar pedido entonces la fecha de creado y enviado es la misma. luego el proximo estado es controlado. no necesitamos el de recibido. Tambien despues en http://localhost:3000/orders cuando yo le doy al boton de ver articulos despues de seleccionar proveedor y sucursal, se me cierra el desplegable y tengo que volverlo abrir para ver la informacion, podemos arreglar eso? Es mas, quitemos el boton de ver articulos, y simplemente al seleccionar el proveedor y la sucursal ya deberia aparecerme la informacion
 
+## 2026-02-11 16:28 — Regenerar schema/types
+
+**Lote:** db-schema-types-refresh
+**Objetivo:** Regenerar schema y tipos locales para alinear views con DB.
+
+**Prompt**
+ok vamos con 2
+
 ## 2026-02-11 15:15 — Vencidos vs desperdicio
 
 **Lote:** expirations-expired-separate

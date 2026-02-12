@@ -160,6 +160,30 @@ Se obliga a indicar “controlado por” al recibir pedidos, se elimina “recib
 **Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
 **Commit:** N/A
 
+## 2026-02-11 — DB: refresco schema y tipos
+
+**Tipo:** db
+**Alcance:** db + docs
+
+**Resumen**
+Se corrigio la migracion de `v_expirations_due` para recrear el view y se regeneraron snapshot y tipos.
+
+**Impacto**
+
+- El view incluye `unit_price` y `total_value` sin conflicto.
+- `types/supabase.ts` queda alineado a la DB local.
+- `docs/schema.sql` actualizado.
+
+**Archivos**
+
+- supabase/migrations/20260211150000_028_expirations_due_include_price.sql
+- docs/schema.sql
+- types/supabase.ts
+- docs/prompts.md
+
+**Tests:** `npm run db:reset` OK (2026-02-11) · `npm run db:schema:snapshot` OK (2026-02-11) · `npm run types:gen` OK (2026-02-11)
+**Commit:** N/A
+
 ## 2026-02-11 — Pedidos especiales con items y POS
 
 **Tipo:** db

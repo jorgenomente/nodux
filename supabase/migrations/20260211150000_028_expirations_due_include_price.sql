@@ -1,5 +1,7 @@
 -- Include pricing info in expirations due view for waste display
 
+drop view if exists public.v_expirations_due;
+
 create or replace view public.v_expirations_due as
 select
   eb.id as batch_id,

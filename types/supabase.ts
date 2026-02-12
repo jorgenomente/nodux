@@ -1952,6 +1952,8 @@ export type Database = {
           product_name: string | null;
           quantity: number | null;
           severity: string | null;
+          total_value: number | null;
+          unit_price: number | null;
           warning_days: number | null;
         };
         Relationships: [
