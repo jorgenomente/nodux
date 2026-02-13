@@ -1425,6 +1425,22 @@ begin
         controlled_by_user_id = p_controlled_by_user_id,
         controlled_by_name = nullif(p_controlled_by_name, '')
   where id = p_order_id and org_id = p_org_id;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'supplier_order_received',
+    'supplier_order',
+    p_order_id,
+    v_order.branch_id,
+    jsonb_build_object(
+      'status', 'reconciled',
+      'received_at', v_received_ts,
+      'controlled_by_user_id', p_controlled_by_user_id,
+      'controlled_by_name', nullif(p_controlled_by_name, ''),
+      'items_count', jsonb_array_length(p_items)
+    ),
+    p_controlled_by_user_id
+  );
 end;
 $_$;
 
@@ -1684,6 +1700,52 @@ $$;
 
 
 ALTER FUNCTION "public"."rpc_set_staff_module_access"("p_org_id" "uuid", "p_branch_id" "uuid", "p_module_key" "text", "p_is_enabled" boolean, "p_role" "public"."user_role") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_set_supplier_order_expected_receive_on"("p_org_id" "uuid", "p_order_id" "uuid", "p_expected_receive_on" "date") RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
+declare
+  v_order record;
+begin
+  select id, branch_id, status, expected_receive_on
+    into v_order
+  from public.supplier_orders
+  where id = p_order_id
+    and org_id = p_org_id
+  for update;
+
+  if v_order is null then
+    raise exception 'order not found';
+  end if;
+
+  if v_order.status not in ('sent', 'received') then
+    raise exception 'expected receive date can be set only for sent/received orders';
+  end if;
+
+  update public.supplier_orders
+    set expected_receive_on = p_expected_receive_on
+  where id = p_order_id
+    and org_id = p_org_id;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'supplier_order_expected_receive_on_set',
+    'supplier_order',
+    p_order_id,
+    v_order.branch_id,
+    jsonb_build_object(
+      'old_expected_receive_on', v_order.expected_receive_on,
+      'new_expected_receive_on', p_expected_receive_on,
+      'status', v_order.status
+    ),
+    null
+  );
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_set_supplier_order_expected_receive_on"("p_org_id" "uuid", "p_order_id" "uuid", "p_expected_receive_on" "date") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_set_supplier_order_status"("p_org_id" "uuid", "p_order_id" "uuid", "p_status" "public"."supplier_order_status") RETURNS "void"
@@ -2039,8 +2101,11 @@ ALTER FUNCTION "public"."rpc_upsert_supplier"("p_supplier_id" "uuid", "p_org_id"
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_upsert_supplier"("p_supplier_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_contact_name" "text", "p_phone" "text", "p_email" "text", "p_notes" "text", "p_is_active" boolean, "p_order_frequency" "public"."order_frequency" DEFAULT NULL::"public"."order_frequency", "p_order_day" "public"."weekday" DEFAULT NULL::"public"."weekday", "p_receive_day" "public"."weekday" DEFAULT NULL::"public"."weekday") RETURNS TABLE("supplier_id" "uuid")
-    LANGUAGE "sql"
+    LANGUAGE "plpgsql"
     AS $$
+declare
+  v_supplier_id uuid;
+begin
   insert into public.suppliers (
     id,
     org_id,
@@ -2076,7 +2141,29 @@ CREATE OR REPLACE FUNCTION "public"."rpc_upsert_supplier"("p_supplier_id" "uuid"
     order_frequency = excluded.order_frequency,
     order_day = excluded.order_day,
     receive_day = excluded.receive_day
-  returning id;
+  returning id into v_supplier_id;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'supplier_upsert',
+    'supplier',
+    v_supplier_id,
+    null,
+    jsonb_build_object(
+      'name', p_name,
+      'contact_name', p_contact_name,
+      'phone', p_phone,
+      'email', p_email,
+      'is_active', coalesce(p_is_active, true),
+      'order_frequency', p_order_frequency,
+      'order_day', p_order_day,
+      'receive_day', p_receive_day
+    ),
+    null
+  );
+
+  return query select v_supplier_id;
+end;
 $$;
 
 
@@ -4068,6 +4155,12 @@ GRANT ALL ON FUNCTION "public"."rpc_set_special_order_status"("p_org_id" "uuid",
 GRANT ALL ON FUNCTION "public"."rpc_set_staff_module_access"("p_org_id" "uuid", "p_branch_id" "uuid", "p_module_key" "text", "p_is_enabled" boolean, "p_role" "public"."user_role") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_set_staff_module_access"("p_org_id" "uuid", "p_branch_id" "uuid", "p_module_key" "text", "p_is_enabled" boolean, "p_role" "public"."user_role") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_set_staff_module_access"("p_org_id" "uuid", "p_branch_id" "uuid", "p_module_key" "text", "p_is_enabled" boolean, "p_role" "public"."user_role") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_set_supplier_order_expected_receive_on"("p_org_id" "uuid", "p_order_id" "uuid", "p_expected_receive_on" "date") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_set_supplier_order_expected_receive_on"("p_org_id" "uuid", "p_order_id" "uuid", "p_expected_receive_on" "date") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_set_supplier_order_expected_receive_on"("p_org_id" "uuid", "p_order_id" "uuid", "p_expected_receive_on" "date") TO "service_role";
 
 
 

@@ -12,6 +12,14 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-13 12:34 — Auditoría operativa end-to-end
+
+**Lote:** audit-log-operational-hardening
+**Objetivo:** Verificar cobertura real de auditoría y cerrar gaps en acciones críticas de operación.
+
+**Prompt**
+ok. podemos chequear ahora el modulo de auditoria? podemos verifcar que esta funcionando y que se esta tomando en cuenta cada vez que hacemos algo importante por ejemplo cambiar estado de un pedido, agregar vencimientos, modificar fechas, mover articulos a desperdicio, crear proveedor, modificar proveedor etc. Podemos enumerar o definir que conviene auditar para tenerlo en eeste log asi tener control de todo lo que sucede en la app?
+
 ## 2026-02-13 12:34 — Remover estado “realizado” del calendario
 
 **Lote:** orders-calendar-remove-sent-state

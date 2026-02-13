@@ -30,6 +30,7 @@ Estado actual:
 - Fix created_at ambiguo en `supabase/migrations/20260211103000_026_rpc_create_sale_orderby_fix.sql`.
 - Desperdicio de vencidos en `supabase/migrations/20260211140000_027_expiration_waste.sql`.
 - Fecha estimada de recepcion en pedidos de proveedor en `supabase/migrations/20260213101500_029_supplier_orders_expected_receive_on.sql`.
+- Cierre de gaps de auditoria en proveedores/pedidos (upsert supplier, expected receive y recepcion-control) en `supabase/migrations/20260213125000_030_audit_gaps_supplier_orders.sql`.
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 
@@ -470,3 +471,5 @@ Ver contratos en `docs/docs-schema-model.md`:
 
 - Views de lectura por pantalla (dashboard, products, suppliers, orders, expirations, settings)
 - RPCs para escrituras (POS, stock, orders, permissions, clients)
+- RPC de fechas estimadas de pedidos proveedor: `rpc_set_supplier_order_expected_receive_on(...)`
+- RPC de auditoria append-only: `rpc_log_audit_event(...)`

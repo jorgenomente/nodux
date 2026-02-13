@@ -112,6 +112,7 @@ RPC status change:
 - Campo editable `expected_receive_on` en header
 - Permite refinar fecha de llegada cuando la programación del proveedor no es exacta
 - Debe sincronizarse con `/orders/calendar`
+- Debe registrar auditoria (`supplier_order_expected_receive_on_set`)
 
 ---
 
@@ -173,6 +174,11 @@ RPC 4: `rpc_receive_supplier_order(input)`
 - received_at
 - movimientos purchase (append-only)
 - update stock
+
+RPC 5: `rpc_set_supplier_order_expected_receive_on(input)`
+
+- order_id
+- expected_receive_on (date nullable)
 
 ---
 

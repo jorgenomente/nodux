@@ -165,8 +165,15 @@ Siempre `branch_id` (recepción e ingreso de stock ocurren en esa sucursal).
 - RPC: `rpc_upsert_supplier_order_item(...)`
 - RPC: `rpc_set_supplier_order_status(...)`
 - RPC: `rpc_receive_supplier_order(...)` (si se separa del status)
+- RPC: `rpc_set_supplier_order_expected_receive_on(...)`
 - RPC: `rpc_mark_special_order_items_ordered(...)`
 - (opcional) RPC: `rpc_reconcile_supplier_order(...)`
+
+Eventos de auditoria clave (MVP):
+
+- `supplier_order_status_set`
+- `supplier_order_received`
+- `supplier_order_expected_receive_on_set`
 
 ---
 

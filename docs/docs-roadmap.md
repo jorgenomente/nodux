@@ -217,3 +217,4 @@ Estado actual: **MVP en progreso** (Fase 4 — módulos core).
 - 2026-02-09: Auditoria (DB + UI + RLS) implementada antes de completar Settings; Fase 5 sigue pendiente.
 - 2026-02-13: Se agrega `/orders/calendar` como agenda operativa mobile-first para proveedores (envios/recepciones), con lectura OA/ST y acciones solo OA.
 - 2026-02-13: Se agrega `expected_receive_on` en `supplier_orders` y edición desde calendario para mejorar control de recepciones no exactas.
+- 2026-02-13: Hardening de auditoria en pedidos/proveedores: `rpc_upsert_supplier` vuelve a registrar `supplier_upsert`, se agrega `rpc_set_supplier_order_expected_receive_on` y se audita recepcion/control en `rpc_receive_supplier_order`.

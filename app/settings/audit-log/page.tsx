@@ -39,8 +39,12 @@ const ACTION_LABELS: Record<string, string> = {
   supplier_order_status_set: 'Estado de pedido actualizado',
   supplier_order_received: 'Pedido recibido',
   supplier_order_reconciled: 'Pedido conciliado',
+  supplier_order_expected_receive_on_set:
+    'Fecha estimada de recepción actualizada',
   expiration_batch_created: 'Lote de vencimiento creado',
   expiration_batch_adjusted: 'Lote de vencimiento ajustado',
+  expiration_batch_date_corrected: 'Fecha de vencimiento corregida',
+  expiration_waste_recorded: 'Batch movido a desperdicio',
   client_upsert: 'Cliente actualizado',
   special_order_created: 'Pedido especial creado',
   special_order_status_set: 'Estado de pedido especial actualizado',
@@ -48,6 +52,7 @@ const ACTION_LABELS: Record<string, string> = {
   user_membership_updated: 'Membresia actualizada',
   branch_upsert: 'Sucursal actualizada',
   staff_module_access_set: 'Permisos de staff actualizados',
+  stock_safety_set: 'Stock de seguridad actualizado',
 };
 
 const formatDateTime = (value: string) => {

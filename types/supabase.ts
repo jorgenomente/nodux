@@ -3057,6 +3057,14 @@ export type Database = {
         };
         Returns: undefined;
       };
+      rpc_set_supplier_order_expected_receive_on: {
+        Args: {
+          p_expected_receive_on: string;
+          p_order_id: string;
+          p_org_id: string;
+        };
+        Returns: undefined;
+      };
       rpc_set_supplier_order_status: {
         Args: {
           p_order_id: string;

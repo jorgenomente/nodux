@@ -358,12 +358,11 @@ export default async function OrdersCalendarPage({
 
     const expectedReceiveOn = expectedReceiveOnRaw || null;
 
-    await supabaseServer
-      .from('supplier_orders')
-      .update({ expected_receive_on: expectedReceiveOn })
-      .eq('org_id', actionMembership.org_id)
-      .eq('id', orderId)
-      .in('status', ['sent', 'received']);
+    await supabaseServer.rpc('rpc_set_supplier_order_expected_receive_on', {
+      p_org_id: actionMembership.org_id,
+      p_order_id: orderId,
+      p_expected_receive_on: expectedReceiveOn as unknown as string,
+    });
   };
 
   const suppliersById = new Map<string, SupplierRow>();

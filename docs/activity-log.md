@@ -18,6 +18,44 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-13 — Auditoría: hardening operativo en proveedores/pedidos
+
+**Lote:** audit-log-operational-hardening
+**Tipo:** db
+**Alcance:** db + frontend + docs
+
+**Resumen**
+Se auditó la cobertura real de `audit_log` con pruebas autenticadas y se cerraron gaps en acciones críticas: `supplier_upsert`, actualización de `expected_receive_on` y recepción/control de pedidos proveedor. También se actualizaron labels de `/settings/audit-log`.
+
+**Impacto**
+
+- Crear/editar proveedor vuelve a registrar `supplier_upsert`.
+- Ajustar fecha estimada de recepción registra `supplier_order_expected_receive_on_set`.
+- Confirmar recepción/control registra `supplier_order_received`.
+- UI de auditoría muestra labels legibles para acciones de vencimientos/stock safety nuevas.
+
+**Archivos**
+
+- supabase/migrations/20260213125000_030_audit_gaps_supplier_orders.sql
+- app/orders/calendar/page.tsx
+- app/orders/[orderId]/page.tsx
+- app/settings/audit-log/page.tsx
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/docs-modules-supplier-orders.md
+- docs/docs-app-screens-order-detail.md
+- docs/docs-app-screens-settings-audit-log.md
+- docs/schema.sql
+- types/supabase.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:** `npm run db:reset` OK (2026-02-13) · `npm run db:seed:demo` OK (2026-02-13) · `npm run db:schema:snapshot` OK (2026-02-13) · `npm run types:gen` OK (2026-02-13) · `npm run lint` OK (2026-02-13) · `npm run build` OK (2026-02-13)
+**Verificación DB:** action_keys observados: `supplier_upsert`, `supplier_order_status_set`, `supplier_order_expected_receive_on_set`, `supplier_order_received`, `expiration_batch_date_corrected`, `expiration_waste_recorded`
+**Verificación RLS mínima:** OA lectura `v_audit_log_admin` OK (6 filas) · ST lectura `v_audit_log_admin` denegada por política efectiva (0 filas)
+**Commit:** N/A
+
 ## 2026-02-13 — Calendario: remover estado “pedido realizado”
 
 **Lote:** orders-calendar-remove-sent-state

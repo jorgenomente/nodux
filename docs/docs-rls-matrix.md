@@ -11,6 +11,7 @@ Estado actual:
 - Views y RPCs creadas en migraciones 003/004 (ver `supabase/migrations/20260208221000_003_views.sql` y `supabase/migrations/20260208222000_004_rpcs.sql`).
 - RPC `rpc_get_staff_effective_modules` (security definer) agregada en `supabase/migrations/20260208234000_006_rpc_staff_effective_modules.sql`.
 - `supplier_orders.expected_receive_on` agregado en `supabase/migrations/20260213101500_029_supplier_orders_expected_receive_on.sql` (sin cambios de policy; aplica `supplier_orders_update` existente).
+- `rpc_set_supplier_order_expected_receive_on` agregado en `supabase/migrations/20260213125000_030_audit_gaps_supplier_orders.sql` (sin cambios de policy; mantiene controles por org y estado en RPC).
 
 ## Convenciones
 

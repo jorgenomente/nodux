@@ -274,12 +274,11 @@ export default async function OrderDetailPage({
     ).trim();
     const expectedReceiveOn = expectedReceiveOnRaw || null;
 
-    await supabaseServer
-      .from('supplier_orders')
-      .update({ expected_receive_on: expectedReceiveOn })
-      .eq('org_id', membership.org_id)
-      .eq('id', orderId)
-      .in('status', ['sent', 'received']);
+    await supabaseServer.rpc('rpc_set_supplier_order_expected_receive_on', {
+      p_org_id: membership.org_id,
+      p_order_id: orderId,
+      p_expected_receive_on: expectedReceiveOn as unknown as string,
+    });
 
     revalidatePath(`/orders/${orderId}`);
     revalidatePath('/orders/calendar');

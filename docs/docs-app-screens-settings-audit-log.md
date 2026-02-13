@@ -136,6 +136,15 @@ Filtros soportados (query):
 
 - No aplica (solo lectura en UI)
 
+Action keys operativos relevantes (MVP actual):
+
+- `supplier_upsert`
+- `supplier_order_status_set`
+- `supplier_order_received`
+- `supplier_order_expected_receive_on_set`
+- `expiration_batch_date_corrected`
+- `expiration_waste_recorded`
+
 ---
 
 ## Validaciones (DB / RPC)
