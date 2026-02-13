@@ -27,6 +27,7 @@ type OrderRow = {
   sent_at: string | null;
   received_at: string | null;
   reconciled_at: string | null;
+  expected_receive_on: string | null;
   items_count?: number | null;
 };
 
@@ -85,6 +86,27 @@ const formatAvgModeLabel = (mode: string) => {
     default:
       return 'Segun proveedor';
   }
+};
+
+const formatDate = (value: string | null) =>
+  value ? new Date(value).toLocaleDateString('es-AR') : '—';
+
+const isExpectedReceiveOverdue = (
+  expectedReceiveOn: string | null,
+  status: string,
+) => {
+  if (!expectedReceiveOn) return false;
+  if (status === 'reconciled' || status === 'received') return false;
+  const expected = new Date(expectedReceiveOn);
+  if (Number.isNaN(expected.getTime())) return false;
+  const today = new Date();
+  const expectedDay = new Date(
+    expected.getFullYear(),
+    expected.getMonth(),
+    expected.getDate(),
+  );
+  const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return expectedDay < todayDay;
 };
 
 export default async function OrdersPage({
@@ -535,11 +557,20 @@ export default async function OrdersPage({
           <h2 className="text-lg font-semibold text-zinc-900">Listado</h2>
           <div className="mt-4 space-y-3">
             {pendingOrders.length > 0 ? (
-              pendingOrders.map((order) => (
+              pendingOrders.map((order) => {
+                const isOverdue = isExpectedReceiveOverdue(
+                  order.expected_receive_on,
+                  order.status,
+                );
+                return (
                 <Link
                   key={order.order_id}
                   href={`/orders/${order.order_id}`}
-                  className="block rounded-lg border border-zinc-200 p-4 hover:border-zinc-400"
+                  className={`block rounded-lg border p-4 hover:border-zinc-400 ${
+                    isOverdue
+                      ? 'border-rose-300 bg-rose-50/40'
+                      : 'border-zinc-200'
+                  }`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -551,13 +582,22 @@ export default async function OrdersPage({
                         Estado: {formatStatusLabel(order.status)} · Items:{' '}
                         {order.items_count ?? 0}
                       </p>
+                      <p className="text-xs text-zinc-500">
+                        Estimado recepción: {formatDate(order.expected_receive_on)}
+                      </p>
+                      {isOverdue ? (
+                        <p className="mt-1 inline-flex rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+                          Recepción vencida
+                        </p>
+                      ) : null}
                     </div>
                     <div className="text-xs text-zinc-500">
-                      {new Date(order.created_at).toLocaleDateString('es-AR')}
+                      {formatDate(order.created_at)}
                     </div>
                   </div>
                 </Link>
-              ))
+                );
+              })
             ) : (
               <div className="text-sm text-zinc-500">
                 No hay pedidos pendientes.
@@ -586,9 +626,13 @@ export default async function OrdersPage({
                           Estado: {formatStatusLabel(order.status)} · Items:{' '}
                           {order.items_count ?? 0}
                         </p>
+                        <p className="text-xs text-zinc-500">
+                          Estimado recepción:{' '}
+                          {formatDate(order.expected_receive_on)}
+                        </p>
                       </div>
                       <div className="text-xs text-zinc-500">
-                        {new Date(order.created_at).toLocaleDateString('es-AR')}
+                        {formatDate(order.created_at)}
                       </div>
                     </div>
                   </Link>

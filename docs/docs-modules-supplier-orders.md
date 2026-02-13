@@ -86,6 +86,7 @@ Constraints:
 - representa “pedido enviado”
 - todavía no impacta stock
 - opcional: export/print (Post-MVP)
+- admite `expected_receive_on` editable para fecha estimada de recepcion
 
 ### `received`
 
@@ -149,6 +150,7 @@ Siempre `branch_id` (recepción e ingreso de stock ocurren en esa sucursal).
 ## Pantallas asociadas
 
 - `/orders` (lista + crear)
+- `/orders/calendar` (agenda operativa de envíos/recepciones)
 - `/orders/[orderId]` (detalle + edición + recepción/conciliación)
 
 ---

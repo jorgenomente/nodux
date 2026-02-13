@@ -126,13 +126,19 @@ Regla base:
     - Módulo: Pedidos a proveedor
     - Propósito: listar y crear pedidos a proveedor
 
-14. `/clients`
+14. `/orders/calendar`
+    - Roles: OA, ST
+    - Tipo: Primary
+    - Módulo: Calendario de proveedores
+    - Propósito: ver agenda de envíos y recepciones por proveedor
+
+15. `/clients`
     - Roles: OA
     - Tipo: Primary
     - Módulo: Clientes y pedidos especiales
     - Propósito: gestionar clientes y pedidos especiales end-to-end
 
-15. `/settings`
+16. `/settings`
     - Roles: OA
     - Tipo: Secondary (hub)
     - Módulo: Configuración
@@ -142,13 +148,13 @@ Regla base:
 
 ## 4) Detalles / Subrutas (Org Admin)
 
-16. `/suppliers/[supplierId]`
+17. `/suppliers/[supplierId]`
     - Roles: OA
     - Tipo: Secondary
     - Módulo: Proveedores
     - Propósito: detalle del proveedor + productos asociados
 
-17. `/orders/[orderId]`
+18. `/orders/[orderId]`
     - Roles: OA
     - Tipo: Secondary
     - Módulo: Pedidos a proveedor
@@ -158,31 +164,31 @@ Regla base:
 
 ## 5) Settings (Org Admin / Superadmin)
 
-18. `/settings/staff-permissions`
+19. `/settings/staff-permissions`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Permisos Staff
     - Propósito: habilitar/deshabilitar módulos para Staff
 
-19. `/settings/users`
+20. `/settings/users`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Usuarios
     - Propósito: invitar y gestionar usuarios
 
-20. `/settings/branches`
+21. `/settings/branches`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Sucursales
     - Propósito: crear y gestionar sucursales
 
-21. `/settings/preferences`
+22. `/settings/preferences`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Preferencias
     - Propósito: parámetros simples (alertas, UX)
 
-22. `/settings/audit-log`
+23. `/settings/audit-log`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Auditoría
@@ -192,7 +198,7 @@ Regla base:
 
 ## 6) Superadmin (Primary)
 
-23. `/superadmin`
+24. `/superadmin`
     - Roles: SA
     - Tipo: Primary
     - Módulo: SaaS Admin
@@ -214,6 +220,7 @@ Regla base:
 - `/suppliers`
 - `/suppliers/[supplierId]`
 - `/orders`
+- `/orders/calendar`
 - `/orders/[orderId]`
 - `/products`
 - `/clients`

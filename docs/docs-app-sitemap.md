@@ -46,6 +46,7 @@ Posibles ítems:
 - Consulta de precios → `/products/lookup`
 - Clientes → `/clients`
 - Vencimientos → `/expirations`
+- Calendario proveedores → `/orders/calendar`
 - Otros módulos habilitados
 
 Reglas:
@@ -67,6 +68,7 @@ Navegación fija:
 - Vencimientos → `/expirations`
 - Proveedores → `/suppliers`
 - Pedidos → `/orders`
+- Calendario proveedores → `/orders/calendar`
 - Clientes → `/clients`
 - Configuración → `/settings`
 
@@ -84,6 +86,7 @@ Navegación fija:
 
 - Proveedor (detalle) → `/suppliers/[supplierId]`
 - Pedido (detalle) → `/orders/[orderId]`
+- Calendario de proveedores → `/orders/calendar`
 
 ---
 
@@ -164,6 +167,7 @@ Acceso:
 - `/suppliers/[supplierId]`
 - `/orders`
 - `/orders/[orderId]`
+- `/orders/calendar`
 - `/clients`
 - `/settings`
 - `/settings/users`

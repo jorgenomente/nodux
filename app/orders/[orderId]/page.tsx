@@ -17,6 +17,7 @@ type OrderDetailRow = {
   sent_at: string | null;
   received_at: string | null;
   reconciled_at: string | null;
+  expected_receive_on: string | null;
   controlled_by_user_id: string | null;
   controlled_by_name: string | null;
   controlled_by_user_name: string | null;
@@ -46,6 +47,8 @@ const formatStatusLabel = (status: string) => {
 
 const formatDateTime = (value: string | null) =>
   value ? new Date(value).toLocaleString('es-AR') : '—';
+const formatDateInput = (value: string | null) =>
+  value ? new Date(value).toISOString().slice(0, 10) : '';
 
 const statusOptions = [
   { value: 'draft', label: 'Borrador' },
@@ -244,8 +247,31 @@ export default async function OrderDetailPage({
     revalidatePath('/orders');
   };
 
+  const setExpectedReceiveOn = async (formData: FormData) => {
+    'use server';
+
+    const supabaseServer = await createServerSupabaseClient();
+    const expectedReceiveOnRaw = String(
+      formData.get('expected_receive_on') ?? '',
+    ).trim();
+    const expectedReceiveOn = expectedReceiveOnRaw || null;
+
+    await supabaseServer
+      .from('supplier_orders')
+      .update({ expected_receive_on: expectedReceiveOn })
+      .eq('org_id', membership.org_id)
+      .eq('id', orderId)
+      .in('status', ['sent', 'received']);
+
+    revalidatePath(`/orders/${orderId}`);
+    revalidatePath('/orders/calendar');
+    redirect(`/orders/${orderId}?notice=expected_receive_updated`);
+  };
+
   const canEdit = order.status === 'draft';
   const canReceive = order.status === 'sent';
+  const canSetExpectedReceive =
+    order.status === 'sent' || order.status === 'received';
   const controlledByLabel =
     order.controlled_by_name || order.controlled_by_user_name;
   const receiveDefaultAt = new Date().toISOString().slice(0, 16);
@@ -262,6 +288,8 @@ export default async function OrderDetailPage({
               tone: 'error',
               message: 'Indicá quién controló el pedido.',
             }
+          : resolvedSearchParams?.notice === 'expected_receive_updated'
+            ? { tone: 'success', message: 'Fecha estimada actualizada.' }
           : null;
 
   return (
@@ -354,6 +382,25 @@ export default async function OrderDetailPage({
               La recepcion y el control se confirman desde “Recibir y controlar
               mercadería”.
             </div>
+          ) : null}
+          {canSetExpectedReceive ? (
+            <form action={setExpectedReceiveOn} className="mt-3 flex flex-wrap items-end gap-2">
+              <label className="text-xs font-semibold text-zinc-600">
+                Fecha estimada de recepción
+                <input
+                  type="date"
+                  name="expected_receive_on"
+                  defaultValue={formatDateInput(order.expected_receive_on)}
+                  className="ml-2 rounded border border-zinc-200 px-2 py-1 text-xs"
+                />
+              </label>
+              <button
+                type="submit"
+                className="rounded border border-zinc-200 px-3 py-1 text-xs font-semibold text-zinc-700"
+              >
+                Guardar fecha
+              </button>
+            </form>
           ) : null}
           {order.notes ? (
             <div className="mt-3 text-sm text-zinc-500">

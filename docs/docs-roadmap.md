@@ -215,3 +215,5 @@ Estado actual: **MVP en progreso** (Fase 4 — módulos core).
 
 - 2026-02-08: Se crea este roadmap vivo como fuente de orden operativo.
 - 2026-02-09: Auditoria (DB + UI + RLS) implementada antes de completar Settings; Fase 5 sigue pendiente.
+- 2026-02-13: Se agrega `/orders/calendar` como agenda operativa mobile-first para proveedores (envios/recepciones), con lectura OA/ST y acciones solo OA.
+- 2026-02-13: Se agrega `expected_receive_on` en `supplier_orders` y edición desde calendario para mejorar control de recepciones no exactas.

@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-02-10 14:10
+Ultima actualizacion: 2026-02-13 10:25
 
 ## Estado general
 
@@ -40,6 +40,7 @@ Ultima actualizacion: 2026-02-10 14:10
 - /clients operativo con lista, detalle y pedidos especiales por sucursal.
 - Pedidos especiales usan items de catálogo y se entregan desde POS (stock se descuenta al cobrar).
 - Dashboard operativo con KPIs y alertas basicas via rpc_get_dashboard_admin.
+- Calendario de proveedores en `/orders/calendar` iterado a modo operativo: filtros por hoy/semana/mes/rango, estados (pendiente por realizar, realizado, pendiente por recibir, recibido/controlado), acceso directo a pedidos y edicion de fecha estimada de recepcion (`expected_receive_on`) para pedidos no exactos.
 
 ## Post-MVP ya registrado
 

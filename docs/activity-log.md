@@ -18,6 +18,223 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-13 — Orders list: alerta de recepción vencida
+
+**Lote:** orders-list-overdue-expected-receive
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se agrego alerta visual en `/orders` para pedidos pendientes cuya fecha estimada de recepción ya venció.
+
+**Impacto**
+
+- Mejora detección rápida de pedidos atrasados.
+- No altera lógica de estados ni reglas de negocio.
+- Mantiene compatibilidad con `expected_receive_on` editable.
+
+**Archivos**
+
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:** `npm run lint` OK (2026-02-13) · `npm run build` OK (2026-02-13)
+**Commit:** N/A
+
+## 2026-02-13 — Orders list: mostrar fecha estimada de recepción
+
+**Lote:** orders-list-expected-receive
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se agrego `expected_receive_on` en las tarjetas del listado de `/orders` (pendientes y controlados) para visibilidad rápida sin entrar al detalle.
+
+**Impacto**
+
+- Mejora seguimiento operativo de recepciones esperadas desde la lista principal.
+- Mantiene sincronia con el valor editable desde calendario y detalle.
+- No cambia reglas de negocio ni flujo de estados.
+
+**Archivos**
+
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:** `npm run lint` OK (2026-02-13) · `npm run build` OK (2026-02-13)
+**Commit:** N/A
+
+## 2026-02-13 — Orders detail: expected receive editable
+
+**Lote:** suppliers-calendar-expected-receive-order-detail
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se agrego edicion de `expected_receive_on` en `/orders/[orderId]` para pedidos en estado enviado/received, manteniendo sincronia con calendario.
+
+**Impacto**
+
+- OA puede ajustar fecha estimada desde detalle del pedido, sin volver al calendario.
+- Al guardar, la fecha se refleja en `/orders/calendar`.
+- No cambia flujo de control de mercaderia ni recepcion.
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/docs-modules-supplier-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:** `npm run lint` OK (2026-02-13) · `npm run build` OK (2026-02-13)
+**Commit:** N/A
+
+## 2026-02-13 — Calendario: expected receive editable + filtros condicionales
+
+**Lote:** suppliers-calendar-expected-receive
+**Tipo:** feature
+**Alcance:** db + frontend + docs
+
+**Resumen**
+Se agrego `expected_receive_on` en `supplier_orders` y se habilito su edicion desde `/orders/calendar` para pedidos pendientes por recibir. Tambien se ajustaron filtros para flujo `sucursal -> estado -> periodo` y `desde/hasta` solo en rango personalizado (aparece inmediatamente al seleccionar la opcion).
+
+**Impacto**
+
+- OA puede ajustar fecha estimada exacta de recepcion cuando el dia por defecto del proveedor no aplica.
+- El calendario mantiene sincronia con estados reales de pedidos en `/orders`.
+- Staff conserva visibilidad solo lectura.
+
+**Archivos**
+
+- supabase/migrations/20260213101500_029_supplier_orders_expected_receive_on.sql
+- app/orders/calendar/page.tsx
+- app/orders/calendar/CalendarFiltersClient.tsx
+- docs/schema.sql
+- types/supabase.ts
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/docs-app-screens-supplier-calendar.md
+- docs/docs-modules-supplier-calendar.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:** `npm run db:reset` OK (2026-02-13) · `npm run db:schema:snapshot` OK (2026-02-13) · `npm run types:gen` OK (2026-02-13) · `npm run lint` OK (2026-02-13) · `npm run build` OK (2026-02-13)
+**Commit:** N/A
+
+## 2026-02-13 — Calendario de proveedores v2 (filtros + estados operativos)
+
+**Lote:** suppliers-calendar-mvp-ui-v2
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se itero la pantalla de calendario para orientarla a operacion diaria con filtros por periodo/rango y estados operativos sincronizados con pedidos.
+
+**Impacto**
+
+- Filtros: hoy, semana, mes o rango personalizado.
+- Estados de tarjeta: pendiente por realizar, pedido realizado, pendiente por recibir, recibido y controlado.
+- Acceso directo a pedido para revisar/controlar desde calendario.
+
+**Archivos**
+
+- app/orders/calendar/page.tsx
+- docs/docs-app-screens-supplier-calendar.md
+- docs/docs-modules-supplier-calendar.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:** `npm run lint` OK (2026-02-13) · `npm run build` OK (2026-02-13)
+**Commit:** N/A
+
+## 2026-02-13 — Calendario de proveedores MVP (UI + docs)
+
+**Lote:** suppliers-calendar-mvp-ui
+**Tipo:** feature
+**Alcance:** frontend + docs
+
+**Resumen**
+Se implemento la nueva pantalla `/orders/calendar` con agenda mobile-first de 14 dias que combina envios/recepciones programados desde proveedores y eventos reales de pedidos, con visibilidad para OA y Staff (solo lectura para Staff).
+
+**Impacto**
+
+- OA puede ver agenda de proveedores y entrar rapido a crear/ver pedido.
+- Staff puede consultar que se envia/recibe por dia sin acceso de escritura.
+- Se actualiza documentacion de sitemap, indice de pantallas y modulo/calendario.
+
+**Archivos**
+
+- app/orders/calendar/page.tsx
+- app/components/TopBar.tsx
+- docs/docs-modules-supplier-calendar.md
+- docs/docs-app-screens-supplier-calendar.md
+- docs/docs-app-sitemap.md
+- docs/docs-app-screens-index.md
+- docs/docs-modules-supplier-orders.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/docs-ux-ui-brief.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:** `npm run lint` OK (2026-02-13) · `npm run build` OK (2026-02-13)
+**Commit:** N/A
+
+## 2026-02-13 — Calendario proveedores: discovery y propuesta de arquitectura
+
+**Lote:** suppliers-calendar-discovery
+**Tipo:** decision
+**Alcance:** docs + arquitectura
+
+**Resumen**
+Se realizo analisis repo-aware (docs, schema, RLS, rutas y contratos actuales) para definir la propuesta del nuevo modulo de calendario de proveedores con enfoque mobile-first y visibilidad para OA/ST.
+
+**Impacto**
+
+- Define una propuesta concreta de rutas, contrato de datos, permisos y UX para el calendario.
+- Identifica brechas del modelo actual (eventos recurrentes vs eventos reales de pedidos) y una estrategia de implementacion por fases.
+- No se aplican cambios de codigo ni migraciones en este lote.
+
+**Archivos**
+
+- docs/docs-scope-mvp.md
+- docs/docs-app-sitemap.md
+- docs/docs-app-screens-index.md
+- docs/docs-app-screens-suppliers.md
+- docs/docs-app-screens-orders.md
+- docs/docs-modules-suppliers.md
+- docs/docs-modules-supplier-orders.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+- app/orders/page.tsx
+- app/pos/page.tsx
+- app/clients/page.tsx
+- app/expirations/page.tsx
+- app/components/TopBar.tsx
+- supabase/migrations/20260208213000_001_init_schema.sql
+- supabase/migrations/20260208221000_003_views.sql
+- supabase/migrations/20260208222000_004_rpcs.sql
+- supabase/migrations/20260208234000_006_rpc_staff_effective_modules.sql
+- supabase/migrations/20260209170000_011_suppliers_frequency_safety_stock.sql
+- supabase/migrations/20260209174000_013_rpc_upsert_supplier_schedule.sql
+- supabase/migrations/20260209175000_014_view_suppliers_schedule.sql
+- docs/schema.sql
+- types/supabase.ts
+
+**Tests:** N/A (lote de analisis/documentacion)
+**Commit:** N/A
+
 ## 2026-02-11 — Expirations: vencidos unificados
 
 **Tipo:** docs

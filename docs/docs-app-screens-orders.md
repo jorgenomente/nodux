@@ -50,9 +50,11 @@ Cada row:
 - proveedor
 - sucursal
 - estado
+- fecha estimada de recepción (`expected_receive_on`, opcional)
 - fecha (created_at / sent_at)
 - acción: “Ver” → `/orders/[orderId]`
 - Listado separado: pendientes arriba, controlados abajo
+- si `expected_receive_on` está en el pasado y el pedido no está controlado: resaltar tarjeta con alerta visual “Recepción vencida”
 
 ### Pedidos especiales pendientes
 
@@ -115,6 +117,7 @@ Salida mínima:
 - status
 - created_at
 - sent_at, received_at, reconciled_at (opcional)
+- expected_receive_on (opcional)
 - items_count (opcional)
 
 ### Escritura

@@ -12,6 +12,62 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-13 10:58 — Resaltar recepciones vencidas en orders
+
+**Lote:** orders-list-overdue-expected-receive
+**Objetivo:** Mostrar alerta visual en pedidos con fecha estimada de recepcion vencida.
+
+**Prompt**
+ok hagamos eso tambien
+
+## 2026-02-13 10:46 — Mostrar expected receive en listado de pedidos
+
+**Lote:** orders-list-expected-receive
+**Objetivo:** Mostrar `expected_receive_on` en las tarjetas de `/orders`.
+
+**Prompt**
+ok hagamos eso tambien
+
+## 2026-02-13 10:34 — Expected receive en detalle de pedido
+
+**Lote:** suppliers-calendar-expected-receive-order-detail
+**Objetivo:** Permitir editar expected receive tambien desde `/orders/[orderId]`.
+
+**Prompt**
+si hagamos eso
+
+## 2026-02-13 10:08 — Calendario expected receive editable
+
+**Lote:** suppliers-calendar-expected-receive
+**Objetivo:** Permitir ajustar fecha estimada de recepcion por pedido y mejorar filtros del calendario.
+
+**Prompt**
+Si me gustaria que en caso de que haya proveedores que no es muy claro cuando se recibe, que yo pueda cambiarle la fecha. por ejemplo hay un proveedor mensual que lo pido hoy y no se cuando lo recibo pero por defecto ya esta configurado un miercoles. pero eso quizas no sea correcto y voy a ver ese dia el pedido que se recibe, pero eso no es exacto, entonces puedo modificar el expected receive y colocarle una fecha exacta o estimada que yo desee asi ya me lo quito de encima y no me queda pendiente y tengo mejor control. de igual manera me gustaria que en los filtros de calendar funcione de esta manera. yo selecciono la sucursal, despues el estado y despues el periodo. Solamente cuando yo seleccione la opcion de rango personalizado es que me deben aparecer los inputs  de desde hasta. tiene sentido?
+
+## 2026-02-13 10:02 — Iteracion calendario operativo
+
+**Lote:** suppliers-calendar-mvp-ui-v2
+**Objetivo:** Mejorar calendario para operacion diaria con filtros y estados sincronizados con pedidos.
+
+**Prompt**
+ok me gusta pero ahora vamos a iterar. el calendario debe funcionar para entender que pedido debo realizar esta semana o el dia actual. Tambien para entender que proveedor deberia estar recibiendo. Tambien podria servirme para chequear pedidos realizados anteriormente y recepciones. Entonces debo poder filtrar los resultados. Se me ocurre que haya un filtro de esta semana, este mes, pedientes por enviar, pendientes por recibir. tambien puedo elegir una fecha o periodo por si quiero ver resultados anteriores. Hay un estado dentro de las targetas que dice envio programado. no entiendo si eso se refiere a que ya se hizo el pedido o hay que crearlo ya que dice crear pedido. Desde aqui yo deberia poder acceder al pedido de ese proveedor, tal como lo haria desde orders. seria como una especie de segundo entry point. me gustaria que los estados fueran pedido pendiente por realizar, pedido realizado, pedido pedindiente por recibir, pedido recibido y controlado. Esto debe estar sincronizado con los estados de pedido en orders. por ejemplo desde el calendario puedo entrar y ver el pedido que recibo hoy y controlarlo. una vez marcado como controlado en el calendario debe decir controlado asi como desde orders. Si yo desde orders creo el pedido y lo envio, entonces en el calendario deberia salirme como envio realizado. No se si me estoy explicando bien
+
+## 2026-02-13 09:30 — Implementar calendario proveedores
+
+**Lote:** suppliers-calendar-mvp-ui
+**Objetivo:** Implementar modulo de calendario de proveedores en la app con enfoque mobile-first.
+
+**Prompt**
+ok adelante, me gustaria implementarlo
+
+## 2026-02-13 09:24 — Propuesta modulo calendario proveedores
+
+**Lote:** suppliers-calendar-discovery
+**Objetivo:** Analizar docs/proyecto y definir propuesta de modulo calendario de pedidos/recepciones de proveedores mobile-first.
+
+**Prompt**
+Chequea los docs del proyecto, me gustaria incorporar un calendario de proveedores. en teoria ya los proveedores tienen un dia asignado de cuando se realiza el pedido y un dia de cuando se recibe. Con base en toda esa informacin me gustaria crear este nuevo modulo de calendario donde quien hace los pedidos, generalmente admin pero staff tambien lo puede ver para saber que se recibe un dia determinado. Podriamos usar un color para diferenciar el dia que se envia del dia que se recibe. Analiza los docs y el proyecto y dame ideas de como podriamos hacer este nuevo modulo, que documentaacion nueva debemos crear, que debemos actualizar, y cual es la mejor manera de que esto funcione y sea claro. recuerda que es mobile first
+
 ## 2026-02-11 15:24 — Vencidos unificados
 
 **Lote:** expirations-expired-unified

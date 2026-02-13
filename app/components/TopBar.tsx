@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { href: '/expirations', label: 'Vencimientos' },
   { href: '/suppliers', label: 'Proveedores' },
   { href: '/orders', label: 'Pedidos' },
+  { href: '/orders/calendar', label: 'Calendario' },
   { href: '/clients', label: 'Clientes' },
   { href: '/settings/audit-log', label: 'Auditoria' },
   { href: '/superadmin', label: 'Superadmin' },

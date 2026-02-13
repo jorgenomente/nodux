@@ -2509,7 +2509,8 @@ CREATE TABLE IF NOT EXISTS "public"."supplier_orders" (
     "received_at" timestamp with time zone,
     "reconciled_at" timestamp with time zone,
     "controlled_by_user_id" "uuid",
-    "controlled_by_name" "text"
+    "controlled_by_name" "text",
+    "expected_receive_on" "date"
 );
 
 
@@ -2771,6 +2772,7 @@ CREATE OR REPLACE VIEW "public"."v_order_detail_admin" AS
     "so"."sent_at",
     "so"."received_at",
     "so"."reconciled_at",
+    "so"."expected_receive_on",
     "so"."controlled_by_user_id",
     "so"."controlled_by_name",
     "ou"."display_name" AS "controlled_by_user_name",
@@ -2804,6 +2806,7 @@ CREATE OR REPLACE VIEW "public"."v_orders_admin" AS
     "so"."sent_at",
     "so"."received_at",
     "so"."reconciled_at",
+    "so"."expected_receive_on",
     COALESCE("items"."items_count", (0)::bigint) AS "items_count"
    FROM ((("public"."supplier_orders" "so"
      LEFT JOIN "public"."suppliers" "s" ON ((("s"."id" = "so"."supplier_id") AND ("s"."org_id" = "so"."org_id"))))
@@ -3244,6 +3247,10 @@ CREATE UNIQUE INDEX "products_org_barcode_uq" ON "public"."products" USING "btre
 
 
 CREATE UNIQUE INDEX "products_org_internal_code_uq" ON "public"."products" USING "btree" ("org_id", "internal_code") WHERE ("internal_code" IS NOT NULL);
+
+
+
+CREATE INDEX "supplier_orders_expected_receive_on_idx" ON "public"."supplier_orders" USING "btree" ("org_id", "branch_id", "expected_receive_on") WHERE ("expected_receive_on" IS NOT NULL);
 
 
 

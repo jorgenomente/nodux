@@ -29,6 +29,7 @@ Estado actual:
 - RPC ventas con security definer en `supabase/migrations/20260211095500_025_rpc_create_sale_security_definer.sql`.
 - Fix created_at ambiguo en `supabase/migrations/20260211103000_026_rpc_create_sale_orderby_fix.sql`.
 - Desperdicio de vencidos en `supabase/migrations/20260211140000_027_expiration_waste.sql`.
+- Fecha estimada de recepcion en pedidos de proveedor en `supabase/migrations/20260213101500_029_supplier_orders_expected_receive_on.sql`.
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 
@@ -380,6 +381,7 @@ Estado actual:
 - `created_by` (uuid, FK -> auth.users.id)
 - `created_at`, `updated_at`
 - `sent_at`, `received_at`, `reconciled_at` (timestamptz, nullable)
+- `expected_receive_on` (date, nullable)
 - `controlled_by_user_id` (uuid, FK -> auth.users.id, nullable)
 - `controlled_by_name` (text, nullable)
 

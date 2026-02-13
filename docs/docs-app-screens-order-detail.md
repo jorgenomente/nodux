@@ -105,6 +105,12 @@ RPC status change:
 - Selector de estado (solo borrador/enviado)
 - Recibido/controlado se realizan solo via recepcion
 
+### A7) Ajustar fecha estimada de recepción (sent/received)
+
+- Campo editable `expected_receive_on` en header
+- Permite refinar fecha de llegada cuando la programación del proveedor no es exacta
+- Debe sincronizarse con `/orders/calendar`
+
 ---
 
 ## Estados UI
@@ -127,6 +133,7 @@ Salida:
   - supplier_id, supplier_name
   - branch_id, branch_name
   - created_at, sent_at, received_at, reconciled_at
+  - expected_receive_on
   - controlled_by_name, controlled_by_user_id, controlled_by_user_name
 - items[]:
   - order_item_id

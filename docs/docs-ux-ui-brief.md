@@ -86,6 +86,7 @@ Org Admin:
 - `/expirations`
 - `/suppliers`
 - `/orders`
+- `/orders/calendar`
 - `/clients`
 - `/settings`
 - `/settings/users`
@@ -99,6 +100,7 @@ Staff:
 - `/products/lookup`
 - `/clients`
 - `/expirations`
+- `/orders/calendar`
 
 Superadmin:
 
