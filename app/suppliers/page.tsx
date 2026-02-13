@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
 import SupplierActions from '@/app/suppliers/SupplierActions';
+import SuppliersSearchInput from '@/app/suppliers/SuppliersSearchInput';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 type SearchParams = {
@@ -78,13 +79,14 @@ export default async function SuppliersPage({
     .eq('org_id', membership.org_id)
     .order('name');
 
-  if (query) {
+  if (query.length >= 3) {
     supplierQuery = supplierQuery.or(
       `name.ilike.%${query}%,contact_name.ilike.%${query}%`,
     );
   }
 
   const { data: suppliers } = await supplierQuery;
+  const shouldOpenNewSupplier = !suppliers || suppliers.length === 0;
 
   const createSupplier = async (formData: FormData) => {
     'use server';
@@ -190,26 +192,21 @@ export default async function SuppliersPage({
               Gestiona proveedores y sus productos asociados.
             </p>
           </div>
-          <form className="flex flex-wrap items-center gap-2">
-            <input
-              name="q"
-              defaultValue={query}
-              placeholder="Buscar proveedor"
-              className="rounded border border-zinc-200 px-3 py-2 text-sm"
-            />
-            <button
-              type="submit"
-              className="rounded border border-zinc-200 px-3 py-2 text-sm"
-            >
-              Buscar
-            </button>
-          </form>
         </div>
 
-        <section className="rounded-2xl bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">
+        <details
+          className="group rounded-2xl bg-white p-6 shadow-sm"
+          open={shouldOpenNewSupplier}
+        >
+          <summary className="cursor-pointer list-none text-lg font-semibold text-zinc-900">
             Nuevo proveedor
-          </h2>
+            <span className="ml-2 text-sm font-medium text-zinc-500 group-open:hidden">
+              (abrir)
+            </span>
+            <span className="ml-2 hidden text-sm font-medium text-zinc-500 group-open:inline">
+              (cerrar)
+            </span>
+          </summary>
           <form
             action={createSupplier}
             className="mt-4 grid gap-3 md:grid-cols-2"
@@ -303,10 +300,15 @@ export default async function SuppliersPage({
               </button>
             </div>
           </form>
-        </section>
+        </details>
 
         <section className="rounded-2xl bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Listado</h2>
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-900">Listado</h2>
+            <div className="mt-3">
+              <SuppliersSearchInput initialQuery={query} />
+            </div>
+          </div>
           <div className="mt-4 space-y-4">
             {suppliers && suppliers.length > 0 ? (
               (suppliers as SupplierRow[]).map((supplier) => (

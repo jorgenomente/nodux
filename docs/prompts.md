@@ -12,6 +12,82 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-13 12:34 — Remover estado “realizado” del calendario
+
+**Lote:** orders-calendar-remove-sent-state
+**Objetivo:** Dejar calendario con 3 estados operativos y quitar “pedido realizado” por redundante.
+
+**Prompt**
+Estado operativo sincronizado con pedidos: pendiente por realizar, realizado, pendiente por recibir y recibido/controlado. siento que hay uno que sobra, el realizado lo podemos quitar porque en teoria el pendiente por recibir es un pedido ya realizado
+
+## 2026-02-13 12:34 — Evitar estado duplicado en tarjeta del calendario
+
+**Lote:** orders-calendar-dedupe-status-text
+**Objetivo:** Evitar que en la tarjeta de calendario se repita el estado cuando ya se muestra “Estado de pedido”.
+
+**Prompt**
+perfecto mucho mejor ahora solo arreglar esto ahora mismo me dice Proveedor Quincenal Demo
+
+Pedido recibido y controlado
+
+Sucursal: Sucursal A
+
+Estado de pedido: Recibido y controlado si te fijas se repite la informacion dos veces, dejemos solo la que dice estado de pedido:
+
+## 2026-02-13 12:31 — Normalizar estados de calendario y detalle de pedido
+
+**Lote:** orders-status-normalization-calendar-detail
+**Objetivo:** Corregir inconsistencia entre `/orders/calendar` y `/orders/[orderId]` para operar con 3 estados UI.
+
+**Prompt**
+hay algo que no esta cuadrando bien en calendar. tengo uno de los prveedores demo, ese proveedor dice Proveedor Quincenal Demo
+
+Pedido pendiente por recibir
+
+Sucursal: Sucursal A
+
+Estado de pedido: received. me sale un boton que dice ver y controlar, pero cuando entro a ese pedido me dice que ya esta controlado. Entonces hay algo que no esta cuadrando. si esta pendiente por recibir entonces no deberia ser estado received. y menos controlado. podriamos verficiar esto? El pedido solo debe tener 3 estados. pedido pendiente por realizar, pedido pendiente por recibir y pedido recibido y controlado. Si el pedido ha sido controlado entonces el estado de pedido es recibido y controlado. la fecha que debe mostrar es la fecha de controlado que uno coloca al controlar junto con la firma de la persona. Vamos a chequear esto, y dime que ves que no esta bien formulado y dime como lo arreglariamos
+
+## 2026-02-13 10:34 — Comando único reset + seed completo
+
+**Lote:** db-reset-all-command
+**Objetivo:** Crear comando único para resetear DB local y poblar usuarios + datos demo MVP.
+
+**Prompt**
+ok adelante
+
+## 2026-02-13 10:26 — Seed integral reusable para QA MVP
+
+**Lote:** seed-mvp-full-reusable
+**Objetivo:** Crear/ajustar script de datos de prueba reutilizable para validar todo el MVP actual.
+
+**Prompt**
+muy bien lo proximo que me gustaria hacer es crear un script que nos permita insertar datos de prueba que nos sirva para probar todo hasta ahora. Esta bien que se borre cuando hacemos el reset pero que ya este escrito digamos para aplicarlo cada vez que queramos hacer pruebas. la idea es que sirva para todo lo que ya hemos hecho ahsta ahora y poder hacer pruebas. como lo ves?
+
+## 2026-02-13 10:26 — Reubicar buscador bajo título de listado
+
+**Lote:** suppliers-list-search-below-title
+**Objetivo:** Colocar el buscador justo debajo del título `Listado` en `/suppliers`.
+
+**Prompt**
+ok pero coloca el buscador justo debajo de listado
+
+## 2026-02-13 10:25 — Busqueda en vivo en listado de proveedores
+
+**Lote:** suppliers-list-live-search
+**Objetivo:** Mover buscador a `Listado` y filtrar automatico desde 3 letras sin boton.
+
+**Prompt**
+tambien hay buscador de proveedor. me gustaria que este dentro de listado y que no tenga un boton de filtrar sino que al escribir 3 letras ya empiece a aparecer resultados.
+
+## 2026-02-13 10:20 — Desplegable para nuevo proveedor
+
+**Lote:** suppliers-new-form-collapsible
+**Objetivo:** Ubicar la seccion de alta de proveedor dentro de un desplegable en `/suppliers`.
+
+**Prompt**
+trabajemos en /suppliers. la seccion de nuevo proveedor podemos ubicarla dentro de un desplegable?
+
 ## 2026-02-13 10:58 — Resaltar recepciones vencidas en orders
 
 **Lote:** orders-list-overdue-expected-receive
@@ -42,7 +118,7 @@ si hagamos eso
 **Objetivo:** Permitir ajustar fecha estimada de recepcion por pedido y mejorar filtros del calendario.
 
 **Prompt**
-Si me gustaria que en caso de que haya proveedores que no es muy claro cuando se recibe, que yo pueda cambiarle la fecha. por ejemplo hay un proveedor mensual que lo pido hoy y no se cuando lo recibo pero por defecto ya esta configurado un miercoles. pero eso quizas no sea correcto y voy a ver ese dia el pedido que se recibe, pero eso no es exacto, entonces puedo modificar el expected receive y colocarle una fecha exacta o estimada que yo desee asi ya me lo quito de encima y no me queda pendiente y tengo mejor control. de igual manera me gustaria que en los filtros de calendar funcione de esta manera. yo selecciono la sucursal, despues el estado y despues el periodo. Solamente cuando yo seleccione la opcion de rango personalizado es que me deben aparecer los inputs  de desde hasta. tiene sentido?
+Si me gustaria que en caso de que haya proveedores que no es muy claro cuando se recibe, que yo pueda cambiarle la fecha. por ejemplo hay un proveedor mensual que lo pido hoy y no se cuando lo recibo pero por defecto ya esta configurado un miercoles. pero eso quizas no sea correcto y voy a ver ese dia el pedido que se recibe, pero eso no es exacto, entonces puedo modificar el expected receive y colocarle una fecha exacta o estimada que yo desee asi ya me lo quito de encima y no me queda pendiente y tengo mejor control. de igual manera me gustaria que en los filtros de calendar funcione de esta manera. yo selecciono la sucursal, despues el estado y despues el periodo. Solamente cuando yo seleccione la opcion de rango personalizado es que me deben aparecer los inputs de desde hasta. tiene sentido?
 
 ## 2026-02-13 10:02 — Iteracion calendario operativo
 

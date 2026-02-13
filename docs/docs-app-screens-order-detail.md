@@ -99,6 +99,8 @@ RPC status change:
   - genera movimientos purchase por item (stock +)
   - genera batches de vencimiento si el producto tiene `shelf_life_days`
     RPC: `rpc_receive_supplier_order(order_id, received_items[], received_at, controlled_by)`
+- Compatibilidad legacy:
+  - si existe un pedido en estado `received` (flujo anterior), el control final lo pasa a `reconciled` guardando fecha y firma.
 
 ### A6) Actualizar estado manual (draft/sent)
 
@@ -186,7 +188,7 @@ RPC 4: `rpc_receive_supplier_order(input)`
 
 1. Recibir sin haber enviado
 
-- Bloquear (solo sent→received)
+- Bloquear (solo sent/received legacy → reconciled)
 
 2. Recibir con received_qty = 0
 

@@ -30,7 +30,7 @@ Mostrar una agenda operativa mobile-first para:
 2. Filtros:
 
 - sucursal
-- estado (`todos`, `pendiente por enviar`, `pedido realizado`, `pendiente por recibir`, `recibido y controlado`)
+- estado (`todos`, `pendiente por enviar`, `pendiente por recibir`, `recibido y controlado`)
 - periodo (`hoy`, `esta semana`, `este mes`, `rango personalizado`)
 - desde/hasta (solo si el período es `rango personalizado`)
 - al seleccionar `rango personalizado`, `desde/hasta` aparecen inmediatamente en UI
@@ -79,7 +79,7 @@ Salida UI:
 
 - `date_key`, `date_label`
 - `supplier_id`, `supplier_name`, `branch_name`
-- `status` (`pending_send` | `sent` | `pending_receive` | `controlled`)
+- `status` (`pending_send` | `pending_receive` | `controlled`)
 - `order_id` (nullable)
 
 ---
@@ -88,11 +88,11 @@ Salida UI:
 
 1. La agenda se filtra por periodo o rango personalizado.
 2. `pending_send`: proveedor programado para pedir y sin pedido enviado en esa fecha.
-3. `sent`: pedido enviado (sin importar si vino de fecha programada o manual).
-4. `pending_receive`: pedido en estado `sent`/`received` pendiente de control.
-5. Si `expected_receive_on` existe, ese valor manda la fecha esperada de recepción.
-6. `controlled`: pedido con `reconciled_at` o `received_at`.
-7. Si no hay sucursales asignadas a Staff, redirige a `/no-access`.
+3. `pending_receive`: pedido en estado `sent` pendiente de control.
+   Compatibilidad legacy: si aparece `received` sin `reconciled_at`, se trata como pendiente de control.
+4. Si `expected_receive_on` existe, ese valor manda la fecha esperada de recepción.
+5. `controlled`: pedido con `reconciled_at`.
+6. Si no hay sucursales asignadas a Staff, redirige a `/no-access`.
 
 ---
 

@@ -105,7 +105,11 @@ const isExpectedReceiveOverdue = (
     expected.getMonth(),
     expected.getDate(),
   );
-  const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const todayDay = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
   return expectedDay < todayDay;
 };
 
@@ -563,39 +567,40 @@ export default async function OrdersPage({
                   order.status,
                 );
                 return (
-                <Link
-                  key={order.order_id}
-                  href={`/orders/${order.order_id}`}
-                  className={`block rounded-lg border p-4 hover:border-zinc-400 ${
-                    isOverdue
-                      ? 'border-rose-300 bg-rose-50/40'
-                      : 'border-zinc-200'
-                  }`}
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-900">
-                        {order.supplier_name || 'Proveedor'} ·{' '}
-                        {order.branch_name || 'Sucursal'}
-                      </p>
-                      <p className="text-xs text-zinc-500">
-                        Estado: {formatStatusLabel(order.status)} · Items:{' '}
-                        {order.items_count ?? 0}
-                      </p>
-                      <p className="text-xs text-zinc-500">
-                        Estimado recepción: {formatDate(order.expected_receive_on)}
-                      </p>
-                      {isOverdue ? (
-                        <p className="mt-1 inline-flex rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
-                          Recepción vencida
+                  <Link
+                    key={order.order_id}
+                    href={`/orders/${order.order_id}`}
+                    className={`block rounded-lg border p-4 hover:border-zinc-400 ${
+                      isOverdue
+                        ? 'border-rose-300 bg-rose-50/40'
+                        : 'border-zinc-200'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-900">
+                          {order.supplier_name || 'Proveedor'} ·{' '}
+                          {order.branch_name || 'Sucursal'}
                         </p>
-                      ) : null}
+                        <p className="text-xs text-zinc-500">
+                          Estado: {formatStatusLabel(order.status)} · Items:{' '}
+                          {order.items_count ?? 0}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          Estimado recepción:{' '}
+                          {formatDate(order.expected_receive_on)}
+                        </p>
+                        {isOverdue ? (
+                          <p className="mt-1 inline-flex rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+                            Recepción vencida
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="text-xs text-zinc-500">
+                        {formatDate(order.created_at)}
+                      </div>
                     </div>
-                    <div className="text-xs text-zinc-500">
-                      {formatDate(order.created_at)}
-                    </div>
-                  </div>
-                </Link>
+                  </Link>
                 );
               })
             ) : (

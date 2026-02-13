@@ -29,10 +29,12 @@ Gestionar proveedores y asociar productos para habilitar compras/pedidos.
 ### Header
 
 - Título: “Proveedores”
-- CTA principal: “Nuevo proveedor” (formulario en la misma página)
-- Search: por nombre / contacto
+- CTA principal: “Nuevo proveedor” (formulario desplegable en la misma página)
 
 ### Lista (tabla o cards)
+
+- Search inline en bloque de listado (sin botón)
+- Filtro reactivo por nombre/contacto al escribir 3+ letras
 
 Cada row:
 
@@ -57,7 +59,7 @@ Estado actual: se usa subruta `/suppliers/[supplierId]`.
 
 ## Acciones del usuario (MVP)
 
-### A1) Crear proveedor (modal)
+### A1) Crear proveedor (desplegable inline)
 
 Campos:
 

@@ -18,6 +18,210 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-13 — Calendario: remover estado “pedido realizado”
+
+**Lote:** orders-calendar-remove-sent-state
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se simplificó el calendario de proveedores para trabajar con solo 3 estados operativos: pendiente por realizar, pendiente por recibir y recibido/controlado. Se removió el estado intermedio “pedido realizado”.
+
+**Impacto**
+
+- Se elimina ambigüedad entre “realizado” y “pendiente por recibir”.
+- El filtro de estado ya no muestra “pedido realizado”.
+- La copia de cabecera y el contrato de pantalla quedan alineados con 3 estados.
+
+**Archivos**
+
+- app/orders/calendar/page.tsx
+- app/orders/calendar/CalendarFiltersClient.tsx
+- docs/docs-app-screens-supplier-calendar.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:** `npm run lint` OK (2026-02-13) · `npm run build` OK (2026-02-13)
+**Commit:** N/A
+
+## 2026-02-13 — Calendario: deduplicar texto de estado en tarjetas
+
+**Lote:** orders-calendar-dedupe-status-text
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se eliminó la repetición de estado en tarjetas de `/orders/calendar`: cuando existe la línea “Estado de pedido”, ya no se renderiza el texto de estado superior.
+
+**Impacto**
+
+- Mejora claridad visual en eventos con pedido real.
+- Mantiene el estado operativo en la línea “Estado de pedido”.
+- No altera reglas de negocio ni filtros del calendario.
+
+**Archivos**
+
+- app/orders/calendar/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:** `npm run lint` OK (2026-02-13) · `npm run build` OK (2026-02-13)
+**Commit:** N/A
+
+## 2026-02-13 — Normalización de estados en calendario/detalle de pedidos
+
+**Lote:** orders-status-normalization-calendar-detail
+**Tipo:** fix
+**Alcance:** frontend + docs
+
+**Resumen**
+Se corrigió una inconsistencia de estados entre `/orders/calendar` y `/orders/[orderId]`: antes un pedido `received` podía verse como “pendiente por recibir” en calendario pero “controlado” en detalle. Ahora la UI opera con 3 estados claros y consistentes.
+
+**Impacto**
+
+- En calendario, `controlled` solo se construye con `reconciled_at` (ya no con `received_at`).
+- En calendario, pedidos `received` legacy sin `reconciled_at` se tratan como pendientes por recibir.
+- En detalle, `received` deja de mostrarse como controlado; permite completar control y cerrar en `reconciled` con fecha/firma.
+
+**Archivos**
+
+- app/orders/calendar/page.tsx
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-supplier-calendar.md
+- docs/docs-app-screens-order-detail.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:** `npm run lint` OK (2026-02-13) · `npm run build` OK (2026-02-13)
+**Commit:** N/A
+
+## 2026-02-13 — Comando único db:reset:all
+
+**Lote:** db-reset-all-command
+**Tipo:** infra
+**Alcance:** backend + docs
+
+**Resumen**
+Se agregó el comando `db:reset:all` para ejecutar en una sola orden el reset local de Supabase, seed de usuarios y seed demo operativo MVP.
+
+**Impacto**
+
+- Simplifica la preparación de entorno QA con un único entry point.
+- Mantiene `db:reset`, `db:seed:all` y `db:seed:demo` para casos parciales.
+- Documenta explícitamente el flujo recomendado de reseteo integral.
+
+**Archivos**
+
+- package.json
+- docs/docs-demo-users.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:** `npm run db:reset:all` OK (2026-02-13) · `npm run lint` OK (2026-02-13) · `npm run build` OK (2026-02-13)
+**Commit:** N/A
+
+## 2026-02-13 — Seed QA integral para MVP
+
+**Lote:** seed-mvp-full-reusable
+**Tipo:** tests
+**Alcance:** backend + infra + docs
+
+**Resumen**
+Se fortalecio el seed demo para cubrir mas escenarios operativos del MVP (pedidos proveedor en multiples estados, expected receive, vencimientos y pedidos especiales en estados variados), se agrego comando unico `db:seed:all` y se corrigio idempotencia de `seed-users` para el error `email_exists`.
+
+**Impacto**
+
+- Permite poblar datos consistentes para probar `/products`, `/suppliers`, `/orders`, `/orders/calendar`, `/clients`, `/expirations` y POS sin preparar datos manualmente.
+- El seed completo se ejecuta con un solo comando (`npm run db:seed:all`).
+- Re-ejecuciones no fallan por usuarios ya existentes.
+
+**Archivos**
+
+- scripts/seed-demo-data.js
+- scripts/seed-users.js
+- package.json
+- docs/docs-demo-users.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:** `npm run db:seed:all` OK (2026-02-13) · `npm run lint` OK (2026-02-13) · `npm run build` OK (2026-02-13)
+**Commit:** N/A
+
+## 2026-02-13 — Suppliers: buscador bajo título de listado
+
+**Lote:** suppliers-list-search-below-title
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se ajusto el layout en `/suppliers` para ubicar el buscador justo debajo del título “Listado”, manteniendo el filtro en vivo desde 3 letras.
+
+**Impacto**
+
+- Mejora jerarquía visual de la sección de listado.
+- No cambia la lógica de búsqueda ni el contrato de datos.
+- Mantiene interacción sin botón y actualización automática por query param.
+
+**Archivos**
+
+- app/suppliers/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:** `npm run lint` OK (2026-02-13) · `npm run build` OK (2026-02-13)
+**Commit:** N/A
+
+## 2026-02-13 — Suppliers: buscador en vivo dentro de listado
+
+**Lote:** suppliers-list-live-search
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se movio el buscador de proveedores al bloque `Listado` y se cambio a filtro en vivo sin boton: aplica busqueda por nombre/contacto al escribir 3 o mas letras.
+
+**Impacto**
+
+- Reduce pasos para filtrar proveedores en operacion diaria.
+- Mantiene el contrato de lectura `v_suppliers_admin` sin cambios estructurales.
+- Con 1-2 letras no se filtra; al limpiar input vuelve listado completo.
+
+**Archivos**
+
+- app/suppliers/page.tsx
+- app/suppliers/SuppliersSearchInput.tsx
+- docs/docs-app-screens-suppliers.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:** `npm run lint` OK (2026-02-13) · `npm run build` OK (2026-02-13)
+**Commit:** N/A
+
+## 2026-02-13 — Suppliers: alta en desplegable
+
+**Lote:** suppliers-new-form-collapsible
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se movio la seccion “Nuevo proveedor” de `/suppliers` a un bloque desplegable (`details/summary`) para reducir ruido visual y mantener el formulario disponible en la misma pantalla.
+
+**Impacto**
+
+- Mejora legibilidad del listado de proveedores al entrar a la pantalla.
+- Mantiene intacto el contrato de datos (`v_suppliers_admin` + `rpc_upsert_supplier`).
+- El desplegable queda abierto por defecto cuando no hay proveedores (empty state).
+
+**Archivos**
+
+- app/suppliers/page.tsx
+- docs/docs-app-screens-suppliers.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:** `npm run lint` OK (2026-02-13) · `npm run build` OK (2026-02-13)
+**Commit:** N/A
+
 ## 2026-02-13 — Orders list: alerta de recepción vencida
 
 **Lote:** orders-list-overdue-expected-receive

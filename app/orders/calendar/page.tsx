@@ -41,7 +41,7 @@ type OrderRow = {
   expected_receive_on: string | null;
 };
 
-type CardStatus = 'pending_send' | 'sent' | 'pending_receive' | 'controlled';
+type CardStatus = 'pending_send' | 'pending_receive' | 'controlled';
 
 type CalendarCard = {
   id: string;
@@ -67,14 +67,12 @@ const weekDayToIndex: Record<string, number> = {
 
 const statusLabel: Record<CardStatus, string> = {
   pending_send: 'Pedido pendiente por realizar',
-  sent: 'Pedido realizado',
   pending_receive: 'Pedido pendiente por recibir',
   controlled: 'Pedido recibido y controlado',
 };
 
 const statusClassName: Record<CardStatus, string> = {
   pending_send: 'border-sky-200 bg-sky-50 text-sky-900',
-  sent: 'border-sky-300 bg-sky-100 text-sky-950',
   pending_receive: 'border-emerald-200 bg-emerald-50 text-emerald-900',
   controlled: 'border-emerald-300 bg-emerald-100 text-emerald-950',
 };
@@ -177,13 +175,20 @@ const getDateRange = (
 const toStatusFilter = (value: string | undefined) => {
   if (
     value === 'pending_send' ||
-    value === 'sent' ||
     value === 'pending_receive' ||
     value === 'controlled'
   ) {
     return value;
   }
   return 'all';
+};
+
+const formatOrderStatusLabel = (status: OrderRow['status']) => {
+  if (status === 'draft') return 'Pendiente por realizar';
+  if (status === 'sent' || status === 'received')
+    return 'Pendiente por recibir';
+  if (status === 'reconciled') return 'Recibido y controlado';
+  return null;
 };
 
 const expectedReceiveDate = (
@@ -372,8 +377,6 @@ export default async function OrdersCalendarPage({
   });
 
   const cards: CalendarCard[] = [];
-  const matchedSentOrderIds = new Set<string>();
-
   suppliers.forEach((supplier) => {
     if (!supplier.order_day) return;
 
@@ -397,21 +400,19 @@ export default async function OrdersCalendarPage({
         return toDateKey(sent) === key;
       });
 
-      if (matchingOrder?.order_id) {
-        matchedSentOrderIds.add(matchingOrder.order_id);
+      if (!matchingOrder) {
+        cards.push({
+          id: `${supplier.id}-${key}-send`,
+          date_key: key,
+          date_label: formatDateLabel(date),
+          supplier_id: supplier.id,
+          supplier_name: supplier.name,
+          branch_name: null,
+          status: 'pending_send',
+          order_id: null,
+          order_status: null,
+        });
       }
-
-      cards.push({
-        id: `${supplier.id}-${key}-send`,
-        date_key: key,
-        date_label: formatDateLabel(date),
-        supplier_id: supplier.id,
-        supplier_name: supplier.name,
-        branch_name: matchingOrder?.branch_name ?? null,
-        status: matchingOrder ? 'sent' : 'pending_send',
-        order_id: matchingOrder?.order_id ?? null,
-        order_status: matchingOrder?.status ?? null,
-      });
     }
   });
 
@@ -420,7 +421,7 @@ export default async function OrdersCalendarPage({
 
     const supplier = suppliersById.get(order.supplier_id);
 
-    const controlledDate = order.reconciled_at ?? order.received_at;
+    const controlledDate = order.reconciled_at;
     if (controlledDate) {
       const controlled = toUtcDate(new Date(controlledDate));
       if (withinRange(controlled, start, end)) {
@@ -438,13 +439,18 @@ export default async function OrdersCalendarPage({
       }
     }
 
-    if (order.status === 'sent' || order.status === 'received') {
+    if (
+      (order.status === 'sent' || order.status === 'received') &&
+      !order.reconciled_at
+    ) {
       const expected = expectedReceiveDate(
         order.expected_receive_on,
         order.sent_at,
         supplier?.receive_day ?? null,
       );
-      const fallback = order.sent_at ? toUtcDate(new Date(order.sent_at)) : null;
+      const fallback = order.sent_at
+        ? toUtcDate(new Date(order.sent_at))
+        : null;
       const receiveDate = expected ?? fallback;
       if (receiveDate && withinRange(receiveDate, start, end)) {
         cards.push({
@@ -460,27 +466,12 @@ export default async function OrdersCalendarPage({
         });
       }
     }
-
-    if (order.sent_at && !matchedSentOrderIds.has(order.order_id)) {
-      const sentDate = toUtcDate(new Date(order.sent_at));
-      if (withinRange(sentDate, start, end)) {
-        cards.push({
-          id: `${order.order_id}-sent-${toDateKey(sentDate)}`,
-          date_key: toDateKey(sentDate),
-          date_label: formatDateLabel(sentDate),
-          supplier_id: order.supplier_id,
-          supplier_name: order.supplier_name,
-          branch_name: order.branch_name,
-          status: 'sent',
-          order_id: order.order_id,
-          order_status: order.status,
-        });
-      }
-    }
   });
 
   const filteredCards = cards
-    .filter((card) => (statusFilter === 'all' ? true : card.status === statusFilter))
+    .filter((card) =>
+      statusFilter === 'all' ? true : card.status === statusFilter,
+    )
     .sort((a, b) => {
       if (a.date_key === b.date_key) {
         if (a.status === b.status) {
@@ -491,7 +482,10 @@ export default async function OrdersCalendarPage({
       return a.date_key.localeCompare(b.date_key);
     });
 
-  const grouped = new Map<string, { date_label: string; items: CalendarCard[] }>();
+  const grouped = new Map<
+    string,
+    { date_label: string; items: CalendarCard[] }
+  >();
   filteredCards.forEach((card) => {
     const current = grouped.get(card.date_key) ?? {
       date_label: card.date_label,
@@ -507,7 +501,7 @@ export default async function OrdersCalendarPage({
     <PageShell>
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
         <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-zinc-500">
+          <p className="text-xs tracking-wide text-zinc-500 uppercase">
             Pedidos a proveedor
           </p>
           <h1 className="text-xl font-semibold text-zinc-900">
@@ -515,7 +509,7 @@ export default async function OrdersCalendarPage({
           </h1>
           <p className="mt-1 text-sm text-zinc-600">
             Estado operativo sincronizado con pedidos: pendiente por realizar,
-            realizado, pendiente por recibir y recibido/controlado.
+            pendiente por recibir y recibido/controlado.
           </p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-sky-700">
@@ -544,7 +538,7 @@ export default async function OrdersCalendarPage({
 
         {calendarDays.map(([dateKey, group]) => (
           <section key={dateKey} className="rounded-2xl bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+            <h2 className="text-sm font-semibold tracking-wide text-zinc-500 uppercase">
               {group.date_label}
             </h2>
             <div className="mt-3 flex flex-col gap-2">
@@ -555,8 +549,14 @@ export default async function OrdersCalendarPage({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="text-sm font-semibold">{card.supplier_name}</p>
-                      <p className="text-xs opacity-90">{statusLabel[card.status]}</p>
+                      <p className="text-sm font-semibold">
+                        {card.supplier_name}
+                      </p>
+                      {!card.order_status ? (
+                        <p className="text-xs opacity-90">
+                          {statusLabel[card.status]}
+                        </p>
+                      ) : null}
                       {card.branch_name ? (
                         <p className="mt-1 text-xs opacity-90">
                           Sucursal: {card.branch_name}
@@ -564,7 +564,8 @@ export default async function OrdersCalendarPage({
                       ) : null}
                       {card.order_status ? (
                         <p className="mt-1 text-xs opacity-90">
-                          Estado de pedido: {card.order_status}
+                          Estado de pedido:{' '}
+                          {formatOrderStatusLabel(card.order_status)}
                         </p>
                       ) : null}
                     </div>
@@ -595,7 +596,11 @@ export default async function OrdersCalendarPage({
                       action={setExpectedReceiveOn}
                       className="mt-3 flex flex-wrap items-end gap-2"
                     >
-                      <input type="hidden" name="order_id" value={card.order_id} />
+                      <input
+                        type="hidden"
+                        name="order_id"
+                        value={card.order_id}
+                      />
                       <label className="text-xs font-medium opacity-90">
                         Fecha estimada
                         <input
@@ -603,11 +608,11 @@ export default async function OrdersCalendarPage({
                           name="expected_receive_on"
                           defaultValue={formatDateInputValue(
                             expectedReceiveDate(
-                              ordersById.get(card.order_id)?.expected_receive_on ??
-                                null,
+                              ordersById.get(card.order_id)
+                                ?.expected_receive_on ?? null,
                               ordersById.get(card.order_id)?.sent_at ?? null,
-                              suppliersById.get(card.supplier_id)?.receive_day ??
-                                null,
+                              suppliersById.get(card.supplier_id)
+                                ?.receive_day ?? null,
                             ),
                           )}
                           className="mt-1 h-9 rounded-lg border border-current/30 bg-white/70 px-2 text-xs"
@@ -641,7 +646,9 @@ export default async function OrdersCalendarPage({
             <code>orders</code>. Si un pedido cambia a enviado o controlado, se
             refleja aquí.
           </p>
-          <p className="mt-1">Ejemplo de fecha real: {formatDateTime(new Date().toISOString())}</p>
+          <p className="mt-1">
+            Ejemplo de fecha real: {formatDateTime(new Date().toISOString())}
+          </p>
         </div>
       </div>
     </PageShell>

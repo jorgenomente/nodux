@@ -33,13 +33,13 @@ type OrderDetailRow = {
 const formatStatusLabel = (status: string) => {
   switch (status) {
     case 'draft':
-      return 'Borrador';
+      return 'Pendiente por realizar';
     case 'sent':
-      return 'Enviado';
+      return 'Pendiente por recibir';
     case 'received':
-      return 'Controlado';
+      return 'Pendiente por recibir';
     case 'reconciled':
-      return 'Controlado';
+      return 'Recibido y controlado';
     default:
       return status;
   }
@@ -234,14 +234,32 @@ export default async function OrderDetailPage({
       })
       .filter(Boolean);
 
-    await supabaseServer.rpc('rpc_receive_supplier_order', {
-      p_org_id: membership.org_id,
-      p_order_id: orderId,
-      p_items: itemsPayload,
-      p_received_at: receivedAt,
-      p_controlled_by_user_id: userId,
-      p_controlled_by_name: controlledByName,
-    });
+    if (order.status === 'sent') {
+      await supabaseServer.rpc('rpc_receive_supplier_order', {
+        p_org_id: membership.org_id,
+        p_order_id: orderId,
+        p_items: itemsPayload,
+        p_received_at: receivedAt,
+        p_controlled_by_user_id: userId,
+        p_controlled_by_name: controlledByName,
+      });
+    }
+
+    if (order.status === 'received') {
+      await supabaseServer
+        .from('supplier_orders')
+        .update({
+          status: 'reconciled',
+          received_at:
+            receivedAt ?? order.received_at ?? new Date().toISOString(),
+          reconciled_at: receivedAt ?? new Date().toISOString(),
+          controlled_by_user_id: userId,
+          controlled_by_name: controlledByName,
+        })
+        .eq('org_id', membership.org_id)
+        .eq('id', orderId)
+        .eq('status', 'received');
+    }
 
     revalidatePath(`/orders/${orderId}`);
     revalidatePath('/orders');
@@ -269,15 +287,16 @@ export default async function OrderDetailPage({
   };
 
   const canEdit = order.status === 'draft';
-  const canReceive = order.status === 'sent';
+  const canReceive = order.status === 'sent' || order.status === 'received';
+  const canSetManualStatus =
+    order.status === 'draft' || order.status === 'sent';
   const canSetExpectedReceive =
     order.status === 'sent' || order.status === 'received';
   const controlledByLabel =
     order.controlled_by_name || order.controlled_by_user_name;
   const receiveDefaultAt = new Date().toISOString().slice(0, 16);
   const userLabel = user.email ?? user.id;
-  const isFinalized =
-    order.status === 'reconciled' || order.status === 'received';
+  const isFinalized = order.status === 'reconciled';
   const notice =
     resolvedSearchParams?.notice === 'sent'
       ? { tone: 'success', message: 'Pedido enviado.' }
@@ -290,7 +309,7 @@ export default async function OrderDetailPage({
             }
           : resolvedSearchParams?.notice === 'expected_receive_updated'
             ? { tone: 'success', message: 'Fecha estimada actualizada.' }
-          : null;
+            : null;
 
   return (
     <PageShell>
@@ -333,7 +352,7 @@ export default async function OrderDetailPage({
               Controlado: {formatDateTime(order.reconciled_at)}
             </div>
             <div className="flex flex-wrap gap-2">
-              {!isFinalized ? (
+              {canSetManualStatus ? (
                 <form action={setOrderStatus} className="flex flex-wrap gap-2">
                   <label className="text-xs font-semibold text-zinc-600">
                     Estado
@@ -384,7 +403,10 @@ export default async function OrderDetailPage({
             </div>
           ) : null}
           {canSetExpectedReceive ? (
-            <form action={setExpectedReceiveOn} className="mt-3 flex flex-wrap items-end gap-2">
+            <form
+              action={setExpectedReceiveOn}
+              className="mt-3 flex flex-wrap items-end gap-2"
+            >
               <label className="text-xs font-semibold text-zinc-600">
                 Fecha estimada de recepción
                 <input
@@ -559,6 +581,13 @@ export default async function OrderDetailPage({
                   </span>
                 </label>
               </div>
+              {order.status === 'received' ? (
+                <p className="text-xs text-zinc-500">
+                  Pedido legado en estado <code>received</code>: esta acción
+                  solo registra el control final (fecha/firma) y lo cierra como
+                  recibido y controlado.
+                </p>
+              ) : null}
               {items.map((item) => (
                 <div
                   key={item.order_item_id}
@@ -571,7 +600,12 @@ export default async function OrderDetailPage({
                     name={`received_${item.order_item_id}`}
                     type="number"
                     step="0.01"
-                    defaultValue={item.ordered_qty ?? 0}
+                    defaultValue={
+                      order.status === 'received'
+                        ? (item.received_qty ?? item.ordered_qty ?? 0)
+                        : (item.ordered_qty ?? 0)
+                    }
+                    disabled={order.status === 'received'}
                     className="rounded border border-zinc-200 px-2 py-1 text-sm"
                   />
                   <div className="text-xs text-zinc-500">
@@ -583,7 +617,9 @@ export default async function OrderDetailPage({
                 type="submit"
                 className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
               >
-                Confirmar recepción
+                {order.status === 'received'
+                  ? 'Confirmar control'
+                  : 'Confirmar recepción'}
               </button>
             </form>
           </section>

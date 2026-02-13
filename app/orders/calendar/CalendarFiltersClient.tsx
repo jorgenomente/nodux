@@ -42,7 +42,9 @@ export default function CalendarFiltersClient({
       if (from) params.set('from', from);
       if (to) params.set('to', to);
     }
-    router.push(`/orders/calendar${params.toString() ? `?${params.toString()}` : ''}`);
+    router.push(
+      `/orders/calendar${params.toString() ? `?${params.toString()}` : ''}`,
+    );
   };
 
   return (
@@ -72,7 +74,6 @@ export default function CalendarFiltersClient({
           >
             <option value="all">Todos</option>
             <option value="pending_send">Pendientes por enviar</option>
-            <option value="sent">Pedido realizado</option>
             <option value="pending_receive">Pendientes por recibir</option>
             <option value="controlled">Recibidos y controlados</option>
           </select>

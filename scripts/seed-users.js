@@ -78,11 +78,13 @@ const password = 'prueba123';
     });
 
     if (error) {
-      if (
-        !String(error.message || '')
-          .toLowerCase()
-          .includes('exists')
-      ) {
+      const message = String(error.message || '').toLowerCase();
+      const alreadyExists =
+        error.code === 'email_exists' ||
+        message.includes('exists') ||
+        message.includes('already been registered');
+
+      if (!alreadyExists) {
         throw error;
       }
 

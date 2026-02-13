@@ -181,6 +181,12 @@ const daysAgo = (days, hour = 10, minute = 0) => {
   return date.toISOString();
 };
 
+const isoDateFromOffset = (offsetDays) => {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return date.toISOString().slice(0, 10);
+};
+
 (async () => {
   const { data: adminRow, error: adminError } = await supabase
     .from('org_users')
@@ -474,10 +480,12 @@ const daysAgo = (days, hour = 10, minute = 0) => {
   if (deleteOrdersError) throw deleteOrdersError;
 
   const orderSeeds = [
-    { status: 'draft', daysAgo: 3 },
-    { status: 'draft', daysAgo: 8 },
-    { status: 'sent', daysAgo: 2 },
-    { status: 'sent', daysAgo: 6 },
+    { status: 'draft', daysAgo: 3, expectedReceiveOffsetDays: 2 },
+    { status: 'draft', daysAgo: 8, expectedReceiveOffsetDays: 6 },
+    { status: 'sent', daysAgo: 2, expectedReceiveOffsetDays: 3 },
+    { status: 'sent', daysAgo: 10, expectedReceiveOffsetDays: -1 },
+    { status: 'received', daysAgo: 6, expectedReceiveOffsetDays: 0 },
+    { status: 'reconciled', daysAgo: 12, expectedReceiveOffsetDays: -4 },
   ];
 
   const orderPayload = [];
@@ -498,7 +506,23 @@ const daysAgo = (days, hour = 10, minute = 0) => {
       notes: `Pedido demo ${seed.status}`,
       created_by: adminUserId,
       created_at: createdAt,
-      sent_at: seed.status === 'sent' ? createdAt : null,
+      sent_at:
+        seed.status === 'sent' ||
+        seed.status === 'received' ||
+        seed.status === 'reconciled'
+          ? createdAt
+          : null,
+      received_at:
+        seed.status === 'received' || seed.status === 'reconciled'
+          ? daysAgo(Math.max(seed.daysAgo - 1, 0), 13, rand(0, 59))
+          : null,
+      reconciled_at:
+        seed.status === 'reconciled'
+          ? daysAgo(Math.max(seed.daysAgo - 1, 0), 14, rand(0, 59))
+          : null,
+      controlled_by_name: seed.status === 'reconciled' ? 'Admin Demo' : null,
+      controlled_by_user_id: seed.status === 'reconciled' ? adminUserId : null,
+      expected_receive_on: isoDateFromOffset(seed.expectedReceiveOffsetDays),
     });
 
     const supplierProducts = productsBySupplier.find(
@@ -509,13 +533,18 @@ const daysAgo = (days, hour = 10, minute = 0) => {
       : products.slice(0, 5);
 
     items.forEach((product) => {
+      const orderedQty = rand(2, 15);
+      const receivedQty =
+        seed.status === 'received' || seed.status === 'reconciled'
+          ? orderedQty
+          : 0;
       orderItemsPayload.push({
         id: randomUUID(),
         org_id: ORG_ID,
         order_id: orderId,
         product_id: product.id,
-        ordered_qty: randFloat(2, 15, 2),
-        received_qty: 0,
+        ordered_qty: orderedQty,
+        received_qty: receivedQty,
         unit_cost: 0,
       });
     });
@@ -530,6 +559,52 @@ const daysAgo = (days, hour = 10, minute = 0) => {
     .from('supplier_order_items')
     .insert(orderItemsPayload);
   if (orderItemsError) throw orderItemsError;
+
+  const { error: deleteExpirationBatchesError } = await supabase
+    .from('expiration_batches')
+    .delete()
+    .eq('org_id', ORG_ID)
+    .in('product_id', demoProductIds);
+  if (deleteExpirationBatchesError) throw deleteExpirationBatchesError;
+
+  const expirationProductsA = smokeProducts
+    .slice(0, 3)
+    .map((product) => productIdByInternalCode.get(product.internal_code))
+    .filter(Boolean);
+  const expirationProductsB = smokeProducts
+    .slice(3, 6)
+    .map((product) => productIdByInternalCode.get(product.internal_code))
+    .filter(Boolean);
+
+  const expirationBatchesPayload = [
+    ...expirationProductsA.map((productId, idx) => ({
+      id: randomUUID(),
+      org_id: ORG_ID,
+      branch_id: BRANCH_A,
+      product_id: productId,
+      expires_on: isoDateFromOffset([-2, 2, 7][idx] ?? 10),
+      quantity: rand(3, 12),
+      source_type: 'seed_demo',
+      batch_code: `SEED-A-${idx + 1}`,
+    })),
+    ...expirationProductsB.map((productId, idx) => ({
+      id: randomUUID(),
+      org_id: ORG_ID,
+      branch_id: BRANCH_B,
+      product_id: productId,
+      expires_on: isoDateFromOffset([-1, 3, 9][idx] ?? 12),
+      quantity: rand(3, 12),
+      source_type: 'seed_demo',
+      batch_code: `SEED-B-${idx + 1}`,
+    })),
+  ];
+
+  if (expirationBatchesPayload.length > 0) {
+    const { error: expirationBatchesError } = await supabase
+      .from('expiration_batches')
+      .insert(expirationBatchesPayload);
+    if (expirationBatchesError) throw expirationBatchesError;
+  }
 
   const clientsSeed = [
     {
@@ -566,12 +641,28 @@ const daysAgo = (days, hour = 10, minute = 0) => {
       client_id: clientsSeed[0].id,
       branch_id: BRANCH_A,
       notes: 'Pedido de cafe y yerba',
+      status: 'pending',
     },
     {
       id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab',
       client_id: clientsSeed[1].id,
       branch_id: BRANCH_B,
       notes: 'Pedido de chocolates',
+      status: 'ordered',
+    },
+    {
+      id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaac',
+      client_id: clientsSeed[0].id,
+      branch_id: BRANCH_A,
+      notes: 'Pedido parcial de chocolates',
+      status: 'partial',
+    },
+    {
+      id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaad',
+      client_id: clientsSeed[1].id,
+      branch_id: BRANCH_B,
+      notes: 'Pedido entregado de cafe',
+      status: 'delivered',
     },
   ];
 
@@ -585,7 +676,7 @@ const daysAgo = (days, hour = 10, minute = 0) => {
         client_id: order.client_id,
         description: order.notes,
         quantity: null,
-        status: 'pending',
+        status: order.status,
         created_by: adminUserId,
         notes: order.notes,
       })),
@@ -615,6 +706,20 @@ const daysAgo = (days, hour = 10, minute = 0) => {
       requested_qty: 3,
       supplier_id: suppliersSmoke[2].id,
     },
+    {
+      id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb6',
+      special_order_id: specialOrdersSeed[2].id,
+      product_id: productIdByInternalCode.get('SMOKE-CHOCO-ML'),
+      requested_qty: 4,
+      supplier_id: suppliersSmoke[2].id,
+    },
+    {
+      id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb7',
+      special_order_id: specialOrdersSeed[3].id,
+      product_id: productIdByInternalCode.get('SMOKE-CAFE-1K'),
+      requested_qty: 1,
+      supplier_id: suppliersSmoke[0].id,
+    },
   ];
 
   const { error: specialOrderItemsError } = await supabase
@@ -629,8 +734,22 @@ const daysAgo = (days, hour = 10, minute = 0) => {
           product_id: item.product_id,
           supplier_id: item.supplier_id,
           requested_qty: item.requested_qty,
-          fulfilled_qty: 0,
-          is_ordered: false,
+          fulfilled_qty:
+            item.special_order_id === specialOrdersSeed[2].id
+              ? item.requested_qty - 1
+              : item.special_order_id === specialOrdersSeed[3].id
+                ? item.requested_qty
+                : 0,
+          is_ordered:
+            item.special_order_id === specialOrdersSeed[1].id ||
+            item.special_order_id === specialOrdersSeed[2].id ||
+            item.special_order_id === specialOrdersSeed[3].id,
+          ordered_at:
+            item.special_order_id === specialOrdersSeed[1].id ||
+            item.special_order_id === specialOrdersSeed[2].id ||
+            item.special_order_id === specialOrdersSeed[3].id
+              ? daysAgo(2, 11, 30)
+              : null,
         })),
       { onConflict: 'org_id,special_order_id,product_id' },
     );
@@ -643,6 +762,7 @@ const daysAgo = (days, hour = 10, minute = 0) => {
   console.log('- Smoke products:', smokeProducts.length);
   console.log('- Smoke clients:', clientsSeed.length);
   console.log('- Smoke special orders:', specialOrdersSeed.length);
+  console.log('- Expiration batches:', expirationBatchesPayload.length);
   console.log('- Sales:', salesPayload.length);
   console.log('- Orders:', orderPayload.length);
 })().catch((err) => {

@@ -21,4 +21,7 @@ Password comun: `prueba123`
 ## Script
 
 - Seed: `scripts/seed-users.js`
+- Reset + seed completo (recomendado para QA integral): `npm run db:reset:all`
 - Reset recomendado (DB + seed): `npm run db:reset`
+- Seed completo reusable (usuarios + datos operativos MVP): `npm run db:seed:all`
+- Seed solo datos operativos (requiere usuarios/org ya creados): `npm run db:seed:demo`
