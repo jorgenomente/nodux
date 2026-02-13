@@ -68,6 +68,22 @@ tambien hagamos que el controlado por sea obligatorio colocar alli el nombre. ve
 **Prompt**
 ok vamos con 2
 
+## 2026-02-11 16:45 — Implementar dashboard
+
+**Lote:** dashboard-mvp
+**Objetivo:** Implementar /dashboard con KPIs y alertas basicas.
+
+**Prompt**
+dale empecemos
+
+## 2026-02-11 16:57 — Dashboard por sucursal
+
+**Lote:** dashboard-branch-only
+**Objetivo:** Forzar selector de sucursal sin opcion "todas".
+
+**Prompt**
+ok. en el dashboard hay una especie de filtro que me permite seleccionar todas las sucurasles, sucursal a o b. quitemos el de todas las sucursales para que solo podamos ver los datos de una sucursal deseada.
+
 ## 2026-02-11 15:15 — Vencidos vs desperdicio
 
 **Lote:** expirations-expired-separate

@@ -169,7 +169,12 @@ Estado actual: **MVP en progreso** (Fase 4 — módulos core).
 
 **Objetivo**: KPI + alertas basadas en views.
 
-**Estado**: PENDIENTE
+**Estado**: COMPLETA
+
+**Notas**:
+
+- /dashboard implementado con KPIs y alertas basicas.
+- Contrato via rpc_get_dashboard_admin.
 
 ---
 

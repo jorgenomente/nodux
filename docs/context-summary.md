@@ -5,7 +5,7 @@ Ultima actualizacion: 2026-02-10 14:10
 ## Estado general
 
 - MVP activo con enfoque DB-first / RLS-first y contratos de pantalla por view/RPC.
-- Modulos implementados en ruta: POS, Productos/Stock, Vencimientos, Proveedores, Pedidos, Clientes, Settings, Audit Log.
+- Modulos implementados en ruta: POS, Productos/Stock, Vencimientos, Proveedores, Pedidos, Clientes, Dashboard, Settings, Audit Log.
 - Auditoria (audit log) visible solo para OA/SA.
 
 ## Decisiones recientes (clave)
@@ -39,6 +39,7 @@ Ultima actualizacion: 2026-02-10 14:10
 - batch_code generado al recibir pedidos: <SUP>-<YYYYMMDD>-<NNN>.
 - /clients operativo con lista, detalle y pedidos especiales por sucursal.
 - Pedidos especiales usan items de catálogo y se entregan desde POS (stock se descuenta al cobrar).
+- Dashboard operativo con KPIs y alertas basicas via rpc_get_dashboard_admin.
 
 ## Post-MVP ya registrado
 

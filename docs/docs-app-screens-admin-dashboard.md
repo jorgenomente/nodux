@@ -28,7 +28,7 @@ Dar una visión operativa clara del negocio, con foco en:
 - pedidos especiales de clientes
 - alertas in-app accionables
 
-**Estado actual**: placeholder MVP (no hay KPIs ni alertas en UI).
+**Estado actual**: KPIs y alertas basicas implementadas.
 
 ---
 
@@ -38,15 +38,14 @@ Dar una visión operativa clara del negocio, con foco en:
 
 El dashboard debe soportar:
 
-1. **Vista agregada** (todas las sucursales del org)
-2. **Vista por sucursal** (filtro por branch)
+1. **Vista por sucursal** (filtro por branch)
 
 ### UI
 
-- Selector: “Todas las sucursales” + lista de sucursales
+- Selector: lista de sucursales
 - Default:
-  - Si org tiene 1 sucursal → esa sucursal (pero UI debe permitir “todas”)
-  - Si org tiene >1 → “todas las sucursales”
+  - Si org tiene 1 sucursal → esa sucursal
+  - Si org tiene >1 → primera sucursal
 
 ### Nota RLS
 
@@ -79,13 +78,11 @@ Cada alerta debe tener:
 - link directo a pantalla destino (expirations / orders / clients)
 - badge de severidad
 
-### Sección C — Paneles operativos (tabs o secciones)
+### Sección C — Paneles operativos (cards)
 
-- “Por vencer”
-- “Pedidos proveedor”
-- “Pedidos clientes”
-
-MVP: puede ser secciones verticales (sin tabs) para simplicidad.
+- Vencimientos (criticos + proximos)
+- Pedidos proveedor pendientes
+- Pedidos clientes pendientes
 
 ---
 
@@ -161,8 +158,8 @@ Severidad basada en días a vencimiento:
 
 Estados MVP:
 
-- `draft` → `sent` → `received` → `reconciled`
-  Dashboard debe mostrar pendientes = `sent` (y/o `received` no conciliado)
+- `draft` → `sent` → `reconciled`
+  Dashboard muestra pendientes = `sent`
 
 ### R4) Pedidos especiales de clientes
 
@@ -177,54 +174,24 @@ Estados MVP:
 
 ### Objetivo
 
-Resolver el dashboard con **una sola lectura principal** (ideal) para performance y simplicidad.
+Resolver el dashboard con **una sola lectura principal** para performance y simplicidad.
 
-### Contrato recomendado
+### Contrato actual (MVP)
 
-**View**: `v_dashboard_admin`
+**RPC**: `rpc_get_dashboard_admin(p_org_id, p_branch_id nullable)`
 
-- Input:
-  - `org_id` por RLS (implícito)
-  - `branch_id` opcional (si es “todas”, branch_id = NULL)
-  - Alternativa: dos views (`v_dashboard_admin_all`, `v_dashboard_admin_branch`) o RPC.
+Salida mínima:
 
-#### Salida mínima (shape)
+- `sales_today_total`
+- `sales_today_count`
+- `sales_week_total`
+- `sales_month_total`
+- `expirations_critical_count`
+- `expirations_warning_count`
+- `supplier_orders_pending_count`
+- `client_orders_pending_count`
 
-- `kpis`:
-  - `sales_today_total`
-  - `sales_today_count`
-  - `sales_week_total`
-  - `sales_month_total`
-- `alerts[]` (top N, ordenado por severidad):
-  - `alert_type` = `expiration` | `supplier_order` | `client_order` | `other`
-  - `severity` = `critical` | `warning` | `info`
-  - `title`
-  - `subtitle`
-  - `cta_label`
-  - `cta_href`
-  - `entity_id` (opcional)
-- `expirations_summary`:
-  - `critical_count`
-  - `warning_count`
-  - `top_items[]` (N):
-    - product_id, product_name, expires_on, days_left, branch_name, quantity (si aplica)
-- `supplier_orders_summary`:
-  - `pending_count`
-  - `top_orders[]` (N):
-    - order_id, supplier_name, status, expected_at (opcional), branch_name
-- `client_orders_summary`:
-  - `pending_count`
-  - `top_orders[]` (N):
-    - client_order_id, client_name, status, branch_name, updated_at
-
-> Nota: En MVP, top lists pueden ser “últimos 5” sin paginación.
-> La paginación y filtros avanzados son Post-MVP.
-
-### Implementación permitida (a definir en backend docs)
-
-- Opción A (preferida): View + filtros por branch
-- Opción B: RPC `rpc_get_dashboard_admin(branch_id nullable)`
-- Opción C: múltiples queries (solo si performance y simplicidad lo justifican; menos ideal)
+Las alertas y paneles se derivan de estos conteos en la UI.
 
 ---
 

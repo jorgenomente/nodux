@@ -184,6 +184,56 @@ Se corrigio la migracion de `v_expirations_due` para recrear el view y se regene
 **Tests:** `npm run db:reset` OK (2026-02-11) · `npm run db:schema:snapshot` OK (2026-02-11) · `npm run types:gen` OK (2026-02-11)
 **Commit:** N/A
 
+## 2026-02-11 — Dashboard: KPIs y alertas basicas
+
+**Tipo:** feature
+**Alcance:** frontend + docs
+
+**Resumen**
+Se implemento el dashboard operativo con KPIs, alertas y paneles de acceso rapido usando `rpc_get_dashboard_admin`.
+
+**Impacto**
+
+- Visibilidad de ventas hoy/semana/mes y conteos clave.
+- Alertas con CTA a vencimientos, pedidos y clientes.
+- Filtro por sucursal con vista agregada.
+
+**Archivos**
+
+- app/dashboard/page.tsx
+- app/dashboard/DashboardFiltersClient.tsx
+- docs/docs-app-screens-admin-dashboard.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+
+**Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
+## 2026-02-11 — Dashboard: filtro por sucursal obligatorio
+
+**Tipo:** ux
+**Alcance:** frontend + docs
+
+**Resumen**
+Se elimino la opcion “todas las sucursales” y el dashboard ahora opera siempre en una sucursal seleccionada.
+
+**Impacto**
+
+- El selector de sucursal es obligatorio.
+- La vista siempre muestra datos de una sucursal.
+- No cambia DB ni RPCs.
+
+**Archivos**
+
+- app/dashboard/DashboardFiltersClient.tsx
+- app/dashboard/page.tsx
+- docs/docs-app-screens-admin-dashboard.md
+- docs/prompts.md
+
+**Tests:** `npm run lint` OK (2026-02-11) · `npm run build` OK (2026-02-11)
+**Commit:** N/A
+
 ## 2026-02-11 — Pedidos especiales con items y POS
 
 **Tipo:** db
