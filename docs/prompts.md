@@ -980,3 +980,19 @@ el tooltip no parece funcionar. y quitemos Aplicar stock minimo a todas las sucu
 
 **Prompt**
 1
+
+## 2026-02-13 13:19 — Settings incompleto (Fase 5)
+
+**Lote:** settings-fase5-ui
+**Objetivo:** Implementar rutas faltantes de Settings del MVP y validar estado tecnico.
+
+**Prompt**
+ok empecemos entonce spor el settings incompleto
+
+## 2026-02-13 13:55 — Smoke Playwright en verde
+
+**Lote:** qa-smoke-playwright
+**Objetivo:** Corregir selector ambiguo en smoke E2E para dejar suite verde.
+
+**Prompt**
+ok intentalo a ver lo del smoke en verde

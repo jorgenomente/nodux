@@ -192,7 +192,12 @@ Estado actual: **MVP en progreso** (Fase 4 — módulos core).
 
 **Nota**: la auditoria se implementa hacia el final del MVP, luego de modulos core.
 
-**Estado**: PENDIENTE
+**Estado**: COMPLETA
+
+**Notas**:
+
+- Implementado hub `/settings`.
+- Implementadas subrutas: `/settings/users`, `/settings/branches`, `/settings/staff-permissions`, `/settings/preferences` y `/settings/audit-log`.
 
 ---
 
@@ -218,3 +223,4 @@ Estado actual: **MVP en progreso** (Fase 4 — módulos core).
 - 2026-02-13: Se agrega `/orders/calendar` como agenda operativa mobile-first para proveedores (envios/recepciones), con lectura OA/ST y acciones solo OA.
 - 2026-02-13: Se agrega `expected_receive_on` en `supplier_orders` y edición desde calendario para mejorar control de recepciones no exactas.
 - 2026-02-13: Hardening de auditoria en pedidos/proveedores: `rpc_upsert_supplier` vuelve a registrar `supplier_upsert`, se agrega `rpc_set_supplier_order_expected_receive_on` y se audita recepcion/control en `rpc_receive_supplier_order`.
+- 2026-02-13: Se completa Fase 5 de Settings en frontend con rutas faltantes (users, branches, staff-permissions, preferences y hub).

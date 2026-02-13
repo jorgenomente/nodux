@@ -1,11 +1,11 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-02-13 10:25
+Ultima actualizacion: 2026-02-13 13:25
 
 ## Estado general
 
 - MVP activo con enfoque DB-first / RLS-first y contratos de pantalla por view/RPC.
-- Modulos implementados en ruta: POS, Productos/Stock, Vencimientos, Proveedores, Pedidos, Clientes, Dashboard, Settings, Audit Log.
+- Modulos implementados en ruta: POS, Productos/Stock, Vencimientos, Proveedores, Pedidos, Clientes, Dashboard, Settings completo y Audit Log.
 - Auditoria (audit log) visible solo para OA/SA.
 
 ## Decisiones recientes (clave)
@@ -41,6 +41,7 @@ Ultima actualizacion: 2026-02-13 10:25
 - Pedidos especiales usan items de catálogo y se entregan desde POS (stock se descuenta al cobrar).
 - Dashboard operativo con KPIs y alertas basicas via rpc_get_dashboard_admin.
 - Calendario de proveedores en `/orders/calendar` iterado a modo operativo: filtros por hoy/semana/mes/rango, estados (pendiente por realizar, realizado, pendiente por recibir, recibido/controlado), acceso directo a pedidos y edicion de fecha estimada de recepcion (`expected_receive_on`) para pedidos no exactos.
+- Settings operativo completo en frontend: hub `/settings` y subrutas `/settings/users`, `/settings/branches`, `/settings/staff-permissions`, `/settings/preferences`, `/settings/audit-log`.
 
 ## Post-MVP ya registrado
 

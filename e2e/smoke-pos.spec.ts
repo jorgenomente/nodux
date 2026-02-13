@@ -35,7 +35,9 @@ test.describe('smoke', () => {
     await page.getByLabel('Buscar').fill('Juan Perez');
     await page.getByRole('link', { name: /Juan Perez/ }).click();
 
-    await expect(page.getByText('Pedidos especiales')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Pedidos especiales', level: 3 }),
+    ).toBeVisible();
     await page.getByRole('link', { name: 'Ir a POS' }).first().click();
 
     await expect(page.getByText('Pedido especial en POS')).toBeVisible();

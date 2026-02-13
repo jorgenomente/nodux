@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { href: '/orders', label: 'Pedidos' },
   { href: '/orders/calendar', label: 'Calendario' },
   { href: '/clients', label: 'Clientes' },
+  { href: '/settings', label: 'Configuracion' },
   { href: '/settings/audit-log', label: 'Auditoria' },
   { href: '/superadmin', label: 'Superadmin' },
 ];

@@ -2893,3 +2893,64 @@ Se elimino la seccion de stock minimo por sucursal en /products para simplificar
 
 **Tests:** No ejecutados (UI microcambio)
 **Commit:** N/A
+
+## 2026-02-13 — Settings MVP completo (rutas faltantes)
+
+**Tipo:** ui
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se implementaron las rutas faltantes de Settings del MVP: hub `/settings`, y subpantallas `/settings/users`, `/settings/branches`, `/settings/staff-permissions`, `/settings/preferences`, reutilizando contratos de datos existentes (views/RPC/tablas).
+
+**Impacto**
+
+- Cierra brecha funcional de Fase 5 en frontend.
+- Habilita gestion operativa de usuarios, sucursales, permisos staff y preferencias desde UI.
+- Agrega punto de entrada de Configuracion en TopBar.
+
+**Archivos**
+
+- app/settings/page.tsx
+- app/settings/users/page.tsx
+- app/settings/branches/page.tsx
+- app/settings/staff-permissions/page.tsx
+- app/settings/preferences/page.tsx
+- app/components/TopBar.tsx
+- docs/prompts.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-13)
+- npm run build OK (2026-02-13)
+- npx playwright test: 1 passed / 1 failed (2026-02-13)
+  - Falla en `e2e/smoke-pos.spec.ts` por selector ambiguo (`getByText('Pedidos especiales')`) en strict mode.
+
+**Commit:** N/A
+
+## 2026-02-13 — Smoke Playwright estabilizado
+
+**Tipo:** tests
+**Alcance:** e2e, docs
+
+**Resumen**
+Se corrigio el selector ambiguo en la suite smoke de Playwright para `/clients`, cambiando la asercion a un heading especifico.
+
+**Impacto**
+
+- Suite smoke vuelve a verde y recupera señal de regresion para flujo POS + clientes.
+
+**Archivos**
+
+- e2e/smoke-pos.spec.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npx playwright test OK (2 passed, 2026-02-13)
+- npm run lint OK (2026-02-13)
+
+**Commit:** N/A
