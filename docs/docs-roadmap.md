@@ -3,7 +3,7 @@
 Este documento ordena el trabajo en fases logicas para avanzar el MVP de forma consistente.
 Debe actualizarse cada vez que se complete una fase o se cambie el plan.
 
-Estado actual: **MVP en progreso** (Fase 6 — hardening inicial multi-org/superadmin).
+Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 
 ---
 
@@ -212,7 +212,16 @@ Estado actual: **MVP en progreso** (Fase 6 — hardening inicial multi-org/super
 - Ajustes de UX
 - RLS final y tests minimos
 
-**Estado**: PENDIENTE
+**Estado**: COMPLETA
+
+**Notas**:
+
+- Smoke RLS automatizado agregado (`npm run db:rls:smoke`).
+- Workflow CI agregado (`.github/workflows/ci-hardening.yml`) con:
+  - Supabase local + `db:reset:all`
+  - `lint` + `build`
+  - smoke RLS
+  - smoke Playwright.
 
 ---
 
@@ -229,3 +238,4 @@ Estado actual: **MVP en progreso** (Fase 6 — hardening inicial multi-org/super
 - 2026-02-16: alta de org se completa end-to-end desde `/superadmin` (incluye OA inicial con password) y SA puede abrir `/dashboard` de la org activa.
 - 2026-02-16: se agrega creación de OA inicial para org existente desde `/superadmin` y se extiende contexto SA de org activa a módulos core del MVP.
 - 2026-02-16: hardening DB de alta org SA para exigir OA inicial en `rpc_superadmin_create_org` (alta atómica sin org huérfana).
+- 2026-02-16: cierre Fase 6 con smoke RLS automatizado y CI hardening (Supabase local + seed + lint/build + smoke E2E).

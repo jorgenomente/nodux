@@ -56,6 +56,45 @@ Se auditó la cobertura real de `audit_log` con pruebas autenticadas y se cerrar
 **Verificación RLS mínima:** OA lectura `v_audit_log_admin` OK (6 filas) · ST lectura `v_audit_log_admin` denegada por política efectiva (0 filas)
 **Commit:** N/A
 
+## 2026-02-16 — Cierre hardening QA: smoke RLS + CI automatizada
+
+**Tipo:** tests
+**Alcance:** qa, ci, docs
+
+**Resumen**
+Se agregó una suite mínima de smoke RLS ejecutable por script y un workflow de GitHub Actions para validar de forma repetible DB local + seed + lint/build + smoke RLS + smoke Playwright.
+
+**Impacto**
+
+- Validación automática de permisos críticos:
+  - staff puede leer catálogo y no puede crear productos.
+  - org_admin puede crear productos y no puede ejecutar RPCs de superadmin.
+  - superadmin puede operar org activa y leer vistas de plataforma.
+- Pipeline CI deja de depender de ejecución manual para smoke.
+- Se reduce riesgo de regresiones en auth/RLS/routing multi-org.
+
+**Archivos**
+
+- scripts/rls-smoke-tests.mjs
+- package.json
+- .github/workflows/ci-hardening.yml
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/docs-rls-matrix.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run format:check OK (2026-02-16)
+- npm run db:seed:all OK (2026-02-16)
+- npm run db:rls:smoke OK (2026-02-16)
+- npm run lint OK (2026-02-16)
+- npm run build OK (2026-02-16)
+- npx playwright test -g "smoke" OK (2026-02-16)
+
+**Commit:** N/A
+
 ## 2026-02-13 — Calendario: remover estado “pedido realizado”
 
 **Lote:** orders-calendar-remove-sent-state

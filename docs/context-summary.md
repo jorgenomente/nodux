@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-02-13 13:25
+Ultima actualizacion: 2026-02-16 13:20
 
 ## Estado general
 
@@ -51,6 +51,8 @@ Ultima actualizacion: 2026-02-13 13:25
 - Alta de usuarios desde `/settings/users` para OA: crea cuenta con email + contraseña inicial sin validación por email (`email_confirm=true`) usando Admin API server-side; la contraseña solo puede restablecerla el admin (no visible en UI).
 - `/settings/users` gestiona solo roles `org_admin` y `staff`; superadmin queda fuera de creación/listado/edición en esta pantalla.
 - En `/settings/users`, el checklist de sucursales se muestra solo para `staff`; para `org_admin` se oculta y aplica acceso global por organización.
+- Smoke RLS automatizado disponible en `npm run db:rls:smoke` para validar allow/deny por rol (staff, org_admin, superadmin).
+- Workflow CI de hardening agregado en `.github/workflows/ci-hardening.yml` con Supabase local, seed y smoke E2E.
 
 ## Post-MVP ya registrado
 

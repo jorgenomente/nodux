@@ -13,6 +13,7 @@
     "db:reset:all": "npm run db:reset && node scripts/seed-demo-data.js",
     "db:seed:all": "node scripts/seed-users.js && node scripts/seed-demo-data.js",
     "db:seed:demo": "node scripts/seed-demo-data.js",
+    "db:rls:smoke": "node scripts/rls-smoke-tests.mjs",
     "db:schema:snapshot": "npx supabase db dump --schema public --local > docs/schema.sql",
     "types:gen": "npx supabase gen types typescript --local > types/supabase.ts",
     "prepare": "husky"

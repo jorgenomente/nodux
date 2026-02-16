@@ -1098,3 +1098,13 @@ adelante
 que seria esta proteccion extra? que si no se confirma la membresia no se crea la org?
 
 adelante
+
+## 2026-02-16 13:20 — Cierre Fase 6 hardening QA (RLS + CI smoke)
+
+**Lote:** hardening-qa-rls-ci-smoke
+**Objetivo:** Cerrar Fase 6 con smoke RLS automatizado y workflow CI reproducible con seed local.
+
+**Prompt**
+ok listo, que mas tenemos pendiente?
+
+ok adelate

@@ -1,0 +1,82 @@
+name: ci-hardening
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase local stack
+        run: npx supabase start
+
+      - name: Export Supabase env for app/scripts
+        shell: bash
+        run: |
+          eval "$(npx supabase status -o env | grep -E '^[A-Z_]+=')"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+
+      - name: Reset DB + seed users + seed demo
+        run: npm run db:reset:all
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: RLS smoke
+        run: npm run db:rls:smoke
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright smoke
+        shell: bash
+        run: |
+          nohup npm run dev -- --hostname 127.0.0.1 --port 3000 >/tmp/nodux-dev.log 2>&1 &
+          DEV_PID=$!
+          trap 'kill "$DEV_PID" || true' EXIT
+
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:3000/login >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          npx playwright test -g "smoke"
+
+      - name: Upload test artifacts (failure only)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-artifacts
+          path: |
+            test-results/**
+            /tmp/nodux-dev.log
