@@ -1148,3 +1148,11 @@ quiero que revises toda la documentacion para que entiendas bien la app y me ayu
 excelente. el cierre de caja es por sucursal por las dudas
 
 adelante. tambien en auditoria se debe ver quien hizo la caja y los movimientos que hizo
+
+## 2026-02-16 14:56 -03 — Hardening cierre de caja: firma + denominaciones
+
+**Lote:** cashbox-close-signature-denominations
+**Objetivo:** Extender el módulo `/cashbox` para requerir firma operativa al cerrar caja y registrar conteo por denominaciones con validación de suma.
+
+**Prompt**
+seguimos

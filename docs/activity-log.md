@@ -152,6 +152,54 @@ Se implementó descuento por efectivo en POS con porcentaje fijo configurable en
 
 **Commit:** N/A
 
+## 2026-02-16 14:56 -03 — Hardening Caja: firma operativa + conteo por denominaciones
+
+**Tipo:** schema  
+**Lote:** cashbox-close-signature-denominations  
+**Alcance:** db, ui, docs, tests
+
+**Resumen**
+Se endureció el cierre de caja para exigir firma operativa (`closed_controlled_by_name`) y confirmación explícita. Además, se agregó conteo por denominaciones con validación de suma exacta contra el total contado.
+
+**Impacto**
+
+- Cierre de caja más auditable y trazable por sucursal.
+- `rpc_close_cash_session` ahora:
+  - exige nombre de quien controla,
+  - exige confirmación de cierre,
+  - valida `count_lines` y su suma.
+- Se almacena el detalle de denominaciones en `cash_session_count_lines`.
+- Auditoría de cierre incluye firma/confirmación/denominaciones en metadata.
+
+**Archivos**
+
+- supabase/migrations/20260216182000_037_cashbox_close_signature_denominations.sql
+- app/cashbox/page.tsx
+- docs/docs-app-screens-cashbox.md
+- docs/docs-modules-cashbox.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-schema-model.md
+- docs/docs-app-screens-settings-audit-log.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/schema.sql
+- types/supabase.ts
+
+**Tests:**
+
+- npm run db:reset OK (2026-02-16)
+- npm run db:schema:snapshot OK (2026-02-16)
+- npm run types:gen OK (2026-02-16)
+- npm run db:seed:all OK (2026-02-16)
+- npm run db:rls:smoke OK (2026-02-16)
+- npm run lint OK (2026-02-16)
+- npm run build OK (2026-02-16)
+
+**Commit:** N/A
+
 ## 2026-02-16 — Cierre hardening QA: smoke RLS + CI automatizada
 
 **Tipo:** tests

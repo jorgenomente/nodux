@@ -445,7 +445,7 @@ $$;
 ALTER FUNCTION "public"."rpc_bootstrap_platform_admin"() OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text" DEFAULT NULL::"text") RETURNS TABLE("session_id" "uuid", "expected_cash_amount" numeric, "counted_cash_amount" numeric, "difference_amount" numeric, "closed_at" timestamp with time zone)
+CREATE OR REPLACE FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text" DEFAULT NULL::"text", "p_closed_controlled_by_name" "text" DEFAULT NULL::"text", "p_close_confirmed" boolean DEFAULT true, "p_count_lines" "jsonb" DEFAULT NULL::"jsonb") RETURNS TABLE("session_id" "uuid", "expected_cash_amount" numeric, "counted_cash_amount" numeric, "difference_amount" numeric, "closed_at" timestamp with time zone)
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     SET "row_security" TO 'off'
@@ -455,6 +455,12 @@ declare
   v_summary record;
   v_closed_at timestamptz := now();
   v_cashbox_enabled boolean := false;
+  v_controlled_by_name text;
+  v_confirmed boolean;
+  v_count_line jsonb;
+  v_denom numeric(12,2);
+  v_qty integer;
+  v_lines_total numeric(12,2) := 0;
 begin
   if auth.uid() is null then
     raise exception 'not authenticated';
@@ -462,6 +468,16 @@ begin
 
   if p_counted_cash_amount is null or p_counted_cash_amount < 0 then
     raise exception 'invalid counted cash amount';
+  end if;
+
+  v_controlled_by_name := nullif(trim(coalesce(p_closed_controlled_by_name, '')), '');
+  if v_controlled_by_name is null then
+    raise exception 'controlled by name required';
+  end if;
+
+  v_confirmed := coalesce(p_close_confirmed, false);
+  if not v_confirmed then
+    raise exception 'close confirmation required';
   end if;
 
   select cs.*
@@ -531,6 +547,33 @@ begin
     raise exception 'cash session summary unavailable';
   end if;
 
+  if p_count_lines is not null then
+    if jsonb_typeof(p_count_lines) <> 'array' then
+      raise exception 'count lines must be an array';
+    end if;
+
+    for v_count_line in select * from jsonb_array_elements(p_count_lines)
+    loop
+      v_denom := (v_count_line ->> 'denomination_value')::numeric;
+      v_qty := (v_count_line ->> 'quantity')::integer;
+
+      if v_denom is null or v_denom <= 0 then
+        raise exception 'invalid denomination value';
+      end if;
+      if v_qty is null or v_qty < 0 then
+        raise exception 'invalid denomination quantity';
+      end if;
+
+      if v_qty > 0 then
+        v_lines_total := v_lines_total + (v_denom * v_qty);
+      end if;
+    end loop;
+
+    if round(v_lines_total, 2) <> round(p_counted_cash_amount, 2) then
+      raise exception 'count lines total must match counted cash';
+    end if;
+  end if;
+
   update public.cash_sessions
   set
     status = 'closed',
@@ -540,8 +583,30 @@ begin
     counted_cash_amount = round(p_counted_cash_amount::numeric, 2),
     difference_amount = round(p_counted_cash_amount::numeric, 2) - v_summary.expected_cash_amount,
     close_note = nullif(trim(coalesce(p_close_note, '')), ''),
+    closed_controlled_by_name = v_controlled_by_name,
+    close_confirmed = v_confirmed,
     updated_at = v_closed_at
   where id = p_session_id;
+
+  if p_count_lines is not null then
+    insert into public.cash_session_count_lines (
+      org_id,
+      branch_id,
+      session_id,
+      denomination_value,
+      quantity,
+      created_at
+    )
+    select
+      p_org_id,
+      v_session.branch_id,
+      p_session_id,
+      (line ->> 'denomination_value')::numeric,
+      (line ->> 'quantity')::integer,
+      v_closed_at
+    from jsonb_array_elements(p_count_lines) line
+    where (line ->> 'quantity')::integer > 0;
+  end if;
 
   perform public.rpc_log_audit_event(
     p_org_id,
@@ -554,6 +619,9 @@ begin
       'counted_cash_amount', round(p_counted_cash_amount::numeric, 2),
       'difference_amount', round(p_counted_cash_amount::numeric, 2) - v_summary.expected_cash_amount,
       'close_note', nullif(trim(coalesce(p_close_note, '')), ''),
+      'closed_controlled_by_name', v_controlled_by_name,
+      'close_confirmed', v_confirmed,
+      'count_lines', coalesce(p_count_lines, '[]'::jsonb),
       'period_type', v_session.period_type,
       'session_label', v_session.session_label,
       'opened_by', v_session.opened_by
@@ -571,7 +639,7 @@ end;
 $$;
 
 
-ALTER FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text", "p_closed_controlled_by_name" "text", "p_close_confirmed" boolean, "p_count_lines" "jsonb") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_expires_on" "date", "p_quantity" numeric, "p_source_ref_id" "uuid") RETURNS TABLE("batch_id" "uuid")
@@ -3236,6 +3304,22 @@ CREATE TABLE IF NOT EXISTS "public"."branches" (
 ALTER TABLE "public"."branches" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."cash_session_count_lines" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "org_id" "uuid" NOT NULL,
+    "branch_id" "uuid" NOT NULL,
+    "session_id" "uuid" NOT NULL,
+    "denomination_value" numeric(12,2) NOT NULL,
+    "quantity" integer NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "cash_session_count_lines_denom_positive_ck" CHECK (("denomination_value" > (0)::numeric)),
+    CONSTRAINT "cash_session_count_lines_quantity_non_negative_ck" CHECK (("quantity" >= 0))
+);
+
+
+ALTER TABLE "public"."cash_session_count_lines" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."cash_session_movements" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "org_id" "uuid" NOT NULL,
@@ -3274,6 +3358,8 @@ CREATE TABLE IF NOT EXISTS "public"."cash_sessions" (
     "closed_at" timestamp with time zone,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "closed_controlled_by_name" "text",
+    "close_confirmed" boolean DEFAULT false NOT NULL,
     CONSTRAINT "cash_sessions_counted_cash_amount_ck" CHECK ((("counted_cash_amount" IS NULL) OR ("counted_cash_amount" >= (0)::numeric))),
     CONSTRAINT "cash_sessions_expected_cash_amount_ck" CHECK ((("expected_cash_amount" IS NULL) OR ("expected_cash_amount" >= (0)::numeric))),
     CONSTRAINT "cash_sessions_opening_cash_amount_ck" CHECK (("opening_cash_amount" >= (0)::numeric)),
@@ -4290,6 +4376,16 @@ ALTER TABLE ONLY "public"."branches"
 
 
 
+ALTER TABLE ONLY "public"."cash_session_count_lines"
+    ADD CONSTRAINT "cash_session_count_lines_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."cash_session_count_lines"
+    ADD CONSTRAINT "cash_session_count_lines_unique_session_denom" UNIQUE ("session_id", "denomination_value");
+
+
+
 ALTER TABLE ONLY "public"."cash_session_movements"
     ADD CONSTRAINT "cash_session_movements_pkey" PRIMARY KEY ("id");
 
@@ -4452,6 +4548,14 @@ CREATE INDEX "audit_log_org_created_at_idx" ON "public"."audit_log" USING "btree
 
 
 
+CREATE INDEX "cash_session_count_lines_org_branch_idx" ON "public"."cash_session_count_lines" USING "btree" ("org_id", "branch_id", "created_at" DESC);
+
+
+
+CREATE INDEX "cash_session_count_lines_session_idx" ON "public"."cash_session_count_lines" USING "btree" ("session_id", "denomination_value" DESC);
+
+
+
 CREATE INDEX "cash_session_movements_org_branch_idx" ON "public"."cash_session_movements" USING "btree" ("org_id", "branch_id", "created_at" DESC);
 
 
@@ -4610,6 +4714,21 @@ ALTER TABLE ONLY "public"."branch_memberships"
 
 ALTER TABLE ONLY "public"."branches"
     ADD CONSTRAINT "branches_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."cash_session_count_lines"
+    ADD CONSTRAINT "cash_session_count_lines_branch_id_fkey" FOREIGN KEY ("branch_id") REFERENCES "public"."branches"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."cash_session_count_lines"
+    ADD CONSTRAINT "cash_session_count_lines_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."cash_session_count_lines"
+    ADD CONSTRAINT "cash_session_count_lines_session_id_fkey" FOREIGN KEY ("session_id") REFERENCES "public"."cash_sessions"("id") ON DELETE CASCADE;
 
 
 
@@ -4961,6 +5080,17 @@ CREATE POLICY "branches_update" ON "public"."branches" FOR UPDATE USING ("public
 
 
 CREATE POLICY "branches_write" ON "public"."branches" FOR INSERT WITH CHECK ("public"."is_org_admin"("org_id"));
+
+
+
+ALTER TABLE "public"."cash_session_count_lines" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "cash_session_count_lines_select" ON "public"."cash_session_count_lines" FOR SELECT USING ("public"."is_org_member"("org_id"));
+
+
+
+CREATE POLICY "cash_session_count_lines_write" ON "public"."cash_session_count_lines" FOR INSERT WITH CHECK ("public"."is_org_member"("org_id"));
 
 
 
@@ -5344,9 +5474,9 @@ GRANT ALL ON FUNCTION "public"."rpc_bootstrap_platform_admin"() TO "service_role
 
 
 
-GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text", "p_closed_controlled_by_name" "text", "p_close_confirmed" boolean, "p_count_lines" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text", "p_closed_controlled_by_name" "text", "p_close_confirmed" boolean, "p_count_lines" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text", "p_closed_controlled_by_name" "text", "p_close_confirmed" boolean, "p_count_lines" "jsonb") TO "service_role";
 
 
 
@@ -5629,6 +5759,12 @@ GRANT ALL ON TABLE "public"."branch_memberships" TO "service_role";
 GRANT ALL ON TABLE "public"."branches" TO "anon";
 GRANT ALL ON TABLE "public"."branches" TO "authenticated";
 GRANT ALL ON TABLE "public"."branches" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."cash_session_count_lines" TO "anon";
+GRANT ALL ON TABLE "public"."cash_session_count_lines" TO "authenticated";
+GRANT ALL ON TABLE "public"."cash_session_count_lines" TO "service_role";
 
 
 

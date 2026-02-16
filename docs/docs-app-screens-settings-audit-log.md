@@ -145,6 +145,9 @@ Action keys operativos relevantes (MVP actual):
 - `expiration_batch_date_corrected`
 - `expiration_waste_recorded`
 - `sale_created` (incluye `subtotal_amount`, `discount_amount`, `discount_pct`, `cash_discount_applied`, `payments`)
+- `cash_session_opened`
+- `cash_movement_added`
+- `cash_session_closed` (incluye `closed_controlled_by_name`, `close_confirmed`, `count_lines`)
 - `org_preferences_updated` (incluye cambios en `cash_discount_enabled` y `cash_discount_default_pct`)
 
 ---

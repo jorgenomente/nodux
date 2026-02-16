@@ -60,6 +60,7 @@ Ultima actualizacion: 2026-02-16 15:00
 - Cambios de preferencias (incluyendo descuento efectivo) quedan auditados con `org_preferences_updated`.
 - Módulo Caja (`/cashbox`) operativo por sucursal: apertura por turno/día, registro de gastos/ingresos manuales, cierre con conteo y diferencia.
 - Caja audita actor y metadata operativa en `audit_log` (`cash_session_opened`, `cash_movement_added`, `cash_session_closed`).
+- Cierre de caja ahora requiere firma operativa (`controlled_by_name`), confirmación explícita y soporta conteo por denominaciones.
 
 ## Post-MVP ya registrado
 

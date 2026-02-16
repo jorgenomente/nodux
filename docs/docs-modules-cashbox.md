@@ -11,12 +11,15 @@ Permitir cierre operativo de caja por sucursal de forma rápida y auditable.
   - gastos (delivery, librería, limpieza, servicios, otros)
   - ingresos
 - Cierre por turno o por día.
+- Firma operativa de cierre (`controlled_by_name`) + confirmación.
+- Conteo por denominaciones en el cierre.
 - Conciliación automática contra cobros en efectivo POS.
 
 ## Fuentes de datos
 
 - `cash_sessions`
 - `cash_session_movements`
+- `cash_session_count_lines`
 - `sale_payments` (solo componente `cash`)
 - `audit_log`
 

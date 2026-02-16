@@ -17,6 +17,7 @@ Estado actual:
 - Descuento en efectivo POS + métricas dashboard agregados en `supabase/migrations/20260216150000_033_cash_discount_pos_dashboard_audit.sql` (validación estricta: descuento solo con `payment_method='cash'`).
 - Split payments POS agregados en `supabase/migrations/20260216163000_034_split_payments_enum.sql` y `supabase/migrations/20260216164000_035_split_payments_pos.sql` (`sale_payments`, `payment_method='mixed'` y cash metrics por cobro real).
 - Módulo caja por sucursal agregado en `supabase/migrations/20260216171000_036_cashbox_branch_sessions.sql` (`cash_sessions`, `cash_session_movements`, `v_cashbox_session_current` y RPCs de apertura/movimientos/cierre).
+- Cierre de caja con firma y conteo por denominaciones agregado en `supabase/migrations/20260216182000_037_cashbox_close_signature_denominations.sql` (`cash_session_count_lines` y hardening de `rpc_close_cash_session`).
 - Smoke RLS automatizado agregado en `scripts/rls-smoke-tests.mjs` (ejecución: `npm run db:rls:smoke`).
 - CI hardening agrega ejecución automática de smoke RLS + smoke Playwright en `.github/workflows/ci-hardening.yml`.
 
@@ -49,6 +50,7 @@ Estado actual:
 | `sale_payments`              | read               | read/insert        | insert (via RPC)              | Desglose de cobro por método           |
 | `cash_sessions`              | read               | read/insert/update | insert/update (via RPC)       | Caja por sucursal (1 abierta por vez)  |
 | `cash_session_movements`     | read               | read/insert        | insert (via RPC)              | Gastos/ingresos manuales de caja       |
+| `cash_session_count_lines`   | read               | read/insert        | insert (via RPC)              | Conteo por denominaciones en cierre    |
 | `sale_items`                 | read               | read/insert        | insert (via RPC)              | derivado de venta                      |
 | `expiration_batches`         | read/insert/update | read/insert/update | read/insert (si modulo)       | ST sin ajustes avanzados               |
 | `expiration_waste`           | read               | read/insert        | read (via view/RPC)           | Registro de desperdicio                |
@@ -82,6 +84,8 @@ Estado actual:
 - `rpc_open_cash_session` -> requiere modulo `cashbox` habilitado para ST y valida sucursal asignada.
 - `rpc_add_cash_session_movement` -> requiere modulo `cashbox` habilitado para ST y sesión abierta de la sucursal.
 - `rpc_close_cash_session` -> requiere modulo `cashbox` habilitado para ST y registra cierre + diferencia.
+  - requiere firma operativa (`closed_controlled_by_name`) y confirmación explícita.
+  - valida que suma de `count_lines` coincida con el total contado.
 - `rpc_adjust_stock_manual` -> solo OA.
 - `rpc_set_safety_stock` -> solo OA.
 - `rpc_create_supplier_order` y derivados -> solo OA.

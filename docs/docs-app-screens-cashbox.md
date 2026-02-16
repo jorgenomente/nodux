@@ -30,6 +30,8 @@ Operar caja por sucursal con flujo simple:
   - gastos manuales
 - Al cerrar:
   - se guarda contado
+  - se requiere firma operativa (`controlled_by_name`) y confirmación explícita
+  - se registra conteo por denominaciones (billetes/monedas)
   - se calcula diferencia
   - se registra auditoría con actor y detalle
 
@@ -52,6 +54,9 @@ Operar caja por sucursal con flujo simple:
 - `rpc_add_cash_session_movement(...)`
 - `rpc_get_cash_session_summary(...)`
 - `rpc_close_cash_session(...)`
+  - requiere `closed_controlled_by_name`
+  - requiere `close_confirmed=true`
+  - soporta `count_lines` con `{ denomination_value, quantity }[]`
 
 ## Auditoría obligatoria
 
@@ -60,3 +65,4 @@ Operar caja por sucursal con flujo simple:
 - `cash_session_closed`
 
 Los eventos deben incluir actor, sucursal y metadata operativa para trazabilidad.
+En cierre deben incluir además firma de control y detalle de denominaciones.

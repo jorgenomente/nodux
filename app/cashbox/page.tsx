@@ -92,6 +92,10 @@ type ClosedSessionRow = {
   closed_at: string | null;
 };
 
+const CASH_DENOMINATION_VALUES_ARS = [
+  20000, 10000, 2000, 1000, 500, 200, 100, 50, 20, 10,
+] as const;
+
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('es-AR', {
     style: 'currency',
@@ -337,6 +341,21 @@ export default async function CashboxPage({
       String(formData.get('counted_cash_amount') ?? ''),
     );
     const closeNote = String(formData.get('close_note') ?? '').trim();
+    const controlledByName = String(
+      formData.get('closed_controlled_by_name') ?? '',
+    ).trim();
+    const closeConfirmed = formData.get('close_confirmed') === 'on';
+    const countLines = CASH_DENOMINATION_VALUES_ARS.map((denominationValue) => {
+      const raw = String(
+        formData.get(`denom_${denominationValue}`) ?? '',
+      ).trim();
+      const quantity = Number.parseInt(raw || '0', 10);
+      return {
+        denomination_value: denominationValue,
+        quantity:
+          Number.isNaN(quantity) || quantity < 0 ? 0 : Math.floor(quantity),
+      };
+    });
 
     const { error } = await actionSession.supabase.rpc(
       'rpc_close_cash_session',
@@ -345,6 +364,9 @@ export default async function CashboxPage({
         p_session_id: cashSessionId,
         p_counted_cash_amount: countedAmount,
         p_close_note: closeNote || undefined,
+        p_closed_controlled_by_name: controlledByName || undefined,
+        p_close_confirmed: closeConfirmed,
+        p_count_lines: countLines,
       },
     );
 
@@ -646,6 +668,38 @@ export default async function CashboxPage({
                       required
                     />
                   </label>
+                  <div className="grid gap-2 rounded border border-zinc-200 p-3">
+                    <p className="text-xs font-semibold tracking-wide text-zinc-600 uppercase">
+                      Conteo por denominaciones (ARS)
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {CASH_DENOMINATION_VALUES_ARS.map((denominationValue) => (
+                        <label
+                          key={denominationValue}
+                          className="flex items-center justify-between gap-3 text-sm text-zinc-700"
+                        >
+                          <span>{formatCurrency(denominationValue)}</span>
+                          <input
+                            name={`denom_${denominationValue}`}
+                            type="number"
+                            min={0}
+                            step={1}
+                            defaultValue={0}
+                            className="w-24 rounded border border-zinc-200 px-2 py-1 text-right text-sm"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="text-sm text-zinc-700">
+                    Controlado por (firma operativa)
+                    <input
+                      name="closed_controlled_by_name"
+                      placeholder="Nombre y apellido"
+                      className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                      required
+                    />
+                  </label>
 
                   <label className="text-sm text-zinc-700">
                     Observación (opcional)
@@ -655,6 +709,10 @@ export default async function CashboxPage({
                       placeholder="Motivo de diferencia, observaciones, etc."
                       className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
                     />
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-zinc-700">
+                    <input type="checkbox" name="close_confirmed" required />
+                    Confirmo el cierre de caja para esta sucursal.
                   </label>
 
                   <button

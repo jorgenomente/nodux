@@ -36,6 +36,7 @@ Estado actual:
 - Descuento en efectivo en POS + métricas dashboard + auditoría de preferencias en `supabase/migrations/20260216150000_033_cash_discount_pos_dashboard_audit.sql`.
 - Split payments en POS en `supabase/migrations/20260216163000_034_split_payments_enum.sql` y `supabase/migrations/20260216164000_035_split_payments_pos.sql`.
 - Módulo Caja por sucursal (apertura, movimientos y cierre) en `supabase/migrations/20260216171000_036_cashbox_branch_sessions.sql`.
+- Cierre de caja con firma y conteo por denominaciones en `supabase/migrations/20260216182000_037_cashbox_close_signature_denominations.sql`.
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 
@@ -336,6 +337,8 @@ Estado actual:
 - `counted_cash_amount` (numeric, nullable)
 - `difference_amount` (numeric, nullable)
 - `close_note` (text, nullable)
+- `closed_controlled_by_name` (text, nullable)
+- `close_confirmed` (boolean)
 - `opened_at`, `closed_at`, `created_at`, `updated_at`
 
 **Constraints**:
@@ -360,6 +363,22 @@ Estado actual:
 - `note` (text, nullable)
 - `movement_at` (timestamptz)
 - `created_by` (uuid, FK auth.users)
+- `created_at`
+
+---
+
+### cash_session_count_lines
+
+**Proposito**: desglose del conteo físico por denominación al cierre de caja.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `branch_id` (uuid, FK)
+- `session_id` (uuid, FK -> cash_sessions.id)
+- `denomination_value` (numeric > 0)
+- `quantity` (int >= 0)
 - `created_at`
 
 ---
