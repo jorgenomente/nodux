@@ -61,6 +61,9 @@ El dashboard debe soportar:
 - Ventas Hoy (total + #ventas)
 - Ventas Semana (total)
 - Ventas Mes (total)
+- Ventas Efectivo Hoy (total + #ventas cash)
+- Descuento Efectivo Hoy (monto descontado + #ventas con descuento)
+- Nota: “Efectivo hoy” suma también el componente cash de ventas con pago dividido.
 - Ítems vendidos Hoy (#items) (opcional MVP si es barato)
 
 ### Sección B — Alertas críticas (lista)
@@ -186,6 +189,10 @@ Salida mínima:
 - `sales_today_count`
 - `sales_week_total`
 - `sales_month_total`
+- `cash_sales_today_total`
+- `cash_sales_today_count`
+- `cash_discount_today_total`
+- `cash_discounted_sales_today_count`
 - `expirations_critical_count`
 - `expirations_warning_count`
 - `supplier_orders_pending_count`

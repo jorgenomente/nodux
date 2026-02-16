@@ -21,6 +21,10 @@ type DashboardRow = {
   sales_today_count: number | null;
   sales_week_total: number | null;
   sales_month_total: number | null;
+  cash_sales_today_total: number | null;
+  cash_sales_today_count: number | null;
+  cash_discount_today_total: number | null;
+  cash_discounted_sales_today_count: number | null;
   expirations_critical_count: number | null;
   expirations_warning_count: number | null;
   supplier_orders_pending_count: number | null;
@@ -111,6 +115,14 @@ export default async function DashboardPage({
   const salesTodayCount = Number(dashboardRow?.sales_today_count ?? 0);
   const salesWeekTotal = Number(dashboardRow?.sales_week_total ?? 0);
   const salesMonthTotal = Number(dashboardRow?.sales_month_total ?? 0);
+  const cashSalesTodayTotal = Number(dashboardRow?.cash_sales_today_total ?? 0);
+  const cashSalesTodayCount = Number(dashboardRow?.cash_sales_today_count ?? 0);
+  const cashDiscountTodayTotal = Number(
+    dashboardRow?.cash_discount_today_total ?? 0,
+  );
+  const cashDiscountedSalesTodayCount = Number(
+    dashboardRow?.cash_discounted_sales_today_count ?? 0,
+  );
   const expirationsCritical = Number(
     dashboardRow?.expirations_critical_count ?? 0,
   );
@@ -205,7 +217,7 @@ export default async function DashboardPage({
           </div>
         ) : null}
 
-        <section className="grid gap-4 md:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl bg-white p-5 shadow-sm">
             <p className="text-xs font-semibold text-zinc-500 uppercase">
               Ventas hoy
@@ -244,6 +256,28 @@ export default async function DashboardPage({
             </p>
             <p className="mt-1 text-xs text-zinc-500">
               {expirationsCritical} críticos · {expirationsWarning} próximos
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white p-5 shadow-sm">
+            <p className="text-xs font-semibold text-zinc-500 uppercase">
+              Efectivo hoy
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-zinc-900">
+              {formatCurrency(cashSalesTodayTotal)}
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              {cashSalesTodayCount} ventas en efectivo
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white p-5 shadow-sm">
+            <p className="text-xs font-semibold text-zinc-500 uppercase">
+              Descuento efectivo hoy
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-zinc-900">
+              {formatCurrency(cashDiscountTodayTotal)}
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              {cashDiscountedSalesTodayCount} ventas con descuento
             </p>
           </div>
         </section>

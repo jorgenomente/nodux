@@ -26,6 +26,11 @@ type CartItem = ProductCatalogItem & {
   quantityInput: string;
 };
 
+type SplitPaymentEntry = {
+  payment_method: PaymentMethod;
+  amountInput: string;
+};
+
 type Props = {
   orgId: string;
   role: 'org_admin' | 'staff';
@@ -43,6 +48,10 @@ type Props = {
       unit_price: number;
       quantity: number;
     }>;
+  };
+  cashDiscount: {
+    cash_discount_enabled: boolean;
+    cash_discount_default_pct: number;
   };
 };
 
@@ -80,6 +89,7 @@ export default function PosClient({
   defaultBranchId,
   initialProducts,
   specialOrder,
+  cashDiscount,
 }: Props) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [activeBranchId, setActiveBranchId] = useState<string | ''>(
@@ -107,6 +117,12 @@ export default function PosClient({
       }));
   });
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [isSplitPayment, setIsSplitPayment] = useState(false);
+  const [splitPayments, setSplitPayments] = useState<SplitPaymentEntry[]>([
+    { payment_method: 'cash', amountInput: '' },
+    { payment_method: 'debit', amountInput: '' },
+  ]);
+  const [applyCashDiscount, setApplyCashDiscount] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -121,9 +137,53 @@ export default function PosClient({
   const showSearchHint =
     searchTerm.trim().length > 0 && searchTerm.trim().length < 3;
 
-  const total = useMemo(
+  const subtotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.unit_price * item.quantity, 0),
     [cart],
+  );
+  const cashDiscountPct = Number(cashDiscount.cash_discount_default_pct ?? 0);
+  const cashDiscountAmount = useMemo(() => {
+    if (
+      !cashDiscount.cash_discount_enabled ||
+      paymentMethod !== 'cash' ||
+      !applyCashDiscount
+    ) {
+      return 0;
+    }
+    return Math.round(((subtotal * cashDiscountPct) / 100) * 100) / 100;
+  }, [
+    applyCashDiscount,
+    cashDiscount.cash_discount_enabled,
+    cashDiscountPct,
+    paymentMethod,
+    subtotal,
+  ]);
+  const total = useMemo(
+    () => Math.max(subtotal - cashDiscountAmount, 0),
+    [cashDiscountAmount, subtotal],
+  );
+  const splitPaymentRows = useMemo(
+    () =>
+      splitPayments.map((payment) => ({
+        payment_method: payment.payment_method,
+        amount: Number(payment.amountInput),
+        isValid:
+          payment.amountInput.trim() !== '' &&
+          Number.isFinite(Number(payment.amountInput)) &&
+          Number(payment.amountInput) > 0,
+      })),
+    [splitPayments],
+  );
+  const splitPaymentsTotal = useMemo(
+    () =>
+      splitPaymentRows
+        .filter((payment) => payment.isValid)
+        .reduce((sum, payment) => sum + payment.amount, 0),
+    [splitPaymentRows],
+  );
+  const splitRemaining = useMemo(
+    () => Math.round((total - splitPaymentsTotal) * 100) / 100,
+    [splitPaymentsTotal, total],
   );
 
   const hasInvalidQty = useMemo(
@@ -131,13 +191,22 @@ export default function PosClient({
     [cart],
   );
 
-  const isCheckoutDisabled = cart.length === 0 || hasInvalidQty;
+  const hasInvalidSplit =
+    isSplitPayment &&
+    (splitPaymentRows.length === 0 ||
+      splitPaymentRows.some((payment) => !payment.isValid) ||
+      Math.abs(splitRemaining) > 0.009);
+
+  const isCheckoutDisabled =
+    cart.length === 0 || hasInvalidQty || hasInvalidSplit;
   const checkoutReason =
     cart.length === 0
       ? 'Agrega productos para cobrar.'
       : hasInvalidQty
         ? 'Corrige las cantidades para cobrar.'
-        : '';
+        : hasInvalidSplit
+          ? 'Completa pagos divididos y valida que sumen el total.'
+          : '';
 
   const normalizeText = useCallback((value: string) => {
     return value
@@ -287,6 +356,12 @@ export default function PosClient({
 
   const clearCart = () => {
     setCart([]);
+    setIsSplitPayment(false);
+    setSplitPayments([
+      { payment_method: 'cash', amountInput: '' },
+      { payment_method: 'debit', amountInput: '' },
+    ]);
+    setApplyCashDiscount(false);
     setSuccessMessage(null);
     setErrorMessage(null);
     setDebugMessage(null);
@@ -320,18 +395,41 @@ export default function PosClient({
       return;
     }
 
+    if (isSplitPayment && hasInvalidSplit) {
+      setErrorMessage(
+        'Completa los pagos divididos con montos válidos y asegúrate de que la suma sea exacta.',
+      );
+      return;
+    }
+
     const items = cart.map((item) => ({
       product_id: item.product_id,
       quantity: item.quantity,
     }));
 
+    const paymentsPayload = isSplitPayment
+      ? splitPaymentRows.map((payment) => ({
+          payment_method: payment.payment_method,
+          amount: payment.amount,
+        }))
+      : undefined;
+    const summaryPaymentMethod = isSplitPayment
+      ? paymentsPayload && paymentsPayload.length > 1
+        ? 'mixed'
+        : (paymentsPayload?.[0]?.payment_method ?? paymentMethod)
+      : paymentMethod;
+
     const { data, error } = await supabase.rpc('rpc_create_sale', {
       p_org_id: orgId,
       p_branch_id: activeBranchId,
-      p_payment_method: paymentMethod,
+      p_payment_method: summaryPaymentMethod as unknown as PaymentMethod,
       p_items: items,
       p_special_order_id: specialOrderId ?? undefined,
       p_close_special_order: closeSpecialOrder,
+      p_apply_cash_discount: !isSplitPayment && applyCashDiscount,
+      p_cash_discount_pct:
+        !isSplitPayment && applyCashDiscount ? cashDiscountPct : undefined,
+      p_payments: paymentsPayload,
     });
 
     if (error) {
@@ -339,7 +437,11 @@ export default function PosClient({
         ? 'Stock insuficiente para completar la venta.'
         : error.message.includes('pos module disabled')
           ? 'El módulo POS está deshabilitado.'
-          : 'No pudimos registrar la venta.';
+          : error.message.includes('payments total must equal sale total')
+            ? 'La suma de pagos debe coincidir con el total.'
+            : error.message.includes('payments must be an array')
+              ? 'Formato de pagos inválido.'
+              : 'No pudimos registrar la venta.';
       setErrorMessage(message);
       setDebugMessage(
         process.env.NODE_ENV !== 'production'
@@ -362,9 +464,15 @@ export default function PosClient({
     const totalAmount = Number(sale?.total ?? total);
 
     setSuccessMessage(
-      `Venta registrada. Total: ${formatCurrency(totalAmount)} (${paymentMethod}).`,
+      `Venta registrada. Total: ${formatCurrency(totalAmount)} (${isSplitPayment ? 'pago dividido' : paymentMethod}${!isSplitPayment && applyCashDiscount ? `, descuento ${cashDiscountPct}%` : ''}).`,
     );
     setCart([]);
+    setIsSplitPayment(false);
+    setSplitPayments([
+      { payment_method: 'cash', amountInput: '' },
+      { payment_method: 'debit', amountInput: '' },
+    ]);
+    setApplyCashDiscount(false);
     setSpecialOrderId(null);
     setSpecialOrderClientName(null);
     if (activeBranchId) {
@@ -600,9 +708,9 @@ export default function PosClient({
 
             <div className="mt-6 border-t border-zinc-200 pt-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-zinc-500">Total</span>
+                <span className="text-zinc-500">Subtotal</span>
                 <span className="text-lg font-semibold text-zinc-900">
-                  {formatCurrency(total)}
+                  {formatCurrency(subtotal)}
                 </span>
               </div>
               <div className="mt-4">
@@ -612,12 +720,31 @@ export default function PosClient({
                 >
                   Método de pago
                 </label>
+                <label className="mt-2 flex items-center gap-2 text-sm text-zinc-700">
+                  <input
+                    type="checkbox"
+                    checked={isSplitPayment}
+                    onChange={(event) => {
+                      const next = event.target.checked;
+                      setIsSplitPayment(next);
+                      if (next) {
+                        setApplyCashDiscount(false);
+                      }
+                    }}
+                  />
+                  Pago dividido
+                </label>
                 <select
                   id="paymentMethod"
                   value={paymentMethod}
-                  onChange={(event) =>
-                    setPaymentMethod(event.target.value as PaymentMethod)
-                  }
+                  disabled={isSplitPayment}
+                  onChange={(event) => {
+                    const nextMethod = event.target.value as PaymentMethod;
+                    setPaymentMethod(nextMethod);
+                    if (nextMethod !== 'cash') {
+                      setApplyCashDiscount(false);
+                    }
+                  }}
                   className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
                 >
                   {PAYMENT_METHODS.map((method) => (
@@ -626,6 +753,120 @@ export default function PosClient({
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {isSplitPayment ? (
+                <div className="mt-3 rounded-lg border border-zinc-200 p-3">
+                  <div className="mb-2 text-xs font-semibold text-zinc-600">
+                    Pagos
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {splitPayments.map((payment, index) => (
+                      <div
+                        key={`${index}-${payment.payment_method}`}
+                        className="flex gap-2"
+                      >
+                        <select
+                          value={payment.payment_method}
+                          onChange={(event) => {
+                            const nextMethod = event.target
+                              .value as PaymentMethod;
+                            setSplitPayments((prev) =>
+                              prev.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, payment_method: nextMethod }
+                                  : row,
+                              ),
+                            );
+                          }}
+                          className="w-40 rounded border border-zinc-200 px-2 py-2 text-sm"
+                        >
+                          {PAYMENT_METHODS.map((method) => (
+                            <option key={method.value} value={method.value}>
+                              {method.label}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          min={0.01}
+                          step={0.01}
+                          value={payment.amountInput}
+                          onChange={(event) =>
+                            setSplitPayments((prev) =>
+                              prev.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, amountInput: event.target.value }
+                                  : row,
+                              ),
+                            )
+                          }
+                          placeholder="Monto"
+                          className="w-full rounded border border-zinc-200 px-2 py-2 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSplitPayments((prev) =>
+                              prev.length <= 1
+                                ? prev
+                                : prev.filter(
+                                    (_, rowIndex) => rowIndex !== index,
+                                  ),
+                            )
+                          }
+                          className="rounded border border-zinc-200 px-2 py-2 text-xs text-zinc-600"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSplitPayments((prev) => [
+                        ...prev,
+                        { payment_method: 'other', amountInput: '' },
+                      ])
+                    }
+                    className="mt-2 rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-700"
+                  >
+                    Agregar pago
+                  </button>
+                  <div className="mt-2 text-xs text-zinc-600">
+                    Pagado: {formatCurrency(splitPaymentsTotal)} · Restante:{' '}
+                    {formatCurrency(splitRemaining)}
+                  </div>
+                </div>
+              ) : null}
+
+              {cashDiscount.cash_discount_enabled &&
+              paymentMethod === 'cash' &&
+              !isSplitPayment ? (
+                <label className="mt-3 flex items-center gap-2 text-sm text-zinc-700">
+                  <input
+                    type="checkbox"
+                    checked={applyCashDiscount}
+                    onChange={(event) =>
+                      setApplyCashDiscount(event.target.checked)
+                    }
+                  />
+                  Aplicar descuento efectivo ({cashDiscountPct}%)
+                </label>
+              ) : null}
+
+              <div className="mt-3 flex items-center justify-between text-sm">
+                <span className="text-zinc-500">Descuento</span>
+                <span className="font-semibold text-zinc-900">
+                  {formatCurrency(cashDiscountAmount)}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-sm">
+                <span className="text-zinc-500">Total a cobrar</span>
+                <span className="text-lg font-semibold text-zinc-900">
+                  {formatCurrency(total)}
+                </span>
               </div>
 
               {errorMessage && (

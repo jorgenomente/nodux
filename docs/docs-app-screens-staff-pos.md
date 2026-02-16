@@ -103,7 +103,11 @@ Una venta es un registro con:
 ### A5) Seleccionar método de pago (simple)
 
 - Enumeración MVP: `cash`, `debit`, `credit`, `transfer`, `other`
-- Solo 1 método por venta en MVP (sin split payments)
+- Permite:
+  - pago único (1 método)
+  - pago dividido (múltiples métodos con monto por método)
+- Si el método es `cash`, se puede activar toggle `Aplicar descuento efectivo`.
+- El porcentaje no se edita en POS: se toma fijo desde `settings/preferences`.
 
 ### A6) Cobrar (confirmar venta)
 
@@ -235,10 +239,16 @@ Una venta es un registro con:
 - Server-authoritative (valida permisos, branch, stock)
 - Input (conceptual):
   - branch_id
-  - payment_method
+  - payment_method (resumen: método único o `mixed`)
   - items: [{ product_id, quantity }]
   - special_order_id (opcional)
   - close_special_order (opcional)
+  - apply_cash_discount (opcional, solo si payment_method=`cash`)
+  - cash_discount_pct (opcional, solo informativo/override; en MVP UI usa valor fijo de preferencias)
+  - payments (opcional): [{ payment_method, amount }]
+- Regla crítica:
+  - si `payments` existe, la suma de montos debe coincidir exactamente con el total.
+  - descuento efectivo solo aplica para pago 100% cash (no split).
 - Output:
   - sale_id
   - total

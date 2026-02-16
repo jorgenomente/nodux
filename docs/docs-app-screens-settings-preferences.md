@@ -35,6 +35,10 @@ Si no está definido, se posterga.
 
 allow_negative_stock (default true)
 
+cash_discount_enabled (default true)
+
+cash_discount_default_pct (default 10)
+
 UI
 
 Sección “Alertas de vencimientos”
@@ -42,6 +46,10 @@ Sección “Alertas de vencimientos”
 input número: critical_days
 
 input número: warning_days
+
+toggle: cash_discount_enabled
+
+input número: cash_discount_default_pct (0..100)
 
 helper text + validaciones
 
@@ -57,6 +65,10 @@ critical_days
 
 warning_days
 
+cash_discount_enabled
+
+cash_discount_default_pct
+
 (opcional) staff_nav_order[]
 
 Escritura
@@ -69,11 +81,17 @@ warning_days
 
 (opcional) staff_nav_order[]
 
+cash_discount_enabled
+
+cash_discount_default_pct
+
 Validaciones (DB / RPC)
 
 critical_days >= 0
 
 warning_days >= critical_days
+
+cash_discount_default_pct >= 0 y <= 100
 
 Smoke tests
 

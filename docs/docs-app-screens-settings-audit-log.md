@@ -144,6 +144,8 @@ Action keys operativos relevantes (MVP actual):
 - `supplier_order_expected_receive_on_set`
 - `expiration_batch_date_corrected`
 - `expiration_waste_recorded`
+- `sale_created` (incluye `subtotal_amount`, `discount_amount`, `discount_pct`, `cash_discount_applied`, `payments`)
+- `org_preferences_updated` (incluye cambios en `cash_discount_enabled` y `cash_discount_default_pct`)
 
 ---
 
