@@ -445,7 +445,7 @@ $$;
 ALTER FUNCTION "public"."rpc_bootstrap_platform_admin"() OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text" DEFAULT NULL::"text", "p_closed_controlled_by_name" "text" DEFAULT NULL::"text", "p_close_confirmed" boolean DEFAULT true, "p_count_lines" "jsonb" DEFAULT NULL::"jsonb") RETURNS TABLE("session_id" "uuid", "expected_cash_amount" numeric, "counted_cash_amount" numeric, "difference_amount" numeric, "closed_at" timestamp with time zone)
+CREATE OR REPLACE FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_close_note" "text" DEFAULT NULL::"text", "p_closed_controlled_by_name" "text" DEFAULT NULL::"text", "p_close_confirmed" boolean DEFAULT true, "p_closing_drawer_count_lines" "jsonb" DEFAULT NULL::"jsonb", "p_closing_reserve_count_lines" "jsonb" DEFAULT NULL::"jsonb") RETURNS TABLE("session_id" "uuid", "expected_cash_amount" numeric, "counted_cash_amount" numeric, "difference_amount" numeric, "closed_at" timestamp with time zone)
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     SET "row_security" TO 'off'
@@ -457,17 +457,16 @@ declare
   v_cashbox_enabled boolean := false;
   v_controlled_by_name text;
   v_confirmed boolean;
-  v_count_line jsonb;
+  v_drawer_line jsonb;
+  v_reserve_line jsonb;
   v_denom numeric(12,2);
   v_qty integer;
-  v_lines_total numeric(12,2) := 0;
+  v_closing_drawer_amount numeric(12,2) := 0;
+  v_closing_reserve_amount numeric(12,2) := 0;
+  v_counted_total numeric(12,2) := 0;
 begin
   if auth.uid() is null then
     raise exception 'not authenticated';
-  end if;
-
-  if p_counted_cash_amount is null or p_counted_cash_amount < 0 then
-    raise exception 'invalid counted cash amount';
   end if;
 
   v_controlled_by_name := nullif(trim(coalesce(p_closed_controlled_by_name, '')), '');
@@ -479,6 +478,45 @@ begin
   if not v_confirmed then
     raise exception 'close confirmation required';
   end if;
+
+  if p_closing_drawer_count_lines is null or jsonb_typeof(p_closing_drawer_count_lines) <> 'array' then
+    raise exception 'closing drawer count lines required';
+  end if;
+  if p_closing_reserve_count_lines is null or jsonb_typeof(p_closing_reserve_count_lines) <> 'array' then
+    raise exception 'closing reserve count lines required';
+  end if;
+
+  for v_drawer_line in select * from jsonb_array_elements(p_closing_drawer_count_lines)
+  loop
+    v_denom := (v_drawer_line ->> 'denomination_value')::numeric;
+    v_qty := (v_drawer_line ->> 'quantity')::integer;
+
+    if v_denom is null or v_denom <= 0 then
+      raise exception 'invalid closing drawer denomination value';
+    end if;
+    if v_qty is null or v_qty < 0 then
+      raise exception 'invalid closing drawer denomination quantity';
+    end if;
+
+    v_closing_drawer_amount := v_closing_drawer_amount + (v_denom * v_qty);
+  end loop;
+
+  for v_reserve_line in select * from jsonb_array_elements(p_closing_reserve_count_lines)
+  loop
+    v_denom := (v_reserve_line ->> 'denomination_value')::numeric;
+    v_qty := (v_reserve_line ->> 'quantity')::integer;
+
+    if v_denom is null or v_denom <= 0 then
+      raise exception 'invalid closing reserve denomination value';
+    end if;
+    if v_qty is null or v_qty < 0 then
+      raise exception 'invalid closing reserve denomination quantity';
+    end if;
+
+    v_closing_reserve_amount := v_closing_reserve_amount + (v_denom * v_qty);
+  end loop;
+
+  v_counted_total := v_closing_drawer_amount + v_closing_reserve_amount;
 
   select cs.*
   into v_session
@@ -547,66 +585,65 @@ begin
     raise exception 'cash session summary unavailable';
   end if;
 
-  if p_count_lines is not null then
-    if jsonb_typeof(p_count_lines) <> 'array' then
-      raise exception 'count lines must be an array';
-    end if;
-
-    for v_count_line in select * from jsonb_array_elements(p_count_lines)
-    loop
-      v_denom := (v_count_line ->> 'denomination_value')::numeric;
-      v_qty := (v_count_line ->> 'quantity')::integer;
-
-      if v_denom is null or v_denom <= 0 then
-        raise exception 'invalid denomination value';
-      end if;
-      if v_qty is null or v_qty < 0 then
-        raise exception 'invalid denomination quantity';
-      end if;
-
-      if v_qty > 0 then
-        v_lines_total := v_lines_total + (v_denom * v_qty);
-      end if;
-    end loop;
-
-    if round(v_lines_total, 2) <> round(p_counted_cash_amount, 2) then
-      raise exception 'count lines total must match counted cash';
-    end if;
-  end if;
-
   update public.cash_sessions
   set
     status = 'closed',
     closed_by = auth.uid(),
     closed_at = v_closed_at,
     expected_cash_amount = v_summary.expected_cash_amount,
-    counted_cash_amount = round(p_counted_cash_amount::numeric, 2),
-    difference_amount = round(p_counted_cash_amount::numeric, 2) - v_summary.expected_cash_amount,
+    closing_drawer_amount = round(v_closing_drawer_amount, 2),
+    closing_reserve_amount = round(v_closing_reserve_amount, 2),
+    counted_cash_amount = round(v_counted_total, 2),
+    difference_amount = round(v_counted_total, 2) - v_summary.expected_cash_amount,
     close_note = nullif(trim(coalesce(p_close_note, '')), ''),
     closed_controlled_by_name = v_controlled_by_name,
     close_confirmed = v_confirmed,
     updated_at = v_closed_at
   where id = p_session_id;
 
-  if p_count_lines is not null then
-    insert into public.cash_session_count_lines (
-      org_id,
-      branch_id,
-      session_id,
-      denomination_value,
-      quantity,
-      created_at
-    )
-    select
-      p_org_id,
-      v_session.branch_id,
-      p_session_id,
-      (line ->> 'denomination_value')::numeric,
-      (line ->> 'quantity')::integer,
-      v_closed_at
-    from jsonb_array_elements(p_count_lines) line
-    where (line ->> 'quantity')::integer > 0;
-  end if;
+  delete from public.cash_session_count_lines
+  where session_id = p_session_id
+    and count_scope in ('closing_drawer', 'closing_reserve');
+
+  insert into public.cash_session_count_lines (
+    org_id,
+    branch_id,
+    session_id,
+    count_scope,
+    denomination_value,
+    quantity,
+    created_at
+  )
+  select
+    p_org_id,
+    v_session.branch_id,
+    p_session_id,
+    'closing_drawer',
+    (line ->> 'denomination_value')::numeric,
+    (line ->> 'quantity')::integer,
+    v_closed_at
+  from jsonb_array_elements(p_closing_drawer_count_lines) line
+  where (line ->> 'quantity')::integer > 0;
+
+  insert into public.cash_session_count_lines (
+    org_id,
+    branch_id,
+    session_id,
+    count_scope,
+    denomination_value,
+    quantity,
+    created_at
+  )
+  select
+    p_org_id,
+    v_session.branch_id,
+    p_session_id,
+    'closing_reserve',
+    (line ->> 'denomination_value')::numeric,
+    (line ->> 'quantity')::integer,
+    v_closed_at
+  from jsonb_array_elements(p_closing_reserve_count_lines) line
+  where (line ->> 'quantity')::integer > 0;
 
   perform public.rpc_log_audit_event(
     p_org_id,
@@ -616,12 +653,15 @@ begin
     v_session.branch_id,
     jsonb_build_object(
       'expected_cash_amount', v_summary.expected_cash_amount,
-      'counted_cash_amount', round(p_counted_cash_amount::numeric, 2),
-      'difference_amount', round(p_counted_cash_amount::numeric, 2) - v_summary.expected_cash_amount,
+      'closing_drawer_amount', round(v_closing_drawer_amount, 2),
+      'closing_reserve_amount', round(v_closing_reserve_amount, 2),
+      'counted_cash_amount', round(v_counted_total, 2),
+      'difference_amount', round(v_counted_total, 2) - v_summary.expected_cash_amount,
       'close_note', nullif(trim(coalesce(p_close_note, '')), ''),
       'closed_controlled_by_name', v_controlled_by_name,
       'close_confirmed', v_confirmed,
-      'count_lines', coalesce(p_count_lines, '[]'::jsonb),
+      'closing_drawer_count_lines', p_closing_drawer_count_lines,
+      'closing_reserve_count_lines', p_closing_reserve_count_lines,
       'period_type', v_session.period_type,
       'session_label', v_session.session_label,
       'opened_by', v_session.opened_by
@@ -632,14 +672,14 @@ begin
   select
     p_session_id,
     v_summary.expected_cash_amount,
-    round(p_counted_cash_amount::numeric, 2),
-    round(p_counted_cash_amount::numeric, 2) - v_summary.expected_cash_amount,
+    round(v_counted_total, 2),
+    round(v_counted_total, 2) - v_summary.expected_cash_amount,
     v_closed_at;
 end;
 $$;
 
 
-ALTER FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text", "p_closed_controlled_by_name" "text", "p_close_confirmed" boolean, "p_count_lines" "jsonb") OWNER TO "postgres";
+ALTER FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_close_note" "text", "p_closed_controlled_by_name" "text", "p_close_confirmed" boolean, "p_closing_drawer_count_lines" "jsonb", "p_closing_reserve_count_lines" "jsonb") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_expires_on" "date", "p_quantity" numeric, "p_source_ref_id" "uuid") RETURNS TABLE("batch_id" "uuid")
@@ -1245,7 +1285,7 @@ $$;
 ALTER FUNCTION "public"."rpc_get_active_org_id"() OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."rpc_get_cash_session_summary"("p_org_id" "uuid", "p_session_id" "uuid") RETURNS TABLE("session_id" "uuid", "branch_id" "uuid", "status" "text", "period_type" "text", "session_label" "text", "opening_cash_amount" numeric, "cash_sales_amount" numeric, "manual_income_amount" numeric, "manual_expense_amount" numeric, "expected_cash_amount" numeric, "counted_cash_amount" numeric, "difference_amount" numeric, "movements_count" bigint, "opened_by" "uuid", "closed_by" "uuid", "opened_at" timestamp with time zone, "closed_at" timestamp with time zone, "close_note" "text")
+CREATE OR REPLACE FUNCTION "public"."rpc_get_cash_session_summary"("p_org_id" "uuid", "p_session_id" "uuid") RETURNS TABLE("session_id" "uuid", "branch_id" "uuid", "status" "text", "period_type" "text", "session_label" "text", "opening_cash_amount" numeric, "opening_reserve_amount" numeric, "closing_drawer_amount" numeric, "closing_reserve_amount" numeric, "cash_sales_amount" numeric, "manual_income_amount" numeric, "manual_expense_amount" numeric, "expected_cash_amount" numeric, "counted_cash_amount" numeric, "difference_amount" numeric, "movements_count" bigint, "opened_by" "uuid", "closed_by" "uuid", "opened_at" timestamp with time zone, "closed_at" timestamp with time zone, "close_note" "text", "closed_controlled_by_name" "text", "close_confirmed" boolean)
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     SET "row_security" TO 'off'
@@ -1319,6 +1359,9 @@ begin
     v.period_type,
     v.session_label,
     v.opening_cash_amount,
+    v.opening_reserve_amount,
+    v.closing_drawer_amount,
+    v.closing_reserve_amount,
     v.cash_sales_amount,
     v.manual_income_amount,
     v.manual_expense_amount,
@@ -1330,7 +1373,9 @@ begin
     v.closed_by,
     v.opened_at,
     v.closed_at,
-    v.close_note
+    v.close_note,
+    v.closed_controlled_by_name,
+    v.close_confirmed
   from public.v_cashbox_session_current v
   where v.session_id = p_session_id
     and v.org_id = p_org_id;
@@ -1882,7 +1927,7 @@ $$;
 ALTER FUNCTION "public"."rpc_move_expiration_batch_to_waste"("p_org_id" "uuid", "p_batch_id" "uuid", "p_expected_qty" numeric) OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."rpc_open_cash_session"("p_org_id" "uuid", "p_branch_id" "uuid", "p_opening_cash_amount" numeric, "p_period_type" "text" DEFAULT 'shift'::"text", "p_session_label" "text" DEFAULT NULL::"text") RETURNS TABLE("session_id" "uuid", "opened_at" timestamp with time zone)
+CREATE OR REPLACE FUNCTION "public"."rpc_open_cash_session"("p_org_id" "uuid", "p_branch_id" "uuid", "p_period_type" "text" DEFAULT 'shift'::"text", "p_session_label" "text" DEFAULT NULL::"text", "p_opening_drawer_count_lines" "jsonb" DEFAULT NULL::"jsonb", "p_opening_reserve_count_lines" "jsonb" DEFAULT NULL::"jsonb") RETURNS TABLE("session_id" "uuid", "opened_at" timestamp with time zone)
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     SET "row_security" TO 'off'
@@ -1891,18 +1936,57 @@ declare
   v_session_id uuid := gen_random_uuid();
   v_opened_at timestamptz := now();
   v_cashbox_enabled boolean := false;
+  v_drawer_line jsonb;
+  v_reserve_line jsonb;
+  v_denom numeric(12,2);
+  v_qty integer;
+  v_opening_drawer_amount numeric(12,2) := 0;
+  v_opening_reserve_amount numeric(12,2) := 0;
 begin
   if auth.uid() is null then
     raise exception 'not authenticated';
   end if;
 
-  if p_opening_cash_amount is null or p_opening_cash_amount < 0 then
-    raise exception 'invalid opening cash amount';
-  end if;
-
   if coalesce(p_period_type, '') not in ('shift', 'day') then
     raise exception 'invalid period type';
   end if;
+
+  if p_opening_drawer_count_lines is null or jsonb_typeof(p_opening_drawer_count_lines) <> 'array' then
+    raise exception 'opening drawer count lines required';
+  end if;
+  if p_opening_reserve_count_lines is null or jsonb_typeof(p_opening_reserve_count_lines) <> 'array' then
+    raise exception 'opening reserve count lines required';
+  end if;
+
+  for v_drawer_line in select * from jsonb_array_elements(p_opening_drawer_count_lines)
+  loop
+    v_denom := (v_drawer_line ->> 'denomination_value')::numeric;
+    v_qty := (v_drawer_line ->> 'quantity')::integer;
+
+    if v_denom is null or v_denom <= 0 then
+      raise exception 'invalid drawer denomination value';
+    end if;
+    if v_qty is null or v_qty < 0 then
+      raise exception 'invalid drawer denomination quantity';
+    end if;
+
+    v_opening_drawer_amount := v_opening_drawer_amount + (v_denom * v_qty);
+  end loop;
+
+  for v_reserve_line in select * from jsonb_array_elements(p_opening_reserve_count_lines)
+  loop
+    v_denom := (v_reserve_line ->> 'denomination_value')::numeric;
+    v_qty := (v_reserve_line ->> 'quantity')::integer;
+
+    if v_denom is null or v_denom <= 0 then
+      raise exception 'invalid reserve denomination value';
+    end if;
+    if v_qty is null or v_qty < 0 then
+      raise exception 'invalid reserve denomination quantity';
+    end if;
+
+    v_opening_reserve_amount := v_opening_reserve_amount + (v_denom * v_qty);
+  end loop;
 
   if not public.is_org_admin_or_superadmin(p_org_id) then
     if not exists (
@@ -1965,6 +2049,7 @@ begin
     period_type,
     session_label,
     opening_cash_amount,
+    opening_reserve_amount,
     status,
     opened_at,
     created_at,
@@ -1976,12 +2061,53 @@ begin
     auth.uid(),
     p_period_type,
     nullif(trim(coalesce(p_session_label, '')), ''),
-    round(p_opening_cash_amount::numeric, 2),
+    round(v_opening_drawer_amount, 2),
+    round(v_opening_reserve_amount, 2),
     'open',
     v_opened_at,
     v_opened_at,
     v_opened_at
   );
+
+  insert into public.cash_session_count_lines (
+    org_id,
+    branch_id,
+    session_id,
+    count_scope,
+    denomination_value,
+    quantity,
+    created_at
+  )
+  select
+    p_org_id,
+    p_branch_id,
+    v_session_id,
+    'opening_drawer',
+    (line ->> 'denomination_value')::numeric,
+    (line ->> 'quantity')::integer,
+    v_opened_at
+  from jsonb_array_elements(p_opening_drawer_count_lines) line
+  where (line ->> 'quantity')::integer > 0;
+
+  insert into public.cash_session_count_lines (
+    org_id,
+    branch_id,
+    session_id,
+    count_scope,
+    denomination_value,
+    quantity,
+    created_at
+  )
+  select
+    p_org_id,
+    p_branch_id,
+    v_session_id,
+    'opening_reserve',
+    (line ->> 'denomination_value')::numeric,
+    (line ->> 'quantity')::integer,
+    v_opened_at
+  from jsonb_array_elements(p_opening_reserve_count_lines) line
+  where (line ->> 'quantity')::integer > 0;
 
   perform public.rpc_log_audit_event(
     p_org_id,
@@ -1992,7 +2118,10 @@ begin
     jsonb_build_object(
       'period_type', p_period_type,
       'session_label', nullif(trim(coalesce(p_session_label, '')), ''),
-      'opening_cash_amount', round(p_opening_cash_amount::numeric, 2)
+      'opening_drawer_amount', round(v_opening_drawer_amount, 2),
+      'opening_reserve_amount', round(v_opening_reserve_amount, 2),
+      'opening_drawer_count_lines', p_opening_drawer_count_lines,
+      'opening_reserve_count_lines', p_opening_reserve_count_lines
     )
   );
 
@@ -2002,7 +2131,7 @@ end;
 $$;
 
 
-ALTER FUNCTION "public"."rpc_open_cash_session"("p_org_id" "uuid", "p_branch_id" "uuid", "p_opening_cash_amount" numeric, "p_period_type" "text", "p_session_label" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."rpc_open_cash_session"("p_org_id" "uuid", "p_branch_id" "uuid", "p_period_type" "text", "p_session_label" "text", "p_opening_drawer_count_lines" "jsonb", "p_opening_reserve_count_lines" "jsonb") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_items" "jsonb") RETURNS "void"
@@ -3312,8 +3441,10 @@ CREATE TABLE IF NOT EXISTS "public"."cash_session_count_lines" (
     "denomination_value" numeric(12,2) NOT NULL,
     "quantity" integer NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "count_scope" "text" DEFAULT 'closing_drawer'::"text" NOT NULL,
     CONSTRAINT "cash_session_count_lines_denom_positive_ck" CHECK (("denomination_value" > (0)::numeric)),
-    CONSTRAINT "cash_session_count_lines_quantity_non_negative_ck" CHECK (("quantity" >= 0))
+    CONSTRAINT "cash_session_count_lines_quantity_non_negative_ck" CHECK (("quantity" >= 0)),
+    CONSTRAINT "cash_session_count_lines_scope_ck" CHECK (("count_scope" = ANY (ARRAY['opening_drawer'::"text", 'opening_reserve'::"text", 'closing_drawer'::"text", 'closing_reserve'::"text"])))
 );
 
 
@@ -3360,9 +3491,15 @@ CREATE TABLE IF NOT EXISTS "public"."cash_sessions" (
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "closed_controlled_by_name" "text",
     "close_confirmed" boolean DEFAULT false NOT NULL,
+    "opening_reserve_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "closing_drawer_amount" numeric(12,2),
+    "closing_reserve_amount" numeric(12,2),
+    CONSTRAINT "cash_sessions_closing_drawer_amount_ck" CHECK ((("closing_drawer_amount" IS NULL) OR ("closing_drawer_amount" >= (0)::numeric))),
+    CONSTRAINT "cash_sessions_closing_reserve_amount_ck" CHECK ((("closing_reserve_amount" IS NULL) OR ("closing_reserve_amount" >= (0)::numeric))),
     CONSTRAINT "cash_sessions_counted_cash_amount_ck" CHECK ((("counted_cash_amount" IS NULL) OR ("counted_cash_amount" >= (0)::numeric))),
     CONSTRAINT "cash_sessions_expected_cash_amount_ck" CHECK ((("expected_cash_amount" IS NULL) OR ("expected_cash_amount" >= (0)::numeric))),
     CONSTRAINT "cash_sessions_opening_cash_amount_ck" CHECK (("opening_cash_amount" >= (0)::numeric)),
+    CONSTRAINT "cash_sessions_opening_reserve_amount_ck" CHECK (("opening_reserve_amount" >= (0)::numeric)),
     CONSTRAINT "cash_sessions_period_type_ck" CHECK (("period_type" = ANY (ARRAY['shift'::"text", 'day'::"text"]))),
     CONSTRAINT "cash_sessions_status_ck" CHECK (("status" = ANY (ARRAY['open'::"text", 'closed'::"text"])))
 );
@@ -3468,6 +3605,8 @@ CREATE TABLE IF NOT EXISTS "public"."org_preferences" (
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "cash_discount_enabled" boolean DEFAULT true NOT NULL,
     "cash_discount_default_pct" numeric(5,2) DEFAULT 10 NOT NULL,
+    "cash_denominations" "jsonb" DEFAULT '[100, 200, 500, 1000, 2000, 10000, 20000]'::"jsonb" NOT NULL,
+    CONSTRAINT "org_preferences_cash_denominations_array_ck" CHECK (("jsonb_typeof"("cash_denominations") = 'array'::"text")),
     CONSTRAINT "org_preferences_cash_discount_default_pct_ck" CHECK ((("cash_discount_default_pct" >= (0)::numeric) AND ("cash_discount_default_pct" <= (100)::numeric)))
 );
 
@@ -3784,14 +3923,17 @@ CREATE OR REPLACE VIEW "public"."v_cashbox_session_current" AS
     "cs"."period_type",
     "cs"."session_label",
     "cs"."opening_cash_amount",
+    "cs"."opening_reserve_amount",
+    "cs"."closing_drawer_amount",
+    "cs"."closing_reserve_amount",
     COALESCE("sc"."cash_sales_amount", (0)::numeric) AS "cash_sales_amount",
     COALESCE("mt"."manual_income_amount", (0)::numeric) AS "manual_income_amount",
     COALESCE("mt"."manual_expense_amount", (0)::numeric) AS "manual_expense_amount",
-    (((("cs"."opening_cash_amount" + COALESCE("sc"."cash_sales_amount", (0)::numeric)) + COALESCE("mt"."manual_income_amount", (0)::numeric)) - COALESCE("mt"."manual_expense_amount", (0)::numeric)))::numeric(12,2) AS "expected_cash_amount",
+    ((((("cs"."opening_cash_amount" + "cs"."opening_reserve_amount") + COALESCE("sc"."cash_sales_amount", (0)::numeric)) + COALESCE("mt"."manual_income_amount", (0)::numeric)) - COALESCE("mt"."manual_expense_amount", (0)::numeric)))::numeric(12,2) AS "expected_cash_amount",
     "cs"."counted_cash_amount",
         CASE
             WHEN ("cs"."counted_cash_amount" IS NULL) THEN NULL::numeric
-            ELSE (("cs"."counted_cash_amount" - ((("cs"."opening_cash_amount" + COALESCE("sc"."cash_sales_amount", (0)::numeric)) + COALESCE("mt"."manual_income_amount", (0)::numeric)) - COALESCE("mt"."manual_expense_amount", (0)::numeric))))::numeric(12,2)
+            ELSE (("cs"."counted_cash_amount" - (((("cs"."opening_cash_amount" + "cs"."opening_reserve_amount") + COALESCE("sc"."cash_sales_amount", (0)::numeric)) + COALESCE("mt"."manual_income_amount", (0)::numeric)) - COALESCE("mt"."manual_expense_amount", (0)::numeric))))::numeric(12,2)
         END AS "difference_amount",
     COALESCE("mt"."movements_count", (0)::bigint) AS "movements_count",
     "cs"."opened_by",
@@ -3799,6 +3941,8 @@ CREATE OR REPLACE VIEW "public"."v_cashbox_session_current" AS
     "cs"."opened_at",
     "cs"."closed_at",
     "cs"."close_note",
+    "cs"."closed_controlled_by_name",
+    "cs"."close_confirmed",
     "cs"."created_at",
     "cs"."updated_at"
    FROM (("public"."cash_sessions" "cs"
@@ -4382,7 +4526,7 @@ ALTER TABLE ONLY "public"."cash_session_count_lines"
 
 
 ALTER TABLE ONLY "public"."cash_session_count_lines"
-    ADD CONSTRAINT "cash_session_count_lines_unique_session_denom" UNIQUE ("session_id", "denomination_value");
+    ADD CONSTRAINT "cash_session_count_lines_unique_session_scope_denom" UNIQUE ("session_id", "count_scope", "denomination_value");
 
 
 
@@ -4553,6 +4697,10 @@ CREATE INDEX "cash_session_count_lines_org_branch_idx" ON "public"."cash_session
 
 
 CREATE INDEX "cash_session_count_lines_session_idx" ON "public"."cash_session_count_lines" USING "btree" ("session_id", "denomination_value" DESC);
+
+
+
+CREATE INDEX "cash_session_count_lines_session_scope_idx" ON "public"."cash_session_count_lines" USING "btree" ("session_id", "count_scope", "denomination_value" DESC);
 
 
 
@@ -5474,9 +5622,9 @@ GRANT ALL ON FUNCTION "public"."rpc_bootstrap_platform_admin"() TO "service_role
 
 
 
-GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text", "p_closed_controlled_by_name" "text", "p_close_confirmed" boolean, "p_count_lines" "jsonb") TO "anon";
-GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text", "p_closed_controlled_by_name" "text", "p_close_confirmed" boolean, "p_count_lines" "jsonb") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text", "p_closed_controlled_by_name" "text", "p_close_confirmed" boolean, "p_count_lines" "jsonb") TO "service_role";
+GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_close_note" "text", "p_closed_controlled_by_name" "text", "p_close_confirmed" boolean, "p_closing_drawer_count_lines" "jsonb", "p_closing_reserve_count_lines" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_close_note" "text", "p_closed_controlled_by_name" "text", "p_close_confirmed" boolean, "p_closing_drawer_count_lines" "jsonb", "p_closing_reserve_count_lines" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_close_note" "text", "p_closed_controlled_by_name" "text", "p_close_confirmed" boolean, "p_closing_drawer_count_lines" "jsonb", "p_closing_reserve_count_lines" "jsonb") TO "service_role";
 
 
 
@@ -5576,9 +5724,9 @@ GRANT ALL ON FUNCTION "public"."rpc_move_expiration_batch_to_waste"("p_org_id" "
 
 
 
-GRANT ALL ON FUNCTION "public"."rpc_open_cash_session"("p_org_id" "uuid", "p_branch_id" "uuid", "p_opening_cash_amount" numeric, "p_period_type" "text", "p_session_label" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."rpc_open_cash_session"("p_org_id" "uuid", "p_branch_id" "uuid", "p_opening_cash_amount" numeric, "p_period_type" "text", "p_session_label" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."rpc_open_cash_session"("p_org_id" "uuid", "p_branch_id" "uuid", "p_opening_cash_amount" numeric, "p_period_type" "text", "p_session_label" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."rpc_open_cash_session"("p_org_id" "uuid", "p_branch_id" "uuid", "p_period_type" "text", "p_session_label" "text", "p_opening_drawer_count_lines" "jsonb", "p_opening_reserve_count_lines" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_open_cash_session"("p_org_id" "uuid", "p_branch_id" "uuid", "p_period_type" "text", "p_session_label" "text", "p_opening_drawer_count_lines" "jsonb", "p_opening_reserve_count_lines" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_open_cash_session"("p_org_id" "uuid", "p_branch_id" "uuid", "p_period_type" "text", "p_session_label" "text", "p_opening_drawer_count_lines" "jsonb", "p_opening_reserve_count_lines" "jsonb") TO "service_role";
 
 
 

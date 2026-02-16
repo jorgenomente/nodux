@@ -39,6 +39,8 @@ cash_discount_enabled (default true)
 
 cash_discount_default_pct (default 10)
 
+cash_denominations (default ARS: 100, 200, 500, 1000, 2000, 10000, 20000)
+
 UI
 
 Sección “Alertas de vencimientos”
@@ -50,6 +52,8 @@ input número: warning_days
 toggle: cash_discount_enabled
 
 input número: cash_discount_default_pct (0..100)
+
+input texto: cash_denominations (lista separada por coma)
 
 helper text + validaciones
 
@@ -69,6 +73,8 @@ cash_discount_enabled
 
 cash_discount_default_pct
 
+cash_denominations
+
 (opcional) staff_nav_order[]
 
 Escritura
@@ -85,6 +91,8 @@ cash_discount_enabled
 
 cash_discount_default_pct
 
+cash_denominations
+
 Validaciones (DB / RPC)
 
 critical_days >= 0
@@ -92,6 +100,8 @@ critical_days >= 0
 warning_days >= critical_days
 
 cash_discount_default_pct >= 0 y <= 100
+
+cash_denominations debe ser array/lista de números positivos
 
 Smoke tests
 

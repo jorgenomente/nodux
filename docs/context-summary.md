@@ -61,6 +61,8 @@ Ultima actualizacion: 2026-02-16 15:00
 - Módulo Caja (`/cashbox`) operativo por sucursal: apertura por turno/día, registro de gastos/ingresos manuales, cierre con conteo y diferencia.
 - Caja audita actor y metadata operativa en `audit_log` (`cash_session_opened`, `cash_movement_added`, `cash_session_closed`).
 - Cierre de caja ahora requiere firma operativa (`controlled_by_name`), confirmación explícita y soporta conteo por denominaciones.
+- Caja ahora opera con conteo por denominaciones en apertura y cierre para caja + reserva.
+- Las denominaciones son configurables por organización desde preferencias.
 
 ## Post-MVP ya registrado
 

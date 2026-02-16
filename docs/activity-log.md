@@ -3354,6 +3354,61 @@ Se implemento `/superadmin` con flujo operativo MVP: listado y busqueda de organ
 
 **Commit:** N/A
 
+## 2026-02-16 15:21 -03 — Caja por billetes en caja/reserva + denominaciones configurables
+
+**Tipo:** schema
+**Lote:** cashbox-drawer-reserve-denomination-config
+**Alcance:** db, ui, docs, tests
+
+**Resumen**
+Se evolucionó el módulo `/cashbox` para que apertura y cierre se hagan por conteo de billetes/monedas por denominación en dos ámbitos: `caja` y `reserva`. El total contado se calcula en backend desde las líneas de conteo. Además, se agregó configuración de denominaciones por organización en preferencias.
+
+**Impacto**
+
+- Apertura:
+  - ya no recibe monto manual; ahora recibe `opening_drawer_count_lines` + `opening_reserve_count_lines`.
+  - persiste `opening_cash_amount` (caja) y `opening_reserve_amount` (reserva).
+- Cierre:
+  - ya no recibe monto contado manual; calcula total como `closing_drawer + closing_reserve`.
+  - persiste `closing_drawer_amount` y `closing_reserve_amount`.
+- Configuración:
+  - `org_preferences.cash_denominations` define denominaciones activas por org.
+  - defaults ARS iniciales: `100, 200, 500, 1000, 2000, 10000, 20000`.
+- Auditoría:
+  - eventos de apertura/cierre incluyen líneas de conteo de caja y reserva.
+  - se mantiene actor (`actor_user_id`) y campos operativos de cierre (`closed_controlled_by_name`, `close_confirmed`).
+
+**Archivos**
+
+- supabase/migrations/20260216194000_038_cashbox_drawer_reserve_denom_config.sql
+- app/cashbox/page.tsx
+- app/settings/preferences/page.tsx
+- docs/docs-app-screens-cashbox.md
+- docs/docs-app-screens-settings-preferences.md
+- docs/docs-app-screens-settings-audit-log.md
+- docs/docs-modules-cashbox.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-schema-model.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/schema.sql
+- types/supabase.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-02-16)
+- npm run db:schema:snapshot OK (2026-02-16)
+- npm run types:gen OK (2026-02-16)
+- npm run db:seed:all OK (2026-02-16)
+- npm run db:rls:smoke OK (2026-02-16)
+- npm run lint OK (2026-02-16)
+- npm run build OK (2026-02-16)
+
+**Commit:** N/A
+
 ## 2026-02-16 — Bootstrap de org con OA inicial + dashboard SA por org activa
 
 **Tipo:** ui

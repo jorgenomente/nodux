@@ -15,6 +15,7 @@
 Operar caja por sucursal con flujo simple:
 
 - apertura de caja
+- apertura de reserva
 - registro de movimientos manuales (gastos/ingresos)
 - cierre por turno o por día
 - conciliación de efectivo esperado vs contado
@@ -24,12 +25,15 @@ Operar caja por sucursal con flujo simple:
 - Caja es **por sucursal** (`branch_id` obligatorio).
 - Solo puede existir **una sesión abierta por sucursal**.
 - El esperado se calcula con:
-  - apertura
+  - apertura en caja
+  - apertura en reserva
   - cobros en efectivo POS (`sale_payments.payment_method='cash'`)
   - ingresos manuales
   - gastos manuales
 - Al cerrar:
-  - se guarda contado
+  - se guarda cierre en caja
+  - se guarda cierre en reserva
+  - el total contado se deriva automáticamente
   - se requiere firma operativa (`controlled_by_name`) y confirmación explícita
   - se registra conteo por denominaciones (billetes/monedas)
   - se calcula diferencia
@@ -43,7 +47,9 @@ Operar caja por sucursal con flujo simple:
 - Campos mínimos:
   - `session_id`, `org_id`, `branch_id`, `status`
   - `period_type`, `session_label`
-  - `opening_cash_amount`, `cash_sales_amount`
+  - `opening_cash_amount`, `opening_reserve_amount`
+  - `closing_drawer_amount`, `closing_reserve_amount`
+  - `cash_sales_amount`
   - `manual_income_amount`, `manual_expense_amount`
   - `expected_cash_amount`, `counted_cash_amount`, `difference_amount`
   - `opened_by`, `closed_by`, `opened_at`, `closed_at`, `close_note`
@@ -56,7 +62,8 @@ Operar caja por sucursal con flujo simple:
 - `rpc_close_cash_session(...)`
   - requiere `closed_controlled_by_name`
   - requiere `close_confirmed=true`
-  - soporta `count_lines` con `{ denomination_value, quantity }[]`
+  - soporta `closing_drawer_count_lines` y `closing_reserve_count_lines`
+  - valida suma de líneas contra total contado derivado
 
 ## Auditoría obligatoria
 

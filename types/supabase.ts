@@ -269,6 +269,7 @@ export type Database = {
       cash_session_count_lines: {
         Row: {
           branch_id: string;
+          count_scope: string;
           created_at: string;
           denomination_value: number;
           id: string;
@@ -278,6 +279,7 @@ export type Database = {
         };
         Insert: {
           branch_id: string;
+          count_scope?: string;
           created_at?: string;
           denomination_value: number;
           id?: string;
@@ -287,6 +289,7 @@ export type Database = {
         };
         Update: {
           branch_id?: string;
+          count_scope?: string;
           created_at?: string;
           denomination_value?: number;
           id?: string;
@@ -488,6 +491,8 @@ export type Database = {
           closed_at: string | null;
           closed_by: string | null;
           closed_controlled_by_name: string | null;
+          closing_drawer_amount: number | null;
+          closing_reserve_amount: number | null;
           counted_cash_amount: number | null;
           created_at: string;
           difference_amount: number | null;
@@ -496,6 +501,7 @@ export type Database = {
           opened_at: string;
           opened_by: string;
           opening_cash_amount: number;
+          opening_reserve_amount: number;
           org_id: string;
           period_type: string;
           session_label: string | null;
@@ -509,6 +515,8 @@ export type Database = {
           closed_at?: string | null;
           closed_by?: string | null;
           closed_controlled_by_name?: string | null;
+          closing_drawer_amount?: number | null;
+          closing_reserve_amount?: number | null;
           counted_cash_amount?: number | null;
           created_at?: string;
           difference_amount?: number | null;
@@ -517,6 +525,7 @@ export type Database = {
           opened_at?: string;
           opened_by: string;
           opening_cash_amount?: number;
+          opening_reserve_amount?: number;
           org_id: string;
           period_type?: string;
           session_label?: string | null;
@@ -530,6 +539,8 @@ export type Database = {
           closed_at?: string | null;
           closed_by?: string | null;
           closed_controlled_by_name?: string | null;
+          closing_drawer_amount?: number | null;
+          closing_reserve_amount?: number | null;
           counted_cash_amount?: number | null;
           created_at?: string;
           difference_amount?: number | null;
@@ -538,6 +549,7 @@ export type Database = {
           opened_at?: string;
           opened_by?: string;
           opening_cash_amount?: number;
+          opening_reserve_amount?: number;
           org_id?: string;
           period_type?: string;
           session_label?: string | null;
@@ -1207,6 +1219,7 @@ export type Database = {
       org_preferences: {
         Row: {
           allow_negative_stock: boolean;
+          cash_denominations: Json;
           cash_discount_default_pct: number;
           cash_discount_enabled: boolean;
           created_at: string;
@@ -1217,6 +1230,7 @@ export type Database = {
         };
         Insert: {
           allow_negative_stock?: boolean;
+          cash_denominations?: Json;
           cash_discount_default_pct?: number;
           cash_discount_enabled?: boolean;
           created_at?: string;
@@ -1227,6 +1241,7 @@ export type Database = {
         };
         Update: {
           allow_negative_stock?: boolean;
+          cash_denominations?: Json;
           cash_discount_default_pct?: number;
           cash_discount_enabled?: boolean;
           created_at?: string;
@@ -2574,9 +2589,13 @@ export type Database = {
         Row: {
           branch_id: string | null;
           cash_sales_amount: number | null;
+          close_confirmed: boolean | null;
           close_note: string | null;
           closed_at: string | null;
           closed_by: string | null;
+          closed_controlled_by_name: string | null;
+          closing_drawer_amount: number | null;
+          closing_reserve_amount: number | null;
           counted_cash_amount: number | null;
           created_at: string | null;
           difference_amount: number | null;
@@ -2587,6 +2606,7 @@ export type Database = {
           opened_at: string | null;
           opened_by: string | null;
           opening_cash_amount: number | null;
+          opening_reserve_amount: number | null;
           org_id: string | null;
           period_type: string | null;
           session_id: string | null;
@@ -4110,8 +4130,8 @@ export type Database = {
           p_close_confirmed?: boolean;
           p_close_note?: string;
           p_closed_controlled_by_name?: string;
-          p_count_lines?: Json;
-          p_counted_cash_amount: number;
+          p_closing_drawer_count_lines?: Json;
+          p_closing_reserve_count_lines?: Json;
           p_org_id: string;
           p_session_id: string;
         };
@@ -4183,9 +4203,13 @@ export type Database = {
         Returns: {
           branch_id: string;
           cash_sales_amount: number;
+          close_confirmed: boolean;
           close_note: string;
           closed_at: string;
           closed_by: string;
+          closed_controlled_by_name: string;
+          closing_drawer_amount: number;
+          closing_reserve_amount: number;
           counted_cash_amount: number;
           difference_amount: number;
           expected_cash_amount: number;
@@ -4195,6 +4219,7 @@ export type Database = {
           opened_at: string;
           opened_by: string;
           opening_cash_amount: number;
+          opening_reserve_amount: number;
           period_type: string;
           session_id: string;
           session_label: string;
@@ -4333,7 +4358,8 @@ export type Database = {
       rpc_open_cash_session: {
         Args: {
           p_branch_id: string;
-          p_opening_cash_amount: number;
+          p_opening_drawer_count_lines?: Json;
+          p_opening_reserve_count_lines?: Json;
           p_org_id: string;
           p_period_type?: string;
           p_session_label?: string;

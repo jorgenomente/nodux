@@ -32,35 +32,35 @@ Estado actual:
 
 ## Matriz (MVP - propuesta)
 
-| Entidad                      | SA                 | OA                 | ST                            | Notas                                  |
-| ---------------------------- | ------------------ | ------------------ | ----------------------------- | -------------------------------------- |
-| `orgs`                       | read               | read               | no                            | SA global; OA solo su org              |
-| `branches`                   | read/insert/update | read/insert/update | read (solo asignadas)         | ST solo lectura de sus branches        |
-| `org_users`                  | read/insert/update | read/insert/update | no                            | Gestion de usuarios                    |
-| `platform_admins`            | read/insert/update | no                 | no                            | SA global (tabla propia de plataforma) |
-| `user_active_orgs`           | read/insert/update | read/insert/update | read/insert/update            | Contexto de org activa por usuario     |
-| `branch_memberships`         | read/insert/update | read/insert/update | read (propias)                | ST ve sus asignaciones                 |
-| `staff_module_access`        | read/insert/update | read/insert/update | no                            | ST usa view efectiva                   |
-| `org_preferences`            | read/insert/update | read/insert/update | read (propia org)             | ST solo lectura si se expone           |
-| `audit_log`                  | read               | read               | no                            | Append-only, solo lectura OA/SA        |
-| `products`                   | read/insert/update | read/insert/update | read (lookup)                 | ST sin escritura                       |
-| `stock_items`                | read/insert/update | read/insert/update | read (lookup)                 | ST sin ajustes                         |
-| `stock_movements`            | read               | read/insert        | insert (via RPC)              | ST no lectura historica por defecto    |
-| `sales`                      | read               | read/insert        | insert (via RPC)              | ST crea ventas en su branch            |
-| `sale_payments`              | read               | read/insert        | insert (via RPC)              | Desglose de cobro por método           |
-| `cash_sessions`              | read               | read/insert/update | insert/update (via RPC)       | Caja por sucursal (1 abierta por vez)  |
-| `cash_session_movements`     | read               | read/insert        | insert (via RPC)              | Gastos/ingresos manuales de caja       |
-| `cash_session_count_lines`   | read               | read/insert        | insert (via RPC)              | Conteo por denominaciones en cierre    |
-| `sale_items`                 | read               | read/insert        | insert (via RPC)              | derivado de venta                      |
-| `expiration_batches`         | read/insert/update | read/insert/update | read/insert (si modulo)       | ST sin ajustes avanzados               |
-| `expiration_waste`           | read               | read/insert        | read (via view/RPC)           | Registro de desperdicio                |
-| `suppliers`                  | read/insert/update | read/insert/update | no                            | ST sin acceso                          |
-| `supplier_products`          | read/insert/update | read/insert/update | no                            | ST sin acceso                          |
-| `supplier_orders`            | read/insert/update | read/insert/update | no                            | ST no en MVP                           |
-| `supplier_order_items`       | read/insert/update | read/insert/update | no                            | ST no en MVP                           |
-| `clients`                    | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo en branch asignada             |
-| `client_special_orders`      | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo su branch                      |
-| `client_special_order_items` | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo su branch                      |
+| Entidad                      | SA                 | OA                 | ST                            | Notas                                                     |
+| ---------------------------- | ------------------ | ------------------ | ----------------------------- | --------------------------------------------------------- |
+| `orgs`                       | read               | read               | no                            | SA global; OA solo su org                                 |
+| `branches`                   | read/insert/update | read/insert/update | read (solo asignadas)         | ST solo lectura de sus branches                           |
+| `org_users`                  | read/insert/update | read/insert/update | no                            | Gestion de usuarios                                       |
+| `platform_admins`            | read/insert/update | no                 | no                            | SA global (tabla propia de plataforma)                    |
+| `user_active_orgs`           | read/insert/update | read/insert/update | read/insert/update            | Contexto de org activa por usuario                        |
+| `branch_memberships`         | read/insert/update | read/insert/update | read (propias)                | ST ve sus asignaciones                                    |
+| `staff_module_access`        | read/insert/update | read/insert/update | no                            | ST usa view efectiva                                      |
+| `org_preferences`            | read/insert/update | read/insert/update | read (propia org)             | ST solo lectura si se expone                              |
+| `audit_log`                  | read               | read               | no                            | Append-only, solo lectura OA/SA                           |
+| `products`                   | read/insert/update | read/insert/update | read (lookup)                 | ST sin escritura                                          |
+| `stock_items`                | read/insert/update | read/insert/update | read (lookup)                 | ST sin ajustes                                            |
+| `stock_movements`            | read               | read/insert        | insert (via RPC)              | ST no lectura historica por defecto                       |
+| `sales`                      | read               | read/insert        | insert (via RPC)              | ST crea ventas en su branch                               |
+| `sale_payments`              | read               | read/insert        | insert (via RPC)              | Desglose de cobro por método                              |
+| `cash_sessions`              | read               | read/insert/update | insert/update (via RPC)       | Caja por sucursal (1 abierta por vez)                     |
+| `cash_session_movements`     | read               | read/insert        | insert (via RPC)              | Gastos/ingresos manuales de caja                          |
+| `cash_session_count_lines`   | read               | read/insert        | insert (via RPC)              | Conteo por denominaciones (apertura/cierre, caja/reserva) |
+| `sale_items`                 | read               | read/insert        | insert (via RPC)              | derivado de venta                                         |
+| `expiration_batches`         | read/insert/update | read/insert/update | read/insert (si modulo)       | ST sin ajustes avanzados                                  |
+| `expiration_waste`           | read               | read/insert        | read (via view/RPC)           | Registro de desperdicio                                   |
+| `suppliers`                  | read/insert/update | read/insert/update | no                            | ST sin acceso                                             |
+| `supplier_products`          | read/insert/update | read/insert/update | no                            | ST sin acceso                                             |
+| `supplier_orders`            | read/insert/update | read/insert/update | no                            | ST no en MVP                                              |
+| `supplier_order_items`       | read/insert/update | read/insert/update | no                            | ST no en MVP                                              |
+| `clients`                    | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo en branch asignada                                |
+| `client_special_orders`      | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo su branch                                         |
+| `client_special_order_items` | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo su branch                                         |
 
 ---
 
@@ -82,10 +82,11 @@ Estado actual:
 
 - `rpc_create_sale` -> requiere modulo `pos` habilitado, permite pagos divididos (`payments`) y solo permite descuento cuando el cobro es 100% cash.
 - `rpc_open_cash_session` -> requiere modulo `cashbox` habilitado para ST y valida sucursal asignada.
+  - requiere `opening_drawer_count_lines` y `opening_reserve_count_lines`.
 - `rpc_add_cash_session_movement` -> requiere modulo `cashbox` habilitado para ST y sesión abierta de la sucursal.
 - `rpc_close_cash_session` -> requiere modulo `cashbox` habilitado para ST y registra cierre + diferencia.
   - requiere firma operativa (`closed_controlled_by_name`) y confirmación explícita.
-  - valida que suma de `count_lines` coincida con el total contado.
+  - valida conteo por denominaciones en `closing_drawer_count_lines` y `closing_reserve_count_lines`.
 - `rpc_adjust_stock_manual` -> solo OA.
 - `rpc_set_safety_stock` -> solo OA.
 - `rpc_create_supplier_order` y derivados -> solo OA.

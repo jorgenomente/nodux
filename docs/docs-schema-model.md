@@ -73,6 +73,7 @@ Estado: **baseline**. Este documento define una base de datos mínima coherente 
 - [x] `rpc_get_cash_session_summary`
 - [x] `rpc_close_cash_session`
   - Hardening: firma de control + confirmación + `count_lines` por denominación.
+  - Apertura/cierre con conteo por denominaciones en caja y reserva.
 
 ---
 

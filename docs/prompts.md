@@ -1156,3 +1156,11 @@ adelante. tambien en auditoria se debe ver quien hizo la caja y los movimientos 
 
 **Prompt**
 seguimos
+
+## 2026-02-16 15:21 -03 — Caja por billetes en caja/reserva + denominaciones configurables
+
+**Lote:** cashbox-drawer-reserve-denomination-config
+**Objetivo:** Ajustar apertura/cierre para conteo por cantidad de billetes en caja y reserva, con denominaciones por defecto de ARS y configuración editable por organización.
+
+**Prompt**
+ok para abrir caja usualmente se cuentan los billetes y monedas que hay segun su denominacion y eso debe dar un total y con eso se abre. entonces no se cuenta monto sino se cuentan los billetes. lo mismo para el cierre. Tambien suele haber una cantidad de billetes en reserva, eso es no en caja pero disponible en el local para pagar proveedores o por el estilo. entonces ideal seria para empezar tener billetes inciales en caja y billetes iniciales en reserva (y monedas) en argentina no se usan las monedas o muy poco asi que por el momento serian los billetes. la denominacion del billete normalmente es 100, 200, 500, 1000, 2000, 10000 y 20000 entonces coloquemos eso como por defecto ahora pero esto deberia poder ser modificable segun el pais y el contexto en el que se utilice, quizas se pueda agregar mas o quitar bien sea billetes y monedas entonces debo tener lo mismo para monto en caja y para monto en reserva. para el cierre es igual. Se cuenta y se coloca lo que se deja en la caja para el cierre y lo demas se lleva a reserva entonces se tiene el monto de reserva. y bueno adelantemos esto y despues seguimos iterando.

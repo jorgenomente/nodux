@@ -57,6 +57,9 @@ type SessionSummary = {
   period_type: 'shift' | 'day';
   session_label: string | null;
   opening_cash_amount: number;
+  opening_reserve_amount: number;
+  closing_drawer_amount: number | null;
+  closing_reserve_amount: number | null;
   cash_sales_amount: number;
   manual_income_amount: number;
   manual_expense_amount: number;
@@ -87,14 +90,40 @@ type ClosedSessionRow = {
   session_label: string | null;
   period_type: 'shift' | 'day';
   expected_cash_amount: number;
+  closing_drawer_amount: number | null;
+  closing_reserve_amount: number | null;
   counted_cash_amount: number | null;
   difference_amount: number | null;
   closed_at: string | null;
 };
 
-const CASH_DENOMINATION_VALUES_ARS = [
-  20000, 10000, 2000, 1000, 500, 200, 100, 50, 20, 10,
-] as const;
+const DEFAULT_CASH_DENOMINATIONS = [20000, 10000, 2000, 1000, 500, 200, 100];
+
+const normalizeDenominations = (raw: unknown): number[] => {
+  if (!Array.isArray(raw)) return DEFAULT_CASH_DENOMINATIONS;
+  const parsed = raw
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .map((value) => Math.round(value * 100) / 100);
+  const unique = Array.from(new Set(parsed));
+  if (unique.length === 0) return DEFAULT_CASH_DENOMINATIONS;
+  return unique.sort((a, b) => b - a);
+};
+
+const buildCountLines = (
+  formData: FormData,
+  prefix: string,
+  denominations: number[],
+) =>
+  denominations.map((denominationValue, index) => {
+    const raw = String(formData.get(`${prefix}_qty_${index}`) ?? '').trim();
+    const quantity = Number.parseInt(raw || '0', 10);
+    return {
+      denomination_value: denominationValue,
+      quantity:
+        Number.isNaN(quantity) || quantity < 0 ? 0 : Math.floor(quantity),
+    };
+  });
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('es-AR', {
@@ -200,6 +229,17 @@ export default async function CashboxPage({
     ? requestedBranchId
     : branches[0].id;
 
+  const { data: preferencesRow } = await supabase
+    .from('org_preferences')
+    .select('cash_denominations')
+    .eq('org_id', orgId)
+    .maybeSingle();
+
+  const denominations = normalizeDenominations(
+    (preferencesRow as { cash_denominations?: unknown } | null)
+      ?.cash_denominations ?? null,
+  );
+
   const { data: openSessionData } = await supabase
     .from('cash_sessions')
     .select('id')
@@ -241,7 +281,7 @@ export default async function CashboxPage({
   const { data: closedSessionsData } = await supabase
     .from('v_cashbox_session_current')
     .select(
-      'session_id, session_label, period_type, expected_cash_amount, counted_cash_amount, difference_amount, closed_at',
+      'session_id, session_label, period_type, expected_cash_amount, closing_drawer_amount, closing_reserve_amount, counted_cash_amount, difference_amount, closed_at',
     )
     .eq('org_id', orgId)
     .eq('branch_id', selectedBranchId)
@@ -260,20 +300,28 @@ export default async function CashboxPage({
     }
 
     const branchId = String(formData.get('branch_id') ?? '').trim();
-    const openingAmount = Number(
-      String(formData.get('opening_cash_amount') ?? ''),
-    );
     const periodType = String(formData.get('period_type') ?? 'shift').trim();
     const sessionLabel = String(formData.get('session_label') ?? '').trim();
+    const openingDrawerCountLines = buildCountLines(
+      formData,
+      'open_drawer',
+      denominations,
+    );
+    const openingReserveCountLines = buildCountLines(
+      formData,
+      'open_reserve',
+      denominations,
+    );
 
     const { error } = await actionSession.supabase.rpc(
       'rpc_open_cash_session',
       {
         p_org_id: actionSession.orgId,
         p_branch_id: branchId,
-        p_opening_cash_amount: openingAmount,
         p_period_type: periodType,
         p_session_label: sessionLabel || undefined,
+        p_opening_drawer_count_lines: openingDrawerCountLines,
+        p_opening_reserve_count_lines: openingReserveCountLines,
       },
     );
 
@@ -337,36 +385,32 @@ export default async function CashboxPage({
 
     const branchId = String(formData.get('branch_id') ?? '').trim();
     const cashSessionId = String(formData.get('session_id') ?? '').trim();
-    const countedAmount = Number(
-      String(formData.get('counted_cash_amount') ?? ''),
-    );
     const closeNote = String(formData.get('close_note') ?? '').trim();
     const controlledByName = String(
       formData.get('closed_controlled_by_name') ?? '',
     ).trim();
     const closeConfirmed = formData.get('close_confirmed') === 'on';
-    const countLines = CASH_DENOMINATION_VALUES_ARS.map((denominationValue) => {
-      const raw = String(
-        formData.get(`denom_${denominationValue}`) ?? '',
-      ).trim();
-      const quantity = Number.parseInt(raw || '0', 10);
-      return {
-        denomination_value: denominationValue,
-        quantity:
-          Number.isNaN(quantity) || quantity < 0 ? 0 : Math.floor(quantity),
-      };
-    });
+    const closingDrawerCountLines = buildCountLines(
+      formData,
+      'close_drawer',
+      denominations,
+    );
+    const closingReserveCountLines = buildCountLines(
+      formData,
+      'close_reserve',
+      denominations,
+    );
 
     const { error } = await actionSession.supabase.rpc(
       'rpc_close_cash_session',
       {
         p_org_id: actionSession.orgId,
         p_session_id: cashSessionId,
-        p_counted_cash_amount: countedAmount,
         p_close_note: closeNote || undefined,
         p_closed_controlled_by_name: controlledByName || undefined,
         p_close_confirmed: closeConfirmed,
-        p_count_lines: countLines,
+        p_closing_drawer_count_lines: closingDrawerCountLines,
+        p_closing_reserve_count_lines: closingReserveCountLines,
       },
     );
 
@@ -456,27 +500,13 @@ export default async function CashboxPage({
               {branches.find((branch) => branch.id === selectedBranchId)?.name})
             </h2>
             <p className="mt-1 text-sm text-zinc-500">
-              Define monto inicial y tipo de cierre para comenzar el turno o el
-              día.
+              Define los billetes iniciales de caja y reserva para comenzar el
+              turno o el día.
             </p>
 
-            <form
-              action={openCashSession}
-              className="mt-5 grid gap-4 md:grid-cols-2"
-            >
+            <form action={openCashSession} className="mt-5 grid gap-4">
               <input type="hidden" name="branch_id" value={selectedBranchId} />
-              <label className="text-sm text-zinc-700">
-                Monto inicial
-                <input
-                  name="opening_cash_amount"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                  required
-                />
-              </label>
-              <label className="text-sm text-zinc-700">
+              <label className="text-sm text-zinc-700 md:max-w-sm">
                 Tipo
                 <select
                   name="period_type"
@@ -487,7 +517,55 @@ export default async function CashboxPage({
                   <option value="day">Dia</option>
                 </select>
               </label>
-              <label className="text-sm text-zinc-700 md:col-span-2">
+              <div className="grid gap-4 rounded border border-zinc-200 p-3 lg:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold tracking-wide text-zinc-600 uppercase">
+                    Billetes iniciales en caja
+                  </p>
+                  <div className="mt-2 grid gap-2">
+                    {denominations.map((denominationValue, index) => (
+                      <label
+                        key={`open-drawer-${denominationValue}`}
+                        className="flex items-center justify-between gap-3 text-sm text-zinc-700"
+                      >
+                        <span>{formatCurrency(denominationValue)}</span>
+                        <input
+                          name={`open_drawer_qty_${index}`}
+                          type="number"
+                          min={0}
+                          step={1}
+                          defaultValue={0}
+                          className="w-24 rounded border border-zinc-200 px-2 py-1 text-right text-sm"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold tracking-wide text-zinc-600 uppercase">
+                    Billetes iniciales en reserva
+                  </p>
+                  <div className="mt-2 grid gap-2">
+                    {denominations.map((denominationValue, index) => (
+                      <label
+                        key={`open-reserve-${denominationValue}`}
+                        className="flex items-center justify-between gap-3 text-sm text-zinc-700"
+                      >
+                        <span>{formatCurrency(denominationValue)}</span>
+                        <input
+                          name={`open_reserve_qty_${index}`}
+                          type="number"
+                          min={0}
+                          step={1}
+                          defaultValue={0}
+                          className="w-24 rounded border border-zinc-200 px-2 py-1 text-right text-sm"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <label className="text-sm text-zinc-700">
                 Etiqueta (opcional)
                 <input
                   name="session_label"
@@ -495,7 +573,7 @@ export default async function CashboxPage({
                   className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
                 />
               </label>
-              <div className="md:col-span-2">
+              <div>
                 <button
                   type="submit"
                   className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
@@ -510,14 +588,18 @@ export default async function CashboxPage({
             <section className="grid gap-3 md:grid-cols-3">
               <article className="rounded-xl border border-zinc-200 bg-white p-4">
                 <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-                  Efectivo esperado
+                  Efectivo esperado total
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-zinc-900">
                   {formatCurrency(Number(summary.expected_cash_amount ?? 0))}
                 </p>
                 <p className="mt-2 text-xs text-zinc-500">
-                  Apertura:{' '}
+                  Apertura caja:{' '}
                   {formatCurrency(Number(summary.opening_cash_amount ?? 0))}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Apertura reserva:{' '}
+                  {formatCurrency(Number(summary.opening_reserve_amount ?? 0))}
                 </p>
               </article>
               <article className="rounded-xl border border-zinc-200 bg-white p-4">
@@ -629,8 +711,8 @@ export default async function CashboxPage({
                   Cerrar caja
                 </h2>
                 <p className="mt-1 text-sm text-zinc-500">
-                  Al cerrar se calcula automáticamente la diferencia contra lo
-                  esperado.
+                  Al cerrar se cuentan billetes en caja y en reserva; el sistema
+                  calcula el total y la diferencia automáticamente.
                 </p>
 
                 <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700">
@@ -657,30 +739,42 @@ export default async function CashboxPage({
                     value={summary.session_id}
                   />
 
-                  <label className="text-sm text-zinc-700">
-                    Total contado
-                    <input
-                      name="counted_cash_amount"
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                      required
-                    />
-                  </label>
                   <div className="grid gap-2 rounded border border-zinc-200 p-3">
                     <p className="text-xs font-semibold tracking-wide text-zinc-600 uppercase">
-                      Conteo por denominaciones (ARS)
+                      Billetes al cierre en caja
                     </p>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      {CASH_DENOMINATION_VALUES_ARS.map((denominationValue) => (
+                      {denominations.map((denominationValue, index) => (
                         <label
-                          key={denominationValue}
+                          key={`close-drawer-${denominationValue}`}
                           className="flex items-center justify-between gap-3 text-sm text-zinc-700"
                         >
                           <span>{formatCurrency(denominationValue)}</span>
                           <input
-                            name={`denom_${denominationValue}`}
+                            name={`close_drawer_qty_${index}`}
+                            type="number"
+                            min={0}
+                            step={1}
+                            defaultValue={0}
+                            className="w-24 rounded border border-zinc-200 px-2 py-1 text-right text-sm"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid gap-2 rounded border border-zinc-200 p-3">
+                    <p className="text-xs font-semibold tracking-wide text-zinc-600 uppercase">
+                      Billetes al cierre en reserva
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {denominations.map((denominationValue, index) => (
+                        <label
+                          key={`close-reserve-${denominationValue}`}
+                          className="flex items-center justify-between gap-3 text-sm text-zinc-700"
+                        >
+                          <span>{formatCurrency(denominationValue)}</span>
+                          <input
+                            name={`close_reserve_qty_${index}`}
                             type="number"
                             min={0}
                             step={1}
@@ -795,7 +889,9 @@ export default async function CashboxPage({
                     <th className="px-3 py-2">Cierre</th>
                     <th className="px-3 py-2">Tipo</th>
                     <th className="px-3 py-2">Esperado</th>
-                    <th className="px-3 py-2">Contado</th>
+                    <th className="px-3 py-2">Caja</th>
+                    <th className="px-3 py-2">Reserva</th>
+                    <th className="px-3 py-2">Total</th>
                     <th className="px-3 py-2">Diferencia</th>
                   </tr>
                 </thead>
@@ -817,6 +913,16 @@ export default async function CashboxPage({
                       <td className="px-3 py-2">
                         {formatCurrency(
                           Number(closedSession.expected_cash_amount ?? 0),
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {formatCurrency(
+                          Number(closedSession.closing_drawer_amount ?? 0),
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {formatCurrency(
+                          Number(closedSession.closing_reserve_amount ?? 0),
                         )}
                       </td>
                       <td className="px-3 py-2">

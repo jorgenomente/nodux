@@ -6,13 +6,14 @@ Permitir cierre operativo de caja por sucursal de forma rápida y auditable.
 
 ## Alcance
 
-- Apertura de caja (monto inicial).
+- Apertura por conteo de denominaciones en caja y reserva.
 - Movimientos manuales de caja:
   - gastos (delivery, librería, limpieza, servicios, otros)
   - ingresos
 - Cierre por turno o por día.
 - Firma operativa de cierre (`controlled_by_name`) + confirmación.
 - Conteo por denominaciones en el cierre.
+- Denominaciones configurables por organización (billetes/monedas).
 - Conciliación automática contra cobros en efectivo POS.
 
 ## Fuentes de datos

@@ -15,6 +15,28 @@ type PreferencesRow = {
   allow_negative_stock: boolean;
   cash_discount_enabled: boolean;
   cash_discount_default_pct: number;
+  cash_denominations: number[] | null;
+};
+
+const DEFAULT_CASH_DENOMINATIONS = [100, 200, 500, 1000, 2000, 10000, 20000];
+
+const parseCashDenominationsInput = (raw: string): number[] | null => {
+  const tokens = raw
+    .split(',')
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+  if (tokens.length === 0) return null;
+
+  const parsed = tokens
+    .map((token) => Number(token))
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .map((value) => Math.round(value * 100) / 100);
+
+  const unique = Array.from(new Set(parsed)).sort((a, b) => a - b);
+
+  if (unique.length === 0) return null;
+  return unique;
 };
 
 const getOrgAdminContext = async () => {
@@ -49,6 +71,10 @@ export default async function SettingsPreferencesPage({
     const cashDiscountDefaultPct = Number(
       String(formData.get('cash_discount_default_pct') ?? '0'),
     );
+    const cashDenominationsRaw = String(
+      formData.get('cash_denominations_input') ?? '',
+    ).trim();
+    const cashDenominations = parseCashDenominationsInput(cashDenominationsRaw);
 
     if (
       Number.isNaN(criticalDays) ||
@@ -57,7 +83,8 @@ export default async function SettingsPreferencesPage({
       criticalDays < 0 ||
       warningDays < criticalDays ||
       cashDiscountDefaultPct < 0 ||
-      cashDiscountDefaultPct > 100
+      cashDiscountDefaultPct > 100 ||
+      !cashDenominations
     ) {
       redirect('/settings/preferences?result=invalid');
     }
@@ -65,7 +92,7 @@ export default async function SettingsPreferencesPage({
     const { data: previousRow } = await auth.supabase
       .from('org_preferences')
       .select(
-        'critical_days, warning_days, allow_negative_stock, cash_discount_enabled, cash_discount_default_pct',
+        'critical_days, warning_days, allow_negative_stock, cash_discount_enabled, cash_discount_default_pct, cash_denominations',
       )
       .eq('org_id', auth.orgId)
       .maybeSingle();
@@ -77,6 +104,7 @@ export default async function SettingsPreferencesPage({
       allow_negative_stock: allowNegativeStock,
       cash_discount_enabled: cashDiscountEnabled,
       cash_discount_default_pct: cashDiscountDefaultPct,
+      cash_denominations: cashDenominations,
     });
 
     await auth.supabase.rpc('rpc_log_audit_event', {
@@ -93,6 +121,7 @@ export default async function SettingsPreferencesPage({
           allow_negative_stock: allowNegativeStock,
           cash_discount_enabled: cashDiscountEnabled,
           cash_discount_default_pct: cashDiscountDefaultPct,
+          cash_denominations: cashDenominations,
         },
       },
       p_actor_user_id: null as unknown as string,
@@ -102,13 +131,14 @@ export default async function SettingsPreferencesPage({
     revalidatePath('/dashboard');
     revalidatePath('/expirations');
     revalidatePath('/pos');
+    revalidatePath('/cashbox');
     redirect('/settings/preferences?result=saved');
   };
 
   const { data: preferencesRow } = await context.supabase
     .from('org_preferences')
     .select(
-      'org_id, critical_days, warning_days, allow_negative_stock, cash_discount_enabled, cash_discount_default_pct',
+      'org_id, critical_days, warning_days, allow_negative_stock, cash_discount_enabled, cash_discount_default_pct, cash_denominations',
     )
     .eq('org_id', context.orgId)
     .maybeSingle();
@@ -120,7 +150,12 @@ export default async function SettingsPreferencesPage({
     allow_negative_stock: true,
     cash_discount_enabled: true,
     cash_discount_default_pct: 10,
+    cash_denominations: DEFAULT_CASH_DENOMINATIONS,
   };
+
+  const cashDenominationsInput = Array.isArray(preferences.cash_denominations)
+    ? preferences.cash_denominations.join(', ')
+    : DEFAULT_CASH_DENOMINATIONS.join(', ');
 
   return (
     <PageShell>
@@ -138,7 +173,8 @@ export default async function SettingsPreferencesPage({
           {searchParams.result === 'invalid' ? (
             <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
               Revisa los valores: warning debe ser mayor o igual a critical y el
-              descuento en efectivo debe estar entre 0 y 100.
+              descuento en efectivo debe estar entre 0 y 100. Las denominaciones
+              deben ser números positivos separados por coma.
             </p>
           ) : null}
         </div>
@@ -219,6 +255,27 @@ export default async function SettingsPreferencesPage({
                   required
                 />
               </div>
+            </div>
+
+            <div className="grid gap-1 rounded-xl border border-zinc-200 p-4">
+              <label
+                htmlFor="cash_denominations_input"
+                className="text-xs font-semibold text-zinc-600"
+              >
+                Denominaciones de efectivo (billetes/monedas)
+              </label>
+              <input
+                id="cash_denominations_input"
+                name="cash_denominations_input"
+                defaultValue={cashDenominationsInput}
+                placeholder="100, 200, 500, 1000, 2000, 10000, 20000"
+                className="rounded border border-zinc-200 px-3 py-2 text-sm"
+                required
+              />
+              <p className="text-xs text-zinc-500">
+                Se usan en apertura/cierre de caja. Puedes agregar o quitar
+                valores según país/contexto.
+              </p>
             </div>
 
             <button

@@ -197,6 +197,7 @@ Estado actual:
 - `allow_negative_stock` (boolean)
 - `cash_discount_enabled` (boolean)
 - `cash_discount_default_pct` (numeric 0..100)
+- `cash_denominations` (jsonb array de valores, configurable por org)
 - `created_at`, `updated_at`
 
 ---
@@ -333,6 +334,9 @@ Estado actual:
 - `session_label` (text, nullable)
 - `status` (`open` | `closed`)
 - `opening_cash_amount` (numeric >= 0)
+- `opening_reserve_amount` (numeric >= 0)
+- `closing_drawer_amount` (numeric, nullable)
+- `closing_reserve_amount` (numeric, nullable)
 - `expected_cash_amount` (numeric, nullable)
 - `counted_cash_amount` (numeric, nullable)
 - `difference_amount` (numeric, nullable)
@@ -369,7 +373,7 @@ Estado actual:
 
 ### cash_session_count_lines
 
-**Proposito**: desglose del conteo físico por denominación al cierre de caja.
+**Proposito**: desglose del conteo físico por denominación en apertura/cierre de caja y reserva.
 
 **Campos clave**:
 
@@ -379,6 +383,7 @@ Estado actual:
 - `session_id` (uuid, FK -> cash_sessions.id)
 - `denomination_value` (numeric > 0)
 - `quantity` (int >= 0)
+- `count_scope` (`opening_drawer` | `opening_reserve` | `closing_drawer` | `closing_reserve`)
 - `created_at`
 
 ---
