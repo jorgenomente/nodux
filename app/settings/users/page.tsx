@@ -2,11 +2,15 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
+import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import RoleBranchChecklist from '@/app/settings/users/RoleBranchChecklist';
 
 type SearchParams = {
   result?: string;
 };
+
+const MANAGEABLE_ROLES = ['org_admin', 'staff'] as const;
 
 type SettingsUserRow = {
   org_id: string;
@@ -23,6 +27,12 @@ type BranchRow = {
   branch_id: string;
   name: string;
   is_active: boolean;
+};
+
+const roleLabel = (role: SettingsUserRow['role']) => {
+  if (role === 'org_admin') return 'Org Admin';
+  if (role === 'staff') return 'Staff';
+  return 'Superadmin';
 };
 
 const getOrgAdminContext = async () => {
@@ -59,7 +69,7 @@ export default async function SettingsUsersPage({
     redirect('/no-access');
   }
 
-  const inviteUser = async (formData: FormData): Promise<void> => {
+  const createUser = async (formData: FormData): Promise<void> => {
     'use server';
 
     const auth = await getOrgAdminContext();
@@ -70,6 +80,8 @@ export default async function SettingsUsersPage({
     const email = String(formData.get('email') ?? '')
       .trim()
       .toLowerCase();
+    const password = String(formData.get('password') ?? '');
+    const displayName = String(formData.get('display_name') ?? '').trim();
     const role = String(formData.get('role') ?? 'staff') as
       | 'org_admin'
       | 'staff';
@@ -78,8 +90,42 @@ export default async function SettingsUsersPage({
       .map((value) => String(value).trim())
       .filter(Boolean);
 
+    if (!MANAGEABLE_ROLES.includes(role)) {
+      redirect('/settings/users?result=superadmin_forbidden');
+    }
+
     if (!email || !email.includes('@')) {
-      redirect('/settings/users?result=invalid_invite');
+      redirect('/settings/users?result=invalid_create');
+    }
+    if (password.length < 8) {
+      redirect('/settings/users?result=weak_password');
+    }
+    if (role === 'staff' && branchIds.length === 0) {
+      redirect('/settings/users?result=missing_branch');
+    }
+
+    const admin = createAdminSupabaseClient();
+
+    const { data: createdUser, error: createError } =
+      await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: displayName ? { display_name: displayName } : undefined,
+      });
+
+    if (createError || !createdUser.user?.id) {
+      const message = String(createError?.message ?? '').toLowerCase();
+      const alreadyExists =
+        createError?.code === 'email_exists' ||
+        message.includes('already') ||
+        message.includes('exists');
+
+      if (alreadyExists) {
+        redirect('/settings/users?result=email_exists');
+      }
+
+      redirect('/settings/users?result=create_failed');
     }
 
     await auth.supabase.rpc('rpc_invite_user_to_org', {
@@ -89,9 +135,18 @@ export default async function SettingsUsersPage({
       p_branch_ids: role === 'staff' ? branchIds : [],
     });
 
+    await auth.supabase.rpc('rpc_update_user_membership', {
+      p_org_id: auth.orgId,
+      p_user_id: createdUser.user.id,
+      p_role: role,
+      p_is_active: true,
+      p_display_name: displayName,
+      p_branch_ids: role === 'staff' ? branchIds : [],
+    });
+
     revalidatePath('/settings/users');
     revalidatePath('/settings/audit-log');
-    redirect('/settings/users?result=invited');
+    redirect('/settings/users?result=created');
   };
 
   const updateMembership = async (formData: FormData): Promise<void> => {
@@ -106,6 +161,8 @@ export default async function SettingsUsersPage({
     const role = String(formData.get('role') ?? 'staff') as
       | 'org_admin'
       | 'staff';
+    const intent = String(formData.get('intent') ?? 'update_membership').trim();
+    const resetPassword = String(formData.get('reset_password') ?? '');
     const displayName = String(formData.get('display_name') ?? '').trim();
     const isActiveLocked = formData.get('is_active_locked') === 'true';
     const isActiveCurrent = formData.get('is_active_current') === 'true';
@@ -119,6 +176,51 @@ export default async function SettingsUsersPage({
 
     if (!userId) {
       redirect('/settings/users?result=invalid_update');
+    }
+
+    const { data: targetMembership } = await auth.supabase
+      .from('org_users')
+      .select('role')
+      .eq('org_id', auth.orgId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (
+      targetMembership?.role === 'superadmin' ||
+      !MANAGEABLE_ROLES.includes(role)
+    ) {
+      redirect('/settings/users?result=superadmin_forbidden');
+    }
+
+    if (intent === 'reset_password') {
+      if (resetPassword.length < 8) {
+        redirect('/settings/users?result=weak_reset_password');
+      }
+
+      const admin = createAdminSupabaseClient();
+      const { error: updatePasswordError } =
+        await admin.auth.admin.updateUserById(userId, {
+          password: resetPassword,
+        });
+
+      if (updatePasswordError) {
+        redirect('/settings/users?result=reset_failed');
+      }
+
+      await admin.from('audit_log').insert({
+        org_id: auth.orgId,
+        action_key: 'user_password_reset_by_admin',
+        entity_type: 'org_user',
+        entity_id: userId,
+        actor_user_id: auth.currentUserId,
+        metadata: {
+          source: 'settings_users',
+        },
+      });
+
+      revalidatePath('/settings/users');
+      revalidatePath('/settings/audit-log');
+      redirect('/settings/users?result=password_reset');
     }
 
     await auth.supabase.rpc('rpc_update_user_membership', {
@@ -149,8 +251,13 @@ export default async function SettingsUsersPage({
       .order('name'),
   ]);
 
-  const users = (usersResult.data ?? []) as SettingsUserRow[];
+  const users = ((usersResult.data ?? []) as SettingsUserRow[]).filter(
+    (user) => user.role !== 'superadmin',
+  );
   const branches = (branchesResult.data ?? []) as BranchRow[];
+  const branchNameById = new Map(
+    branches.map((branch) => [branch.branch_id, branch.name]),
+  );
 
   return (
     <PageShell>
@@ -158,11 +265,12 @@ export default async function SettingsUsersPage({
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">Usuarios</h1>
           <p className="mt-2 text-sm text-zinc-600">
-            Invita usuarios y administra rol, sucursales y estado de acceso.
+            Crea cuentas de acceso (sin validacion por email) y administra rol,
+            sucursales y estado.
           </p>
-          {searchParams.result === 'invited' ? (
+          {searchParams.result === 'created' ? (
             <p className="mt-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              Usuario invitado correctamente.
+              Usuario creado correctamente.
             </p>
           ) : null}
           {searchParams.result === 'updated' ? (
@@ -170,9 +278,44 @@ export default async function SettingsUsersPage({
               Membresia actualizada.
             </p>
           ) : null}
-          {searchParams.result === 'invalid_invite' ? (
+          {searchParams.result === 'invalid_create' ? (
             <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-              Ingresa un email valido para invitar.
+              Ingresa un email valido para crear la cuenta.
+            </p>
+          ) : null}
+          {searchParams.result === 'weak_password' ? (
+            <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              La contraseña debe tener al menos 8 caracteres.
+            </p>
+          ) : null}
+          {searchParams.result === 'missing_branch' ? (
+            <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              Para usuarios Staff debes asignar al menos una sucursal.
+            </p>
+          ) : null}
+          {searchParams.result === 'email_exists' ? (
+            <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              Ya existe un usuario con ese email.
+            </p>
+          ) : null}
+          {searchParams.result === 'create_failed' ? (
+            <p className="mt-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              No se pudo crear el usuario. Intenta nuevamente.
+            </p>
+          ) : null}
+          {searchParams.result === 'password_reset' ? (
+            <p className="mt-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+              Contraseña restablecida por admin.
+            </p>
+          ) : null}
+          {searchParams.result === 'weak_reset_password' ? (
+            <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              La nueva contraseña debe tener al menos 8 caracteres.
+            </p>
+          ) : null}
+          {searchParams.result === 'reset_failed' ? (
+            <p className="mt-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              No se pudo restablecer la contraseña.
             </p>
           ) : null}
           {searchParams.result === 'invalid_update' ? (
@@ -180,83 +323,94 @@ export default async function SettingsUsersPage({
               No se pudo procesar la actualizacion del usuario.
             </p>
           ) : null}
+          {searchParams.result === 'superadmin_forbidden' ? (
+            <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              Los usuarios superadmin no se gestionan desde esta pantalla.
+            </p>
+          ) : null}
         </div>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-zinc-900">
-            Invitar usuario
-          </h2>
-          <form action={inviteUser} className="mt-4 grid gap-4 md:grid-cols-4">
-            <div className="flex flex-col gap-1 md:col-span-2">
-              <label
-                className="text-xs font-semibold text-zinc-600"
-                htmlFor="invite-email"
-              >
-                Email
-              </label>
-              <input
-                id="invite-email"
-                name="email"
-                type="email"
-                required
-                className="rounded border border-zinc-200 px-3 py-2 text-sm"
-                placeholder="persona@empresa.com"
-              />
-            </div>
-            <div className="flex flex-col gap-1 md:col-span-1">
-              <label
-                className="text-xs font-semibold text-zinc-600"
-                htmlFor="invite-role"
-              >
-                Rol
-              </label>
-              <select
-                id="invite-role"
-                name="role"
-                defaultValue="staff"
-                className="rounded border border-zinc-200 px-3 py-2 text-sm"
-              >
-                <option value="staff">Staff</option>
-                <option value="org_admin">Org Admin</option>
-              </select>
-            </div>
-            <div className="flex items-end md:col-span-1">
-              <button
-                type="submit"
-                className="w-full rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
-              >
-                Invitar
-              </button>
-            </div>
-            <div className="md:col-span-4">
-              <label
-                className="text-xs font-semibold text-zinc-600"
-                htmlFor="invite-branches"
-              >
-                Sucursales para Staff (si aplica)
-              </label>
-              <select
-                id="invite-branches"
-                name="branch_ids"
-                multiple
-                size={Math.min(branches.length || 1, 6)}
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              >
-                {branches.map((branch) => (
-                  <option key={branch.branch_id} value={branch.branch_id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </form>
+          <details>
+            <summary className="cursor-pointer text-lg font-semibold text-zinc-900">
+              Crear usuario
+            </summary>
+            <form
+              action={createUser}
+              className="mt-4 grid gap-4 border-t border-zinc-100 pt-4 md:grid-cols-4"
+            >
+              <div className="flex flex-col gap-1 md:col-span-2">
+                <label
+                  className="text-xs font-semibold text-zinc-600"
+                  htmlFor="invite-email"
+                >
+                  Email
+                </label>
+                <input
+                  id="invite-email"
+                  name="email"
+                  type="email"
+                  required
+                  className="rounded border border-zinc-200 px-3 py-2 text-sm"
+                  placeholder="persona@empresa.com"
+                />
+              </div>
+              <div className="flex flex-col gap-1 md:col-span-2">
+                <label
+                  className="text-xs font-semibold text-zinc-600"
+                  htmlFor="invite-display-name"
+                >
+                  Nombre visible (opcional)
+                </label>
+                <input
+                  id="invite-display-name"
+                  name="display_name"
+                  className="rounded border border-zinc-200 px-3 py-2 text-sm"
+                  placeholder="Maria Perez"
+                />
+              </div>
+              <div className="flex flex-col gap-1 md:col-span-2">
+                <label
+                  className="text-xs font-semibold text-zinc-600"
+                  htmlFor="invite-password"
+                >
+                  Contraseña
+                </label>
+                <input
+                  id="invite-password"
+                  name="password"
+                  type="password"
+                  minLength={8}
+                  required
+                  className="rounded border border-zinc-200 px-3 py-2 text-sm"
+                  placeholder="Minimo 8 caracteres"
+                />
+              </div>
+              <div className="md:col-span-3">
+                <RoleBranchChecklist
+                  branches={branches}
+                  defaultRole="staff"
+                  roleLabel="Rol"
+                  branchLabel="Sucursales para Staff (si aplica)"
+                />
+              </div>
+              <div className="flex items-end md:col-span-1 md:justify-end">
+                <button
+                  type="submit"
+                  className="w-full rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
+                >
+                  Crear
+                </button>
+              </div>
+            </form>
+          </details>
         </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-6">
           <h2 className="text-lg font-semibold text-zinc-900">
             Usuarios de la organizacion
           </h2>
-          <div className="mt-4 grid gap-4">
+          <div className="mt-4 grid gap-3">
             {users.length === 0 ? (
               <p className="rounded border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500">
                 No hay usuarios registrados.
@@ -266,106 +420,181 @@ export default async function SettingsUsersPage({
                 const userBranchIds = Array.isArray(orgUser.branch_ids)
                   ? orgUser.branch_ids
                   : [];
+                const assignedBranchNames = userBranchIds.map(
+                  (branchId) => branchNameById.get(branchId) ?? branchId,
+                );
                 const isCurrentUser = orgUser.user_id === context.currentUserId;
+                const userName = orgUser.display_name || 'Sin nombre';
+                const userEmail = orgUser.email || 'Sin email';
 
                 return (
                   <form
                     key={orgUser.user_id}
                     action={updateMembership}
-                    className="grid gap-3 rounded-xl border border-zinc-200 p-4 md:grid-cols-6"
+                    className="rounded-xl border border-zinc-200 p-4"
                   >
                     <input
                       type="hidden"
                       name="user_id"
                       value={orgUser.user_id}
                     />
-                    <div className="flex flex-col gap-1 md:col-span-2">
-                      <label className="text-xs font-semibold text-zinc-600">
-                        Email
-                      </label>
-                      <input
-                        value={orgUser.email ?? ''}
-                        disabled
-                        className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-500"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1 md:col-span-1">
-                      <label className="text-xs font-semibold text-zinc-600">
-                        Nombre
-                      </label>
-                      <input
-                        name="display_name"
-                        defaultValue={orgUser.display_name ?? ''}
-                        className="rounded border border-zinc-200 px-3 py-2 text-sm"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1 md:col-span-1">
-                      <label className="text-xs font-semibold text-zinc-600">
-                        Rol
-                      </label>
-                      <select
-                        name="role"
-                        defaultValue={orgUser.role}
-                        className="rounded border border-zinc-200 px-3 py-2 text-sm"
-                      >
-                        <option value="staff">Staff</option>
-                        <option value="org_admin">Org Admin</option>
-                      </select>
-                    </div>
-                    <div className="flex items-end md:col-span-1">
-                      {isCurrentUser ? (
-                        <>
-                          <input
-                            type="hidden"
-                            name="is_active_locked"
-                            value="true"
-                          />
-                          <input
-                            type="hidden"
-                            name="is_active_current"
-                            value={String(orgUser.is_active)}
-                          />
-                        </>
-                      ) : null}
-                      <label className="flex items-center gap-2 text-sm text-zinc-700">
-                        <input
-                          type="checkbox"
-                          name="is_active"
-                          defaultChecked={orgUser.is_active}
-                          disabled={isCurrentUser}
-                        />
-                        Activo
-                      </label>
-                    </div>
-                    <div className="flex items-end justify-end md:col-span-1">
-                      <button
-                        type="submit"
-                        className="rounded border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-700"
-                      >
-                        Guardar
-                      </button>
-                    </div>
+                    <div className="grid gap-3 md:grid-cols-12">
+                      <div className="md:col-span-3">
+                        <p className="text-xs font-semibold text-zinc-500 uppercase">
+                          Nombre
+                        </p>
+                        <p className="text-sm font-medium text-zinc-900">
+                          {userName}
+                        </p>
+                      </div>
+                      <div className="md:col-span-3">
+                        <p className="text-xs font-semibold text-zinc-500 uppercase">
+                          Email
+                        </p>
+                        <p className="text-sm text-zinc-700">{userEmail}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="text-xs font-semibold text-zinc-500 uppercase">
+                          Rol
+                        </p>
+                        <p className="text-sm text-zinc-700">
+                          {roleLabel(orgUser.role)}
+                        </p>
+                      </div>
+                      <div className="md:col-span-3">
+                        <p className="text-xs font-semibold text-zinc-500 uppercase">
+                          Sucursales
+                        </p>
+                        <p className="text-sm text-zinc-700">
+                          {assignedBranchNames.length > 0
+                            ? assignedBranchNames.join(', ')
+                            : 'Sin sucursales'}
+                        </p>
+                      </div>
+                      <div className="flex items-start justify-end md:col-span-1">
+                        <details className="w-full md:w-auto">
+                          <summary className="cursor-pointer rounded border border-zinc-300 px-3 py-1.5 text-center text-sm font-semibold text-zinc-700">
+                            Editar
+                          </summary>
+                          <div className="mt-3 grid gap-3 border-t border-zinc-100 pt-3 md:grid-cols-6">
+                            <div className="flex flex-col gap-1 md:col-span-2">
+                              <label className="text-xs font-semibold text-zinc-600">
+                                Email
+                              </label>
+                              <input
+                                value={orgUser.email ?? ''}
+                                disabled
+                                className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-500"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1 md:col-span-1">
+                              <label className="text-xs font-semibold text-zinc-600">
+                                Nombre
+                              </label>
+                              <input
+                                name="display_name"
+                                defaultValue={orgUser.display_name ?? ''}
+                                className="rounded border border-zinc-200 px-3 py-2 text-sm"
+                              />
+                            </div>
+                            <div className="md:col-span-2">
+                              <RoleBranchChecklist
+                                branches={branches}
+                                defaultRole={
+                                  orgUser.role === 'staff'
+                                    ? 'staff'
+                                    : 'org_admin'
+                                }
+                                defaultSelectedBranchIds={userBranchIds}
+                                roleLabel="Rol"
+                                branchLabel="Sucursales asignadas"
+                                roleName="role"
+                                branchName="branch_ids"
+                              />
+                            </div>
+                            <div className="flex items-end md:col-span-1">
+                              {isCurrentUser ? (
+                                <>
+                                  <input
+                                    type="hidden"
+                                    name="is_active_locked"
+                                    value="true"
+                                  />
+                                  <input
+                                    type="hidden"
+                                    name="is_active_current"
+                                    value={String(orgUser.is_active)}
+                                  />
+                                </>
+                              ) : null}
+                              <label className="flex items-center gap-2 text-sm text-zinc-700">
+                                <input
+                                  type="checkbox"
+                                  name="is_active"
+                                  defaultChecked={orgUser.is_active}
+                                  disabled={isCurrentUser}
+                                />
+                                Activo
+                              </label>
+                            </div>
+                            <div className="flex items-end justify-end md:col-span-1">
+                              <button
+                                type="submit"
+                                name="intent"
+                                value="update_membership"
+                                className="rounded border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-700"
+                              >
+                                Guardar
+                              </button>
+                            </div>
 
-                    <div className="md:col-span-6">
-                      <label className="text-xs font-semibold text-zinc-600">
-                        Sucursales asignadas
-                      </label>
-                      <select
-                        name="branch_ids"
-                        multiple
-                        size={Math.min(branches.length || 1, 6)}
-                        defaultValue={userBranchIds}
-                        className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                      >
-                        {branches.map((branch) => (
-                          <option
-                            key={branch.branch_id}
-                            value={branch.branch_id}
-                          >
-                            {branch.name}
-                          </option>
-                        ))}
-                      </select>
+                            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 md:col-span-6">
+                              <h3 className="text-sm font-semibold text-zinc-900">
+                                Credenciales (admin)
+                              </h3>
+                              <p className="mt-1 text-xs text-zinc-600">
+                                La contraseña actual no se muestra. Solo un
+                                admin puede asignar una nueva contraseña. Staff
+                                debe solicitar este cambio al admin.
+                              </p>
+                              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                                <div className="flex flex-col gap-1 md:col-span-2">
+                                  <label className="text-xs font-semibold text-zinc-600">
+                                    Usuario / email
+                                  </label>
+                                  <input
+                                    value={orgUser.email ?? ''}
+                                    disabled
+                                    className="rounded border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600"
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1 md:col-span-1">
+                                  <label className="text-xs font-semibold text-zinc-600">
+                                    Nueva contraseña
+                                  </label>
+                                  <input
+                                    type="password"
+                                    name="reset_password"
+                                    minLength={8}
+                                    className="rounded border border-zinc-200 bg-white px-3 py-2 text-sm"
+                                    placeholder="Minimo 8 caracteres"
+                                  />
+                                </div>
+                                <div className="md:col-span-3">
+                                  <button
+                                    type="submit"
+                                    name="intent"
+                                    value="reset_password"
+                                    className="rounded bg-zinc-900 px-3 py-2 text-sm font-semibold text-white"
+                                  >
+                                    Restablecer contraseña
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </details>
+                      </div>
                     </div>
                   </form>
                 );

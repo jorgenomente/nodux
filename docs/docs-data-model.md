@@ -31,6 +31,7 @@ Estado actual:
 - Desperdicio de vencidos en `supabase/migrations/20260211140000_027_expiration_waste.sql`.
 - Fecha estimada de recepcion en pedidos de proveedor en `supabase/migrations/20260213101500_029_supplier_orders_expected_receive_on.sql`.
 - Cierre de gaps de auditoria en proveedores/pedidos (upsert supplier, expected receive y recepcion-control) en `supabase/migrations/20260213125000_030_audit_gaps_supplier_orders.sql`.
+- Fundacion Superadmin plataforma (admins globales, vistas/rpcs de org y org activa) en `supabase/migrations/20260216115100_031_superadmin_platform_foundation.sql`.
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 
@@ -113,6 +114,30 @@ Estado actual:
 **Constraints**:
 
 - unique (`org_id`, `user_id`)
+
+---
+
+### platform_admins
+
+**Proposito**: administradores globales de la plataforma (fuera del scope de una org).
+
+**Campos clave**:
+
+- `user_id` (uuid, PK/FK -> auth.users.id)
+- `created_at` (timestamptz)
+- `created_by` (uuid, nullable FK -> auth.users.id)
+
+---
+
+### user_active_orgs
+
+**Proposito**: contexto de org activa por usuario (principalmente para impersonacion de SA).
+
+**Campos clave**:
+
+- `user_id` (uuid, PK/FK -> auth.users.id)
+- `active_org_id` (uuid, FK -> orgs.id)
+- `updated_at` (timestamptz)
 
 ---
 
@@ -470,6 +495,8 @@ Estado actual:
 Ver contratos en `docs/docs-schema-model.md`:
 
 - Views de lectura por pantalla (dashboard, products, suppliers, orders, expirations, settings)
+- Views de superadmin global: `v_superadmin_orgs`, `v_superadmin_org_detail`
 - RPCs para escrituras (POS, stock, orders, permissions, clients)
 - RPC de fechas estimadas de pedidos proveedor: `rpc_set_supplier_order_expected_receive_on(...)`
 - RPC de auditoria append-only: `rpc_log_audit_event(...)`
+- RPCs de superadmin: `rpc_bootstrap_platform_admin(...)`, `rpc_superadmin_create_org(...)`, `rpc_superadmin_upsert_branch(...)`, `rpc_superadmin_set_active_org(...)`, `rpc_get_active_org_id(...)`

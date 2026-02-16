@@ -3,7 +3,7 @@
 Este documento ordena el trabajo en fases logicas para avanzar el MVP de forma consistente.
 Debe actualizarse cada vez que se complete una fase o se cambie el plan.
 
-Estado actual: **MVP en progreso** (Fase 4 — módulos core).
+Estado actual: **MVP en progreso** (Fase 6 — hardening inicial multi-org/superadmin).
 
 ---
 
@@ -224,3 +224,5 @@ Estado actual: **MVP en progreso** (Fase 4 — módulos core).
 - 2026-02-13: Se agrega `expected_receive_on` en `supplier_orders` y edición desde calendario para mejorar control de recepciones no exactas.
 - 2026-02-13: Hardening de auditoria en pedidos/proveedores: `rpc_upsert_supplier` vuelve a registrar `supplier_upsert`, se agrega `rpc_set_supplier_order_expected_receive_on` y se audita recepcion/control en `rpc_receive_supplier_order`.
 - 2026-02-13: Se completa Fase 5 de Settings en frontend con rutas faltantes (users, branches, staff-permissions, preferences y hub).
+- 2026-02-16: Se agrega base DB para superadmin global multi-org (`platform_admins`, `user_active_orgs`, `v_superadmin_orgs`, `v_superadmin_org_detail`, RPCs de alta org/sucursal y org activa).
+- 2026-02-16: `/superadmin` pasa de placeholder a UI operativa con listado/busqueda de orgs, alta de org/sucursal y cambio de org activa; acceso visible/restringido solo para superadmin.

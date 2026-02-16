@@ -16,15 +16,13 @@ Rol / Acceso
 
 Org Admin (OA)
 
-Superadmin (SA) dentro de org (soporte)
-
 Staff: NO
 
 Propósito
 
 Gestionar usuarios de la organización:
 
-invitar usuario (email)
+crear usuario (email + contraseña, sin validación por email)
 
 asignar rol (OA o ST)
 
@@ -40,7 +38,9 @@ Header
 
 Título: “Usuarios”
 
-CTA: “Invitar usuario”
+CTA: “Crear usuario”
+
+Crear usuario en panel desplegable (collapsed por defecto)
 
 Search: nombre/email
 
@@ -58,29 +58,46 @@ estado: activo/inactivo
 
 acción: “Editar”
 
+Vista compacta por defecto; edición se revela al hacer click en “Editar”
+
 Modal “Invitar/Editar”
+Panel “Crear/Editar”
 
 Campos:
 
-email (invite)
+email
+
+password (alta)
 
 display_name (opcional)
 
 role: OA | ST
 
-branches (multi-select si role=ST)
+branches (checklist con checkbox si role=ST)
+
+si role=OA, ocultar checklist y mostrar nota de acceso global por organización
 
 estado activo/inactivo
 
+Panel “Credenciales (admin)”
+
+usuario/email visible (solo lectura)
+
+nueva contraseña (input)
+
+acción: “Restablecer contraseña”
+
 Acciones (MVP)
 
-Crear invitación
+Crear usuario
 
 Cambiar rol
 
 Asignar branches
 
 Desactivar usuario (revocar acceso operativo)
+
+Restablecer contraseña (solo admin)
 
 Data Contract
 Lectura
@@ -103,6 +120,11 @@ created_at
 
 Escrituras
 
+Server action/API server-side:
+
+- `auth.admin.createUser` (Supabase Admin API, con `email_confirm=true`)
+- luego asignación en org vía RPCs de membresía
+
 RPC: rpc_invite_user_to_org(input)
 
 email
@@ -112,7 +134,7 @@ role
 branch_ids (si ST)
 Output:
 
-invitation_id / user_id (según implementación)
+user_id
 
 RPC: rpc_update_user_membership(input)
 
@@ -124,8 +146,8 @@ branch_ids
 
 is_active
 
-Nota: el mecanismo de invitación (magic link / password set) se decide en implementación.
-En docs, solo definimos el contrato.
+Nota: en MVP se usa alta directa con contraseña inicial y sin confirmación de email.
+El `service_role` se usa solo en backend (nunca en cliente).
 
 Seguridad
 
@@ -133,12 +155,16 @@ OA solo gestiona su org
 
 ST no puede leer settings
 
-SA soporte controlado
+ST no puede cambiar su contraseña en MVP; debe solicitar reset al admin.
+
+Superadmin no se crea, lista ni edita desde esta pantalla.
 
 Smoke tests
 
-US-01: OA invita Staff y lo asigna a sucursal A
+US-01: OA crea Staff y lo asigna a sucursal A
 
 US-02: Staff login y queda en módulo correcto
 
 US-03: OA desactiva Staff → Staff no puede operar (debe fallar en guards/RLS)
+
+US-04: OA restablece contraseña de Staff y el Staff puede iniciar con la nueva.

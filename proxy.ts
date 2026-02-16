@@ -50,6 +50,14 @@ const isStaffAllowedPath = (pathname: string) => {
   );
 };
 
+const resolveUserIsPlatformAdmin = async (
+  supabase: ReturnType<typeof createServerClient<Database>>,
+) => {
+  const { data, error } = await supabase.rpc('is_platform_admin');
+  if (error) return false;
+  return Boolean(data);
+};
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -90,20 +98,28 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  const { data: membership } = await supabase
-    .from('org_users')
-    .select('org_id, role')
-    .eq('user_id', user.id)
-    .maybeSingle();
+  const isPlatformAdmin = await resolveUserIsPlatformAdmin(supabase);
 
-  if (!membership?.org_id || !membership?.role) {
+  const { data: membership } = isPlatformAdmin
+    ? { data: null }
+    : await supabase
+        .from('org_users')
+        .select('org_id, role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+  const isLegacySuperadmin = membership?.role === 'superadmin';
+  const isSuperadmin = isPlatformAdmin || isLegacySuperadmin;
+  const role = membership?.role ?? null;
+
+  if (!isSuperadmin && (!membership?.org_id || !membership?.role)) {
     return NextResponse.redirect(new URL('/no-access', request.url));
   }
 
   let homePath = '/dashboard';
-  if (membership.role === 'superadmin') {
+  if (isSuperadmin) {
     homePath = '/superadmin';
-  } else if (membership.role === 'staff') {
+  } else if (role === 'staff') {
     homePath = await resolveStaffHome(supabase);
   }
 
@@ -119,14 +135,14 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(homePath, request.url));
   }
 
-  if (membership.role === 'superadmin') {
+  if (isSuperadmin) {
     if (!pathname.startsWith('/superadmin')) {
       return NextResponse.redirect(new URL('/superadmin', request.url));
     }
     return response;
   }
 
-  if (membership.role === 'staff') {
+  if (role === 'staff') {
     if (!isStaffAllowedPath(pathname)) {
       return NextResponse.redirect(new URL(homePath, request.url));
     }

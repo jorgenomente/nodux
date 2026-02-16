@@ -2,7 +2,7 @@
 
 Estado: **baseline**. Este documento define una base de datos mínima coherente con los contratos de pantalla y módulos del MVP.
 
-> Nota: ya existe una migracion inicial en `supabase/migrations/20260208213000_001_init_schema.sql`. Views y RPCs siguen pendientes y se agregaran en migraciones posteriores.
+> Nota: el baseline ya fue materializado en migraciones y se sigue extendiendo por lotes.
 
 ---
 
@@ -28,6 +28,8 @@ Estado: **baseline**. Este documento define una base de datos mínima coherente 
 - [x] `v_branches_admin`
 - [x] `v_staff_effective_modules`
 - [x] `v_audit_log_admin`
+- [x] `v_superadmin_orgs`
+- [x] `v_superadmin_org_detail`
 
 **RPCs (escritura/lectura)**:
 
@@ -60,6 +62,11 @@ Estado: **baseline**. Este documento define una base de datos mínima coherente 
 - [x] `rpc_get_staff_effective_modules`
 - [x] `rpc_log_audit_event`
 - [x] `rpc_set_safety_stock`
+- [x] `rpc_bootstrap_platform_admin`
+- [x] `rpc_superadmin_create_org`
+- [x] `rpc_superadmin_upsert_branch`
+- [x] `rpc_superadmin_set_active_org`
+- [x] `rpc_get_active_org_id`
 
 ---
 
@@ -391,6 +398,8 @@ Constraints:
 - `v_settings_users_admin`
 - `v_branches_admin`
 - `v_staff_effective_modules` (solo current_user)
+- `v_superadmin_orgs`
+- `v_superadmin_org_detail`
 
 ---
 
@@ -426,6 +435,11 @@ Constraints:
 - `rpc_list_clients(scope_branch_id, search, limit, offset)`
 - `rpc_get_client_detail(client_id)`
 - `rpc_get_dashboard_admin(branch_id nullable)`
+- `rpc_bootstrap_platform_admin()`
+- `rpc_superadmin_create_org(input)`
+- `rpc_superadmin_upsert_branch(input)`
+- `rpc_superadmin_set_active_org(org_id)`
+- `rpc_get_active_org_id()`
 
 ---
 

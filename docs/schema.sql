@@ -148,7 +148,7 @@ CREATE OR REPLACE FUNCTION "public"."is_org_admin_or_superadmin"("check_org_id" 
     SET "search_path" TO 'public'
     SET "row_security" TO 'off'
     AS $$
-  select exists(
+  select public.is_platform_admin() or exists(
     select 1
     from public.org_users ou
     where ou.org_id = check_org_id
@@ -178,6 +178,22 @@ $$;
 
 
 ALTER FUNCTION "public"."is_org_member"("check_org_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."is_platform_admin"() RETURNS boolean
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+  select exists(
+    select 1
+    from public.platform_admins pa
+    where pa.user_id = auth.uid()
+  );
+$$;
+
+
+ALTER FUNCTION "public"."is_platform_admin"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_adjust_expiration_batch"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_quantity" numeric) RETURNS "void"
@@ -260,6 +276,33 @@ $$;
 
 
 ALTER FUNCTION "public"."rpc_adjust_stock_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_new_quantity_on_hand" numeric, "p_reason" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_bootstrap_platform_admin"() RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if exists (select 1 from public.platform_admins where user_id = auth.uid()) then
+    return;
+  end if;
+
+  if exists (select 1 from public.platform_admins) then
+    raise exception 'not authorized';
+  end if;
+
+  insert into public.platform_admins (user_id, created_by)
+  values (auth.uid(), auth.uid());
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_bootstrap_platform_admin"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_expires_on" "date", "p_quantity" numeric, "p_source_ref_id" "uuid") RETURNS TABLE("batch_id" "uuid")
@@ -658,6 +701,33 @@ $$;
 
 
 ALTER FUNCTION "public"."rpc_create_supplier_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_supplier_id" "uuid", "p_notes" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_get_active_org_id"() RETURNS "uuid"
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+  select case
+    when public.is_platform_admin() then (
+      select uao.active_org_id
+      from public.user_active_orgs uao
+      where uao.user_id = auth.uid()
+      limit 1
+    )
+    else (
+      select ou.org_id
+      from public.org_users ou
+      where ou.user_id = auth.uid()
+        and ou.is_active = true
+      order by ou.updated_at desc nulls last, ou.created_at desc
+      limit 1
+    )
+  end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_get_active_org_id"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_get_client_detail"("p_org_id" "uuid", "p_client_id" "uuid") RETURNS TABLE("client_id" "uuid", "name" "text", "phone" "text", "email" "text", "notes" "text", "is_active" boolean, "special_order_id" "uuid", "special_order_status" "public"."special_order_status", "special_order_notes" "text", "special_order_branch_id" "uuid", "special_order_created_at" timestamp with time zone, "item_id" "uuid", "product_id" "uuid", "product_name" "text", "requested_qty" numeric, "fulfilled_qty" numeric, "supplier_id" "uuid", "supplier_name" "text")
@@ -1784,6 +1854,157 @@ $$;
 ALTER FUNCTION "public"."rpc_set_supplier_order_status"("p_org_id" "uuid", "p_order_id" "uuid", "p_status" "public"."supplier_order_status") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."rpc_superadmin_create_org"("p_org_name" "text", "p_timezone" "text" DEFAULT 'UTC'::"text", "p_initial_branch_name" "text" DEFAULT 'Casa Central'::"text", "p_initial_branch_address" "text" DEFAULT NULL::"text", "p_owner_user_id" "uuid" DEFAULT NULL::"uuid", "p_owner_display_name" "text" DEFAULT NULL::"text") RETURNS TABLE("org_id" "uuid", "branch_id" "uuid", "owner_user_id" "uuid")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_org_id uuid;
+  v_branch_id uuid;
+  v_owner_user_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_platform_admin() then
+    raise exception 'not authorized';
+  end if;
+
+  if coalesce(trim(p_org_name), '') = '' then
+    raise exception 'org name required';
+  end if;
+
+  if coalesce(trim(p_initial_branch_name), '') = '' then
+    raise exception 'initial branch name required';
+  end if;
+
+  insert into public.orgs (name, timezone)
+  values (trim(p_org_name), coalesce(nullif(trim(p_timezone), ''), 'UTC'))
+  returning id into v_org_id;
+
+  insert into public.branches (org_id, name, address)
+  values (v_org_id, trim(p_initial_branch_name), nullif(trim(p_initial_branch_address), ''))
+  returning id into v_branch_id;
+
+  insert into public.org_preferences (org_id)
+  values (v_org_id)
+  on conflict on constraint org_preferences_pkey do nothing;
+
+  v_owner_user_id := p_owner_user_id;
+
+  if v_owner_user_id is not null then
+    insert into public.org_users (org_id, user_id, role, display_name, is_active)
+    values (
+      v_org_id,
+      v_owner_user_id,
+      'org_admin',
+      nullif(trim(p_owner_display_name), ''),
+      true
+    )
+    on conflict on constraint org_users_org_id_user_id_key
+    do update set
+      role = 'org_admin',
+      is_active = true,
+      display_name = coalesce(excluded.display_name, public.org_users.display_name);
+
+    insert into public.branch_memberships (org_id, branch_id, user_id, is_active)
+    values (v_org_id, v_branch_id, v_owner_user_id, true)
+    on conflict on constraint branch_memberships_org_id_branch_id_user_id_key
+    do update set is_active = true;
+  end if;
+
+  return query
+  select v_org_id, v_branch_id, v_owner_user_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_superadmin_create_org"("p_org_name" "text", "p_timezone" "text", "p_initial_branch_name" "text", "p_initial_branch_address" "text", "p_owner_user_id" "uuid", "p_owner_display_name" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_superadmin_set_active_org"("p_org_id" "uuid") RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_platform_admin() then
+    raise exception 'not authorized';
+  end if;
+
+  if not exists (select 1 from public.orgs where id = p_org_id) then
+    raise exception 'org not found';
+  end if;
+
+  insert into public.user_active_orgs (user_id, active_org_id, updated_at)
+  values (auth.uid(), p_org_id, now())
+  on conflict (user_id)
+  do update set active_org_id = excluded.active_org_id, updated_at = now();
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_superadmin_set_active_org"("p_org_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_superadmin_upsert_branch"("p_org_id" "uuid", "p_branch_id" "uuid", "p_name" "text", "p_address" "text" DEFAULT NULL::"text", "p_is_active" boolean DEFAULT true) RETURNS TABLE("branch_id" "uuid")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_branch_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_platform_admin() then
+    raise exception 'not authorized';
+  end if;
+
+  if p_org_id is null then
+    raise exception 'org required';
+  end if;
+
+  if coalesce(trim(p_name), '') = '' then
+    raise exception 'branch name required';
+  end if;
+
+  if p_branch_id is null then
+    insert into public.branches (org_id, name, address, is_active)
+    values (p_org_id, trim(p_name), nullif(trim(p_address), ''), coalesce(p_is_active, true))
+    returning id into v_branch_id;
+  else
+    update public.branches
+    set
+      name = trim(p_name),
+      address = nullif(trim(p_address), ''),
+      is_active = coalesce(p_is_active, is_active),
+      updated_at = now()
+    where id = p_branch_id
+      and org_id = p_org_id
+    returning id into v_branch_id;
+
+    if v_branch_id is null then
+      raise exception 'branch not found';
+    end if;
+  end if;
+
+  return query select v_branch_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_superadmin_upsert_branch"("p_org_id" "uuid", "p_branch_id" "uuid", "p_name" "text", "p_address" "text", "p_is_active" boolean) OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rpc_update_expiration_batch_date"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_expires_on" "date", "p_reason" "text") RETURNS "void"
     LANGUAGE "plpgsql"
     AS $$
@@ -2471,6 +2692,16 @@ CREATE TABLE IF NOT EXISTS "public"."orgs" (
 ALTER TABLE "public"."orgs" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."platform_admins" (
+    "user_id" "uuid" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "created_by" "uuid"
+);
+
+
+ALTER TABLE "public"."platform_admins" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."products" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "org_id" "uuid" NOT NULL,
@@ -2638,6 +2869,16 @@ CREATE TABLE IF NOT EXISTS "public"."suppliers" (
 
 
 ALTER TABLE "public"."suppliers" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."user_active_orgs" (
+    "user_id" "uuid" NOT NULL,
+    "active_org_id" "uuid" NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."user_active_orgs" OWNER TO "postgres";
 
 
 CREATE OR REPLACE VIEW "public"."v_audit_log_admin" WITH ("security_invoker"='true') AS
@@ -3063,6 +3304,46 @@ CREATE OR REPLACE VIEW "public"."v_stock_by_branch" AS
 ALTER VIEW "public"."v_stock_by_branch" OWNER TO "postgres";
 
 
+CREATE OR REPLACE VIEW "public"."v_superadmin_org_detail" WITH ("security_invoker"='true') AS
+ SELECT "o"."id" AS "org_id",
+    "o"."name" AS "org_name",
+    "o"."timezone",
+    "o"."is_active" AS "org_is_active",
+    "b"."id" AS "branch_id",
+    "b"."name" AS "branch_name",
+    "b"."address" AS "branch_address",
+    "b"."is_active" AS "branch_is_active",
+    "b"."created_at" AS "branch_created_at",
+    "ou"."user_id",
+    "ou"."display_name",
+    "ou"."role",
+    "ou"."is_active" AS "user_is_active",
+    "ou"."created_at" AS "user_created_at"
+   FROM (("public"."orgs" "o"
+     LEFT JOIN "public"."branches" "b" ON (("b"."org_id" = "o"."id")))
+     LEFT JOIN "public"."org_users" "ou" ON (("ou"."org_id" = "o"."id")));
+
+
+ALTER VIEW "public"."v_superadmin_org_detail" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."v_superadmin_orgs" WITH ("security_invoker"='true') AS
+ SELECT "o"."id" AS "org_id",
+    "o"."name" AS "org_name",
+    "o"."timezone",
+    "o"."is_active",
+    "o"."created_at",
+    "count"(DISTINCT "b"."id") FILTER (WHERE "b"."is_active") AS "branches_count",
+    "count"(DISTINCT "ou"."user_id") FILTER (WHERE "ou"."is_active") AS "users_count"
+   FROM (("public"."orgs" "o"
+     LEFT JOIN "public"."branches" "b" ON (("b"."org_id" = "o"."id")))
+     LEFT JOIN "public"."org_users" "ou" ON (("ou"."org_id" = "o"."id")))
+  GROUP BY "o"."id", "o"."name", "o"."timezone", "o"."is_active", "o"."created_at";
+
+
+ALTER VIEW "public"."v_superadmin_orgs" OWNER TO "postgres";
+
+
 CREATE OR REPLACE VIEW "public"."v_supplier_detail_admin" AS
  SELECT "s"."id" AS "supplier_id",
     "s"."org_id",
@@ -3238,6 +3519,11 @@ ALTER TABLE ONLY "public"."orgs"
 
 
 
+ALTER TABLE ONLY "public"."platform_admins"
+    ADD CONSTRAINT "platform_admins_pkey" PRIMARY KEY ("user_id");
+
+
+
 ALTER TABLE ONLY "public"."products"
     ADD CONSTRAINT "products_pkey" PRIMARY KEY ("id");
 
@@ -3310,6 +3596,11 @@ ALTER TABLE ONLY "public"."supplier_products"
 
 ALTER TABLE ONLY "public"."suppliers"
     ADD CONSTRAINT "suppliers_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."user_active_orgs"
+    ADD CONSTRAINT "user_active_orgs_pkey" PRIMARY KEY ("user_id");
 
 
 
@@ -3559,6 +3850,16 @@ ALTER TABLE ONLY "public"."org_users"
 
 
 
+ALTER TABLE ONLY "public"."platform_admins"
+    ADD CONSTRAINT "platform_admins_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."platform_admins"
+    ADD CONSTRAINT "platform_admins_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."products"
     ADD CONSTRAINT "products_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
 
@@ -3694,6 +3995,16 @@ ALTER TABLE ONLY "public"."suppliers"
 
 
 
+ALTER TABLE ONLY "public"."user_active_orgs"
+    ADD CONSTRAINT "user_active_orgs_active_org_id_fkey" FOREIGN KEY ("active_org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."user_active_orgs"
+    ADD CONSTRAINT "user_active_orgs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
 ALTER TABLE "public"."audit_log" ENABLE ROW LEVEL SECURITY;
 
 
@@ -3720,6 +4031,10 @@ ALTER TABLE "public"."branches" ENABLE ROW LEVEL SECURITY;
 
 
 CREATE POLICY "branches_select" ON "public"."branches" FOR SELECT USING ("public"."is_org_member"("org_id"));
+
+
+
+CREATE POLICY "branches_select_platform_admin" ON "public"."branches" FOR SELECT USING ("public"."is_platform_admin"());
 
 
 
@@ -3820,6 +4135,10 @@ CREATE POLICY "org_users_select" ON "public"."org_users" FOR SELECT USING ((("us
 
 
 
+CREATE POLICY "org_users_select_platform_admin" ON "public"."org_users" FOR SELECT USING ("public"."is_platform_admin"());
+
+
+
 CREATE POLICY "org_users_update" ON "public"."org_users" FOR UPDATE USING ("public"."is_org_admin"("org_id"));
 
 
@@ -3835,7 +4154,30 @@ CREATE POLICY "orgs_select" ON "public"."orgs" FOR SELECT USING ("public"."is_or
 
 
 
+CREATE POLICY "orgs_select_platform_admin" ON "public"."orgs" FOR SELECT USING ("public"."is_platform_admin"());
+
+
+
 CREATE POLICY "orgs_update" ON "public"."orgs" FOR UPDATE USING ("public"."is_org_admin"("id"));
+
+
+
+ALTER TABLE "public"."platform_admins" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "platform_admins_delete" ON "public"."platform_admins" FOR DELETE USING ("public"."is_platform_admin"());
+
+
+
+CREATE POLICY "platform_admins_select" ON "public"."platform_admins" FOR SELECT USING ("public"."is_platform_admin"());
+
+
+
+CREATE POLICY "platform_admins_update" ON "public"."platform_admins" FOR UPDATE USING ("public"."is_platform_admin"()) WITH CHECK ("public"."is_platform_admin"());
+
+
+
+CREATE POLICY "platform_admins_write" ON "public"."platform_admins" FOR INSERT WITH CHECK ("public"."is_platform_admin"());
 
 
 
@@ -3977,6 +4319,21 @@ CREATE POLICY "suppliers_write" ON "public"."suppliers" FOR INSERT WITH CHECK ("
 
 
 
+ALTER TABLE "public"."user_active_orgs" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "user_active_orgs_select" ON "public"."user_active_orgs" FOR SELECT USING ((("user_id" = "auth"."uid"()) OR "public"."is_platform_admin"()));
+
+
+
+CREATE POLICY "user_active_orgs_update" ON "public"."user_active_orgs" FOR UPDATE USING ((("user_id" = "auth"."uid"()) OR "public"."is_platform_admin"())) WITH CHECK ((("user_id" = "auth"."uid"()) OR "public"."is_platform_admin"()));
+
+
+
+CREATE POLICY "user_active_orgs_write" ON "public"."user_active_orgs" FOR INSERT WITH CHECK ((("user_id" = "auth"."uid"()) OR "public"."is_platform_admin"()));
+
+
+
 GRANT USAGE ON SCHEMA "public" TO "postgres";
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
@@ -4002,6 +4359,12 @@ GRANT ALL ON FUNCTION "public"."is_org_member"("check_org_id" "uuid") TO "servic
 
 
 
+GRANT ALL ON FUNCTION "public"."is_platform_admin"() TO "anon";
+GRANT ALL ON FUNCTION "public"."is_platform_admin"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."is_platform_admin"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."rpc_adjust_expiration_batch"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_quantity" numeric) TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_adjust_expiration_batch"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_quantity" numeric) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_adjust_expiration_batch"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_quantity" numeric) TO "service_role";
@@ -4011,6 +4374,12 @@ GRANT ALL ON FUNCTION "public"."rpc_adjust_expiration_batch"("p_org_id" "uuid", 
 GRANT ALL ON FUNCTION "public"."rpc_adjust_stock_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_new_quantity_on_hand" numeric, "p_reason" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_adjust_stock_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_new_quantity_on_hand" numeric, "p_reason" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_adjust_stock_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_new_quantity_on_hand" numeric, "p_reason" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_bootstrap_platform_admin"() TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_bootstrap_platform_admin"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_bootstrap_platform_admin"() TO "service_role";
 
 
 
@@ -4035,6 +4404,12 @@ GRANT ALL ON FUNCTION "public"."rpc_create_special_order"("p_org_id" "uuid", "p_
 GRANT ALL ON FUNCTION "public"."rpc_create_supplier_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_supplier_id" "uuid", "p_notes" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_create_supplier_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_supplier_id" "uuid", "p_notes" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_create_supplier_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_supplier_id" "uuid", "p_notes" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_get_active_org_id"() TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_get_active_org_id"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_get_active_org_id"() TO "service_role";
 
 
 
@@ -4167,6 +4542,24 @@ GRANT ALL ON FUNCTION "public"."rpc_set_supplier_order_expected_receive_on"("p_o
 GRANT ALL ON FUNCTION "public"."rpc_set_supplier_order_status"("p_org_id" "uuid", "p_order_id" "uuid", "p_status" "public"."supplier_order_status") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_set_supplier_order_status"("p_org_id" "uuid", "p_order_id" "uuid", "p_status" "public"."supplier_order_status") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_set_supplier_order_status"("p_org_id" "uuid", "p_order_id" "uuid", "p_status" "public"."supplier_order_status") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_superadmin_create_org"("p_org_name" "text", "p_timezone" "text", "p_initial_branch_name" "text", "p_initial_branch_address" "text", "p_owner_user_id" "uuid", "p_owner_display_name" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_superadmin_create_org"("p_org_name" "text", "p_timezone" "text", "p_initial_branch_name" "text", "p_initial_branch_address" "text", "p_owner_user_id" "uuid", "p_owner_display_name" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_superadmin_create_org"("p_org_name" "text", "p_timezone" "text", "p_initial_branch_name" "text", "p_initial_branch_address" "text", "p_owner_user_id" "uuid", "p_owner_display_name" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_superadmin_set_active_org"("p_org_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_superadmin_set_active_org"("p_org_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_superadmin_set_active_org"("p_org_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_superadmin_upsert_branch"("p_org_id" "uuid", "p_branch_id" "uuid", "p_name" "text", "p_address" "text", "p_is_active" boolean) TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_superadmin_upsert_branch"("p_org_id" "uuid", "p_branch_id" "uuid", "p_name" "text", "p_address" "text", "p_is_active" boolean) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_superadmin_upsert_branch"("p_org_id" "uuid", "p_branch_id" "uuid", "p_name" "text", "p_address" "text", "p_is_active" boolean) TO "service_role";
 
 
 
@@ -4308,6 +4701,12 @@ GRANT ALL ON TABLE "public"."orgs" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."platform_admins" TO "anon";
+GRANT ALL ON TABLE "public"."platform_admins" TO "authenticated";
+GRANT ALL ON TABLE "public"."platform_admins" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."products" TO "anon";
 GRANT ALL ON TABLE "public"."products" TO "authenticated";
 GRANT ALL ON TABLE "public"."products" TO "service_role";
@@ -4365,6 +4764,12 @@ GRANT ALL ON TABLE "public"."supplier_products" TO "service_role";
 GRANT ALL ON TABLE "public"."suppliers" TO "anon";
 GRANT ALL ON TABLE "public"."suppliers" TO "authenticated";
 GRANT ALL ON TABLE "public"."suppliers" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."user_active_orgs" TO "anon";
+GRANT ALL ON TABLE "public"."user_active_orgs" TO "authenticated";
+GRANT ALL ON TABLE "public"."user_active_orgs" TO "service_role";
 
 
 
@@ -4467,6 +4872,18 @@ GRANT ALL ON TABLE "public"."v_staff_effective_modules" TO "service_role";
 GRANT ALL ON TABLE "public"."v_stock_by_branch" TO "anon";
 GRANT ALL ON TABLE "public"."v_stock_by_branch" TO "authenticated";
 GRANT ALL ON TABLE "public"."v_stock_by_branch" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."v_superadmin_org_detail" TO "anon";
+GRANT ALL ON TABLE "public"."v_superadmin_org_detail" TO "authenticated";
+GRANT ALL ON TABLE "public"."v_superadmin_org_detail" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."v_superadmin_orgs" TO "anon";
+GRANT ALL ON TABLE "public"."v_superadmin_orgs" TO "authenticated";
+GRANT ALL ON TABLE "public"."v_superadmin_orgs" TO "service_role";
 
 
 

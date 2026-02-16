@@ -2954,3 +2954,219 @@ Se corrigio el selector ambiguo en la suite smoke de Playwright para `/clients`,
 - npm run lint OK (2026-02-13)
 
 **Commit:** N/A
+
+## 2026-02-13 — Credenciales administradas por admin (settings/users)
+
+**Tipo:** ui
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se ajustó `/settings/users` para que el admin gestione credenciales: creación de usuario con contraseña inicial y reset de contraseña por admin, sin exposición de contraseña actual.
+
+**Impacto**
+
+- Staff no tiene flujo para cambiar contraseña en MVP; debe solicitarlo al admin.
+- OA ve un apartado de credenciales por usuario (email + reset de contraseña).
+- Se registra evento de auditoría `user_password_reset_by_admin`.
+
+**Archivos**
+
+- app/settings/users/page.tsx
+- lib/supabase/admin.ts
+- docs/docs-app-screens-settings-users.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-13)
+- npm run build OK (2026-02-13)
+
+**Commit:** N/A
+
+## 2026-02-13 — Checklist de sucursales en settings/users
+
+**Tipo:** ui
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se reemplazó el selector múltiple de sucursales por un checklist con checkboxes en alta y edición de usuarios.
+
+**Impacto**
+
+- Más claridad operativa: check marcado implica acceso a esa sucursal.
+- Menos ambigüedad en asignación de sucursales para Staff.
+
+**Archivos**
+
+- app/settings/users/page.tsx
+- docs/docs-app-screens-settings-users.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-13)
+- npm run build OK (2026-02-13)
+
+**Commit:** N/A
+
+## 2026-02-13 — Settings/users compacto con edición desplegable
+
+**Tipo:** ui
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se reorganizó `/settings/users` para mostrar una lista compacta por usuario (nombre, email, rol y sucursales) y mover los formularios completos de edición/credenciales a un panel desplegable por fila.
+
+**Impacto**
+
+- Menor ruido visual en operación diaria.
+- Flujo de edición más explícito: primero lectura, luego edición bajo demanda.
+- “Crear usuario” quedó en desplegable para priorizar la vista de usuarios existentes.
+
+**Archivos**
+
+- app/settings/users/page.tsx
+- docs/docs-app-screens-settings-users.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-13)
+- npm run build OK (2026-02-13)
+
+**Commit:** N/A
+
+## 2026-02-13 — Superadmin excluido de settings/users
+
+**Tipo:** ui
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se bloqueó completamente la gestión de superadmin en `/settings/users`: no se lista en UI y backend rechaza intentos de creación/edición/reset para ese rol.
+
+**Impacto**
+
+- OA solo administra usuarios operativos de org (`org_admin`, `staff`).
+- Se evita modificar cuentas de dueño/soporte desde settings de organización.
+
+**Archivos**
+
+- app/settings/users/page.tsx
+- docs/docs-app-screens-settings-users.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-13)
+- npm run build OK (2026-02-13)
+
+**Commit:** N/A
+
+## 2026-02-13 — Sucursales condicionales por rol en settings/users
+
+**Tipo:** ui
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se ocultó el checklist de sucursales cuando el rol seleccionado es Org Admin y se mantiene visible solo para Staff (alta y edición).
+
+**Impacto**
+
+- Reduce confusión: OA no requiere asignación manual de sucursales.
+- Refuerza el modelo de acceso por organización para admin.
+
+**Archivos**
+
+- app/settings/users/RoleBranchChecklist.tsx
+- app/settings/users/page.tsx
+- docs/docs-app-screens-settings-users.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-13)
+- npm run build OK (2026-02-13)
+
+**Commit:** N/A
+
+## 2026-02-16 — Fundacion DB para superadmin global multi-org
+
+**Tipo:** schema
+**Alcance:** db, docs, tests
+
+**Resumen**
+Se implemento la base de datos para operar superadmin global fuera de `org_users`, con soporte de listado de organizaciones, alta de org/sucursal y contexto de org activa para impersonacion controlada.
+
+**Impacto**
+
+- Nuevo scope global de plataforma: `platform_admins` + helper `is_platform_admin()`.
+- Nuevo contexto de org activa por usuario: `user_active_orgs` + RPCs de set/get.
+- Nuevos contratos de lectura SA: `v_superadmin_orgs`, `v_superadmin_org_detail`.
+- Nuevos contratos de escritura SA: `rpc_bootstrap_platform_admin`, `rpc_superadmin_create_org`, `rpc_superadmin_upsert_branch`, `rpc_superadmin_set_active_org`.
+- `is_org_admin_or_superadmin` ahora contempla SA de plataforma.
+
+**Archivos**
+
+- supabase/migrations/20260216115100_031_superadmin_platform_foundation.sql
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/docs-app-screens-superadmin.md
+- docs/docs-schema-model.md
+- docs/schema.sql
+- types/supabase.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-02-16)
+- Verificacion objetos creada via psql local: tablas/views/RPCs nuevas OK (2026-02-16)
+- Verificacion RLS minima via psql local: SA permitido (`orgs`), Staff denegado (`platform_admins`) (2026-02-16)
+- npm run lint OK (2026-02-16)
+- npm run build OK (2026-02-16)
+
+**Commit:** N/A
+
+## 2026-02-16 — Superadmin UI operativo multi-org
+
+**Tipo:** ui
+**Alcance:** frontend, auth/proxy, docs, tests
+
+**Resumen**
+Se implemento `/superadmin` con flujo operativo MVP: listado y busqueda de organizaciones, creacion de org con sucursal inicial, alta de sucursal por org y seleccion de org activa (impersonation context). Tambien se restringio visibilidad/acceso para que la opcion Superadmin solo aparezca en usuarios SA.
+
+**Impacto**
+
+- `/superadmin` deja de ser placeholder.
+- `proxy.ts` reconoce SA de plataforma (`is_platform_admin`) y aplica redirects/guardas consistentes.
+- Topbar oculta el link `Superadmin` para no-SA.
+- Home (`/`) redirige correctamente a `/superadmin` para SA.
+
+**Archivos**
+
+- app/superadmin/page.tsx
+- app/components/TopBar.tsx
+- app/page.tsx
+- proxy.ts
+- docs/docs-app-screens-superadmin.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-16)
+- npm run build OK (2026-02-16)
+- npx playwright test -g "smoke" FAIL inicial por datos demo faltantes (2026-02-16)
+- npm run db:seed:all OK (2026-02-16)
+- npx playwright test -g "smoke" OK (2026-02-16)
+
+**Commit:** N/A

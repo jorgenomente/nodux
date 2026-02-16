@@ -996,3 +996,73 @@ ok empecemos entonce spor el settings incompleto
 
 **Prompt**
 ok intentalo a ver lo del smoke en verde
+
+## 2026-02-13 13:55 — Alta de usuarios sin validación por email
+
+**Lote:** settings-users-direct-create
+**Objetivo:** Permitir que OA cree usuarios admin/staff desde UI con email y contraseña inicial, sin confirmación por email.
+
+**Prompt**
+ok entonces implementemos esta manera de incorporar usuarios tanto admin como staff
+
+## 2026-02-13 14:54 — Credenciales administradas por OA
+
+**Lote:** settings-users-admin-credentials
+**Objetivo:** Forzar gestión de contraseña solo por admin y agregar apartado de credenciales en /settings/users.
+
+**Prompt**
+ok hazlo
+
+## 2026-02-13 15:17 — Sucursales por checklist en usuarios
+
+**Lote:** settings-users-branch-checklist
+**Objetivo:** Cambiar selector múltiple de sucursales por checklist con checkboxes para mayor claridad operativa.
+
+**Prompt**
+Podemos cambiarlo a algo tipo checklist o que sea mas especifico? tipo si esta marcado el check entonces se que puede ver esa sucursal
+
+## 2026-02-13 15:21 — Layout compacto de usuarios + edición desplegable
+
+**Lote:** settings-users-compact-layout
+**Objetivo:** Hacer compacta la lista de usuarios y mover creación/edición avanzada a desplegables.
+
+**Prompt**
+Ahora me gustaria organizar mejor como se ven las cosas quiero meter crear usuario dentro de un desplegable y en usuarios de la organizacion deberia salirme la info un poco mas compacta es decir, que yo vea los usuarios su nombre su email su rol y sucursal asignada y si yo quiero editarlo entonces hago click editar y ahi si se revela todo asi como lo de cambiar las credenciales y contrasena. tiene sentido?
+
+## 2026-02-13 15:22 — Excluir superadmin de settings/users
+
+**Lote:** settings-users-no-superadmin
+**Objetivo:** Bloquear creación/listado/edición de superadmin desde `/settings/users`.
+
+**Prompt**
+como el rol superadmin soy yo como dueno de la app y de soporte no deberia ser configurable aqui, no puedo crear ni ver ni editar un usuario superadmin
+
+## 2026-02-13 15:26 — Ocultar sucursales para Org Admin
+
+**Lote:** settings-users-role-conditional-branches
+**Objetivo:** Ocultar checklist de sucursales cuando el rol elegido sea Org Admin y mostrarlo solo para Staff.
+
+**Prompt**
+eso hagamos eso
+
+## 2026-02-16 11:51 — Base DB superadmin global multi-org
+
+**Lote:** superadmin-platform-db-foundation
+**Objetivo:** Implementar base de datos para superadmin global, gestion de org/sucursales y contexto de org activa.
+
+**Prompt**
+Ok de acuerdo a lo que tenemos hasta ahora. la idea es que esta app sea vendida a multiples tiendas (org) cada org puede tener varias sucursales. dicho esto, para salir al mercado, que recomiendas hacer?
+
+ok hagamos eso. sigo tus recomendaciones
+
+## 2026-02-16 12:00 — UI superadmin global multi-org
+
+**Lote:** superadmin-platform-ui
+**Objetivo:** Implementar pantalla `/superadmin` operativa (listar orgs, crear org y sucursal, seleccionar org activa) y restringir visibilidad/acceso solo a superadmin.
+
+**Prompt**
+ok hagamos eso. el superadmin solo debe ser visible por superadmin es decir yo y ahi debo poder seleccionar o ver todas las org y crear orgs nuevas y nuevas sucursales para esas orgs. como recomiendas que sea esto?
+
+ok. entonces hagamos eso. sigo tus recomendaciones
+
+adelante

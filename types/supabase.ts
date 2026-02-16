@@ -94,6 +94,13 @@ export type Database = {
             foreignKeyName: 'audit_log_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'audit_log_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -103,6 +110,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'audit_log_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'audit_log_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
         ];
       };
@@ -160,6 +181,13 @@ export type Database = {
             foreignKeyName: 'branch_memberships_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'branch_memberships_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -169,6 +197,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'branch_memberships_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'branch_memberships_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
         ];
       };
@@ -207,6 +249,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'branches_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'branches_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
         ];
       };
@@ -260,6 +316,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'client_special_order_items_product_id_fkey';
@@ -413,6 +483,13 @@ export type Database = {
             foreignKeyName: 'client_special_orders_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'client_special_orders_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -436,6 +513,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'client_special_orders_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'client_special_orders_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
         ];
       };
@@ -480,6 +571,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'clients_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'clients_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
         ];
       };
@@ -549,6 +654,13 @@ export type Database = {
             foreignKeyName: 'expiration_batches_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -558,6 +670,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'expiration_batches_product_id_fkey';
@@ -680,6 +806,13 @@ export type Database = {
             foreignKeyName: 'expiration_waste_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -689,6 +822,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'expiration_waste_product_id_fkey';
@@ -753,6 +900,20 @@ export type Database = {
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'org_preferences_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: true;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'org_preferences_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: true;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
         ];
       };
       org_users: {
@@ -794,6 +955,20 @@ export type Database = {
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'org_users_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'org_users_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
         ];
       };
       orgs: {
@@ -820,6 +995,24 @@ export type Database = {
           name?: string;
           timezone?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      platform_admins: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          user_id?: string;
         };
         Relationships: [];
       };
@@ -874,6 +1067,20 @@ export type Database = {
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'products_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'products_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
         ];
       };
       sale_items: {
@@ -914,6 +1121,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sale_items_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'sale_items_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'sale_items_product_id_fkey';
@@ -1006,6 +1227,13 @@ export type Database = {
             foreignKeyName: 'sales_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'sales_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -1015,6 +1243,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sales_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'sales_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
         ];
       };
@@ -1075,6 +1317,13 @@ export type Database = {
             foreignKeyName: 'staff_module_access_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'staff_module_access_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -1084,6 +1333,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'staff_module_access_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'staff_module_access_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
         ];
       };
@@ -1141,6 +1404,13 @@ export type Database = {
             foreignKeyName: 'stock_items_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'stock_items_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -1150,6 +1420,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'stock_items_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'stock_items_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'stock_items_product_id_fkey';
@@ -1247,6 +1531,13 @@ export type Database = {
             foreignKeyName: 'stock_movements_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'stock_movements_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -1256,6 +1547,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'stock_movements_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'stock_movements_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'stock_movements_product_id_fkey';
@@ -1346,6 +1651,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_order_items_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'supplier_order_items_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'supplier_order_items_product_id_fkey';
@@ -1455,6 +1774,13 @@ export type Database = {
             foreignKeyName: 'supplier_orders_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'supplier_orders_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -1464,6 +1790,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_orders_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'supplier_orders_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'supplier_orders_supplier_id_fkey';
@@ -1529,6 +1869,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_products_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'supplier_products_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'supplier_products_product_id_fkey';
@@ -1641,6 +1995,60 @@ export type Database = {
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'suppliers_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'suppliers_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
+        ];
+      };
+      user_active_orgs: {
+        Row: {
+          active_org_id: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          active_org_id: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          active_org_id?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'user_active_orgs_active_org_id_fkey';
+            columns: ['active_org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_active_orgs_active_org_id_fkey';
+            columns: ['active_org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'user_active_orgs_active_org_id_fkey';
+            columns: ['active_org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
         ];
       };
     };
@@ -1686,6 +2094,13 @@ export type Database = {
             foreignKeyName: 'audit_log_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'audit_log_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -1695,6 +2110,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'audit_log_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'audit_log_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
         ];
       };
@@ -1716,6 +2145,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'branches_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'branches_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
         ];
       };
@@ -1776,6 +2219,13 @@ export type Database = {
             foreignKeyName: 'expiration_batches_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -1785,6 +2235,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'expiration_batches_product_id_fkey';
@@ -1855,6 +2319,13 @@ export type Database = {
             foreignKeyName: 'expiration_waste_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -1864,6 +2335,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'expiration_waste_product_id_fkey';
@@ -1929,6 +2414,13 @@ export type Database = {
             foreignKeyName: 'expiration_waste_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -1938,6 +2430,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'expiration_waste_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
         ];
       };
@@ -1985,6 +2491,13 @@ export type Database = {
             foreignKeyName: 'expiration_batches_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -1994,6 +2507,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'expiration_batches_product_id_fkey';
@@ -2066,6 +2593,13 @@ export type Database = {
             foreignKeyName: 'expiration_batches_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -2075,6 +2609,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'expiration_batches_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'expiration_batches_product_id_fkey';
@@ -2186,6 +2734,13 @@ export type Database = {
             foreignKeyName: 'supplier_orders_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'supplier_orders_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -2195,6 +2750,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_orders_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'supplier_orders_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'supplier_orders_supplier_id_fkey';
@@ -2261,6 +2830,13 @@ export type Database = {
             foreignKeyName: 'supplier_orders_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'supplier_orders_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -2270,6 +2846,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_orders_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'supplier_orders_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'supplier_orders_supplier_id_fkey';
@@ -2316,6 +2906,20 @@ export type Database = {
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'products_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'products_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
         ];
       };
       v_products_admin: {
@@ -2342,6 +2946,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'products_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'products_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
         ];
       };
@@ -2372,6 +2990,20 @@ export type Database = {
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'products_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'products_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
         ];
       };
       v_settings_users_admin: {
@@ -2392,6 +3024,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'org_users_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'org_users_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
         ];
       };
@@ -2423,6 +3069,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'client_special_order_items_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'client_special_order_items_product_id_fkey';
@@ -2477,6 +3137,13 @@ export type Database = {
             foreignKeyName: 'client_special_orders_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'client_special_orders_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -2516,6 +3183,13 @@ export type Database = {
             foreignKeyName: 'branch_memberships_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'branch_memberships_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -2525,6 +3199,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'branch_memberships_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'branch_memberships_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
         ];
       };
@@ -2576,6 +3264,13 @@ export type Database = {
             foreignKeyName: 'stock_items_branch_id_fkey';
             columns: ['branch_id'];
             isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'stock_items_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
             referencedRelation: 'v_supplier_product_suggestions';
             referencedColumns: ['branch_id'];
           },
@@ -2585,6 +3280,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'stock_items_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'stock_items_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'stock_items_product_id_fkey';
@@ -2615,6 +3324,37 @@ export type Database = {
             referencedColumns: ['product_id'];
           },
         ];
+      };
+      v_superadmin_org_detail: {
+        Row: {
+          branch_address: string | null;
+          branch_created_at: string | null;
+          branch_id: string | null;
+          branch_is_active: boolean | null;
+          branch_name: string | null;
+          display_name: string | null;
+          org_id: string | null;
+          org_is_active: boolean | null;
+          org_name: string | null;
+          role: Database['public']['Enums']['user_role'] | null;
+          timezone: string | null;
+          user_created_at: string | null;
+          user_id: string | null;
+          user_is_active: boolean | null;
+        };
+        Relationships: [];
+      };
+      v_superadmin_orgs: {
+        Row: {
+          branches_count: number | null;
+          created_at: string | null;
+          is_active: boolean | null;
+          org_id: string | null;
+          org_name: string | null;
+          timezone: string | null;
+          users_count: number | null;
+        };
+        Relationships: [];
       };
       v_supplier_detail_admin: {
         Row: {
@@ -2680,6 +3420,20 @@ export type Database = {
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'suppliers_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'suppliers_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
         ];
       };
       v_supplier_product_suggestions: {
@@ -2705,6 +3459,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_products_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'supplier_products_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
           },
           {
             foreignKeyName: 'supplier_products_product_id_fkey';
@@ -2784,6 +3552,20 @@ export type Database = {
             referencedRelation: 'orgs';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'suppliers_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'suppliers_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
         ];
       };
     };
@@ -2794,6 +3576,7 @@ export type Database = {
         Returns: boolean;
       };
       is_org_member: { Args: { check_org_id: string }; Returns: boolean };
+      is_platform_admin: { Args: never; Returns: boolean };
       rpc_adjust_expiration_batch: {
         Args: { p_batch_id: string; p_new_quantity: number; p_org_id: string };
         Returns: undefined;
@@ -2811,6 +3594,7 @@ export type Database = {
           resulting_quantity_on_hand: number;
         }[];
       };
+      rpc_bootstrap_platform_admin: { Args: never; Returns: undefined };
       rpc_create_expiration_batch_manual: {
         Args: {
           p_branch_id: string;
@@ -2862,6 +3646,7 @@ export type Database = {
           order_id: string;
         }[];
       };
+      rpc_get_active_org_id: { Args: never; Returns: string };
       rpc_get_client_detail: {
         Args: { p_client_id: string; p_org_id: string };
         Returns: {
@@ -3072,6 +3857,37 @@ export type Database = {
           p_status: Database['public']['Enums']['supplier_order_status'];
         };
         Returns: undefined;
+      };
+      rpc_superadmin_create_org: {
+        Args: {
+          p_initial_branch_address?: string;
+          p_initial_branch_name?: string;
+          p_org_name: string;
+          p_owner_display_name?: string;
+          p_owner_user_id?: string;
+          p_timezone?: string;
+        };
+        Returns: {
+          branch_id: string;
+          org_id: string;
+          owner_user_id: string;
+        }[];
+      };
+      rpc_superadmin_set_active_org: {
+        Args: { p_org_id: string };
+        Returns: undefined;
+      };
+      rpc_superadmin_upsert_branch: {
+        Args: {
+          p_address?: string;
+          p_branch_id: string;
+          p_is_active?: boolean;
+          p_name: string;
+          p_org_id: string;
+        };
+        Returns: {
+          branch_id: string;
+        }[];
       };
       rpc_update_expiration_batch_date: {
         Args: {

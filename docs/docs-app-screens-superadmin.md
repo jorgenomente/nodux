@@ -28,7 +28,7 @@ ver detalle básico (org + sucursales + usuarios count)
 
 MVP: nada de billing, nada de analítica avanzada, nada de RBAC fino.
 
-**Estado actual**: placeholder MVP (pantalla informativa, sin listado real).
+**Estado actual**: UI MVP operativa.
 
 ## UI
 
@@ -51,12 +51,13 @@ users_count
 created_at
 
 acción: “Ver”
+acción: “Activar” (solo SA de plataforma)
 
-Detalle (MVP puede ser modal o subruta futura)
+Detalle (panel en misma pantalla)
 
 info básica
 
-botón “Entrar a dashboard de esta org” (si impersonation existe)
+form “Nueva sucursal” por org
 
 ## Data Contract
 
@@ -79,6 +80,25 @@ created_at
 View: v_superadmin_org_detail(org_id)
 
 org + branches + users summary
+
+### Escritura
+
+RPC: `rpc_superadmin_create_org(...)`
+
+- crea org + sucursal inicial + preferencias base
+- puede vincular OA inicial por `owner_user_id` (opcional)
+
+RPC: `rpc_superadmin_upsert_branch(...)`
+
+- crea/edita sucursales de una org
+
+RPC: `rpc_superadmin_set_active_org(...)`
+
+- define org activa para impersonation controlada
+
+RPC: `rpc_get_active_org_id()`
+
+- devuelve org activa efectiva del usuario actual
 
 ## Seguridad
 

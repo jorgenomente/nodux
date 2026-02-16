@@ -1,5 +1,7 @@
 import Link from 'next/link';
 
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/pos', label: 'POS' },
@@ -12,15 +14,39 @@ const NAV_LINKS = [
   { href: '/clients', label: 'Clientes' },
   { href: '/settings', label: 'Configuracion' },
   { href: '/settings/audit-log', label: 'Auditoria' },
-  { href: '/superadmin', label: 'Superadmin' },
 ];
 
-export default function TopBar() {
+const canViewSuperadmin = async () => {
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return false;
+
+  const { data: isPlatformAdmin } = await supabase.rpc('is_platform_admin');
+  if (isPlatformAdmin) return true;
+
+  const { data: membership } = await supabase
+    .from('org_users')
+    .select('role')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  return membership?.role === 'superadmin';
+};
+
+export default async function TopBar() {
+  const showSuperadmin = await canViewSuperadmin();
+  const links = showSuperadmin
+    ? [...NAV_LINKS, { href: '/superadmin', label: 'Superadmin' }]
+    : NAV_LINKS;
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-6 py-3">
       <div className="text-sm font-semibold text-zinc-900">NODUX</div>
       <nav className="flex flex-wrap items-center gap-2 text-xs text-zinc-600">
-        {NAV_LINKS.map((link) => (
+        {links.map((link) => (
           <Link
             key={link.href}
             href={link.href}
