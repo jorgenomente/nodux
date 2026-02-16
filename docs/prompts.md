@@ -1066,3 +1066,35 @@ ok hagamos eso. el superadmin solo debe ser visible por superadmin es decir yo y
 ok. entonces hagamos eso. sigo tus recomendaciones
 
 adelante
+
+## 2026-02-16 12:18 — Alta de org con OA inicial + dashboard SA por org activa
+
+**Lote:** superadmin-org-bootstrap-and-dashboard-context
+**Objetivo:** Completar alta de org con usuario OA inicial desde `/superadmin` y permitir que superadmin vea `/dashboard` por org activa.
+
+**Prompt**
+supongo que luego de crar una sucursal nueva, el proximo paso seria asignarle un usuario? En que parte de la UI hacemos esto?
+
+lo ideal seria que al crear la org nueva junto su primera sucursal asignar de una vez el usuario con su clave tal como en users. y como hago para ver el dashboard de las distintas org?
+
+adelante
+
+## 2026-02-16 12:32 — Admin inicial para org existente + contexto SA en módulos
+
+**Lote:** superadmin-existing-org-admin-and-active-org-modules
+**Objetivo:** Permitir crear admin inicial para org ya existente y habilitar navegación de superadmin por módulos usando org activa.
+
+**Prompt**
+como se hace con las org ya creadas que no tienen admin inicial? podemos habilitar para ellas la creacion de este admin? y me explicas entonces como ver el dashboard y los modulos de cada org? cual seria el paso? supongo que hacer click en activar?
+
+adelante
+
+## 2026-02-16 13:00 — Hardening alta org SA sin org huérfana
+
+**Lote:** superadmin-create-org-hardening-owner-required
+**Objetivo:** Forzar que la creación de org desde superadmin siempre incluya membresía OA inicial y falle de forma atómica si falta owner.
+
+**Prompt**
+que seria esta proteccion extra? que si no se confirma la membresia no se crea la org?
+
+adelante

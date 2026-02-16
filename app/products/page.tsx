@@ -2,9 +2,9 @@ import { randomUUID } from 'crypto';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
-import { createServerSupabaseClient } from '@/lib/supabase/server';
 import ProductListClient from '@/app/products/ProductListClient';
 import PageShell from '@/app/components/PageShell';
+import { getOrgAdminSession } from '@/lib/auth/org-session';
 
 const sellUnitOptions = ['unit', 'weight', 'bulk'] as const;
 
@@ -33,24 +33,16 @@ type SafetyStockRow = {
 };
 
 export default async function ProductsPage() {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getOrgAdminSession();
+  if (!session) {
     redirect('/login');
   }
 
-  const { data: membership } = await supabase
-    .from('org_users')
-    .select('org_id, role')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (!membership?.org_id || membership.role !== 'org_admin') {
+  if (!session.orgId) {
     redirect('/no-access');
   }
+  const supabase = session.supabase;
+  const orgId = session.orgId;
 
   const [
     productsResult,
@@ -62,27 +54,27 @@ export default async function ProductsPage() {
     supabase
       .from('v_products_admin')
       .select('*')
-      .eq('org_id', membership.org_id)
+      .eq('org_id', orgId)
       .order('name'),
     supabase
       .from('branches')
       .select('id, name')
-      .eq('org_id', membership.org_id)
+      .eq('org_id', orgId)
       .eq('is_active', true)
       .order('name'),
     supabase
       .from('suppliers')
       .select('id, name, is_active')
-      .eq('org_id', membership.org_id)
+      .eq('org_id', orgId)
       .order('name'),
     supabase
       .from('supplier_products')
       .select('product_id, supplier_id, relation_type, suppliers(name)')
-      .eq('org_id', membership.org_id),
+      .eq('org_id', orgId),
     supabase
       .from('stock_items')
       .select('product_id, safety_stock, branches(name)')
-      .eq('org_id', membership.org_id)
+      .eq('org_id', orgId)
       .gt('safety_stock', 0),
   ]);
 
@@ -160,7 +152,9 @@ export default async function ProductsPage() {
   const createProduct = async (formData: FormData): Promise<void> => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
     const name = String(formData.get('name') ?? '').trim();
     const internalCode = String(formData.get('internal_code') ?? '').trim();
     const barcode = String(formData.get('barcode') ?? '').trim();
@@ -198,23 +192,13 @@ export default async function ProductsPage() {
       return;
     }
 
-    const { data: userData } = await supabaseServer.auth.getUser();
-    const userId = userData.user?.id;
-    if (!userId) return;
-
-    const { data: member } = await supabaseServer
-      .from('org_users')
-      .select('org_id, role')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (!member?.org_id || member.role !== 'org_admin') return;
+    const orgId = actionSession.orgId;
 
     const productId = randomUUID();
 
     await supabaseServer.rpc('rpc_upsert_product', {
       p_product_id: productId,
-      p_org_id: member.org_id,
+      p_org_id: orgId,
       p_name: name,
       p_internal_code: internalCode || '',
       p_barcode: barcode || '',
@@ -227,7 +211,7 @@ export default async function ProductsPage() {
 
     if (primarySupplierId) {
       await supabaseServer.rpc('rpc_upsert_supplier_product', {
-        p_org_id: member.org_id,
+        p_org_id: orgId,
         p_supplier_id: primarySupplierId,
         p_product_id: productId,
         p_supplier_sku: primarySupplierSku,
@@ -238,7 +222,7 @@ export default async function ProductsPage() {
 
     if (secondarySupplierId && secondarySupplierId !== primarySupplierId) {
       await supabaseServer.rpc('rpc_upsert_supplier_product', {
-        p_org_id: member.org_id,
+        p_org_id: orgId,
         p_supplier_id: secondarySupplierId,
         p_product_id: productId,
         p_supplier_sku: '',
@@ -253,13 +237,13 @@ export default async function ProductsPage() {
         const { data: activeBranches } = await supabaseServer
           .from('branches')
           .select('id')
-          .eq('org_id', member.org_id)
+          .eq('org_id', orgId)
           .eq('is_active', true);
 
         await Promise.all(
           (activeBranches ?? []).map((branch) =>
             supabaseServer.rpc('rpc_set_safety_stock', {
-              p_org_id: member.org_id,
+              p_org_id: orgId,
               p_branch_id: branch.id,
               p_product_id: productId,
               p_safety_stock: safetyStock,
@@ -275,7 +259,10 @@ export default async function ProductsPage() {
   const updateProduct = async (formData: FormData): Promise<void> => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
+    const orgId = actionSession.orgId;
     const productId = String(formData.get('product_id') ?? '').trim();
     const name = String(formData.get('edit_name') ?? '').trim();
     const internalCode = String(
@@ -314,21 +301,9 @@ export default async function ProductsPage() {
       return;
     }
 
-    const { data: userData } = await supabaseServer.auth.getUser();
-    const userId = userData.user?.id;
-    if (!userId) return;
-
-    const { data: member } = await supabaseServer
-      .from('org_users')
-      .select('org_id, role')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (!member?.org_id || member.role !== 'org_admin') return;
-
     await supabaseServer.rpc('rpc_upsert_product', {
       p_product_id: productId,
-      p_org_id: member.org_id,
+      p_org_id: orgId,
       p_name: name,
       p_internal_code: internalCode || '',
       p_barcode: barcode || '',
@@ -345,13 +320,13 @@ export default async function ProductsPage() {
         const { data: activeBranches } = await supabaseServer
           .from('branches')
           .select('id')
-          .eq('org_id', member.org_id)
+          .eq('org_id', orgId)
           .eq('is_active', true);
 
         await Promise.all(
           (activeBranches ?? []).map((branch) =>
             supabaseServer.rpc('rpc_set_safety_stock', {
-              p_org_id: member.org_id,
+              p_org_id: orgId,
               p_branch_id: branch.id,
               p_product_id: productId,
               p_safety_stock: safetyStock,
@@ -368,7 +343,7 @@ export default async function ProductsPage() {
 
     if (primarySupplierId) {
       await supabaseServer.rpc('rpc_upsert_supplier_product', {
-        p_org_id: member.org_id,
+        p_org_id: orgId,
         p_supplier_id: primarySupplierId,
         p_product_id: productId,
         p_supplier_sku: '',
@@ -377,7 +352,7 @@ export default async function ProductsPage() {
       });
     } else {
       await supabaseServer.rpc('rpc_remove_supplier_product_relation', {
-        p_org_id: member.org_id,
+        p_org_id: orgId,
         p_product_id: productId,
         p_relation_type: 'primary',
       });
@@ -385,7 +360,7 @@ export default async function ProductsPage() {
 
     if (secondarySupplierId) {
       await supabaseServer.rpc('rpc_upsert_supplier_product', {
-        p_org_id: member.org_id,
+        p_org_id: orgId,
         p_supplier_id: secondarySupplierId,
         p_product_id: productId,
         p_supplier_sku: '',
@@ -394,7 +369,7 @@ export default async function ProductsPage() {
       });
     } else {
       await supabaseServer.rpc('rpc_remove_supplier_product_relation', {
-        p_org_id: member.org_id,
+        p_org_id: orgId,
         p_product_id: productId,
         p_relation_type: 'secondary',
       });
@@ -406,7 +381,10 @@ export default async function ProductsPage() {
   const adjustStock = async (formData: FormData): Promise<void> => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
+    const orgId = actionSession.orgId;
     const productId = String(formData.get('product_id') ?? '').trim();
     const branchId = String(formData.get('branch_id') ?? '').trim();
     const quantityRaw = String(formData.get('new_quantity') ?? '0').trim();
@@ -417,20 +395,8 @@ export default async function ProductsPage() {
 
     if (Number.isNaN(newQuantity)) return;
 
-    const { data: userData } = await supabaseServer.auth.getUser();
-    const userId = userData.user?.id;
-    if (!userId) return;
-
-    const { data: member } = await supabaseServer
-      .from('org_users')
-      .select('org_id, role')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (!member?.org_id || member.role !== 'org_admin') return;
-
     await supabaseServer.rpc('rpc_adjust_stock_manual', {
-      p_org_id: member.org_id,
+      p_org_id: orgId,
       p_branch_id: branchId,
       p_product_id: productId,
       p_new_quantity_on_hand: newQuantity,

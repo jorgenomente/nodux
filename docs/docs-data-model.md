@@ -32,6 +32,7 @@ Estado actual:
 - Fecha estimada de recepcion en pedidos de proveedor en `supabase/migrations/20260213101500_029_supplier_orders_expected_receive_on.sql`.
 - Cierre de gaps de auditoria en proveedores/pedidos (upsert supplier, expected receive y recepcion-control) en `supabase/migrations/20260213125000_030_audit_gaps_supplier_orders.sql`.
 - Fundacion Superadmin plataforma (admins globales, vistas/rpcs de org y org activa) en `supabase/migrations/20260216115100_031_superadmin_platform_foundation.sql`.
+- Hardening de alta org SA: `rpc_superadmin_create_org` exige owner y evita org huérfana en `supabase/migrations/20260216124000_032_superadmin_create_org_owner_required.sql`.
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 

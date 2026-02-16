@@ -226,3 +226,6 @@ Estado actual: **MVP en progreso** (Fase 6 — hardening inicial multi-org/super
 - 2026-02-13: Se completa Fase 5 de Settings en frontend con rutas faltantes (users, branches, staff-permissions, preferences y hub).
 - 2026-02-16: Se agrega base DB para superadmin global multi-org (`platform_admins`, `user_active_orgs`, `v_superadmin_orgs`, `v_superadmin_org_detail`, RPCs de alta org/sucursal y org activa).
 - 2026-02-16: `/superadmin` pasa de placeholder a UI operativa con listado/busqueda de orgs, alta de org/sucursal y cambio de org activa; acceso visible/restringido solo para superadmin.
+- 2026-02-16: alta de org se completa end-to-end desde `/superadmin` (incluye OA inicial con password) y SA puede abrir `/dashboard` de la org activa.
+- 2026-02-16: se agrega creación de OA inicial para org existente desde `/superadmin` y se extiende contexto SA de org activa a módulos core del MVP.
+- 2026-02-16: hardening DB de alta org SA para exigir OA inicial en `rpc_superadmin_create_org` (alta atómica sin org huérfana).

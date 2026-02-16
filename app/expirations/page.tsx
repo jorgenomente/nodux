@@ -4,7 +4,10 @@ import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
 import ExpirationsFiltersClient from '@/app/expirations/ExpirationsFiltersClient';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import {
+  getOrgAdminSession,
+  getOrgMemberSession,
+} from '@/lib/auth/org-session';
 
 const STAFF_MODULE_ORDER = [
   'pos',
@@ -127,30 +130,19 @@ export default async function ExpirationsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getOrgMemberSession();
+  if (!session) {
     redirect('/login');
   }
-
-  const { data: membership } = await supabase
-    .from('org_users')
-    .select('org_id, role')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (!membership?.org_id || !membership.role) {
+  if (!session.orgId || !session.effectiveRole) {
     redirect('/no-access');
   }
+  const supabase = session.supabase;
+  const orgId = session.orgId;
+  const role = session.effectiveRole;
+  const userId = session.userId;
 
-  if (membership.role === 'superadmin') {
-    redirect('/superadmin');
-  }
-
-  if (membership.role === 'staff') {
+  if (role === 'staff') {
     const { data: modules } = await supabase.rpc(
       'rpc_get_staff_effective_modules',
     );
@@ -165,12 +157,12 @@ export default async function ExpirationsPage({
 
   let branches: BranchOption[] = [];
 
-  if (membership.role === 'staff') {
+  if (role === 'staff') {
     const { data: branchMemberships } = await supabase
       .from('branch_memberships')
       .select('branch_id')
-      .eq('org_id', membership.org_id)
-      .eq('user_id', user.id)
+      .eq('org_id', orgId)
+      .eq('user_id', userId)
       .eq('is_active', true);
 
     const branchIds = (branchMemberships ?? [])
@@ -183,7 +175,7 @@ export default async function ExpirationsPage({
     const { data: branchRows } = await supabase
       .from('branches')
       .select('id, name')
-      .eq('org_id', membership.org_id)
+      .eq('org_id', orgId)
       .eq('is_active', true)
       .in('id', branchIds)
       .order('name');
@@ -193,7 +185,7 @@ export default async function ExpirationsPage({
     const { data: branchRows } = await supabase
       .from('branches')
       .select('id, name')
-      .eq('org_id', membership.org_id)
+      .eq('org_id', orgId)
       .eq('is_active', true)
       .order('name');
 
@@ -206,7 +198,7 @@ export default async function ExpirationsPage({
       ? resolvedSearchParams.branch_id
       : '';
   const selectedBranchId =
-    membership.role === 'staff'
+    role === 'staff'
       ? branchIds.has(requestedBranchId)
         ? requestedBranchId
         : (branches[0]?.id ?? '')
@@ -224,7 +216,7 @@ export default async function ExpirationsPage({
   let expirationsQuery = supabase
     .from('v_expirations_due')
     .select('*')
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .order('days_left', { ascending: true })
     .order('expires_on', { ascending: true });
 
@@ -250,7 +242,7 @@ export default async function ExpirationsPage({
   let wasteQuery = supabase
     .from('v_expiration_waste_detail')
     .select('*')
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .order('created_at', { ascending: false })
     .limit(20);
 
@@ -265,18 +257,18 @@ export default async function ExpirationsPage({
     ? await supabase
         .from('v_expiration_waste_summary')
         .select('total_amount, total_quantity')
-        .eq('org_id', membership.org_id)
+        .eq('org_id', orgId)
         .eq('branch_id', selectedBranchId)
         .maybeSingle()
     : { data: null };
   const wasteTotals = (wasteSummary as WasteSummary | null) ?? null;
 
   const { data: products } =
-    membership.role === 'org_admin'
+    role === 'org_admin'
       ? await supabase
           .from('products')
           .select('id, name, is_active')
-          .eq('org_id', membership.org_id)
+          .eq('org_id', orgId)
           .eq('is_active', true)
           .order('name')
       : { data: [] };
@@ -285,24 +277,11 @@ export default async function ExpirationsPage({
   const createBatch = async (formData: FormData) => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
-    const {
-      data: { user: actionUser },
-    } = await supabaseServer.auth.getUser();
-
-    if (!actionUser) {
-      redirect('/login');
-    }
-
-    const { data: actionMembership } = await supabaseServer
-      .from('org_users')
-      .select('org_id, role')
-      .eq('user_id', actionUser.id)
-      .maybeSingle();
-
-    if (!actionMembership?.org_id || actionMembership.role !== 'org_admin') {
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) {
       redirect('/no-access');
     }
+    const supabaseServer = actionSession.supabase;
 
     const branchId = String(formData.get('branch_id') ?? '').trim();
     const productId = String(formData.get('product_id') ?? '').trim();
@@ -332,7 +311,7 @@ export default async function ExpirationsPage({
     const { error } = await supabaseServer.rpc(
       'rpc_create_expiration_batch_manual',
       {
-        p_org_id: actionMembership.org_id,
+        p_org_id: actionSession.orgId,
         p_branch_id: branchId,
         p_product_id: productId,
         p_expires_on: expiresOn,
@@ -354,24 +333,11 @@ export default async function ExpirationsPage({
   const adjustBatch = async (formData: FormData) => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
-    const {
-      data: { user: actionUser },
-    } = await supabaseServer.auth.getUser();
-
-    if (!actionUser) {
-      redirect('/login');
-    }
-
-    const { data: actionMembership } = await supabaseServer
-      .from('org_users')
-      .select('org_id, role')
-      .eq('user_id', actionUser.id)
-      .maybeSingle();
-
-    if (!actionMembership?.org_id || actionMembership.role !== 'org_admin') {
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) {
       redirect('/no-access');
     }
+    const supabaseServer = actionSession.supabase;
 
     const batchId = String(formData.get('batch_id') ?? '').trim();
     const quantityRaw = String(formData.get('new_quantity') ?? '').trim();
@@ -391,7 +357,7 @@ export default async function ExpirationsPage({
     }
 
     const { error } = await supabaseServer.rpc('rpc_adjust_expiration_batch', {
-      p_org_id: actionMembership.org_id,
+      p_org_id: actionSession.orgId,
       p_batch_id: batchId,
       p_new_quantity: newQuantity,
     });
@@ -409,24 +375,11 @@ export default async function ExpirationsPage({
   const updateBatchDate = async (formData: FormData) => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
-    const {
-      data: { user: actionUser },
-    } = await supabaseServer.auth.getUser();
-
-    if (!actionUser) {
-      redirect('/login');
-    }
-
-    const { data: actionMembership } = await supabaseServer
-      .from('org_users')
-      .select('org_id, role')
-      .eq('user_id', actionUser.id)
-      .maybeSingle();
-
-    if (!actionMembership?.org_id || actionMembership.role !== 'org_admin') {
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) {
       redirect('/no-access');
     }
+    const supabaseServer = actionSession.supabase;
 
     const batchId = String(formData.get('batch_id') ?? '').trim();
     const newExpiresOn = String(formData.get('new_expires_on') ?? '').trim();
@@ -448,7 +401,7 @@ export default async function ExpirationsPage({
     const { error } = await supabaseServer.rpc(
       'rpc_update_expiration_batch_date',
       {
-        p_org_id: actionMembership.org_id,
+        p_org_id: actionSession.orgId,
         p_batch_id: batchId,
         p_new_expires_on: newExpiresOn,
         p_reason: reason,
@@ -468,24 +421,11 @@ export default async function ExpirationsPage({
   const moveToWaste = async (formData: FormData) => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
-    const {
-      data: { user: actionUser },
-    } = await supabaseServer.auth.getUser();
-
-    if (!actionUser) {
-      redirect('/login');
-    }
-
-    const { data: actionMembership } = await supabaseServer
-      .from('org_users')
-      .select('org_id, role')
-      .eq('user_id', actionUser.id)
-      .maybeSingle();
-
-    if (!actionMembership?.org_id) {
+    const actionSession = await getOrgMemberSession();
+    if (!actionSession?.orgId) {
       redirect('/no-access');
     }
+    const supabaseServer = actionSession.supabase;
 
     const batchId = String(formData.get('batch_id') ?? '').trim();
     const expectedQtyRaw = String(formData.get('expected_qty') ?? '').trim();
@@ -506,7 +446,7 @@ export default async function ExpirationsPage({
     const { error } = await supabaseServer.rpc(
       'rpc_move_expiration_batch_to_waste',
       {
-        p_org_id: actionMembership.org_id,
+        p_org_id: actionSession.orgId,
         p_batch_id: batchId,
         p_expected_qty: expectedQty,
       },
@@ -594,7 +534,7 @@ export default async function ExpirationsPage({
             </div>
           </div>
 
-          {membership.role === 'org_admin' ? (
+          {role === 'org_admin' ? (
             <details className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
               <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold text-zinc-900">
                 Registrar vencimiento manual
@@ -763,7 +703,7 @@ export default async function ExpirationsPage({
                       </div>
                     </div>
                     <div className="flex w-full flex-col gap-2 md:w-64">
-                      {membership.role === 'org_admin' ? (
+                      {role === 'org_admin' ? (
                         <>
                           <details className="rounded-xl border border-zinc-100 bg-zinc-50 p-3">
                             <summary className="cursor-pointer text-xs font-semibold text-zinc-700">

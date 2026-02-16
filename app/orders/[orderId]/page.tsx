@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getOrgAdminSession } from '@/lib/auth/org-session';
 
 type OrderDetailRow = {
   order_id: string;
@@ -64,30 +65,21 @@ export default async function OrderDetailPage({
 }) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getOrgAdminSession();
+  if (!session) {
     redirect('/login');
   }
-
-  const { data: membership } = await supabase
-    .from('org_users')
-    .select('org_id, role')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (!membership?.org_id || membership.role !== 'org_admin') {
+  if (!session.orgId) {
     redirect('/no-access');
   }
+  const supabase = session.supabase;
+  const orgId = session.orgId;
 
   const orderId = resolvedParams.orderId;
   const { data: detailRows } = await supabase
     .from('v_order_detail_admin')
     .select('*')
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .eq('order_id', orderId);
 
   if (!detailRows || detailRows.length === 0) {
@@ -102,7 +94,7 @@ export default async function OrderDetailPage({
   const { data: productOptions } = await supabase
     .from('v_products_typeahead_admin')
     .select('product_id, name, is_active')
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .eq('is_active', true)
     .order('name');
 
@@ -116,7 +108,7 @@ export default async function OrderDetailPage({
     if (!productId || orderedQty <= 0) return;
 
     await supabaseServer.rpc('rpc_upsert_supplier_order_item', {
-      p_org_id: membership.org_id,
+      p_org_id: orgId,
       p_order_id: orderId,
       p_product_id: productId,
       p_ordered_qty: orderedQty,
@@ -136,7 +128,7 @@ export default async function OrderDetailPage({
     if (!productId || orderedQty <= 0) return;
 
     await supabaseServer.rpc('rpc_upsert_supplier_order_item', {
-      p_org_id: membership.org_id,
+      p_org_id: orgId,
       p_order_id: orderId,
       p_product_id: productId,
       p_ordered_qty: orderedQty,
@@ -155,7 +147,7 @@ export default async function OrderDetailPage({
     if (!productId) return;
 
     await supabaseServer.rpc('rpc_remove_supplier_order_item', {
-      p_org_id: membership.org_id,
+      p_org_id: orgId,
       p_order_id: orderId,
       p_product_id: productId,
     });
@@ -169,7 +161,7 @@ export default async function OrderDetailPage({
     const supabaseServer = await createServerSupabaseClient();
 
     await supabaseServer.rpc('rpc_set_supplier_order_status', {
-      p_org_id: membership.org_id,
+      p_org_id: orgId,
       p_order_id: orderId,
       p_status: 'sent',
     });
@@ -193,7 +185,7 @@ export default async function OrderDetailPage({
     }
 
     await supabaseServer.rpc('rpc_set_supplier_order_status', {
-      p_org_id: membership.org_id,
+      p_org_id: orgId,
       p_order_id: orderId,
       p_status: nextStatus,
     });
@@ -236,7 +228,7 @@ export default async function OrderDetailPage({
 
     if (order.status === 'sent') {
       await supabaseServer.rpc('rpc_receive_supplier_order', {
-        p_org_id: membership.org_id,
+        p_org_id: orgId,
         p_order_id: orderId,
         p_items: itemsPayload,
         p_received_at: receivedAt,
@@ -256,7 +248,7 @@ export default async function OrderDetailPage({
           controlled_by_user_id: userId,
           controlled_by_name: controlledByName,
         })
-        .eq('org_id', membership.org_id)
+        .eq('org_id', orgId)
         .eq('id', orderId)
         .eq('status', 'received');
     }
@@ -275,7 +267,7 @@ export default async function OrderDetailPage({
     const expectedReceiveOn = expectedReceiveOnRaw || null;
 
     await supabaseServer.rpc('rpc_set_supplier_order_expected_receive_on', {
-      p_org_id: membership.org_id,
+      p_org_id: orgId,
       p_order_id: orderId,
       p_expected_receive_on: expectedReceiveOn as unknown as string,
     });
@@ -294,7 +286,7 @@ export default async function OrderDetailPage({
   const controlledByLabel =
     order.controlled_by_name || order.controlled_by_user_name;
   const receiveDefaultAt = new Date().toISOString().slice(0, 16);
-  const userLabel = user.email ?? user.id;
+  const userLabel = session.userId;
   const isFinalized = order.status === 'reconciled';
   const notice =
     resolvedSearchParams?.notice === 'sent'

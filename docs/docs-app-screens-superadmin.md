@@ -58,6 +58,21 @@ Detalle (panel en misma pantalla)
 info básica
 
 form “Nueva sucursal” por org
+form “Crear admin inicial” para org existente (email + contraseña + nombre opcional)
+
+Formulario “Nueva organización” con:
+
+- nombre org
+- timezone
+- sucursal inicial
+- email admin inicial (OA)
+- contraseña admin inicial
+- nombre admin inicial (opcional)
+
+CTA adicional por org activa:
+
+- “Ir a Dashboard” (`/dashboard`)
+- Navegar a módulos operativos (`/products`, `/orders`, `/clients`, etc.) usando org activa
 
 ## Data Contract
 
@@ -86,7 +101,7 @@ org + branches + users summary
 RPC: `rpc_superadmin_create_org(...)`
 
 - crea org + sucursal inicial + preferencias base
-- puede vincular OA inicial por `owner_user_id` (opcional)
+- crea y vincula OA inicial obligatorio (`owner_email` + `owner_password` + `owner_user_id`)
 
 RPC: `rpc_superadmin_upsert_branch(...)`
 

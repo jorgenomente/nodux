@@ -3170,3 +3170,122 @@ Se implemento `/superadmin` con flujo operativo MVP: listado y busqueda de organ
 - npx playwright test -g "smoke" OK (2026-02-16)
 
 **Commit:** N/A
+
+## 2026-02-16 — Bootstrap de org con OA inicial + dashboard SA por org activa
+
+**Tipo:** ui
+**Alcance:** frontend, auth/proxy, docs, tests
+
+**Resumen**
+Se completo el flujo de alta de organización desde `/superadmin` para incluir admin inicial (email + contraseña) en el mismo formulario. Además, se habilitó el acceso de superadmin al `/dashboard` usando la org activa.
+
+**Impacto**
+
+- Crea org + sucursal inicial + OA inicial en una sola acción.
+- Evita orgs nuevas sin usuario administrador operativo.
+- SA puede cambiar org activa y abrir `/dashboard` para revisar cada cliente.
+- `proxy.ts` permite a SA navegar `/superadmin` y `/dashboard`.
+
+**Archivos**
+
+- app/superadmin/page.tsx
+- app/dashboard/page.tsx
+- proxy.ts
+- docs/docs-app-screens-superadmin.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-16)
+- npm run build OK (2026-02-16)
+- npm run db:seed:all OK (2026-02-16)
+- npx playwright test -g "smoke" OK (2026-02-16)
+
+**Commit:** N/A
+
+## 2026-02-16 — Admin inicial para org existente + SA en módulos por org activa
+
+**Tipo:** ui
+**Alcance:** frontend, auth/proxy, docs, tests
+
+**Resumen**
+Se habilitó en `/superadmin` la creación de admin inicial para organizaciones ya existentes (sin OA). Además, se extendió el contexto de org activa para superadmin en módulos core del MVP, evitando bloqueo por validaciones directas de `org_users`.
+
+**Impacto**
+
+- Flujo de recuperación para orgs legacy sin admin inicial.
+- Operación SA multi-org más usable: activar org y navegar dashboard/módulos.
+- Base reutilizable de contexto con helper `lib/auth/org-session.ts`.
+
+**Archivos**
+
+- app/superadmin/page.tsx
+- lib/auth/org-session.ts
+- app/pos/page.tsx
+- app/products/page.tsx
+- app/suppliers/page.tsx
+- app/suppliers/[supplierId]/page.tsx
+- app/orders/page.tsx
+- app/orders/[orderId]/page.tsx
+- app/orders/calendar/page.tsx
+- app/clients/page.tsx
+- app/expirations/page.tsx
+- app/settings/page.tsx
+- app/settings/branches/page.tsx
+- app/settings/preferences/page.tsx
+- app/settings/staff-permissions/page.tsx
+- app/settings/users/page.tsx
+- app/settings/audit-log/page.tsx
+- proxy.ts
+- docs/docs-app-screens-superadmin.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-16)
+- npm run build OK (2026-02-16)
+- npm run db:seed:all OK (2026-02-16)
+- npx playwright test -g "smoke" OK (2026-02-16)
+
+**Commit:** N/A
+
+## 2026-02-16 — Hardening DB: alta org SA requiere owner y membresía atómica
+
+**Tipo:** schema
+**Alcance:** db, docs, tests
+
+**Resumen**
+Se reemplazó `rpc_superadmin_create_org` para exigir `p_owner_user_id` y garantizar que la org se cree de forma atómica con su admin inicial (sin orgs huérfanas).
+
+**Impacto**
+
+- Si falta owner, la RPC falla antes de crear registros.
+- Si el owner no existe en `auth.users`, la RPC falla.
+- Org + sucursal inicial + `org_preferences` + `org_users` + `branch_memberships` quedan en una sola transacción.
+
+**Archivos**
+
+- supabase/migrations/20260216124000_032_superadmin_create_org_owner_required.sql
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-02-16)
+- npm run format:check OK (2026-02-16)
+- npm run lint OK (2026-02-16)
+- npm run build OK (2026-02-16)
+- npm run db:seed:all OK (2026-02-16)
+- npx playwright test -g "smoke" OK (2026-02-16)
+
+**Commit:** N/A

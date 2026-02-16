@@ -6,6 +6,7 @@ import OrderDraftFiltersClient from '@/app/orders/OrderDraftFiltersClient';
 import OrderSuggestionsClient from '@/app/orders/OrderSuggestionsClient';
 import PageShell from '@/app/components/PageShell';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getOrgAdminSession } from '@/lib/auth/org-session';
 
 type SearchParams = {
   branch_id?: string;
@@ -119,36 +120,27 @@ export default async function OrdersPage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getOrgAdminSession();
+  if (!session) {
     redirect('/login');
   }
-
-  const { data: membership } = await supabase
-    .from('org_users')
-    .select('org_id, role')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (!membership?.org_id || membership.role !== 'org_admin') {
+  if (!session.orgId) {
     redirect('/no-access');
   }
+  const supabase = session.supabase;
+  const orgId = session.orgId;
 
   const { data: suppliers } = await supabase
     .from('suppliers')
     .select('id, name, is_active')
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .eq('is_active', true)
     .order('name');
 
   const { data: branches } = await supabase
     .from('branches')
     .select('id, name')
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .eq('is_active', true)
     .order('name');
 
@@ -182,7 +174,7 @@ export default async function OrdersPage({
   let orderQuery = supabase
     .from('v_orders_admin')
     .select('*')
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .order('created_at', { ascending: false });
 
   if (selectedBranchId) {
@@ -211,7 +203,7 @@ export default async function OrdersPage({
       ? await supabase
           .from('v_supplier_product_suggestions')
           .select('*')
-          .eq('org_id', membership.org_id)
+          .eq('org_id', orgId)
           .eq('supplier_id', draftSupplierId)
           .eq('branch_id', draftBranchId)
           .eq('relation_type', 'primary')
@@ -225,7 +217,7 @@ export default async function OrdersPage({
           .select(
             'item_id, special_order_id, client_name, product_id, product_name, remaining_qty, supplier_id, supplier_name, branch_id, is_ordered',
           )
-          .eq('org_id', membership.org_id)
+          .eq('org_id', orgId)
           .eq('supplier_id', draftSupplierId)
           .eq('branch_id', draftBranchId)
           .eq('is_ordered', false)
@@ -240,7 +232,7 @@ export default async function OrdersPage({
       ? await supabase
           .from('products')
           .select('id, unit_price')
-          .eq('org_id', membership.org_id)
+          .eq('org_id', orgId)
           .in('id', suggestionIds)
       : { data: [] };
 
@@ -263,7 +255,7 @@ export default async function OrdersPage({
     const { data: result } = await supabaseServer.rpc(
       'rpc_create_supplier_order',
       {
-        p_org_id: membership.org_id,
+        p_org_id: orgId,
         p_branch_id: branchId,
         p_supplier_id: supplierId,
         p_notes: notes,
@@ -293,7 +285,7 @@ export default async function OrdersPage({
     await Promise.all(
       items.map((item) =>
         supabaseServer.rpc('rpc_upsert_supplier_order_item', {
-          p_org_id: membership.org_id,
+          p_org_id: orgId,
           p_order_id: orderId,
           p_product_id: item.productId,
           p_ordered_qty: item.qty,
@@ -305,7 +297,7 @@ export default async function OrdersPage({
     const action = String(formData.get('order_action') ?? 'draft').trim();
     if (action === 'sent') {
       await supabaseServer.rpc('rpc_set_supplier_order_status', {
-        p_org_id: membership.org_id,
+        p_org_id: orgId,
         p_order_id: orderId,
         p_status: 'sent',
       });
@@ -319,7 +311,7 @@ export default async function OrdersPage({
         const itemIds = JSON.parse(specialOrderItemIdsRaw) as string[];
         if (Array.isArray(itemIds) && itemIds.length > 0) {
           await supabaseServer.rpc('rpc_mark_special_order_items_ordered', {
-            p_org_id: membership.org_id,
+            p_org_id: orgId,
             p_item_ids: itemIds,
             p_supplier_order_id: orderId,
           });

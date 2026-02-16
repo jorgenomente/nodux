@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
+import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 type SearchParams = {
@@ -57,7 +58,14 @@ const getSuperadminContext = async () => {
     .maybeSingle();
 
   if (membership?.role === 'superadmin') {
-    return { supabase, userId: user.id, isPlatformAdmin: false };
+    // First superadmin can bootstrap platform_admins on empty installs.
+    await supabase.rpc('rpc_bootstrap_platform_admin');
+    const { data: bootstrapped } = await supabase.rpc('is_platform_admin');
+    return {
+      supabase,
+      userId: user.id,
+      isPlatformAdmin: Boolean(bootstrapped),
+    };
   }
 
   return null;
@@ -91,9 +99,45 @@ export default async function SuperadminPage({
     const branchAddress = String(
       formData.get('initial_branch_address') ?? '',
     ).trim();
+    const ownerEmail = String(formData.get('owner_email') ?? '')
+      .trim()
+      .toLowerCase();
+    const ownerPassword = String(formData.get('owner_password') ?? '');
+    const ownerName = String(formData.get('owner_display_name') ?? '').trim();
+
+    if (!auth.isPlatformAdmin) {
+      redirect('/superadmin?result=active_org_denied');
+    }
 
     if (!orgName) {
       redirect('/superadmin?result=invalid_org');
+    }
+    if (!ownerEmail || !ownerEmail.includes('@')) {
+      redirect('/superadmin?result=invalid_owner_email');
+    }
+    if (ownerPassword.length < 8) {
+      redirect('/superadmin?result=weak_owner_password');
+    }
+
+    const admin = createAdminSupabaseClient();
+    const { data: createdUser, error: createUserError } =
+      await admin.auth.admin.createUser({
+        email: ownerEmail,
+        password: ownerPassword,
+        email_confirm: true,
+        user_metadata: ownerName ? { display_name: ownerName } : undefined,
+      });
+
+    if (createUserError || !createdUser.user?.id) {
+      const message = String(createUserError?.message ?? '').toLowerCase();
+      const alreadyExists =
+        createUserError?.code === 'email_exists' ||
+        message.includes('already') ||
+        message.includes('exists');
+      if (alreadyExists) {
+        redirect('/superadmin?result=owner_email_exists');
+      }
+      redirect('/superadmin?result=owner_create_error');
     }
 
     const { data, error } = await auth.supabase.rpc(
@@ -103,8 +147,8 @@ export default async function SuperadminPage({
         p_timezone: timezone,
         p_initial_branch_name: branchName,
         p_initial_branch_address: branchAddress || undefined,
-        p_owner_user_id: undefined,
-        p_owner_display_name: undefined,
+        p_owner_user_id: createdUser.user.id,
+        p_owner_display_name: ownerName || undefined,
       },
     );
 
@@ -188,6 +232,69 @@ export default async function SuperadminPage({
 
     revalidatePath('/superadmin');
     redirect(`/superadmin?org=${orgId}&result=branch_created`);
+  };
+
+  const createOrgAdmin = async (formData: FormData): Promise<void> => {
+    'use server';
+
+    const auth = await getSuperadminContext();
+    if (!auth || !auth.isPlatformAdmin) {
+      redirect('/no-access');
+    }
+
+    const orgId = String(formData.get('org_id') ?? '').trim();
+    const ownerEmail = String(formData.get('owner_email') ?? '')
+      .trim()
+      .toLowerCase();
+    const ownerPassword = String(formData.get('owner_password') ?? '');
+    const ownerName = String(formData.get('owner_display_name') ?? '').trim();
+
+    if (!orgId || !ownerEmail || !ownerEmail.includes('@')) {
+      redirect(`/superadmin?org=${orgId}&result=invalid_owner_email`);
+    }
+    if (ownerPassword.length < 8) {
+      redirect(`/superadmin?org=${orgId}&result=weak_owner_password`);
+    }
+
+    const admin = createAdminSupabaseClient();
+    const { data: createdUser, error: createUserError } =
+      await admin.auth.admin.createUser({
+        email: ownerEmail,
+        password: ownerPassword,
+        email_confirm: true,
+        user_metadata: ownerName ? { display_name: ownerName } : undefined,
+      });
+
+    if (createUserError || !createdUser.user?.id) {
+      const message = String(createUserError?.message ?? '').toLowerCase();
+      const alreadyExists =
+        createUserError?.code === 'email_exists' ||
+        message.includes('already') ||
+        message.includes('exists');
+      if (alreadyExists) {
+        redirect(`/superadmin?org=${orgId}&result=owner_email_exists`);
+      }
+      redirect(`/superadmin?org=${orgId}&result=owner_create_error`);
+    }
+
+    await auth.supabase.rpc('rpc_invite_user_to_org', {
+      p_org_id: orgId,
+      p_email: ownerEmail,
+      p_role: 'org_admin',
+      p_branch_ids: [],
+    });
+
+    await auth.supabase.rpc('rpc_update_user_membership', {
+      p_org_id: orgId,
+      p_user_id: createdUser.user.id,
+      p_role: 'org_admin',
+      p_is_active: true,
+      p_display_name: ownerName || '',
+      p_branch_ids: [],
+    });
+
+    revalidatePath('/superadmin');
+    redirect(`/superadmin?org=${orgId}&result=owner_created`);
   };
 
   const search = (params.q ?? '').trim();
@@ -277,6 +384,26 @@ export default async function SuperadminPage({
               Organización activa actualizada.
             </p>
           ) : null}
+          {params.result === 'owner_created' ? (
+            <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+              Admin inicial creado para la organización.
+            </p>
+          ) : null}
+          {params.result === 'owner_email_exists' ? (
+            <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              El email del admin inicial ya existe.
+            </p>
+          ) : null}
+          {params.result === 'invalid_owner_email' ? (
+            <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              Ingresa un email válido para el admin inicial.
+            </p>
+          ) : null}
+          {params.result === 'weak_owner_password' ? (
+            <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              La contraseña del admin inicial debe tener al menos 8 caracteres.
+            </p>
+          ) : null}
           {params.result?.includes('error') ||
           params.result?.includes('invalid') ? (
             <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
@@ -353,6 +480,53 @@ export default async function SuperadminPage({
                 id="org-branch-address"
                 name="initial_branch_address"
                 placeholder="Calle y número"
+                className="rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label
+                className="text-xs font-semibold text-zinc-600"
+                htmlFor="owner-email"
+              >
+                Email admin inicial (OA)
+              </label>
+              <input
+                id="owner-email"
+                name="owner_email"
+                type="email"
+                required
+                placeholder="admin@tienda.com"
+                className="rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="flex flex-col gap-1 md:col-span-1">
+              <label
+                className="text-xs font-semibold text-zinc-600"
+                htmlFor="owner-name"
+              >
+                Nombre admin (opcional)
+              </label>
+              <input
+                id="owner-name"
+                name="owner_display_name"
+                placeholder="Nombre Apellido"
+                className="rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="flex flex-col gap-1 md:col-span-1">
+              <label
+                className="text-xs font-semibold text-zinc-600"
+                htmlFor="owner-password"
+              >
+                Contraseña admin inicial
+              </label>
+              <input
+                id="owner-password"
+                name="owner_password"
+                type="password"
+                minLength={8}
+                required
+                placeholder="Mínimo 8 caracteres"
                 className="rounded border border-zinc-200 px-3 py-2 text-sm"
               />
             </div>
@@ -454,7 +628,70 @@ export default async function SuperadminPage({
                     Timezone: {selectedOrg.timezone} · Estado:{' '}
                     {selectedOrg.is_active ? 'Activa' : 'Inactiva'}
                   </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {context.isPlatformAdmin ? (
+                      <form action={setActiveOrg}>
+                        <input
+                          type="hidden"
+                          name="org_id"
+                          value={selectedOrg.org_id}
+                        />
+                        <button
+                          type="submit"
+                          className="rounded bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white"
+                        >
+                          Activar esta org
+                        </button>
+                      </form>
+                    ) : null}
+                    <Link
+                      href="/dashboard"
+                      className="rounded border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700"
+                    >
+                      Ir a dashboard
+                    </Link>
+                  </div>
                 </div>
+
+                <form
+                  action={createOrgAdmin}
+                  className="grid gap-3 rounded-xl border border-zinc-200 p-4"
+                >
+                  <input
+                    type="hidden"
+                    name="org_id"
+                    value={selectedOrg.org_id}
+                  />
+                  <p className="text-sm font-semibold text-zinc-900">
+                    Crear admin inicial (org existente)
+                  </p>
+                  <input
+                    name="owner_email"
+                    type="email"
+                    required
+                    placeholder="admin@tienda.com"
+                    className="rounded border border-zinc-200 px-3 py-2 text-sm"
+                  />
+                  <input
+                    name="owner_display_name"
+                    placeholder="Nombre Apellido (opcional)"
+                    className="rounded border border-zinc-200 px-3 py-2 text-sm"
+                  />
+                  <input
+                    name="owner_password"
+                    type="password"
+                    minLength={8}
+                    required
+                    placeholder="Contraseña inicial (mínimo 8)"
+                    className="rounded border border-zinc-200 px-3 py-2 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    className="w-fit rounded border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-700"
+                  >
+                    Crear admin inicial
+                  </button>
+                </form>
 
                 <form
                   action={createBranch}

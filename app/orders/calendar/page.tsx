@@ -3,7 +3,10 @@ import { redirect } from 'next/navigation';
 
 import CalendarFiltersClient from '@/app/orders/calendar/CalendarFiltersClient';
 import PageShell from '@/app/components/PageShell';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import {
+  getOrgAdminSession,
+  getOrgMemberSession,
+} from '@/lib/auth/org-session';
 
 type SearchParams = {
   branch_id?: string;
@@ -214,37 +217,26 @@ export default async function OrdersCalendarPage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getOrgMemberSession();
+  if (!session) {
     redirect('/login');
   }
-
-  const { data: membership } = await supabase
-    .from('org_users')
-    .select('org_id, role')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (!membership?.org_id || !membership.role) {
+  if (!session.orgId || !session.effectiveRole) {
     redirect('/no-access');
   }
-
-  if (membership.role === 'superadmin') {
-    redirect('/superadmin');
-  }
+  const supabase = session.supabase;
+  const orgId = session.orgId;
+  const role = session.effectiveRole;
+  const userId = session.userId;
 
   let branches: BranchOption[] = [];
 
-  if (membership.role === 'staff') {
+  if (role === 'staff') {
     const { data: branchMemberships } = await supabase
       .from('branch_memberships')
       .select('branch_id')
-      .eq('org_id', membership.org_id)
-      .eq('user_id', user.id)
+      .eq('org_id', orgId)
+      .eq('user_id', userId)
       .eq('is_active', true);
 
     const branchIds = (branchMemberships ?? [])
@@ -257,7 +249,7 @@ export default async function OrdersCalendarPage({
     const { data: branchRows } = await supabase
       .from('branches')
       .select('id, name')
-      .eq('org_id', membership.org_id)
+      .eq('org_id', orgId)
       .eq('is_active', true)
       .in('id', branchIds)
       .order('name');
@@ -267,7 +259,7 @@ export default async function OrdersCalendarPage({
     const { data: branchRows } = await supabase
       .from('branches')
       .select('id, name')
-      .eq('org_id', membership.org_id)
+      .eq('org_id', orgId)
       .eq('is_active', true)
       .order('name');
 
@@ -280,7 +272,7 @@ export default async function OrdersCalendarPage({
       ? resolvedSearchParams.branch_id
       : '';
   const selectedBranchId =
-    membership.role === 'staff'
+    role === 'staff'
       ? branchIds.has(requestedBranchId)
         ? requestedBranchId
         : (branches[0]?.id ?? '')
@@ -305,7 +297,7 @@ export default async function OrdersCalendarPage({
   const { data: suppliersData } = await supabase
     .from('suppliers')
     .select('id, name, order_frequency, order_day, receive_day, created_at')
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .eq('is_active', true)
     .order('name');
 
@@ -314,7 +306,7 @@ export default async function OrdersCalendarPage({
     .select(
       'order_id, supplier_id, supplier_name, branch_id, branch_name, status, created_at, sent_at, received_at, reconciled_at, expected_receive_on',
     )
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .order('created_at', { ascending: false })
     .limit(1000);
 
@@ -330,24 +322,11 @@ export default async function OrdersCalendarPage({
   const setExpectedReceiveOn = async (formData: FormData) => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
-    const {
-      data: { user: actionUser },
-    } = await supabaseServer.auth.getUser();
-
-    if (!actionUser) {
-      redirect('/login');
-    }
-
-    const { data: actionMembership } = await supabaseServer
-      .from('org_users')
-      .select('org_id, role')
-      .eq('user_id', actionUser.id)
-      .maybeSingle();
-
-    if (!actionMembership?.org_id || actionMembership.role !== 'org_admin') {
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) {
       redirect('/no-access');
     }
+    const supabaseServer = actionSession.supabase;
 
     const orderId = String(formData.get('order_id') ?? '').trim();
     const expectedReceiveOnRaw = String(
@@ -359,7 +338,7 @@ export default async function OrdersCalendarPage({
     const expectedReceiveOn = expectedReceiveOnRaw || null;
 
     await supabaseServer.rpc('rpc_set_supplier_order_expected_receive_on', {
-      p_org_id: actionMembership.org_id,
+      p_org_id: actionSession.orgId,
       p_order_id: orderId,
       p_expected_receive_on: expectedReceiveOn as unknown as string,
     });
@@ -578,7 +557,7 @@ export default async function OrdersCalendarPage({
                           ? 'Ver y controlar'
                           : 'Ver pedido'}
                       </Link>
-                    ) : membership.role === 'org_admin' &&
+                    ) : role === 'org_admin' &&
                       card.status === 'pending_send' ? (
                       <Link
                         href={`/orders?draft_supplier_id=${card.supplier_id}&draft_branch_id=${selectedBranchId}`}
@@ -588,7 +567,7 @@ export default async function OrdersCalendarPage({
                       </Link>
                     ) : null}
                   </div>
-                  {membership.role === 'org_admin' &&
+                  {role === 'org_admin' &&
                   card.status === 'pending_receive' &&
                   card.order_id ? (
                     <form

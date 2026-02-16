@@ -4,8 +4,8 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
 import ClientSpecialOrderItemsClient from '@/app/clients/ClientSpecialOrderItemsClient';
+import { getOrgMemberSession } from '@/lib/auth/org-session';
 
 const STAFF_MODULE_ORDER = [
   'pos',
@@ -103,30 +103,19 @@ export default async function ClientsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getOrgMemberSession();
+  if (!session) {
     redirect('/login');
   }
-
-  const { data: membership } = await supabase
-    .from('org_users')
-    .select('org_id, role')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (!membership?.org_id || !membership.role) {
+  if (!session.orgId || !session.effectiveRole) {
     redirect('/no-access');
   }
+  const supabase = session.supabase;
+  const orgId = session.orgId;
+  const role = session.effectiveRole;
+  const userId = session.userId;
 
-  if (membership.role === 'superadmin') {
-    redirect('/superadmin');
-  }
-
-  if (membership.role === 'staff') {
+  if (role === 'staff') {
     const { data: modules } = await supabase.rpc(
       'rpc_get_staff_effective_modules',
     );
@@ -141,12 +130,12 @@ export default async function ClientsPage({
 
   let branches: BranchOption[] = [];
 
-  if (membership.role === 'staff') {
+  if (role === 'staff') {
     const { data: branchMemberships } = await supabase
       .from('branch_memberships')
       .select('branch_id')
-      .eq('org_id', membership.org_id)
-      .eq('user_id', user.id)
+      .eq('org_id', orgId)
+      .eq('user_id', userId)
       .eq('is_active', true);
 
     const branchIds = (branchMemberships ?? [])
@@ -159,7 +148,7 @@ export default async function ClientsPage({
     const { data: branchRows } = await supabase
       .from('branches')
       .select('id, name')
-      .eq('org_id', membership.org_id)
+      .eq('org_id', orgId)
       .eq('is_active', true)
       .in('id', branchIds)
       .order('name');
@@ -169,7 +158,7 @@ export default async function ClientsPage({
     const { data: branchRows } = await supabase
       .from('branches')
       .select('id, name')
-      .eq('org_id', membership.org_id)
+      .eq('org_id', orgId)
       .eq('is_active', true)
       .order('name');
 
@@ -182,7 +171,7 @@ export default async function ClientsPage({
       ? resolvedSearchParams.branch_id
       : '';
   const selectedBranchId =
-    membership.role === 'staff'
+    role === 'staff'
       ? branchIds.has(requestedBranchId)
         ? requestedBranchId
         : (branches[0]?.id ?? '')
@@ -193,7 +182,7 @@ export default async function ClientsPage({
       : '';
 
   const { data: clientsData } = await supabase.rpc('rpc_list_clients', {
-    p_org_id: membership.org_id,
+    p_org_id: orgId,
     p_branch_id: (selectedBranchId || null) as unknown as string,
     p_search: (query || null) as unknown as string,
     p_limit: 50,
@@ -214,7 +203,7 @@ export default async function ClientsPage({
 
   const { data: clientDetailData } = selectedClientId
     ? await supabase.rpc('rpc_get_client_detail', {
-        p_org_id: membership.org_id,
+        p_org_id: orgId,
         p_client_id: selectedClientId,
       })
     : { data: null };
@@ -253,21 +242,21 @@ export default async function ClientsPage({
   const { data: productsData } = await supabase
     .from('products')
     .select('id, name, sell_unit_type, uom')
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .eq('is_active', true)
     .order('name');
 
   const { data: suppliersData } = await supabase
     .from('suppliers')
     .select('id, name, is_active')
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .eq('is_active', true)
     .order('name');
 
   const { data: supplierProductsData } = await supabase
     .from('supplier_products')
     .select('product_id, supplier_id, relation_type, suppliers(name)')
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .eq('relation_type', 'primary');
 
   const primarySupplierByProduct: Record<
@@ -286,7 +275,10 @@ export default async function ClientsPage({
   const createClient = async (formData: FormData) => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
+    const actionSession = await getOrgMemberSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
+    const actionOrgId = actionSession.orgId;
     const name = String(formData.get('name') ?? '').trim();
     const phone = String(formData.get('phone') ?? '').trim();
     const email = String(formData.get('email') ?? '').trim();
@@ -294,22 +286,9 @@ export default async function ClientsPage({
 
     if (!name) return;
 
-    const {
-      data: { user: currentUser },
-    } = await supabaseServer.auth.getUser();
-    if (!currentUser) return;
-
-    const { data: member } = await supabaseServer
-      .from('org_users')
-      .select('org_id, role')
-      .eq('user_id', currentUser.id)
-      .maybeSingle();
-
-    if (!member?.org_id) return;
-
     await supabaseServer.rpc('rpc_upsert_client', {
       p_client_id: randomUUID(),
-      p_org_id: member.org_id,
+      p_org_id: actionOrgId,
       p_name: name,
       p_phone: phone,
       p_email: email,
@@ -323,7 +302,10 @@ export default async function ClientsPage({
   const updateClient = async (formData: FormData) => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
+    const actionSession = await getOrgMemberSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
+    const actionOrgId = actionSession.orgId;
     const clientId = String(formData.get('client_id') ?? '').trim();
     const name = String(formData.get('name') ?? '').trim();
     const phone = String(formData.get('phone') ?? '').trim();
@@ -333,22 +315,9 @@ export default async function ClientsPage({
 
     if (!clientId || !name) return;
 
-    const {
-      data: { user: currentUser },
-    } = await supabaseServer.auth.getUser();
-    if (!currentUser) return;
-
-    const { data: member } = await supabaseServer
-      .from('org_users')
-      .select('org_id, role')
-      .eq('user_id', currentUser.id)
-      .maybeSingle();
-
-    if (!member?.org_id) return;
-
     await supabaseServer.rpc('rpc_upsert_client', {
       p_client_id: clientId,
-      p_org_id: member.org_id,
+      p_org_id: actionOrgId,
       p_name: name,
       p_phone: phone,
       p_email: email,
@@ -362,7 +331,10 @@ export default async function ClientsPage({
   const createSpecialOrder = async (formData: FormData) => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
+    const actionSession = await getOrgMemberSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
+    const actionOrgId = actionSession.orgId;
     const clientId = String(formData.get('client_id') ?? '').trim();
     const branchId = String(formData.get('branch_id') ?? '').trim();
     const notes = String(formData.get('notes') ?? '').trim();
@@ -380,21 +352,8 @@ export default async function ClientsPage({
       return;
     }
 
-    const {
-      data: { user: currentUser },
-    } = await supabaseServer.auth.getUser();
-    if (!currentUser) return;
-
-    const { data: member } = await supabaseServer
-      .from('org_users')
-      .select('org_id, role')
-      .eq('user_id', currentUser.id)
-      .maybeSingle();
-
-    if (!member?.org_id) return;
-
     await supabaseServer.rpc('rpc_create_special_order', {
-      p_org_id: member.org_id,
+      p_org_id: actionOrgId,
       p_branch_id: branchId,
       p_client_id: clientId,
       p_items: items,
@@ -407,7 +366,10 @@ export default async function ClientsPage({
   const updateSpecialOrderStatus = async (formData: FormData) => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
+    const actionSession = await getOrgMemberSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
+    const actionOrgId = actionSession.orgId;
     const specialOrderId = String(
       formData.get('special_order_id') ?? '',
     ).trim();
@@ -429,21 +391,8 @@ export default async function ClientsPage({
 
     if (!specialOrderId || !status) return;
 
-    const {
-      data: { user: currentUser },
-    } = await supabaseServer.auth.getUser();
-    if (!currentUser) return;
-
-    const { data: member } = await supabaseServer
-      .from('org_users')
-      .select('org_id, role')
-      .eq('user_id', currentUser.id)
-      .maybeSingle();
-
-    if (!member?.org_id) return;
-
     await supabaseServer.rpc('rpc_set_special_order_status', {
-      p_org_id: member.org_id,
+      p_org_id: actionOrgId,
       p_special_order_id: specialOrderId,
       p_status: status,
     });
@@ -539,9 +488,7 @@ export default async function ClientsPage({
                   className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
                   defaultValue={selectedBranchId}
                 >
-                  {membership.role === 'org_admin' && (
-                    <option value="">Todas</option>
-                  )}
+                  {role === 'org_admin' && <option value="">Todas</option>}
                   {branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name}
@@ -699,7 +646,7 @@ export default async function ClientsPage({
                   name="client_id"
                   value={selectedClient.client_id}
                 />
-                {membership.role === 'org_admin' ? (
+                {role === 'org_admin' ? (
                   <label className="text-sm text-zinc-600">
                     Sucursal
                     <select

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import PageShell from '@/app/components/PageShell';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getOrgAdminSession } from '@/lib/auth/org-session';
 
 type SearchParams = {
   from?: string;
@@ -66,24 +66,15 @@ export default async function AuditLogPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getOrgAdminSession();
+  if (!session) {
     redirect('/login');
   }
-
-  const { data: membership } = await supabase
-    .from('org_users')
-    .select('org_id, role')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (!membership?.org_id || membership.role !== 'org_admin') {
+  if (!session.orgId) {
     redirect('/no-access');
   }
+  const supabase = session.supabase;
+  const orgId = session.orgId;
 
   const from = typeof searchParams.from === 'string' ? searchParams.from : '';
   const to = typeof searchParams.to === 'string' ? searchParams.to : '';
@@ -101,7 +92,7 @@ export default async function AuditLogPage({
   let auditQuery = supabase
     .from('v_audit_log_admin')
     .select('*', { count: 'exact' })
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .order('created_at', { ascending: false })
     .range((page - 1) * limit, page * limit - 1);
 
@@ -115,7 +106,7 @@ export default async function AuditLogPage({
     supabase
       .from('org_users')
       .select('user_id, display_name, role')
-      .eq('org_id', membership.org_id)
+      .eq('org_id', orgId)
       .order('display_name', { ascending: true }),
   ]);
 

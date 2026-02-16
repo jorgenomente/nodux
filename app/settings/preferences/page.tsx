@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getOrgAdminSession } from '@/lib/auth/org-session';
 
 type SearchParams = {
   result?: string;
@@ -16,26 +16,9 @@ type PreferencesRow = {
 };
 
 const getOrgAdminContext = async () => {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return null;
-  }
-
-  const { data: membership } = await supabase
-    .from('org_users')
-    .select('org_id, role')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (!membership?.org_id || membership.role !== 'org_admin') {
-    return null;
-  }
-
-  return { supabase, orgId: membership.org_id };
+  const session = await getOrgAdminSession();
+  if (!session?.orgId) return null;
+  return { supabase: session.supabase, orgId: session.orgId };
 };
 
 export default async function SettingsPreferencesPage({

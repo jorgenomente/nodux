@@ -136,9 +136,6 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isSuperadmin) {
-    if (!pathname.startsWith('/superadmin')) {
-      return NextResponse.redirect(new URL('/superadmin', request.url));
-    }
     return response;
   }
 

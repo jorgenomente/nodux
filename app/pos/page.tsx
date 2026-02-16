@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 
 import PageShell from '@/app/components/PageShell';
 import PosClient from '@/app/pos/PosClient';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getOrgMemberSession } from '@/lib/auth/org-session';
 
 const STAFF_MODULE_ORDER = [
   'pos',
@@ -43,30 +43,20 @@ export default async function PosPage({
   searchParams: Promise<{ special_order_id?: string }>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getOrgMemberSession();
+  if (!session) {
     redirect('/login');
   }
-
-  const { data: membership } = await supabase
-    .from('org_users')
-    .select('org_id, role')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (!membership?.org_id || !membership.role) {
+  if (!session.orgId || !session.role || !session.effectiveRole) {
     redirect('/no-access');
   }
 
-  if (membership.role === 'superadmin') {
-    redirect('/superadmin');
-  }
+  const supabase = session.supabase;
+  const role = session.effectiveRole;
+  const orgId = session.orgId;
+  const userId = session.userId;
 
-  if (membership.role === 'staff') {
+  if (role === 'staff') {
     const { data: modules } = await supabase.rpc(
       'rpc_get_staff_effective_modules',
     );
@@ -81,12 +71,12 @@ export default async function PosPage({
 
   let branches: Array<{ id: string; name: string }> = [];
 
-  if (membership.role === 'staff') {
+  if (role === 'staff') {
     const { data: branchMemberships } = await supabase
       .from('branch_memberships')
       .select('branch_id')
-      .eq('org_id', membership.org_id)
-      .eq('user_id', user.id)
+      .eq('org_id', orgId)
+      .eq('user_id', userId)
       .eq('is_active', true);
 
     const branchIds = (branchMemberships ?? [])
@@ -99,7 +89,7 @@ export default async function PosPage({
     const { data: branchRows } = await supabase
       .from('branches')
       .select('id, name')
-      .eq('org_id', membership.org_id)
+      .eq('org_id', orgId)
       .eq('is_active', true)
       .in('id', branchIds)
       .order('name');
@@ -109,7 +99,7 @@ export default async function PosPage({
     const { data: branchRows } = await supabase
       .from('branches')
       .select('id, name')
-      .eq('org_id', membership.org_id)
+      .eq('org_id', orgId)
       .eq('is_active', true)
       .order('name');
 
@@ -125,7 +115,7 @@ export default async function PosPage({
 
   const { data: specialOrderItems } = specialOrderId
     ? await supabase.rpc('rpc_get_special_order_for_pos', {
-        p_org_id: membership.org_id,
+        p_org_id: orgId,
         p_special_order_id: specialOrderId,
       })
     : { data: null };
@@ -147,7 +137,7 @@ export default async function PosPage({
   const specialOrderMeta = specialOrderRows[0];
 
   if (specialOrderMeta?.branch_id) {
-    if (membership.role === 'staff') {
+    if (role === 'staff') {
       const allowed = branches.some(
         (branch) => branch.id === specialOrderMeta.branch_id,
       );
@@ -164,7 +154,7 @@ export default async function PosPage({
         .select(
           'product_id, name, internal_code, barcode, sell_unit_type, uom, unit_price, stock_on_hand, is_active',
         )
-        .eq('org_id', membership.org_id)
+        .eq('org_id', orgId)
         .eq('branch_id', defaultBranchId)
         .eq('is_active', true)
         .order('name')
@@ -174,8 +164,8 @@ export default async function PosPage({
   return (
     <PageShell>
       <PosClient
-        orgId={membership.org_id}
-        role={membership.role === 'staff' ? 'staff' : 'org_admin'}
+        orgId={orgId}
+        role={role === 'staff' ? 'staff' : 'org_admin'}
         branches={branches}
         defaultBranchId={defaultBranchId}
         initialProducts={

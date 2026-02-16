@@ -47,20 +47,42 @@ export default async function DashboardPage({
     redirect('/login');
   }
 
-  const { data: membership } = await supabase
-    .from('org_users')
-    .select('org_id, role')
-    .eq('user_id', user.id)
-    .maybeSingle();
+  const { data: isPlatformAdmin } = await supabase.rpc('is_platform_admin');
+  const { data: membership } = isPlatformAdmin
+    ? { data: null }
+    : await supabase
+        .from('org_users')
+        .select('org_id, role')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-  if (!membership?.org_id || membership.role !== 'org_admin') {
+  let orgId = '';
+  let canAccessDashboard = false;
+
+  if (isPlatformAdmin) {
+    const { data: activeOrgId } = await supabase.rpc('rpc_get_active_org_id');
+    if (typeof activeOrgId === 'string' && activeOrgId) {
+      orgId = activeOrgId;
+      canAccessDashboard = true;
+    } else {
+      redirect('/superadmin?result=active_org_invalid');
+    }
+  } else if (
+    membership?.org_id &&
+    (membership.role === 'org_admin' || membership.role === 'superadmin')
+  ) {
+    orgId = membership.org_id;
+    canAccessDashboard = true;
+  }
+
+  if (!canAccessDashboard || !orgId) {
     redirect('/no-access');
   }
 
   const { data: branches } = await supabase
     .from('branches')
     .select('id, name')
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .eq('is_active', true)
     .order('name');
   const branchOptions = (branches ?? []) as BranchOption[];
@@ -78,7 +100,7 @@ export default async function DashboardPage({
   const { data: dashboardData, error: dashboardError } = await supabase.rpc(
     'rpc_get_dashboard_admin',
     {
-      p_org_id: membership.org_id,
+      p_org_id: orgId,
       p_branch_id: (selectedBranchId || null) as unknown as string,
     },
   );

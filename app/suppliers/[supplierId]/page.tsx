@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getOrgAdminSession } from '@/lib/auth/org-session';
 
 type SupplierDetailRow = {
   supplier_id: string;
@@ -50,30 +50,21 @@ export default async function SupplierDetailPage({
   params: Promise<{ supplierId: string }>;
 }) {
   const resolvedParams = await params;
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getOrgAdminSession();
+  if (!session) {
     redirect('/login');
   }
-
-  const { data: membership } = await supabase
-    .from('org_users')
-    .select('org_id, role')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (!membership?.org_id || membership.role !== 'org_admin') {
+  if (!session.orgId) {
     redirect('/no-access');
   }
+  const supabase = session.supabase;
+  const orgId = session.orgId;
 
   const supplierId = resolvedParams.supplierId;
   const { data: detailRows } = await supabase
     .from('v_supplier_detail_admin')
     .select('*')
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .eq('supplier_id', supplierId);
 
   if (!detailRows || detailRows.length === 0) {
@@ -101,7 +92,10 @@ export default async function SupplierDetailPage({
   const updateSupplier = async (formData: FormData) => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
+    const orgId = actionSession.orgId;
     const name = String(formData.get('name') ?? '').trim();
     const contactName = String(formData.get('contact_name') ?? '').trim();
     const phone = String(formData.get('phone') ?? '').trim();
@@ -114,7 +108,7 @@ export default async function SupplierDetailPage({
 
     await supabaseServer.rpc('rpc_upsert_supplier', {
       p_supplier_id: supplierId,
-      p_org_id: membership.org_id,
+      p_org_id: orgId,
       p_name: name,
       p_contact_name: contactName,
       p_phone: phone,
@@ -133,7 +127,10 @@ export default async function SupplierDetailPage({
   const updateSupplierProduct = async (formData: FormData) => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
+    const orgId = actionSession.orgId;
     const productId = String(formData.get('product_id') ?? '').trim();
     const supplierSku = String(formData.get('supplier_sku') ?? '').trim();
     const supplierProductName = String(
@@ -150,14 +147,14 @@ export default async function SupplierDetailPage({
 
     if (normalizedRelationType !== normalizedCurrentRelationType) {
       await supabaseServer.rpc('rpc_remove_supplier_product_relation', {
-        p_org_id: membership.org_id,
+        p_org_id: orgId,
         p_product_id: productId,
         p_relation_type: normalizedCurrentRelationType,
       });
     }
 
     await supabaseServer.rpc('rpc_upsert_supplier_product', {
-      p_org_id: membership.org_id,
+      p_org_id: orgId,
       p_supplier_id: supplierId,
       p_product_id: productId,
       p_supplier_sku: supplierSku,
@@ -171,12 +168,15 @@ export default async function SupplierDetailPage({
   const removeSupplierProduct = async (formData: FormData) => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
+    const orgId = actionSession.orgId;
     const productId = String(formData.get('product_id') ?? '').trim();
     if (!productId) return;
 
     await supabaseServer.rpc('rpc_remove_supplier_product', {
-      p_org_id: membership.org_id,
+      p_org_id: orgId,
       p_supplier_id: supplierId,
       p_product_id: productId,
     });
@@ -187,7 +187,10 @@ export default async function SupplierDetailPage({
   const createProductFromSupplier = async (formData: FormData) => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
+    const orgId = actionSession.orgId;
     const name = String(formData.get('product_name') ?? '').trim();
     const internalCode = String(formData.get('internal_code') ?? '').trim();
     const barcode = String(formData.get('barcode') ?? '').trim();
@@ -223,7 +226,7 @@ export default async function SupplierDetailPage({
 
     await supabaseServer.rpc('rpc_upsert_product', {
       p_product_id: productId,
-      p_org_id: membership.org_id,
+      p_org_id: orgId,
       p_name: name,
       p_internal_code: internalCode || '',
       p_barcode: barcode || '',
@@ -240,13 +243,13 @@ export default async function SupplierDetailPage({
         const { data: activeBranches } = await supabaseServer
           .from('branches')
           .select('id')
-          .eq('org_id', membership.org_id)
+          .eq('org_id', orgId)
           .eq('is_active', true);
 
         await Promise.all(
           (activeBranches ?? []).map((branch) =>
             supabaseServer.rpc('rpc_set_safety_stock', {
-              p_org_id: membership.org_id,
+              p_org_id: orgId,
               p_branch_id: branch.id,
               p_product_id: productId,
               p_safety_stock: safetyStock,
@@ -257,7 +260,7 @@ export default async function SupplierDetailPage({
     }
 
     await supabaseServer.rpc('rpc_upsert_supplier_product', {
-      p_org_id: membership.org_id,
+      p_org_id: orgId,
       p_supplier_id: supplierId,
       p_product_id: productId,
       p_supplier_sku: supplierSku,

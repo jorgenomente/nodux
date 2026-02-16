@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import PageShell from '@/app/components/PageShell';
 import SupplierActions from '@/app/suppliers/SupplierActions';
 import SuppliersSearchInput from '@/app/suppliers/SuppliersSearchInput';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getOrgAdminSession } from '@/lib/auth/org-session';
 
 type SearchParams = {
   q?: string;
@@ -49,24 +49,15 @@ export default async function SuppliersPage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getOrgAdminSession();
+  if (!session) {
     redirect('/login');
   }
-
-  const { data: membership } = await supabase
-    .from('org_users')
-    .select('org_id, role')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (!membership?.org_id || membership.role !== 'org_admin') {
+  if (!session.orgId) {
     redirect('/no-access');
   }
+  const supabase = session.supabase;
+  const orgId = session.orgId;
 
   const query =
     typeof resolvedSearchParams.q === 'string'
@@ -76,7 +67,7 @@ export default async function SuppliersPage({
   let supplierQuery = supabase
     .from('v_suppliers_admin')
     .select('*')
-    .eq('org_id', membership.org_id)
+    .eq('org_id', orgId)
     .order('name');
 
   if (query.length >= 3) {
@@ -91,7 +82,10 @@ export default async function SuppliersPage({
   const createSupplier = async (formData: FormData) => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
+    const orgId = actionSession.orgId;
     const name = String(formData.get('name') ?? '').trim();
     const contactName = String(formData.get('contact_name') ?? '').trim();
     const phone = String(formData.get('phone') ?? '').trim();
@@ -103,22 +97,9 @@ export default async function SuppliersPage({
 
     if (!name) return;
 
-    const {
-      data: { user: currentUser },
-    } = await supabaseServer.auth.getUser();
-    if (!currentUser) return;
-
-    const { data: member } = await supabaseServer
-      .from('org_users')
-      .select('org_id, role')
-      .eq('user_id', currentUser.id)
-      .maybeSingle();
-
-    if (!member?.org_id || member.role !== 'org_admin') return;
-
     await supabaseServer.rpc('rpc_upsert_supplier', {
       p_supplier_id: randomUUID(),
-      p_org_id: member.org_id,
+      p_org_id: orgId,
       p_name: name,
       p_contact_name: contactName,
       p_phone: phone,
@@ -136,7 +117,10 @@ export default async function SuppliersPage({
   const updateSupplier = async (formData: FormData) => {
     'use server';
 
-    const supabaseServer = await createServerSupabaseClient();
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
+    const orgId = actionSession.orgId;
     const supplierId = String(formData.get('supplier_id') ?? '').trim();
     const name = String(formData.get('name') ?? '').trim();
     const contactName = String(formData.get('contact_name') ?? '').trim();
@@ -150,22 +134,9 @@ export default async function SuppliersPage({
 
     if (!supplierId || !name) return;
 
-    const {
-      data: { user: currentUser },
-    } = await supabaseServer.auth.getUser();
-    if (!currentUser) return;
-
-    const { data: member } = await supabaseServer
-      .from('org_users')
-      .select('org_id, role')
-      .eq('user_id', currentUser.id)
-      .maybeSingle();
-
-    if (!member?.org_id || member.role !== 'org_admin') return;
-
     await supabaseServer.rpc('rpc_upsert_supplier', {
       p_supplier_id: supplierId,
-      p_org_id: member.org_id,
+      p_org_id: orgId,
       p_name: name,
       p_contact_name: contactName,
       p_phone: phone,
