@@ -39,7 +39,8 @@ CREATE TYPE "public"."payment_method" AS ENUM (
     'debit',
     'credit',
     'transfer',
-    'other'
+    'other',
+    'mixed'
 );
 
 
@@ -196,6 +197,145 @@ $$;
 ALTER FUNCTION "public"."is_platform_admin"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."rpc_add_cash_session_movement"("p_org_id" "uuid", "p_session_id" "uuid", "p_movement_type" "text", "p_category_key" "text", "p_amount" numeric, "p_note" "text" DEFAULT NULL::"text", "p_movement_at" timestamp with time zone DEFAULT NULL::timestamp with time zone) RETURNS TABLE("movement_id" "uuid", "created_at" timestamp with time zone)
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_movement_id uuid := gen_random_uuid();
+  v_created_at timestamptz := now();
+  v_session record;
+  v_cashbox_enabled boolean := false;
+  v_movement_type text;
+  v_category text;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if p_amount is null or p_amount <= 0 then
+    raise exception 'invalid movement amount';
+  end if;
+
+  v_movement_type := lower(trim(coalesce(p_movement_type, '')));
+  if v_movement_type not in ('expense', 'income') then
+    raise exception 'invalid movement type';
+  end if;
+
+  v_category := nullif(trim(coalesce(p_category_key, '')), '');
+  if v_category is null then
+    raise exception 'movement category required';
+  end if;
+
+  select *
+  into v_session
+  from public.cash_sessions cs
+  where cs.id = p_session_id
+    and cs.org_id = p_org_id;
+
+  if not found then
+    raise exception 'cash session not found';
+  end if;
+
+  if v_session.status <> 'open' then
+    raise exception 'cash session closed';
+  end if;
+
+  if not public.is_org_admin_or_superadmin(p_org_id) then
+    if not exists (
+      select 1
+      from public.org_users ou
+      where ou.org_id = p_org_id
+        and ou.user_id = auth.uid()
+        and ou.is_active = true
+        and ou.role = 'staff'
+    ) then
+      raise exception 'not authorized';
+    end if;
+
+    if not exists (
+      select 1
+      from public.branch_memberships bm
+      where bm.org_id = p_org_id
+        and bm.user_id = auth.uid()
+        and bm.branch_id = v_session.branch_id
+        and bm.is_active = true
+    ) then
+      raise exception 'branch not allowed';
+    end if;
+
+    select exists (
+      select 1
+      from public.staff_module_access sma
+      where sma.org_id = p_org_id
+        and sma.role = 'staff'
+        and sma.module_key = 'cashbox'
+        and sma.is_enabled = true
+        and (
+          sma.branch_id = v_session.branch_id
+          or sma.branch_id is null
+        )
+      order by case when sma.branch_id is null then 0 else 1 end desc
+      limit 1
+    ) into v_cashbox_enabled;
+
+    if not v_cashbox_enabled then
+      raise exception 'cashbox module disabled';
+    end if;
+  end if;
+
+  insert into public.cash_session_movements (
+    id,
+    org_id,
+    branch_id,
+    session_id,
+    movement_type,
+    category_key,
+    amount,
+    note,
+    movement_at,
+    created_by,
+    created_at
+  ) values (
+    v_movement_id,
+    p_org_id,
+    v_session.branch_id,
+    p_session_id,
+    v_movement_type,
+    v_category,
+    round(p_amount::numeric, 2),
+    nullif(trim(coalesce(p_note, '')), ''),
+    coalesce(p_movement_at, v_created_at),
+    auth.uid(),
+    v_created_at
+  );
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'cash_movement_added',
+    'cash_session_movement',
+    v_movement_id,
+    v_session.branch_id,
+    jsonb_build_object(
+      'session_id', p_session_id,
+      'movement_type', v_movement_type,
+      'category_key', v_category,
+      'amount', round(p_amount::numeric, 2),
+      'movement_at', coalesce(p_movement_at, v_created_at),
+      'note', nullif(trim(coalesce(p_note, '')), '')
+    )
+  );
+
+  return query
+  select v_movement_id, v_created_at;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_add_cash_session_movement"("p_org_id" "uuid", "p_session_id" "uuid", "p_movement_type" "text", "p_category_key" "text", "p_amount" numeric, "p_note" "text", "p_movement_at" timestamp with time zone) OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rpc_adjust_expiration_batch"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_quantity" numeric) RETURNS "void"
     LANGUAGE "plpgsql"
     AS $$
@@ -305,6 +445,135 @@ $$;
 ALTER FUNCTION "public"."rpc_bootstrap_platform_admin"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text" DEFAULT NULL::"text") RETURNS TABLE("session_id" "uuid", "expected_cash_amount" numeric, "counted_cash_amount" numeric, "difference_amount" numeric, "closed_at" timestamp with time zone)
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_session record;
+  v_summary record;
+  v_closed_at timestamptz := now();
+  v_cashbox_enabled boolean := false;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if p_counted_cash_amount is null or p_counted_cash_amount < 0 then
+    raise exception 'invalid counted cash amount';
+  end if;
+
+  select cs.*
+  into v_session
+  from public.cash_sessions cs
+  where cs.id = p_session_id
+    and cs.org_id = p_org_id;
+
+  if not found then
+    raise exception 'cash session not found';
+  end if;
+
+  if v_session.status <> 'open' then
+    raise exception 'cash session already closed';
+  end if;
+
+  if not public.is_org_admin_or_superadmin(p_org_id) then
+    if not exists (
+      select 1
+      from public.org_users ou
+      where ou.org_id = p_org_id
+        and ou.user_id = auth.uid()
+        and ou.is_active = true
+        and ou.role = 'staff'
+    ) then
+      raise exception 'not authorized';
+    end if;
+
+    if not exists (
+      select 1
+      from public.branch_memberships bm
+      where bm.org_id = p_org_id
+        and bm.user_id = auth.uid()
+        and bm.branch_id = v_session.branch_id
+        and bm.is_active = true
+    ) then
+      raise exception 'branch not allowed';
+    end if;
+
+    select exists (
+      select 1
+      from public.staff_module_access sma
+      where sma.org_id = p_org_id
+        and sma.role = 'staff'
+        and sma.module_key = 'cashbox'
+        and sma.is_enabled = true
+        and (
+          sma.branch_id = v_session.branch_id
+          or sma.branch_id is null
+        )
+      order by case when sma.branch_id is null then 0 else 1 end desc
+      limit 1
+    ) into v_cashbox_enabled;
+
+    if not v_cashbox_enabled then
+      raise exception 'cashbox module disabled';
+    end if;
+  end if;
+
+  select *
+  into v_summary
+  from public.v_cashbox_session_current v
+  where v.session_id = p_session_id
+    and v.org_id = p_org_id;
+
+  if not found then
+    raise exception 'cash session summary unavailable';
+  end if;
+
+  update public.cash_sessions
+  set
+    status = 'closed',
+    closed_by = auth.uid(),
+    closed_at = v_closed_at,
+    expected_cash_amount = v_summary.expected_cash_amount,
+    counted_cash_amount = round(p_counted_cash_amount::numeric, 2),
+    difference_amount = round(p_counted_cash_amount::numeric, 2) - v_summary.expected_cash_amount,
+    close_note = nullif(trim(coalesce(p_close_note, '')), ''),
+    updated_at = v_closed_at
+  where id = p_session_id;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'cash_session_closed',
+    'cash_session',
+    p_session_id,
+    v_session.branch_id,
+    jsonb_build_object(
+      'expected_cash_amount', v_summary.expected_cash_amount,
+      'counted_cash_amount', round(p_counted_cash_amount::numeric, 2),
+      'difference_amount', round(p_counted_cash_amount::numeric, 2) - v_summary.expected_cash_amount,
+      'close_note', nullif(trim(coalesce(p_close_note, '')), ''),
+      'period_type', v_session.period_type,
+      'session_label', v_session.session_label,
+      'opened_by', v_session.opened_by
+    )
+  );
+
+  return query
+  select
+    p_session_id,
+    v_summary.expected_cash_amount,
+    round(p_counted_cash_amount::numeric, 2),
+    round(p_counted_cash_amount::numeric, 2) - v_summary.expected_cash_amount,
+    v_closed_at;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_expires_on" "date", "p_quantity" numeric, "p_source_ref_id" "uuid") RETURNS TABLE("batch_id" "uuid")
     LANGUAGE "sql"
     AS $$
@@ -337,7 +606,7 @@ $$;
 ALTER FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_expires_on" "date", "p_quantity" numeric, "p_source_ref_id" "uuid") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid" DEFAULT NULL::"uuid", "p_close_special_order" boolean DEFAULT false) RETURNS TABLE("sale_id" "uuid", "total" numeric, "created_at" timestamp with time zone)
+CREATE OR REPLACE FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid" DEFAULT NULL::"uuid", "p_close_special_order" boolean DEFAULT false, "p_apply_cash_discount" boolean DEFAULT false, "p_cash_discount_pct" numeric DEFAULT NULL::numeric, "p_payments" "jsonb" DEFAULT NULL::"jsonb") RETURNS TABLE("sale_id" "uuid", "total" numeric, "created_at" timestamp with time zone)
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     SET "row_security" TO 'off'
@@ -345,9 +614,15 @@ CREATE OR REPLACE FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_bran
 declare
   v_sale_id uuid := gen_random_uuid();
   v_total numeric(12,2) := 0;
+  v_subtotal numeric(12,2) := 0;
+  v_discount_amount numeric(12,2) := 0;
+  v_discount_pct numeric(5,2) := 0;
   v_created_at timestamptz := now();
   v_allow_negative boolean := true;
+  v_cash_discount_enabled boolean := true;
+  v_cash_discount_default_pct numeric(5,2) := 10;
   v_pos_enabled boolean := false;
+  v_cash_discount_applied boolean := false;
   v_item jsonb;
   v_product_id uuid;
   v_qty numeric(14,3);
@@ -362,6 +637,15 @@ declare
   v_item_rows record;
   v_to_apply numeric(14,3);
   v_order_status public.special_order_status;
+  v_payment jsonb;
+  v_payment_method public.payment_method;
+  v_payment_amount numeric(12,2);
+  v_payments_sum numeric(12,2) := 0;
+  v_payments_count int := 0;
+  v_has_cash_payment boolean := false;
+  v_single_payment_method public.payment_method := null;
+  v_summary_payment_method public.payment_method := null;
+  v_payment_rows jsonb := '[]'::jsonb;
 begin
   if auth.uid() is null then
     raise exception 'not authenticated';
@@ -413,7 +697,22 @@ begin
     end if;
   end if;
 
-  select allow_negative_stock into v_allow_negative
+  if p_payment_method::text = 'mixed' and (p_payments is null or jsonb_typeof(p_payments) <> 'array' or jsonb_array_length(p_payments) = 0) then
+    raise exception 'mixed payment requires payments detail';
+  end if;
+
+  if p_cash_discount_pct is not null and not coalesce(p_apply_cash_discount, false) then
+    raise exception 'cash discount pct requires apply_cash_discount';
+  end if;
+
+  select
+    allow_negative_stock,
+    cash_discount_enabled,
+    cash_discount_default_pct
+  into
+    v_allow_negative,
+    v_cash_discount_enabled,
+    v_cash_discount_default_pct
   from public.org_preferences
   where org_id = p_org_id;
 
@@ -421,8 +720,38 @@ begin
     v_allow_negative := true;
   end if;
 
-  insert into public.sales (id, org_id, branch_id, created_by, payment_method, total_amount, created_at)
-  values (v_sale_id, p_org_id, p_branch_id, auth.uid(), p_payment_method, 0, v_created_at);
+  if v_cash_discount_enabled is null then
+    v_cash_discount_enabled := true;
+  end if;
+
+  if v_cash_discount_default_pct is null then
+    v_cash_discount_default_pct := 10;
+  end if;
+
+  insert into public.sales (
+    id,
+    org_id,
+    branch_id,
+    created_by,
+    payment_method,
+    subtotal_amount,
+    discount_amount,
+    discount_pct,
+    total_amount,
+    created_at
+  )
+  values (
+    v_sale_id,
+    p_org_id,
+    p_branch_id,
+    auth.uid(),
+    case when p_payment_method::text = 'mixed' then 'other'::public.payment_method else p_payment_method end,
+    0,
+    0,
+    0,
+    0,
+    v_created_at
+  );
 
   for v_item in select * from jsonb_array_elements(p_items)
   loop
@@ -457,7 +786,7 @@ begin
     end if;
 
     v_line_total := v_price * v_qty;
-    v_total := v_total + v_line_total;
+    v_subtotal := v_subtotal + v_line_total;
 
     insert into public.sale_items (
       org_id, sale_id, product_id, product_name_snapshot, unit_price_snapshot, quantity, line_total
@@ -484,7 +813,6 @@ begin
       p_org_id, p_branch_id, v_product_id, 'sale', -v_qty, 'sale', v_sale_id
     );
 
-    -- Consume expiration batches (FEFO)
     v_remaining := v_qty;
     for v_batch in
       select id, quantity
@@ -513,7 +841,6 @@ begin
       end if;
     end loop;
 
-    -- Apply fulfillment to special order items
     if p_special_order_id is not null then
       for v_item_rows in
         select id, requested_qty, fulfilled_qty
@@ -536,7 +863,121 @@ begin
     end if;
   end loop;
 
-  update public.sales set total_amount = v_total where id = v_sale_id;
+  v_total := v_subtotal;
+
+  if p_payments is null then
+    if p_payment_method::text = 'mixed' then
+      raise exception 'mixed payment requires payments detail';
+    end if;
+
+    v_payments_count := 1;
+    v_single_payment_method := p_payment_method;
+    v_has_cash_payment := p_payment_method = 'cash';
+  else
+    if jsonb_typeof(p_payments) <> 'array' then
+      raise exception 'payments must be an array';
+    end if;
+
+    if jsonb_array_length(p_payments) = 0 then
+      raise exception 'payments cannot be empty';
+    end if;
+
+    for v_payment in select * from jsonb_array_elements(p_payments)
+    loop
+      if coalesce(v_payment->>'payment_method', '') = '' then
+        raise exception 'payment_method required in payments';
+      end if;
+
+      v_payment_method := (v_payment->>'payment_method')::public.payment_method;
+      if v_payment_method::text = 'mixed' then
+        raise exception 'mixed is not allowed inside payments detail';
+      end if;
+
+      v_payment_amount := round(coalesce((v_payment->>'amount')::numeric, 0), 2);
+      if v_payment_amount <= 0 then
+        raise exception 'payment amount must be greater than 0';
+      end if;
+
+      v_payments_sum := v_payments_sum + v_payment_amount;
+      v_payments_count := v_payments_count + 1;
+      v_has_cash_payment := v_has_cash_payment or v_payment_method = 'cash';
+
+      if v_payments_count = 1 then
+        v_single_payment_method := v_payment_method;
+      end if;
+
+      v_payment_rows := v_payment_rows || jsonb_build_object(
+        'payment_method', v_payment_method,
+        'amount', v_payment_amount
+      );
+    end loop;
+  end if;
+
+  if coalesce(p_apply_cash_discount, false) then
+    if not v_cash_discount_enabled then
+      raise exception 'cash discount disabled';
+    end if;
+
+    if not (v_payments_count = 1 and v_single_payment_method = 'cash') then
+      raise exception 'cash discount only allowed for full cash payment';
+    end if;
+
+    v_cash_discount_applied := true;
+    v_discount_pct := coalesce(p_cash_discount_pct, v_cash_discount_default_pct, 0);
+
+    if v_discount_pct < 0 or v_discount_pct > 100 then
+      raise exception 'invalid cash discount pct';
+    end if;
+
+    v_discount_amount := round((v_subtotal * v_discount_pct) / 100.0, 2);
+    v_total := greatest(v_subtotal - v_discount_amount, 0);
+  end if;
+
+  if p_payments is null then
+    v_payment_rows := jsonb_build_array(
+      jsonb_build_object(
+        'payment_method', p_payment_method,
+        'amount', v_total
+      )
+    );
+    v_payments_sum := v_total;
+  end if;
+
+  if round(v_payments_sum, 2) <> round(v_total, 2) then
+    raise exception 'payments total must equal sale total';
+  end if;
+
+  if v_payments_count > 1 then
+    v_summary_payment_method := 'mixed';
+  else
+    v_summary_payment_method := v_single_payment_method;
+  end if;
+
+  for v_payment in select * from jsonb_array_elements(v_payment_rows)
+  loop
+    insert into public.sale_payments (
+      org_id,
+      sale_id,
+      payment_method,
+      amount,
+      created_at
+    ) values (
+      p_org_id,
+      v_sale_id,
+      (v_payment->>'payment_method')::public.payment_method,
+      (v_payment->>'amount')::numeric,
+      v_created_at
+    );
+  end loop;
+
+  update public.sales
+  set
+    payment_method = v_summary_payment_method,
+    subtotal_amount = v_subtotal,
+    discount_amount = v_discount_amount,
+    discount_pct = v_discount_pct,
+    total_amount = v_total
+  where id = v_sale_id;
 
   if p_special_order_id is not null then
     select status into v_order_status
@@ -573,9 +1014,15 @@ begin
     v_sale_id,
     p_branch_id,
     jsonb_build_object(
-      'total', v_total,
-      'payment_method', p_payment_method,
-      'items_count', v_items_count
+      'subtotal_amount', v_subtotal,
+      'discount_amount', v_discount_amount,
+      'discount_pct', v_discount_pct,
+      'cash_discount_applied', v_cash_discount_applied,
+      'payment_method', v_summary_payment_method,
+      'has_cash_component', v_has_cash_payment,
+      'payments', v_payment_rows,
+      'items_count', v_items_count,
+      'total', v_total
     ),
     null
   );
@@ -585,7 +1032,7 @@ end;
 $$;
 
 
-ALTER FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean) OWNER TO "postgres";
+ALTER FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean, "p_apply_cash_discount" boolean, "p_cash_discount_pct" numeric, "p_payments" "jsonb") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_create_special_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_client_id" "uuid", "p_items" "jsonb", "p_notes" "text") RETURNS TABLE("special_order_id" "uuid")
@@ -730,6 +1177,102 @@ $$;
 ALTER FUNCTION "public"."rpc_get_active_org_id"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."rpc_get_cash_session_summary"("p_org_id" "uuid", "p_session_id" "uuid") RETURNS TABLE("session_id" "uuid", "branch_id" "uuid", "status" "text", "period_type" "text", "session_label" "text", "opening_cash_amount" numeric, "cash_sales_amount" numeric, "manual_income_amount" numeric, "manual_expense_amount" numeric, "expected_cash_amount" numeric, "counted_cash_amount" numeric, "difference_amount" numeric, "movements_count" bigint, "opened_by" "uuid", "closed_by" "uuid", "opened_at" timestamp with time zone, "closed_at" timestamp with time zone, "close_note" "text")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_session record;
+  v_cashbox_enabled boolean := false;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  select cs.*
+  into v_session
+  from public.cash_sessions cs
+  where cs.id = p_session_id
+    and cs.org_id = p_org_id;
+
+  if not found then
+    raise exception 'cash session not found';
+  end if;
+
+  if not public.is_org_admin_or_superadmin(p_org_id) then
+    if not exists (
+      select 1
+      from public.org_users ou
+      where ou.org_id = p_org_id
+        and ou.user_id = auth.uid()
+        and ou.is_active = true
+        and ou.role = 'staff'
+    ) then
+      raise exception 'not authorized';
+    end if;
+
+    if not exists (
+      select 1
+      from public.branch_memberships bm
+      where bm.org_id = p_org_id
+        and bm.user_id = auth.uid()
+        and bm.branch_id = v_session.branch_id
+        and bm.is_active = true
+    ) then
+      raise exception 'branch not allowed';
+    end if;
+
+    select exists (
+      select 1
+      from public.staff_module_access sma
+      where sma.org_id = p_org_id
+        and sma.role = 'staff'
+        and sma.module_key = 'cashbox'
+        and sma.is_enabled = true
+        and (
+          sma.branch_id = v_session.branch_id
+          or sma.branch_id is null
+        )
+      order by case when sma.branch_id is null then 0 else 1 end desc
+      limit 1
+    ) into v_cashbox_enabled;
+
+    if not v_cashbox_enabled then
+      raise exception 'cashbox module disabled';
+    end if;
+  end if;
+
+  return query
+  select
+    v.session_id,
+    v.branch_id,
+    v.status,
+    v.period_type,
+    v.session_label,
+    v.opening_cash_amount,
+    v.cash_sales_amount,
+    v.manual_income_amount,
+    v.manual_expense_amount,
+    v.expected_cash_amount,
+    v.counted_cash_amount,
+    v.difference_amount,
+    v.movements_count,
+    v.opened_by,
+    v.closed_by,
+    v.opened_at,
+    v.closed_at,
+    v.close_note
+  from public.v_cashbox_session_current v
+  where v.session_id = p_session_id
+    and v.org_id = p_org_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_get_cash_session_summary"("p_org_id" "uuid", "p_session_id" "uuid") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rpc_get_client_detail"("p_org_id" "uuid", "p_client_id" "uuid") RETURNS TABLE("client_id" "uuid", "name" "text", "phone" "text", "email" "text", "notes" "text", "is_active" boolean, "special_order_id" "uuid", "special_order_status" "public"."special_order_status", "special_order_notes" "text", "special_order_branch_id" "uuid", "special_order_created_at" timestamp with time zone, "item_id" "uuid", "product_id" "uuid", "product_name" "text", "requested_qty" numeric, "fulfilled_qty" numeric, "supplier_id" "uuid", "supplier_name" "text")
     LANGUAGE "sql"
     AS $$
@@ -774,7 +1317,7 @@ $$;
 ALTER FUNCTION "public"."rpc_get_client_detail"("p_org_id" "uuid", "p_client_id" "uuid") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."rpc_get_dashboard_admin"("p_org_id" "uuid", "p_branch_id" "uuid") RETURNS TABLE("org_id" "uuid", "branch_id" "uuid", "sales_today_total" numeric, "sales_today_count" bigint, "sales_week_total" numeric, "sales_month_total" numeric, "expirations_critical_count" bigint, "expirations_warning_count" bigint, "supplier_orders_pending_count" bigint, "client_orders_pending_count" bigint)
+CREATE OR REPLACE FUNCTION "public"."rpc_get_dashboard_admin"("p_org_id" "uuid", "p_branch_id" "uuid") RETURNS TABLE("org_id" "uuid", "branch_id" "uuid", "sales_today_total" numeric, "sales_today_count" bigint, "sales_week_total" numeric, "sales_month_total" numeric, "cash_sales_today_total" numeric, "cash_sales_today_count" bigint, "cash_discount_today_total" numeric, "cash_discounted_sales_today_count" bigint, "expirations_critical_count" bigint, "expirations_warning_count" bigint, "supplier_orders_pending_count" bigint, "client_orders_pending_count" bigint)
     LANGUAGE "sql"
     AS $$
   select
@@ -784,6 +1327,10 @@ CREATE OR REPLACE FUNCTION "public"."rpc_get_dashboard_admin"("p_org_id" "uuid",
     sales_today_count,
     sales_week_total,
     sales_month_total,
+    cash_sales_today_total,
+    cash_sales_today_count,
+    cash_discount_today_total,
+    cash_discounted_sales_today_count,
     expirations_critical_count,
     expirations_warning_count,
     supplier_orders_pending_count,
@@ -1265,6 +1812,129 @@ $$;
 
 
 ALTER FUNCTION "public"."rpc_move_expiration_batch_to_waste"("p_org_id" "uuid", "p_batch_id" "uuid", "p_expected_qty" numeric) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_open_cash_session"("p_org_id" "uuid", "p_branch_id" "uuid", "p_opening_cash_amount" numeric, "p_period_type" "text" DEFAULT 'shift'::"text", "p_session_label" "text" DEFAULT NULL::"text") RETURNS TABLE("session_id" "uuid", "opened_at" timestamp with time zone)
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_session_id uuid := gen_random_uuid();
+  v_opened_at timestamptz := now();
+  v_cashbox_enabled boolean := false;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if p_opening_cash_amount is null or p_opening_cash_amount < 0 then
+    raise exception 'invalid opening cash amount';
+  end if;
+
+  if coalesce(p_period_type, '') not in ('shift', 'day') then
+    raise exception 'invalid period type';
+  end if;
+
+  if not public.is_org_admin_or_superadmin(p_org_id) then
+    if not exists (
+      select 1
+      from public.org_users ou
+      where ou.org_id = p_org_id
+        and ou.user_id = auth.uid()
+        and ou.is_active = true
+        and ou.role = 'staff'
+    ) then
+      raise exception 'not authorized';
+    end if;
+
+    if not exists (
+      select 1
+      from public.branch_memberships bm
+      where bm.org_id = p_org_id
+        and bm.user_id = auth.uid()
+        and bm.branch_id = p_branch_id
+        and bm.is_active = true
+    ) then
+      raise exception 'branch not allowed';
+    end if;
+
+    select exists (
+      select 1
+      from public.staff_module_access sma
+      where sma.org_id = p_org_id
+        and sma.role = 'staff'
+        and sma.module_key = 'cashbox'
+        and sma.is_enabled = true
+        and (
+          sma.branch_id = p_branch_id
+          or sma.branch_id is null
+        )
+      order by case when sma.branch_id is null then 0 else 1 end desc
+      limit 1
+    ) into v_cashbox_enabled;
+
+    if not v_cashbox_enabled then
+      raise exception 'cashbox module disabled';
+    end if;
+  end if;
+
+  if exists (
+    select 1
+    from public.cash_sessions cs
+    where cs.org_id = p_org_id
+      and cs.branch_id = p_branch_id
+      and cs.status = 'open'
+  ) then
+    raise exception 'cash session already open for branch';
+  end if;
+
+  insert into public.cash_sessions (
+    id,
+    org_id,
+    branch_id,
+    opened_by,
+    period_type,
+    session_label,
+    opening_cash_amount,
+    status,
+    opened_at,
+    created_at,
+    updated_at
+  ) values (
+    v_session_id,
+    p_org_id,
+    p_branch_id,
+    auth.uid(),
+    p_period_type,
+    nullif(trim(coalesce(p_session_label, '')), ''),
+    round(p_opening_cash_amount::numeric, 2),
+    'open',
+    v_opened_at,
+    v_opened_at,
+    v_opened_at
+  );
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'cash_session_opened',
+    'cash_session',
+    v_session_id,
+    p_branch_id,
+    jsonb_build_object(
+      'period_type', p_period_type,
+      'session_label', nullif(trim(coalesce(p_session_label, '')), ''),
+      'opening_cash_amount', round(p_opening_cash_amount::numeric, 2)
+    )
+  );
+
+  return query
+  select v_session_id, v_opened_at;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_open_cash_session"("p_org_id" "uuid", "p_branch_id" "uuid", "p_opening_cash_amount" numeric, "p_period_type" "text", "p_session_label" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_receive_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_items" "jsonb") RETURNS "void"
@@ -1862,7 +2532,6 @@ CREATE OR REPLACE FUNCTION "public"."rpc_superadmin_create_org"("p_org_name" "te
 declare
   v_org_id uuid;
   v_branch_id uuid;
-  v_owner_user_id uuid;
 begin
   if auth.uid() is null then
     raise exception 'not authenticated';
@@ -1880,6 +2549,14 @@ begin
     raise exception 'initial branch name required';
   end if;
 
+  if p_owner_user_id is null then
+    raise exception 'owner user required';
+  end if;
+
+  if not exists (select 1 from auth.users u where u.id = p_owner_user_id) then
+    raise exception 'owner user not found';
+  end if;
+
   insert into public.orgs (name, timezone)
   values (trim(p_org_name), coalesce(nullif(trim(p_timezone), ''), 'UTC'))
   returning id into v_org_id;
@@ -1892,31 +2569,27 @@ begin
   values (v_org_id)
   on conflict on constraint org_preferences_pkey do nothing;
 
-  v_owner_user_id := p_owner_user_id;
+  insert into public.org_users (org_id, user_id, role, display_name, is_active)
+  values (
+    v_org_id,
+    p_owner_user_id,
+    'org_admin',
+    nullif(trim(p_owner_display_name), ''),
+    true
+  )
+  on conflict on constraint org_users_org_id_user_id_key
+  do update set
+    role = 'org_admin',
+    is_active = true,
+    display_name = coalesce(excluded.display_name, public.org_users.display_name);
 
-  if v_owner_user_id is not null then
-    insert into public.org_users (org_id, user_id, role, display_name, is_active)
-    values (
-      v_org_id,
-      v_owner_user_id,
-      'org_admin',
-      nullif(trim(p_owner_display_name), ''),
-      true
-    )
-    on conflict on constraint org_users_org_id_user_id_key
-    do update set
-      role = 'org_admin',
-      is_active = true,
-      display_name = coalesce(excluded.display_name, public.org_users.display_name);
-
-    insert into public.branch_memberships (org_id, branch_id, user_id, is_active)
-    values (v_org_id, v_branch_id, v_owner_user_id, true)
-    on conflict on constraint branch_memberships_org_id_branch_id_user_id_key
-    do update set is_active = true;
-  end if;
+  insert into public.branch_memberships (org_id, branch_id, user_id, is_active)
+  values (v_org_id, v_branch_id, p_owner_user_id, true)
+  on conflict on constraint branch_memberships_org_id_branch_id_user_id_key
+  do update set is_active = true;
 
   return query
-  select v_org_id, v_branch_id, v_owner_user_id;
+  select v_org_id, v_branch_id, p_owner_user_id;
 end;
 $$;
 
@@ -2563,6 +3236,55 @@ CREATE TABLE IF NOT EXISTS "public"."branches" (
 ALTER TABLE "public"."branches" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."cash_session_movements" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "org_id" "uuid" NOT NULL,
+    "branch_id" "uuid" NOT NULL,
+    "session_id" "uuid" NOT NULL,
+    "movement_type" "text" NOT NULL,
+    "category_key" "text" NOT NULL,
+    "amount" numeric(12,2) NOT NULL,
+    "note" "text",
+    "movement_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "created_by" "uuid" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "cash_session_movements_amount_positive_ck" CHECK (("amount" > (0)::numeric)),
+    CONSTRAINT "cash_session_movements_movement_type_ck" CHECK (("movement_type" = ANY (ARRAY['expense'::"text", 'income'::"text"])))
+);
+
+
+ALTER TABLE "public"."cash_session_movements" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."cash_sessions" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "org_id" "uuid" NOT NULL,
+    "branch_id" "uuid" NOT NULL,
+    "opened_by" "uuid" NOT NULL,
+    "closed_by" "uuid",
+    "period_type" "text" DEFAULT 'shift'::"text" NOT NULL,
+    "session_label" "text",
+    "status" "text" DEFAULT 'open'::"text" NOT NULL,
+    "opening_cash_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "expected_cash_amount" numeric(12,2),
+    "counted_cash_amount" numeric(12,2),
+    "difference_amount" numeric(12,2),
+    "close_note" "text",
+    "opened_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "closed_at" timestamp with time zone,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "cash_sessions_counted_cash_amount_ck" CHECK ((("counted_cash_amount" IS NULL) OR ("counted_cash_amount" >= (0)::numeric))),
+    CONSTRAINT "cash_sessions_expected_cash_amount_ck" CHECK ((("expected_cash_amount" IS NULL) OR ("expected_cash_amount" >= (0)::numeric))),
+    CONSTRAINT "cash_sessions_opening_cash_amount_ck" CHECK (("opening_cash_amount" >= (0)::numeric)),
+    CONSTRAINT "cash_sessions_period_type_ck" CHECK (("period_type" = ANY (ARRAY['shift'::"text", 'day'::"text"]))),
+    CONSTRAINT "cash_sessions_status_ck" CHECK (("status" = ANY (ARRAY['open'::"text", 'closed'::"text"])))
+);
+
+
+ALTER TABLE "public"."cash_sessions" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."client_special_order_items" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "org_id" "uuid" NOT NULL,
@@ -2657,7 +3379,10 @@ CREATE TABLE IF NOT EXISTS "public"."org_preferences" (
     "warning_days" integer DEFAULT 7 NOT NULL,
     "allow_negative_stock" boolean DEFAULT true NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "cash_discount_enabled" boolean DEFAULT true NOT NULL,
+    "cash_discount_default_pct" numeric(5,2) DEFAULT 10 NOT NULL,
+    CONSTRAINT "org_preferences_cash_discount_default_pct_ck" CHECK ((("cash_discount_default_pct" >= (0)::numeric) AND ("cash_discount_default_pct" <= (100)::numeric)))
 );
 
 
@@ -2737,6 +3462,21 @@ CREATE TABLE IF NOT EXISTS "public"."sale_items" (
 ALTER TABLE "public"."sale_items" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."sale_payments" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "org_id" "uuid" NOT NULL,
+    "sale_id" "uuid" NOT NULL,
+    "payment_method" "public"."payment_method" NOT NULL,
+    "amount" numeric(12,2) NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "sale_payments_amount_positive_ck" CHECK (("amount" > (0)::numeric)),
+    CONSTRAINT "sale_payments_method_not_mixed_ck" CHECK ((("payment_method")::"text" <> 'mixed'::"text"))
+);
+
+
+ALTER TABLE "public"."sale_payments" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."sales" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "org_id" "uuid" NOT NULL,
@@ -2744,7 +3484,12 @@ CREATE TABLE IF NOT EXISTS "public"."sales" (
     "created_by" "uuid" NOT NULL,
     "payment_method" "public"."payment_method" NOT NULL,
     "total_amount" numeric(12,2) NOT NULL,
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "subtotal_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "discount_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "discount_pct" numeric(5,2) DEFAULT 0 NOT NULL,
+    CONSTRAINT "sales_discount_amount_range_ck" CHECK ((("discount_amount" >= (0)::numeric) AND ("discount_amount" <= "subtotal_amount"))),
+    CONSTRAINT "sales_discount_pct_range_ck" CHECK ((("discount_pct" >= (0)::numeric) AND ("discount_pct" <= (100)::numeric)))
 );
 
 
@@ -2922,6 +3667,62 @@ CREATE OR REPLACE VIEW "public"."v_branches_admin" AS
 ALTER VIEW "public"."v_branches_admin" OWNER TO "postgres";
 
 
+CREATE OR REPLACE VIEW "public"."v_cashbox_session_current" AS
+ WITH "sales_cash" AS (
+         SELECT "cs_1"."id" AS "session_id",
+            COALESCE("sum"("sp"."amount"), (0)::numeric) AS "cash_sales_amount"
+           FROM (("public"."cash_sessions" "cs_1"
+             LEFT JOIN "public"."sales" "s" ON ((("s"."org_id" = "cs_1"."org_id") AND ("s"."branch_id" = "cs_1"."branch_id") AND ("s"."created_at" >= "cs_1"."opened_at") AND ("s"."created_at" <= COALESCE("cs_1"."closed_at", "now"())))))
+             LEFT JOIN "public"."sale_payments" "sp" ON ((("sp"."sale_id" = "s"."id") AND ("sp"."payment_method" = 'cash'::"public"."payment_method"))))
+          GROUP BY "cs_1"."id"
+        ), "movement_totals" AS (
+         SELECT "csm"."session_id",
+            COALESCE("sum"(
+                CASE
+                    WHEN ("csm"."movement_type" = 'income'::"text") THEN "csm"."amount"
+                    ELSE (0)::numeric
+                END), (0)::numeric) AS "manual_income_amount",
+            COALESCE("sum"(
+                CASE
+                    WHEN ("csm"."movement_type" = 'expense'::"text") THEN "csm"."amount"
+                    ELSE (0)::numeric
+                END), (0)::numeric) AS "manual_expense_amount",
+            "count"(*) AS "movements_count"
+           FROM "public"."cash_session_movements" "csm"
+          GROUP BY "csm"."session_id"
+        )
+ SELECT "cs"."id" AS "session_id",
+    "cs"."org_id",
+    "cs"."branch_id",
+    "cs"."status",
+    "cs"."period_type",
+    "cs"."session_label",
+    "cs"."opening_cash_amount",
+    COALESCE("sc"."cash_sales_amount", (0)::numeric) AS "cash_sales_amount",
+    COALESCE("mt"."manual_income_amount", (0)::numeric) AS "manual_income_amount",
+    COALESCE("mt"."manual_expense_amount", (0)::numeric) AS "manual_expense_amount",
+    (((("cs"."opening_cash_amount" + COALESCE("sc"."cash_sales_amount", (0)::numeric)) + COALESCE("mt"."manual_income_amount", (0)::numeric)) - COALESCE("mt"."manual_expense_amount", (0)::numeric)))::numeric(12,2) AS "expected_cash_amount",
+    "cs"."counted_cash_amount",
+        CASE
+            WHEN ("cs"."counted_cash_amount" IS NULL) THEN NULL::numeric
+            ELSE (("cs"."counted_cash_amount" - ((("cs"."opening_cash_amount" + COALESCE("sc"."cash_sales_amount", (0)::numeric)) + COALESCE("mt"."manual_income_amount", (0)::numeric)) - COALESCE("mt"."manual_expense_amount", (0)::numeric))))::numeric(12,2)
+        END AS "difference_amount",
+    COALESCE("mt"."movements_count", (0)::bigint) AS "movements_count",
+    "cs"."opened_by",
+    "cs"."closed_by",
+    "cs"."opened_at",
+    "cs"."closed_at",
+    "cs"."close_note",
+    "cs"."created_at",
+    "cs"."updated_at"
+   FROM (("public"."cash_sessions" "cs"
+     LEFT JOIN "sales_cash" "sc" ON (("sc"."session_id" = "cs"."id")))
+     LEFT JOIN "movement_totals" "mt" ON (("mt"."session_id" = "cs"."id")));
+
+
+ALTER VIEW "public"."v_cashbox_session_current" OWNER TO "postgres";
+
+
 CREATE OR REPLACE VIEW "public"."v_dashboard_admin" AS
  WITH "scopes" AS (
          SELECT "o_1"."id" AS "org_id",
@@ -2931,14 +3732,30 @@ CREATE OR REPLACE VIEW "public"."v_dashboard_admin" AS
          SELECT "b"."org_id",
             "b"."id" AS "branch_id"
            FROM "public"."branches" "b"
+        ), "sales_agg" AS (
+         SELECT "s"."id" AS "sale_id",
+            "s"."org_id",
+            "s"."branch_id",
+            "s"."created_at",
+            "s"."total_amount",
+            "s"."discount_amount",
+            COALESCE("sum"("sp"."amount") FILTER (WHERE ("sp"."payment_method" = 'cash'::"public"."payment_method")), (0)::numeric) AS "cash_collected_amount",
+            ("count"(*) FILTER (WHERE ("sp"."payment_method" = 'cash'::"public"."payment_method")) > 0) AS "has_cash_component"
+           FROM ("public"."sales" "s"
+             LEFT JOIN "public"."sale_payments" "sp" ON (("sp"."sale_id" = "s"."id")))
+          GROUP BY "s"."id", "s"."org_id", "s"."branch_id", "s"."created_at", "s"."total_amount", "s"."discount_amount"
         ), "metrics" AS (
          SELECT "s"."org_id",
             "s"."branch_id",
             COALESCE("sum"("s"."total_amount") FILTER (WHERE (("s"."created_at")::"date" = CURRENT_DATE)), (0)::numeric) AS "sales_today_total",
             COALESCE("count"(*) FILTER (WHERE (("s"."created_at")::"date" = CURRENT_DATE)), (0)::bigint) AS "sales_today_count",
             COALESCE("sum"("s"."total_amount") FILTER (WHERE ("s"."created_at" >= "date_trunc"('week'::"text", "now"()))), (0)::numeric) AS "sales_week_total",
-            COALESCE("sum"("s"."total_amount") FILTER (WHERE ("s"."created_at" >= "date_trunc"('month'::"text", "now"()))), (0)::numeric) AS "sales_month_total"
-           FROM "public"."sales" "s"
+            COALESCE("sum"("s"."total_amount") FILTER (WHERE ("s"."created_at" >= "date_trunc"('month'::"text", "now"()))), (0)::numeric) AS "sales_month_total",
+            COALESCE("sum"("s"."cash_collected_amount") FILTER (WHERE (("s"."created_at")::"date" = CURRENT_DATE)), (0)::numeric) AS "cash_sales_today_total",
+            COALESCE("count"(*) FILTER (WHERE ((("s"."created_at")::"date" = CURRENT_DATE) AND "s"."has_cash_component")), (0)::bigint) AS "cash_sales_today_count",
+            COALESCE("sum"("s"."discount_amount") FILTER (WHERE (("s"."created_at")::"date" = CURRENT_DATE)), (0)::numeric) AS "cash_discount_today_total",
+            COALESCE("count"(*) FILTER (WHERE ((("s"."created_at")::"date" = CURRENT_DATE) AND ("s"."discount_amount" > (0)::numeric))), (0)::bigint) AS "cash_discounted_sales_today_count"
+           FROM "sales_agg" "s"
           GROUP BY "s"."org_id", "s"."branch_id"
         ), "expiration_counts" AS (
          SELECT "eb"."org_id",
@@ -2967,6 +3784,10 @@ CREATE OR REPLACE VIEW "public"."v_dashboard_admin" AS
     COALESCE("m"."sales_today_count", (0)::bigint) AS "sales_today_count",
     COALESCE("m"."sales_week_total", (0)::numeric) AS "sales_week_total",
     COALESCE("m"."sales_month_total", (0)::numeric) AS "sales_month_total",
+    COALESCE("m"."cash_sales_today_total", (0)::numeric) AS "cash_sales_today_total",
+    COALESCE("m"."cash_sales_today_count", (0)::bigint) AS "cash_sales_today_count",
+    COALESCE("m"."cash_discount_today_total", (0)::numeric) AS "cash_discount_today_total",
+    COALESCE("m"."cash_discounted_sales_today_count", (0)::bigint) AS "cash_discounted_sales_today_count",
     COALESCE("e"."expirations_critical_count", (0)::bigint) AS "expirations_critical_count",
     COALESCE("e"."expirations_warning_count", (0)::bigint) AS "expirations_warning_count",
     COALESCE("o"."supplier_orders_pending_count", (0)::bigint) AS "supplier_orders_pending_count",
@@ -3469,6 +4290,16 @@ ALTER TABLE ONLY "public"."branches"
 
 
 
+ALTER TABLE ONLY "public"."cash_session_movements"
+    ADD CONSTRAINT "cash_session_movements_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."cash_sessions"
+    ADD CONSTRAINT "cash_sessions_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."client_special_order_items"
     ADD CONSTRAINT "client_special_order_items_org_id_special_order_id_product__key" UNIQUE ("org_id", "special_order_id", "product_id");
 
@@ -3531,6 +4362,11 @@ ALTER TABLE ONLY "public"."products"
 
 ALTER TABLE ONLY "public"."sale_items"
     ADD CONSTRAINT "sale_items_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."sale_payments"
+    ADD CONSTRAINT "sale_payments_pkey" PRIMARY KEY ("id");
 
 
 
@@ -3616,6 +4452,26 @@ CREATE INDEX "audit_log_org_created_at_idx" ON "public"."audit_log" USING "btree
 
 
 
+CREATE INDEX "cash_session_movements_org_branch_idx" ON "public"."cash_session_movements" USING "btree" ("org_id", "branch_id", "created_at" DESC);
+
+
+
+CREATE INDEX "cash_session_movements_session_idx" ON "public"."cash_session_movements" USING "btree" ("session_id", "created_at" DESC);
+
+
+
+CREATE UNIQUE INDEX "cash_sessions_open_unique" ON "public"."cash_sessions" USING "btree" ("org_id", "branch_id") WHERE ("status" = 'open'::"text");
+
+
+
+CREATE INDEX "cash_sessions_org_branch_status_idx" ON "public"."cash_sessions" USING "btree" ("org_id", "branch_id", "status", "opened_at" DESC);
+
+
+
+CREATE INDEX "cash_sessions_org_created_idx" ON "public"."cash_sessions" USING "btree" ("org_id", "created_at" DESC);
+
+
+
 CREATE INDEX "expiration_waste_org_branch_idx" ON "public"."expiration_waste" USING "btree" ("org_id", "branch_id", "created_at" DESC);
 
 
@@ -3625,6 +4481,18 @@ CREATE UNIQUE INDEX "products_org_barcode_uq" ON "public"."products" USING "btre
 
 
 CREATE UNIQUE INDEX "products_org_internal_code_uq" ON "public"."products" USING "btree" ("org_id", "internal_code") WHERE ("internal_code" IS NOT NULL);
+
+
+
+CREATE INDEX "sale_payments_org_id_idx" ON "public"."sale_payments" USING "btree" ("org_id");
+
+
+
+CREATE INDEX "sale_payments_payment_method_idx" ON "public"."sale_payments" USING "btree" ("payment_method");
+
+
+
+CREATE INDEX "sale_payments_sale_id_idx" ON "public"."sale_payments" USING "btree" ("sale_id");
 
 
 
@@ -3742,6 +4610,46 @@ ALTER TABLE ONLY "public"."branch_memberships"
 
 ALTER TABLE ONLY "public"."branches"
     ADD CONSTRAINT "branches_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."cash_session_movements"
+    ADD CONSTRAINT "cash_session_movements_branch_id_fkey" FOREIGN KEY ("branch_id") REFERENCES "public"."branches"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."cash_session_movements"
+    ADD CONSTRAINT "cash_session_movements_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."cash_session_movements"
+    ADD CONSTRAINT "cash_session_movements_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."cash_session_movements"
+    ADD CONSTRAINT "cash_session_movements_session_id_fkey" FOREIGN KEY ("session_id") REFERENCES "public"."cash_sessions"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."cash_sessions"
+    ADD CONSTRAINT "cash_sessions_branch_id_fkey" FOREIGN KEY ("branch_id") REFERENCES "public"."branches"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."cash_sessions"
+    ADD CONSTRAINT "cash_sessions_closed_by_fkey" FOREIGN KEY ("closed_by") REFERENCES "auth"."users"("id") ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."cash_sessions"
+    ADD CONSTRAINT "cash_sessions_opened_by_fkey" FOREIGN KEY ("opened_by") REFERENCES "auth"."users"("id") ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."cash_sessions"
+    ADD CONSTRAINT "cash_sessions_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
 
 
 
@@ -3877,6 +4785,16 @@ ALTER TABLE ONLY "public"."sale_items"
 
 ALTER TABLE ONLY "public"."sale_items"
     ADD CONSTRAINT "sale_items_sale_id_fkey" FOREIGN KEY ("sale_id") REFERENCES "public"."sales"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."sale_payments"
+    ADD CONSTRAINT "sale_payments_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."sale_payments"
+    ADD CONSTRAINT "sale_payments_sale_id_fkey" FOREIGN KEY ("sale_id") REFERENCES "public"."sales"("id") ON DELETE CASCADE;
 
 
 
@@ -4046,6 +4964,32 @@ CREATE POLICY "branches_write" ON "public"."branches" FOR INSERT WITH CHECK ("pu
 
 
 
+ALTER TABLE "public"."cash_session_movements" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "cash_session_movements_select" ON "public"."cash_session_movements" FOR SELECT USING ("public"."is_org_member"("org_id"));
+
+
+
+CREATE POLICY "cash_session_movements_write" ON "public"."cash_session_movements" FOR INSERT WITH CHECK ("public"."is_org_member"("org_id"));
+
+
+
+ALTER TABLE "public"."cash_sessions" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "cash_sessions_select" ON "public"."cash_sessions" FOR SELECT USING ("public"."is_org_member"("org_id"));
+
+
+
+CREATE POLICY "cash_sessions_update" ON "public"."cash_sessions" FOR UPDATE USING ("public"."is_org_member"("org_id"));
+
+
+
+CREATE POLICY "cash_sessions_write" ON "public"."cash_sessions" FOR INSERT WITH CHECK ("public"."is_org_member"("org_id"));
+
+
+
 ALTER TABLE "public"."client_special_order_items" ENABLE ROW LEVEL SECURITY;
 
 
@@ -4207,6 +5151,17 @@ CREATE POLICY "sale_items_write" ON "public"."sale_items" FOR INSERT WITH CHECK 
 
 
 
+ALTER TABLE "public"."sale_payments" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "sale_payments_select" ON "public"."sale_payments" FOR SELECT USING ("public"."is_org_member"("org_id"));
+
+
+
+CREATE POLICY "sale_payments_write" ON "public"."sale_payments" FOR INSERT WITH CHECK ("public"."is_org_member"("org_id"));
+
+
+
 ALTER TABLE "public"."sales" ENABLE ROW LEVEL SECURITY;
 
 
@@ -4365,6 +5320,12 @@ GRANT ALL ON FUNCTION "public"."is_platform_admin"() TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."rpc_add_cash_session_movement"("p_org_id" "uuid", "p_session_id" "uuid", "p_movement_type" "text", "p_category_key" "text", "p_amount" numeric, "p_note" "text", "p_movement_at" timestamp with time zone) TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_add_cash_session_movement"("p_org_id" "uuid", "p_session_id" "uuid", "p_movement_type" "text", "p_category_key" "text", "p_amount" numeric, "p_note" "text", "p_movement_at" timestamp with time zone) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_add_cash_session_movement"("p_org_id" "uuid", "p_session_id" "uuid", "p_movement_type" "text", "p_category_key" "text", "p_amount" numeric, "p_note" "text", "p_movement_at" timestamp with time zone) TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."rpc_adjust_expiration_batch"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_quantity" numeric) TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_adjust_expiration_batch"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_quantity" numeric) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_adjust_expiration_batch"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_quantity" numeric) TO "service_role";
@@ -4383,15 +5344,21 @@ GRANT ALL ON FUNCTION "public"."rpc_bootstrap_platform_admin"() TO "service_role
 
 
 
+GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_counted_cash_amount" numeric, "p_close_note" "text") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_expires_on" "date", "p_quantity" numeric, "p_source_ref_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_expires_on" "date", "p_quantity" numeric, "p_source_ref_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_expires_on" "date", "p_quantity" numeric, "p_source_ref_id" "uuid") TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean) TO "anon";
-GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean) TO "service_role";
+GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean, "p_apply_cash_discount" boolean, "p_cash_discount_pct" numeric, "p_payments" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean, "p_apply_cash_discount" boolean, "p_cash_discount_pct" numeric, "p_payments" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean, "p_apply_cash_discount" boolean, "p_cash_discount_pct" numeric, "p_payments" "jsonb") TO "service_role";
 
 
 
@@ -4410,6 +5377,12 @@ GRANT ALL ON FUNCTION "public"."rpc_create_supplier_order"("p_org_id" "uuid", "p
 GRANT ALL ON FUNCTION "public"."rpc_get_active_org_id"() TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_get_active_org_id"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_get_active_org_id"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_get_cash_session_summary"("p_org_id" "uuid", "p_session_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_get_cash_session_summary"("p_org_id" "uuid", "p_session_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_get_cash_session_summary"("p_org_id" "uuid", "p_session_id" "uuid") TO "service_role";
 
 
 
@@ -4470,6 +5443,12 @@ GRANT ALL ON FUNCTION "public"."rpc_mark_special_order_items_ordered"("p_org_id"
 GRANT ALL ON FUNCTION "public"."rpc_move_expiration_batch_to_waste"("p_org_id" "uuid", "p_batch_id" "uuid", "p_expected_qty" numeric) TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_move_expiration_batch_to_waste"("p_org_id" "uuid", "p_batch_id" "uuid", "p_expected_qty" numeric) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_move_expiration_batch_to_waste"("p_org_id" "uuid", "p_batch_id" "uuid", "p_expected_qty" numeric) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_open_cash_session"("p_org_id" "uuid", "p_branch_id" "uuid", "p_opening_cash_amount" numeric, "p_period_type" "text", "p_session_label" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_open_cash_session"("p_org_id" "uuid", "p_branch_id" "uuid", "p_opening_cash_amount" numeric, "p_period_type" "text", "p_session_label" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_open_cash_session"("p_org_id" "uuid", "p_branch_id" "uuid", "p_opening_cash_amount" numeric, "p_period_type" "text", "p_session_label" "text") TO "service_role";
 
 
 
@@ -4653,6 +5632,18 @@ GRANT ALL ON TABLE "public"."branches" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."cash_session_movements" TO "anon";
+GRANT ALL ON TABLE "public"."cash_session_movements" TO "authenticated";
+GRANT ALL ON TABLE "public"."cash_session_movements" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."cash_sessions" TO "anon";
+GRANT ALL ON TABLE "public"."cash_sessions" TO "authenticated";
+GRANT ALL ON TABLE "public"."cash_sessions" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."client_special_order_items" TO "anon";
 GRANT ALL ON TABLE "public"."client_special_order_items" TO "authenticated";
 GRANT ALL ON TABLE "public"."client_special_order_items" TO "service_role";
@@ -4719,6 +5710,12 @@ GRANT ALL ON TABLE "public"."sale_items" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."sale_payments" TO "anon";
+GRANT ALL ON TABLE "public"."sale_payments" TO "authenticated";
+GRANT ALL ON TABLE "public"."sale_payments" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."sales" TO "anon";
 GRANT ALL ON TABLE "public"."sales" TO "authenticated";
 GRANT ALL ON TABLE "public"."sales" TO "service_role";
@@ -4782,6 +5779,12 @@ GRANT ALL ON TABLE "public"."v_audit_log_admin" TO "service_role";
 GRANT ALL ON TABLE "public"."v_branches_admin" TO "anon";
 GRANT ALL ON TABLE "public"."v_branches_admin" TO "authenticated";
 GRANT ALL ON TABLE "public"."v_branches_admin" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."v_cashbox_session_current" TO "anon";
+GRANT ALL ON TABLE "public"."v_cashbox_session_current" TO "authenticated";
+GRANT ALL ON TABLE "public"."v_cashbox_session_current" TO "service_role";
 
 
 

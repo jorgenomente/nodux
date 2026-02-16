@@ -5,6 +5,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/pos', label: 'POS' },
+  { href: '/cashbox', label: 'Caja' },
   { href: '/products', label: 'Productos' },
   { href: '/products/lookup', label: 'Lookup' },
   { href: '/expirations', label: 'Vencimientos' },

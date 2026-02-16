@@ -28,6 +28,10 @@ const MODULE_DEFINITIONS: Record<
     label: 'POS',
     description: 'Registro de ventas rapidas y cobro desde caja.',
   },
+  cashbox: {
+    label: 'Caja',
+    description: 'Apertura, movimientos y cierre de caja por sucursal.',
+  },
   products_lookup: {
     label: 'Consulta de precios',
     description: 'Busqueda de productos y precios para atencion en piso.',
@@ -93,6 +97,7 @@ export default async function SettingsStaffPermissionsPage({
 
     revalidatePath('/settings/staff-permissions');
     revalidatePath('/pos');
+    revalidatePath('/cashbox');
     revalidatePath('/products/lookup');
     revalidatePath('/clients');
     revalidatePath('/expirations');

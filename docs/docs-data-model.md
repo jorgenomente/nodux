@@ -33,6 +33,9 @@ Estado actual:
 - Cierre de gaps de auditoria en proveedores/pedidos (upsert supplier, expected receive y recepcion-control) en `supabase/migrations/20260213125000_030_audit_gaps_supplier_orders.sql`.
 - Fundacion Superadmin plataforma (admins globales, vistas/rpcs de org y org activa) en `supabase/migrations/20260216115100_031_superadmin_platform_foundation.sql`.
 - Hardening de alta org SA: `rpc_superadmin_create_org` exige owner y evita org huérfana en `supabase/migrations/20260216124000_032_superadmin_create_org_owner_required.sql`.
+- Descuento en efectivo en POS + métricas dashboard + auditoría de preferencias en `supabase/migrations/20260216150000_033_cash_discount_pos_dashboard_audit.sql`.
+- Split payments en POS en `supabase/migrations/20260216163000_034_split_payments_enum.sql` y `supabase/migrations/20260216164000_035_split_payments_pos.sql`.
+- Módulo Caja por sucursal (apertura, movimientos y cierre) en `supabase/migrations/20260216171000_036_cashbox_branch_sessions.sql`.
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 
@@ -56,7 +59,7 @@ Estado actual:
 - `stock_movement_type`: `sale` | `purchase` | `manual_adjustment` | `expiration_adjustment`
 - `supplier_order_status`: `draft` | `sent` | `received` | `reconciled`
 - `special_order_status`: `pending` | `ordered` | `partial` | `delivered` | `cancelled`
-- `payment_method`: `cash` | `debit` | `credit` | `transfer` | `other`
+- `payment_method`: `cash` | `debit` | `credit` | `transfer` | `other` | `mixed`
 - `order_frequency`: `weekly` | `biweekly` | `every_3_weeks` | `monthly`
 - `weekday`: `mon` | `tue` | `wed` | `thu` | `fri` | `sat` | `sun`
 - `supplier_product_relation_type`: `primary` | `secondary`
@@ -191,6 +194,8 @@ Estado actual:
 - `critical_days` (int)
 - `warning_days` (int)
 - `allow_negative_stock` (boolean)
+- `cash_discount_enabled` (boolean)
+- `cash_discount_default_pct` (numeric 0..100)
 - `created_at`, `updated_at`
 
 ---
@@ -289,7 +294,72 @@ Estado actual:
 - `branch_id` (uuid, FK)
 - `created_by` (uuid, FK -> auth.users.id)
 - `payment_method` (payment_method)
+- `subtotal_amount` (numeric)
+- `discount_amount` (numeric)
+- `discount_pct` (numeric 0..100)
 - `total_amount` (numeric)
+- `created_at`
+
+---
+
+### sale_payments
+
+**Proposito**: desglose de cobro por método para soportar pagos divididos.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `sale_id` (uuid, FK -> sales.id)
+- `payment_method` (payment_method, no permite `mixed`)
+- `amount` (numeric > 0)
+- `created_at`
+
+---
+
+### cash_sessions
+
+**Proposito**: sesión de caja por sucursal (apertura/cierre por turno o día).
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `branch_id` (uuid, FK)
+- `opened_by` (uuid, FK auth.users)
+- `closed_by` (uuid, nullable FK auth.users)
+- `period_type` (`shift` | `day`)
+- `session_label` (text, nullable)
+- `status` (`open` | `closed`)
+- `opening_cash_amount` (numeric >= 0)
+- `expected_cash_amount` (numeric, nullable)
+- `counted_cash_amount` (numeric, nullable)
+- `difference_amount` (numeric, nullable)
+- `close_note` (text, nullable)
+- `opened_at`, `closed_at`, `created_at`, `updated_at`
+
+**Constraints**:
+
+- solo 1 caja abierta por (`org_id`, `branch_id`) mediante índice parcial.
+
+---
+
+### cash_session_movements
+
+**Proposito**: gastos/ingresos manuales de caja asociados a una sesión abierta.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `branch_id` (uuid, FK)
+- `session_id` (uuid, FK -> cash_sessions.id)
+- `movement_type` (`expense` | `income`)
+- `category_key` (text)
+- `amount` (numeric > 0)
+- `note` (text, nullable)
+- `movement_at` (timestamptz)
+- `created_by` (uuid, FK auth.users)
 - `created_at`
 
 ---
@@ -496,8 +566,10 @@ Estado actual:
 Ver contratos en `docs/docs-schema-model.md`:
 
 - Views de lectura por pantalla (dashboard, products, suppliers, orders, expirations, settings)
+- View de caja operativa: `v_cashbox_session_current`
 - Views de superadmin global: `v_superadmin_orgs`, `v_superadmin_org_detail`
 - RPCs para escrituras (POS, stock, orders, permissions, clients)
+- RPCs de caja: `rpc_open_cash_session(...)`, `rpc_add_cash_session_movement(...)`, `rpc_get_cash_session_summary(...)`, `rpc_close_cash_session(...)`
 - RPC de fechas estimadas de pedidos proveedor: `rpc_set_supplier_order_expected_receive_on(...)`
 - RPC de auditoria append-only: `rpc_log_audit_event(...)`
 - RPCs de superadmin: `rpc_bootstrap_platform_admin(...)`, `rpc_superadmin_create_org(...)`, `rpc_superadmin_upsert_branch(...)`, `rpc_superadmin_set_active_org(...)`, `rpc_get_active_org_id(...)`

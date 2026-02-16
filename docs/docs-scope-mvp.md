@@ -30,6 +30,7 @@ El MVP debe ser usable en producción real por una tienda.
 ### Módulos operativos
 
 - Ventas (POS táctil)
+- Caja operativa por sucursal (apertura/cierre simple)
 - Productos y stock por sucursal
 - Vencimientos (manual y automático)
 - Proveedores

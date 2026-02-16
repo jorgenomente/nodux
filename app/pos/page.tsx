@@ -4,14 +4,21 @@ import PageShell from '@/app/components/PageShell';
 import PosClient from '@/app/pos/PosClient';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 
+type PosDiscountPreferences = {
+  cash_discount_enabled: boolean;
+  cash_discount_default_pct: number;
+};
+
 const STAFF_MODULE_ORDER = [
   'pos',
+  'cashbox',
   'products_lookup',
   'clients',
   'expirations',
 ] as const;
 const moduleToRoute: Record<string, string> = {
   pos: '/pos',
+  cashbox: '/cashbox',
   products_lookup: '/products/lookup',
   clients: '/clients',
   expirations: '/expirations',
@@ -161,6 +168,17 @@ export default async function PosPage({
         .limit(20)
     : { data: [] };
 
+  const { data: preferencesRow } = await supabase
+    .from('org_preferences')
+    .select('cash_discount_enabled, cash_discount_default_pct')
+    .eq('org_id', orgId)
+    .maybeSingle();
+
+  const cashDiscount = (preferencesRow as PosDiscountPreferences | null) ?? {
+    cash_discount_enabled: true,
+    cash_discount_default_pct: 10,
+  };
+
   return (
     <PageShell>
       <PosClient
@@ -193,6 +211,7 @@ export default async function PosPage({
             quantity: Number(row.remaining_qty ?? 0),
           })),
         }}
+        cashDiscount={cashDiscount}
       />
     </PageShell>
   );

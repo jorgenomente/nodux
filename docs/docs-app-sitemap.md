@@ -43,6 +43,7 @@ La navegación se construye en runtime según `staff_module_access`.
 Posibles ítems:
 
 - POS → `/pos`
+- Caja → `/cashbox`
 - Consulta de precios → `/products/lookup`
 - Clientes → `/clients`
 - Vencimientos → `/expirations`
@@ -64,6 +65,7 @@ Navegación fija:
 
 - Dashboard → `/dashboard`
 - Ventas → `/pos`
+- Caja → `/cashbox`
 - Productos / Stock → `/products`
 - Vencimientos → `/expirations`
 - Proveedores → `/suppliers`
@@ -160,6 +162,7 @@ Acceso:
 - `/no-access`
 - `/dashboard`
 - `/pos`
+- `/cashbox`
 - `/products`
 - `/products/lookup`
 - `/expirations`

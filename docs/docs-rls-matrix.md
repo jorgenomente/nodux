@@ -14,6 +14,9 @@ Estado actual:
 - `rpc_set_supplier_order_expected_receive_on` agregado en `supabase/migrations/20260213125000_030_audit_gaps_supplier_orders.sql` (sin cambios de policy; mantiene controles por org y estado en RPC).
 - Base superadmin plataforma agregada en `supabase/migrations/20260216115100_031_superadmin_platform_foundation.sql` (`platform_admins`, `user_active_orgs`, `is_platform_admin`, vistas/rpcs SA).
 - `rpc_superadmin_create_org` endurecida en `supabase/migrations/20260216124000_032_superadmin_create_org_owner_required.sql`: exige `owner_user_id` y garantiza membresía OA inicial (sin org huérfana).
+- Descuento en efectivo POS + métricas dashboard agregados en `supabase/migrations/20260216150000_033_cash_discount_pos_dashboard_audit.sql` (validación estricta: descuento solo con `payment_method='cash'`).
+- Split payments POS agregados en `supabase/migrations/20260216163000_034_split_payments_enum.sql` y `supabase/migrations/20260216164000_035_split_payments_pos.sql` (`sale_payments`, `payment_method='mixed'` y cash metrics por cobro real).
+- Módulo caja por sucursal agregado en `supabase/migrations/20260216171000_036_cashbox_branch_sessions.sql` (`cash_sessions`, `cash_session_movements`, `v_cashbox_session_current` y RPCs de apertura/movimientos/cierre).
 - Smoke RLS automatizado agregado en `scripts/rls-smoke-tests.mjs` (ejecución: `npm run db:rls:smoke`).
 - CI hardening agrega ejecución automática de smoke RLS + smoke Playwright en `.github/workflows/ci-hardening.yml`.
 
@@ -43,6 +46,9 @@ Estado actual:
 | `stock_items`                | read/insert/update | read/insert/update | read (lookup)                 | ST sin ajustes                         |
 | `stock_movements`            | read               | read/insert        | insert (via RPC)              | ST no lectura historica por defecto    |
 | `sales`                      | read               | read/insert        | insert (via RPC)              | ST crea ventas en su branch            |
+| `sale_payments`              | read               | read/insert        | insert (via RPC)              | Desglose de cobro por método           |
+| `cash_sessions`              | read               | read/insert/update | insert/update (via RPC)       | Caja por sucursal (1 abierta por vez)  |
+| `cash_session_movements`     | read               | read/insert        | insert (via RPC)              | Gastos/ingresos manuales de caja       |
 | `sale_items`                 | read               | read/insert        | insert (via RPC)              | derivado de venta                      |
 | `expiration_batches`         | read/insert/update | read/insert/update | read/insert (si modulo)       | ST sin ajustes avanzados               |
 | `expiration_waste`           | read               | read/insert        | read (via view/RPC)           | Registro de desperdicio                |
@@ -72,7 +78,10 @@ Estado actual:
 
 ## Endpoints criticos que deben validar modulos
 
-- `rpc_create_sale` -> requiere modulo `pos` habilitado.
+- `rpc_create_sale` -> requiere modulo `pos` habilitado, permite pagos divididos (`payments`) y solo permite descuento cuando el cobro es 100% cash.
+- `rpc_open_cash_session` -> requiere modulo `cashbox` habilitado para ST y valida sucursal asignada.
+- `rpc_add_cash_session_movement` -> requiere modulo `cashbox` habilitado para ST y sesión abierta de la sucursal.
+- `rpc_close_cash_session` -> requiere modulo `cashbox` habilitado para ST y registra cierre + diferencia.
 - `rpc_adjust_stock_manual` -> solo OA.
 - `rpc_set_safety_stock` -> solo OA.
 - `rpc_create_supplier_order` y derivados -> solo OA.

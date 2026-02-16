@@ -32,6 +32,9 @@ export default async function Home() {
       'rpc_get_staff_effective_modules',
     );
     const firstEnabled = (modules ?? []).find((module) => module.is_enabled);
+    if (firstEnabled?.module_key === 'cashbox') {
+      redirect('/cashbox');
+    }
     if (firstEnabled?.module_key === 'products_lookup') {
       redirect('/products/lookup');
     }

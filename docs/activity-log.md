@@ -56,6 +56,102 @@ Se auditó la cobertura real de `audit_log` con pruebas autenticadas y se cerrar
 **Verificación RLS mínima:** OA lectura `v_audit_log_admin` OK (6 filas) · ST lectura `v_audit_log_admin` denegada por política efectiva (0 filas)
 **Commit:** N/A
 
+## 2026-02-16 — POS split payments (efectivo + tarjeta) con contrato DB compatible
+
+**Tipo:** schema
+**Alcance:** db, ui, docs, tests
+
+**Resumen**
+Se habilitó pago dividido en POS con desglose por método (`sale_payments`), manteniendo compatibilidad backward en `rpc_create_sale` y sin romper flujo actual de pago único.
+
+**Impacto**
+
+- POS permite combinar métodos (ej: efectivo + tarjeta) con suma exacta obligatoria.
+- `rpc_create_sale` acepta `p_payments` opcional:
+  - sin `p_payments` mantiene comportamiento previo.
+  - con `p_payments` valida montos/metodos y total exacto.
+- `sales.payment_method` pasa a `mixed` cuando hay más de un método.
+- Descuento efectivo sigue protegido:
+  - solo aplica si el cobro es 100% cash (no split).
+- Dashboard de efectivo usa cobros reales desde `sale_payments` (incluye componente cash en ventas mixtas).
+- Auditoría de venta registra detalle `payments`.
+
+**Archivos**
+
+- supabase/migrations/20260216163000_034_split_payments_enum.sql
+- supabase/migrations/20260216164000_035_split_payments_pos.sql
+- app/pos/PosClient.tsx
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-app-screens-admin-dashboard.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/schema.sql
+- types/supabase.ts
+
+**Tests:**
+
+- npm run db:reset:all OK (2026-02-16)
+- npm run db:rls:smoke OK (2026-02-16)
+- npx playwright test -g "smoke" OK (2026-02-16)
+- npm run format:check OK (2026-02-16)
+- npm run lint OK (2026-02-16)
+- npm run build OK (2026-02-16)
+
+**Commit:** N/A
+
+## 2026-02-16 — POS: descuento en efectivo fijo por preferencias + métricas dashboard
+
+**Tipo:** schema
+**Alcance:** db, ui, docs, tests
+
+**Resumen**
+Se implementó descuento por efectivo en POS con porcentaje fijo configurable en `settings/preferences`, validación estricta en DB para que solo aplique con `payment_method='cash'`, auditoría de cambios de preferencias y nuevos KPI de efectivo/descuento en dashboard.
+
+**Impacto**
+
+- Caja: toggle de descuento efectivo sin edición de porcentaje.
+- Configuración: porcentaje gestionado solo por OA/SA en preferencias.
+- DB: `rpc_create_sale` bloquea intento de descuento en tarjeta/otros medios.
+- Auditoría:
+  - `sale_created` ahora incluye `subtotal_amount`, `discount_amount`, `discount_pct`, `cash_discount_applied`.
+  - nuevo evento `org_preferences_updated` al cambiar preferencias.
+- Dashboard: nuevos indicadores de efectivo y descuentos del día.
+
+**Archivos**
+
+- supabase/migrations/20260216150000_033_cash_discount_pos_dashboard_audit.sql
+- app/pos/page.tsx
+- app/pos/PosClient.tsx
+- app/settings/preferences/page.tsx
+- app/dashboard/page.tsx
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-app-screens-admin-dashboard.md
+- docs/docs-app-screens-settings-preferences.md
+- docs/docs-app-screens-settings-audit-log.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/schema.sql
+- types/supabase.ts
+
+**Tests:**
+
+- npm run db:reset:all OK (2026-02-16)
+- npm run db:rls:smoke OK (2026-02-16)
+- npm run format:check OK (2026-02-16)
+- npm run lint OK (2026-02-16)
+- npm run build OK (2026-02-16)
+- npx playwright test -g "smoke" OK (2026-02-16)
+
+**Commit:** N/A
+
 ## 2026-02-16 — Cierre hardening QA: smoke RLS + CI automatizada
 
 **Tipo:** tests
@@ -3325,6 +3421,105 @@ Se reemplazó `rpc_superadmin_create_org` para exigir `p_owner_user_id` y garant
 - npm run lint OK (2026-02-16)
 - npm run build OK (2026-02-16)
 - npm run db:seed:all OK (2026-02-16)
+- npx playwright test -g "smoke" OK (2026-02-16)
+
+**Commit:** N/A
+
+## 2026-02-16 14:13 -03 — Descubrimiento y propuesta de módulo Caja
+
+**Tipo:** decision  
+**Lote:** cashbox-module-discovery-proposal  
+**Alcance:** docs, arquitectura
+
+**Resumen**
+Se realizó lectura repo-aware de documentación viva y contratos actuales para proponer el diseño de un nuevo módulo de caja orientado a cierre por turno o por día, con conteo físico, conciliación contra cobros POS y registro de gastos operativos.
+
+**Archivos consultados**
+
+- AGENTS.md
+- docs/docs-scope-mvp.md
+- docs/docs-scope-post-mvp.md
+- docs/docs-app-sitemap.md
+- docs/docs-app-screens-index.md
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-app-screens-settings-staff-permissions.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- app/pos/page.tsx
+- app/settings/staff-permissions/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Resultado**
+
+- Se confirmó que “cierres de caja avanzados” está en Post-MVP.
+- Se detectó base sólida para caja operativa usando `sales`, `sale_payments`, `audit_log`, `org_preferences` y permisos por `staff_module_access`.
+- Se definió recomendar una implementación en dos etapas: MVP de cierre simple (operable ahora) y hardening/analítica para etapa posterior.
+
+**Tests:** No aplica (análisis y propuesta, sin cambios ejecutables)  
+**Commit:** N/A
+
+## 2026-02-16 14:28 -03 — Módulo Caja por sucursal (MVP) + auditoría de actor/movimientos
+
+**Tipo:** schema  
+**Lote:** cashbox-module-mvp-branch-audit  
+**Alcance:** db, ui, docs, tests
+
+**Resumen**
+Se implementó el módulo `/cashbox` con operación por sucursal: apertura de caja por turno/día, registro de movimientos manuales (gasto/ingreso), cierre con conteo físico y cálculo de diferencia. Se agregó auditoría explícita para apertura, movimientos y cierre, incluyendo actor y metadata operativa.
+
+**Impacto**
+
+- Caja queda alineada a `branch_id` obligatorio y una sesión abierta por sucursal.
+- Conciliación automática del esperado con:
+  - apertura
+  - cobros en efectivo desde `sale_payments`
+  - ingresos y gastos manuales
+- Auditoría visible en `/settings/audit-log` con acciones:
+  - `cash_session_opened`
+  - `cash_movement_added`
+  - `cash_session_closed`
+- Nuevo módulo habilitable para Staff: `cashbox` (en settings/permisos, proxy y redirect de home).
+
+**Archivos**
+
+- supabase/migrations/20260216171000_036_cashbox_branch_sessions.sql
+- app/cashbox/page.tsx
+- app/page.tsx
+- app/clients/page.tsx
+- app/pos/page.tsx
+- app/expirations/page.tsx
+- app/components/TopBar.tsx
+- app/settings/staff-permissions/page.tsx
+- app/settings/audit-log/page.tsx
+- proxy.ts
+- docs/docs-app-sitemap.md
+- docs/docs-app-screens-index.md
+- docs/docs-app-screens-cashbox.md
+- docs/docs-modules-cashbox.md
+- docs/docs-app-screens-settings-staff-permissions.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-schema-model.md
+- docs/docs-scope-mvp.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/schema.sql
+- types/supabase.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-02-16)
+- npm run db:schema:snapshot OK (2026-02-16)
+- npm run types:gen OK (2026-02-16)
+- npm run db:seed:all OK (2026-02-16)
+- npm run db:rls:smoke OK (2026-02-16)
+- npm run lint OK (2026-02-16)
+- npm run build OK (2026-02-16)
 - npx playwright test -g "smoke" OK (2026-02-16)
 
 **Commit:** N/A

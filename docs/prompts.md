@@ -1108,3 +1108,43 @@ adelante
 ok listo, que mas tenemos pendiente?
 
 ok adelate
+
+## 2026-02-16 15:00 — Descuento efectivo en POS con control por preferencias
+
+**Lote:** pos-cash-discount-preferences-audit-dashboard
+**Objetivo:** Implementar descuento por efectivo solo para `cash`, con porcentaje fijo desde preferencias, auditoría de cambios y métricas en dashboard.
+
+**Prompt**
+En las tiendas hay veces que se hacen descuentos por pagar en efectivo. Me gustaria que chequeemos los docs y veamos cual es la mejor manera de incorporar este descuento. se me ocurre que en el pos haya un boton que diga descuento en efectivo que normalmente este configurado con 10% y al activarlo se descuente del total 10%. ahora interesante seria que por ejemplo si alguien le modifica el valor esto se sepa en la seccion de auditoria, tambien en las estadisticas y el dashboard me gustaria saber de alguna manera que ventas fueron en efectivo y si tuvieron descuento. Ayudame a aterrizar esto para hacerlo de la mejor manera, que sea facil y no se rompa nada y que quede bien documentado
+
+perfecto me gusta. y tambien solo se puede aplicar si el metodo de pago es efectivo. No puedo hacer el descuento efectivo y cobrar con tarjeta
+
+adelante
+
+## 2026-02-16 16:30 — Pagos divididos en POS (split payments)
+
+**Lote:** pos-split-payments-safe-rollout
+**Objetivo:** Habilitar pagos divididos en POS sin romper contratos actuales, manteniendo validaciones en DB y auditoría.
+
+**Prompt**
+si me gustaria poder aceptar pagos dividios es decir una parte con efectivo u otra con tarjeta o similar. que me recomiendas hacer? chequea todo lo que necesites para habilitar esto sin que se rompa nada
+
+adelante
+
+## 2026-02-16 14:13 -03 — Propuesta de modulo de caja (cierre por turno/dia)
+
+**Lote:** cashbox-module-discovery-proposal
+**Objetivo:** Revisar la documentacion y estado real del repo para proponer un modulo de caja que permita cierre por turno o por dia, conteo de efectivo, diferencias y registro de gastos operativos.
+
+**Prompt**
+quiero que revises toda la documentacion para que entiendas bien la app y me ayudes a crear un nuevo modulo de caja. este modulo es el que vamos a utilizar para hacer el cierre de caja por turno o por dia segun sea necesario. Aqui es donde contamos todo el dinero, colocamos lo que hay y vemos sin coincide y que todo este ok no nos falte y no nos sobre. aqui tambien podriamos agregar gastos del local por ejemplo algun delivery que se haya pagado o cosas de libreria etc. primero quiero que revises todo y tambien me sugieras algo que facilite todo este proceso para que sea sencillo, rapido y muy completo. dime como sugieres que puede ser
+
+## 2026-02-16 14:28 -03 — Implementación módulo Caja por sucursal con auditoría
+
+**Lote:** cashbox-module-mvp-branch-audit
+**Objetivo:** Implementar módulo `/cashbox` por sucursal con apertura/cierre por turno o día, movimientos manuales de caja y trazabilidad en auditoría de actor y detalle de movimientos.
+
+**Prompt**
+excelente. el cierre de caja es por sucursal por las dudas
+
+adelante. tambien en auditoria se debe ver quien hizo la caja y los movimientos que hizo

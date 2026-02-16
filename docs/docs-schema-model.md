@@ -30,6 +30,7 @@ Estado: **baseline**. Este documento define una base de datos mínima coherente 
 - [x] `v_audit_log_admin`
 - [x] `v_superadmin_orgs`
 - [x] `v_superadmin_org_detail`
+- [x] `v_cashbox_session_current`
 
 **RPCs (escritura/lectura)**:
 
@@ -67,6 +68,10 @@ Estado: **baseline**. Este documento define una base de datos mínima coherente 
 - [x] `rpc_superadmin_upsert_branch`
 - [x] `rpc_superadmin_set_active_org`
 - [x] `rpc_get_active_org_id`
+- [x] `rpc_open_cash_session`
+- [x] `rpc_add_cash_session_movement`
+- [x] `rpc_get_cash_session_summary`
+- [x] `rpc_close_cash_session`
 
 ---
 
@@ -87,6 +92,7 @@ Estado: **baseline**. Este documento define una base de datos mínima coherente 
 - `supplier_order_status`: `draft` | `sent` | `received` | `reconciled`
 - `special_order_status`: `pending` | `ordered` | `partial` | `delivered` | `cancelled`
 - `payment_method`: `cash` | `debit` | `credit` | `transfer` | `other`
+  - Actualizado: incluye `mixed` para pagos divididos.
 - `alert_severity` (si se materializa): `critical` | `warning` | `info`
 - `order_frequency`: `weekly` | `biweekly` | `every_3_weeks` | `monthly`
 - `weekday`: `mon` | `tue` | `wed` | `thu` | `fri` | `sat` | `sun`
@@ -400,6 +406,7 @@ Constraints:
 - `v_staff_effective_modules` (solo current_user)
 - `v_superadmin_orgs`
 - `v_superadmin_org_detail`
+- `v_cashbox_session_current`
 
 ---
 
@@ -440,6 +447,10 @@ Constraints:
 - `rpc_superadmin_upsert_branch(input)`
 - `rpc_superadmin_set_active_org(org_id)`
 - `rpc_get_active_org_id()`
+- `rpc_open_cash_session(input)`
+- `rpc_add_cash_session_movement(input)`
+- `rpc_get_cash_session_summary(session_id)`
+- `rpc_close_cash_session(input)`
 
 ---
 

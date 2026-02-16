@@ -9,12 +9,14 @@ import { getOrgMemberSession } from '@/lib/auth/org-session';
 
 const STAFF_MODULE_ORDER = [
   'pos',
+  'cashbox',
   'products_lookup',
   'clients',
   'expirations',
 ] as const;
 const moduleToRoute: Record<string, string> = {
   pos: '/pos',
+  cashbox: '/cashbox',
   products_lookup: '/products/lookup',
   clients: '/clients',
   expirations: '/expirations',

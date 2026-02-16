@@ -37,6 +37,7 @@ Identificador estable (string) para cada módulo habilitable.
 MVP module_keys recomendados:
 
 - `pos`
+- `cashbox`
 - `products_lookup`
 - `clients`
 - `orders` (opcional para staff en MVP; por defecto apagado)

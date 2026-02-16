@@ -4,10 +4,17 @@ import { createServerClient } from '@supabase/ssr';
 import type { Database } from '@/types/supabase';
 
 const PUBLIC_PATHS = ['/login', '/logout', '/no-access'];
-const STAFF_MODULE_ORDER = ['pos', 'products_lookup', 'clients', 'expirations'];
+const STAFF_MODULE_ORDER = [
+  'pos',
+  'cashbox',
+  'products_lookup',
+  'clients',
+  'expirations',
+];
 
 const moduleToRoute: Record<string, string> = {
   pos: '/pos',
+  cashbox: '/cashbox',
   products_lookup: '/products/lookup',
   clients: '/clients',
   expirations: '/expirations',
@@ -43,6 +50,7 @@ const resolveStaffHome = async (
 const isStaffAllowedPath = (pathname: string) => {
   return (
     pathname === '/pos' ||
+    pathname.startsWith('/cashbox') ||
     pathname.startsWith('/products/lookup') ||
     pathname.startsWith('/clients') ||
     pathname.startsWith('/expirations') ||

@@ -239,3 +239,6 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-02-16: se agrega creación de OA inicial para org existente desde `/superadmin` y se extiende contexto SA de org activa a módulos core del MVP.
 - 2026-02-16: hardening DB de alta org SA para exigir OA inicial en `rpc_superadmin_create_org` (alta atómica sin org huérfana).
 - 2026-02-16: cierre Fase 6 con smoke RLS automatizado y CI hardening (Supabase local + seed + lint/build + smoke E2E).
+- 2026-02-16: se agrega descuento en efectivo en POS (porcentaje fijo desde preferencias), validación estricta en DB y métricas de efectivo/descuento en dashboard.
+- 2026-02-16: POS incorpora pagos divididos (split payments) con desglose `sale_payments`, compatibilidad backward en `rpc_create_sale` y métricas de efectivo basadas en cobros reales.
+- 2026-02-16: se agrega módulo Caja (`/cashbox`) por sucursal con sesiones de apertura/cierre, movimientos manuales y auditoría de actor/detalle.

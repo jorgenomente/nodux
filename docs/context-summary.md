@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-02-16 13:20
+Ultima actualizacion: 2026-02-16 15:00
 
 ## Estado general
 
@@ -53,6 +53,13 @@ Ultima actualizacion: 2026-02-16 13:20
 - En `/settings/users`, el checklist de sucursales se muestra solo para `staff`; para `org_admin` se oculta y aplica acceso global por organización.
 - Smoke RLS automatizado disponible en `npm run db:rls:smoke` para validar allow/deny por rol (staff, org_admin, superadmin).
 - Workflow CI de hardening agregado en `.github/workflows/ci-hardening.yml` con Supabase local, seed y smoke E2E.
+- POS soporta descuento por efectivo con toggle operativo; el porcentaje no es editable en caja y se toma fijo desde `settings/preferences`.
+- POS soporta pagos divididos (`cash/debit/credit/transfer/other`) con validación de suma exacta en DB.
+- `rpc_create_sale` valida en DB que el descuento solo aplica cuando `payment_method='cash'`.
+- Dashboard incorpora métricas de efectivo y descuento (`cash_sales_today_total`, `cash_discount_today_total`, etc.).
+- Cambios de preferencias (incluyendo descuento efectivo) quedan auditados con `org_preferences_updated`.
+- Módulo Caja (`/cashbox`) operativo por sucursal: apertura por turno/día, registro de gastos/ingresos manuales, cierre con conteo y diferencia.
+- Caja audita actor y metadata operativa en `audit_log` (`cash_session_opened`, `cash_movement_added`, `cash_session_closed`).
 
 ## Post-MVP ya registrado
 

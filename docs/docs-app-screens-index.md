@@ -63,19 +63,25 @@ Regla base:
    - Módulo: Ventas (POS)
    - Propósito: registrar ventas rápidas
 
-5. `/products/lookup`
+5. `/cashbox`
+   - Roles: ST (si módulo `cashbox` habilitado)
+   - Tipo: Primary
+   - Módulo: Caja
+   - Propósito: apertura/cierre de caja por sucursal y conciliación
+
+6. `/products/lookup`
    - Roles: ST (si módulo `products_lookup` habilitado)
    - Tipo: Primary
    - Módulo: Productos
    - Propósito: consulta rápida de precios y stock
 
-6. `/clients`
+7. `/clients`
    - Roles: ST (si módulo `clients` habilitado)
    - Tipo: Primary
    - Módulo: Clientes y pedidos especiales
    - Propósito: ver/crear pedidos especiales (scope limitado)
 
-7. `/expirations`
+8. `/expirations`
    - Roles: ST (opcional, si módulo habilitado)
    - Tipo: Primary
    - Módulo: Vencimientos
@@ -90,55 +96,56 @@ Regla base:
 
 ## 3) Org Admin (Primary)
 
-8. `/dashboard`
+9. `/dashboard`
    - Roles: OA
    - Tipo: Primary
    - Módulo: Dashboard
    - Propósito: visión operativa del negocio
 
-9. `/pos`
-   - Roles: OA
-   - Tipo: Primary
-   - Módulo: Ventas
-   - Propósito: operar o auditar ventas
+10. `/pos`
 
-10. `/products`
+- Roles: OA
+- Tipo: Primary
+- Módulo: Ventas
+- Propósito: operar o auditar ventas
+
+11. `/products`
     - Roles: OA
     - Tipo: Primary
     - Módulo: Productos y Stock
     - Propósito: gestionar productos y stock por sucursal
 
-11. `/expirations`
+12. `/expirations`
     - Roles: OA
     - Tipo: Primary
     - Módulo: Vencimientos
     - Propósito: gestionar vencimientos y alertas
 
-12. `/suppliers`
+13. `/suppliers`
     - Roles: OA
     - Tipo: Primary
     - Módulo: Proveedores
     - Propósito: listar y gestionar proveedores
 
-13. `/orders`
+14. `/orders`
     - Roles: OA
     - Tipo: Primary
     - Módulo: Pedidos a proveedor
     - Propósito: listar y crear pedidos a proveedor
 
-14. `/orders/calendar`
+15. `/orders/calendar`
     - Roles: OA, ST
     - Tipo: Primary
     - Módulo: Calendario de proveedores
     - Propósito: ver agenda de envíos y recepciones por proveedor
 
-15. `/clients`
+16. `/clients`
     - Roles: OA
     - Tipo: Primary
     - Módulo: Clientes y pedidos especiales
     - Propósito: gestionar clientes y pedidos especiales end-to-end
 
-16. `/settings`
+17. `/settings`
     - Roles: OA
     - Tipo: Secondary (hub)
     - Módulo: Configuración
@@ -148,13 +155,13 @@ Regla base:
 
 ## 4) Detalles / Subrutas (Org Admin)
 
-17. `/suppliers/[supplierId]`
+18. `/suppliers/[supplierId]`
     - Roles: OA
     - Tipo: Secondary
     - Módulo: Proveedores
     - Propósito: detalle del proveedor + productos asociados
 
-18. `/orders/[orderId]`
+19. `/orders/[orderId]`
     - Roles: OA
     - Tipo: Secondary
     - Módulo: Pedidos a proveedor
@@ -164,31 +171,31 @@ Regla base:
 
 ## 5) Settings (Org Admin / Superadmin)
 
-19. `/settings/staff-permissions`
+20. `/settings/staff-permissions`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Permisos Staff
     - Propósito: habilitar/deshabilitar módulos para Staff
 
-20. `/settings/users`
+21. `/settings/users`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Usuarios
     - Propósito: invitar y gestionar usuarios
 
-21. `/settings/branches`
+22. `/settings/branches`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Sucursales
     - Propósito: crear y gestionar sucursales
 
-22. `/settings/preferences`
+23. `/settings/preferences`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Preferencias
     - Propósito: parámetros simples (alertas, UX)
 
-23. `/settings/audit-log`
+24. `/settings/audit-log`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Auditoría
@@ -198,7 +205,7 @@ Regla base:
 
 ## 6) Superadmin (Primary)
 
-24. `/superadmin`
+25. `/superadmin`
     - Roles: SA
     - Tipo: Primary
     - Módulo: SaaS Admin
@@ -213,6 +220,7 @@ Regla base:
 - `/login`
 - `/no-access`
 - `/pos` (Staff)
+- `/cashbox`
 - `/dashboard`
 - `/settings/staff-permissions`
 - `/products/lookup`

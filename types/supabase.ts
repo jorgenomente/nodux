@@ -266,6 +266,236 @@ export type Database = {
           },
         ];
       };
+      cash_session_movements: {
+        Row: {
+          amount: number;
+          branch_id: string;
+          category_key: string;
+          created_at: string;
+          created_by: string;
+          id: string;
+          movement_at: string;
+          movement_type: string;
+          note: string | null;
+          org_id: string;
+          session_id: string;
+        };
+        Insert: {
+          amount: number;
+          branch_id: string;
+          category_key: string;
+          created_at?: string;
+          created_by: string;
+          id?: string;
+          movement_at?: string;
+          movement_type: string;
+          note?: string | null;
+          org_id: string;
+          session_id: string;
+        };
+        Update: {
+          amount?: number;
+          branch_id?: string;
+          category_key?: string;
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          movement_at?: string;
+          movement_type?: string;
+          note?: string | null;
+          org_id?: string;
+          session_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'cash_session_movements_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cash_session_movements_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_branches_admin';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'cash_session_movements_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'cash_session_movements_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'cash_session_movements_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_product_suggestions';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'cash_session_movements_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cash_session_movements_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'cash_session_movements_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'cash_session_movements_session_id_fkey';
+            columns: ['session_id'];
+            isOneToOne: false;
+            referencedRelation: 'cash_sessions';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cash_session_movements_session_id_fkey';
+            columns: ['session_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_cashbox_session_current';
+            referencedColumns: ['session_id'];
+          },
+        ];
+      };
+      cash_sessions: {
+        Row: {
+          branch_id: string;
+          close_note: string | null;
+          closed_at: string | null;
+          closed_by: string | null;
+          counted_cash_amount: number | null;
+          created_at: string;
+          difference_amount: number | null;
+          expected_cash_amount: number | null;
+          id: string;
+          opened_at: string;
+          opened_by: string;
+          opening_cash_amount: number;
+          org_id: string;
+          period_type: string;
+          session_label: string | null;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          branch_id: string;
+          close_note?: string | null;
+          closed_at?: string | null;
+          closed_by?: string | null;
+          counted_cash_amount?: number | null;
+          created_at?: string;
+          difference_amount?: number | null;
+          expected_cash_amount?: number | null;
+          id?: string;
+          opened_at?: string;
+          opened_by: string;
+          opening_cash_amount?: number;
+          org_id: string;
+          period_type?: string;
+          session_label?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          branch_id?: string;
+          close_note?: string | null;
+          closed_at?: string | null;
+          closed_by?: string | null;
+          counted_cash_amount?: number | null;
+          created_at?: string;
+          difference_amount?: number | null;
+          expected_cash_amount?: number | null;
+          id?: string;
+          opened_at?: string;
+          opened_by?: string;
+          opening_cash_amount?: number;
+          org_id?: string;
+          period_type?: string;
+          session_label?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'cash_sessions_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cash_sessions_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_branches_admin';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'cash_sessions_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'cash_sessions_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'cash_sessions_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_product_suggestions';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'cash_sessions_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cash_sessions_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'cash_sessions_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
+        ];
+      };
       client_special_order_items: {
         Row: {
           created_at: string;
@@ -870,6 +1100,8 @@ export type Database = {
       org_preferences: {
         Row: {
           allow_negative_stock: boolean;
+          cash_discount_default_pct: number;
+          cash_discount_enabled: boolean;
           created_at: string;
           critical_days: number;
           org_id: string;
@@ -878,6 +1110,8 @@ export type Database = {
         };
         Insert: {
           allow_negative_stock?: boolean;
+          cash_discount_default_pct?: number;
+          cash_discount_enabled?: boolean;
           created_at?: string;
           critical_days?: number;
           org_id: string;
@@ -886,6 +1120,8 @@ export type Database = {
         };
         Update: {
           allow_negative_stock?: boolean;
+          cash_discount_default_pct?: number;
+          cash_discount_enabled?: boolean;
           created_at?: string;
           critical_days?: number;
           org_id?: string;
@@ -1173,32 +1409,97 @@ export type Database = {
           },
         ];
       };
+      sale_payments: {
+        Row: {
+          amount: number;
+          created_at: string;
+          id: string;
+          org_id: string;
+          payment_method: Database['public']['Enums']['payment_method'];
+          sale_id: string;
+        };
+        Insert: {
+          amount: number;
+          created_at?: string;
+          id?: string;
+          org_id: string;
+          payment_method: Database['public']['Enums']['payment_method'];
+          sale_id: string;
+        };
+        Update: {
+          amount?: number;
+          created_at?: string;
+          id?: string;
+          org_id?: string;
+          payment_method?: Database['public']['Enums']['payment_method'];
+          sale_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'sale_payments_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sale_payments_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'sale_payments_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'sale_payments_sale_id_fkey';
+            columns: ['sale_id'];
+            isOneToOne: false;
+            referencedRelation: 'sales';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       sales: {
         Row: {
           branch_id: string;
           created_at: string;
           created_by: string;
+          discount_amount: number;
+          discount_pct: number;
           id: string;
           org_id: string;
           payment_method: Database['public']['Enums']['payment_method'];
+          subtotal_amount: number;
           total_amount: number;
         };
         Insert: {
           branch_id: string;
           created_at?: string;
           created_by: string;
+          discount_amount?: number;
+          discount_pct?: number;
           id?: string;
           org_id: string;
           payment_method: Database['public']['Enums']['payment_method'];
+          subtotal_amount?: number;
           total_amount: number;
         };
         Update: {
           branch_id?: string;
           created_at?: string;
           created_by?: string;
+          discount_amount?: number;
+          discount_pct?: number;
           id?: string;
           org_id?: string;
           payment_method?: Database['public']['Enums']['payment_method'];
+          subtotal_amount?: number;
           total_amount?: number;
         };
         Relationships: [
@@ -2162,9 +2463,96 @@ export type Database = {
           },
         ];
       };
+      v_cashbox_session_current: {
+        Row: {
+          branch_id: string | null;
+          cash_sales_amount: number | null;
+          close_note: string | null;
+          closed_at: string | null;
+          closed_by: string | null;
+          counted_cash_amount: number | null;
+          created_at: string | null;
+          difference_amount: number | null;
+          expected_cash_amount: number | null;
+          manual_expense_amount: number | null;
+          manual_income_amount: number | null;
+          movements_count: number | null;
+          opened_at: string | null;
+          opened_by: string | null;
+          opening_cash_amount: number | null;
+          org_id: string | null;
+          period_type: string | null;
+          session_id: string | null;
+          session_label: string | null;
+          status: string | null;
+          updated_at: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'cash_sessions_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cash_sessions_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_branches_admin';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'cash_sessions_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'cash_sessions_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'cash_sessions_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_product_suggestions';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'cash_sessions_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cash_sessions_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'cash_sessions_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
+        ];
+      };
       v_dashboard_admin: {
         Row: {
           branch_id: string | null;
+          cash_discount_today_total: number | null;
+          cash_discounted_sales_today_count: number | null;
+          cash_sales_today_count: number | null;
+          cash_sales_today_total: number | null;
           client_orders_pending_count: number | null;
           expirations_critical_count: number | null;
           expirations_warning_count: number | null;
@@ -3577,6 +3965,21 @@ export type Database = {
       };
       is_org_member: { Args: { check_org_id: string }; Returns: boolean };
       is_platform_admin: { Args: never; Returns: boolean };
+      rpc_add_cash_session_movement: {
+        Args: {
+          p_amount: number;
+          p_category_key: string;
+          p_movement_at?: string;
+          p_movement_type: string;
+          p_note?: string;
+          p_org_id: string;
+          p_session_id: string;
+        };
+        Returns: {
+          created_at: string;
+          movement_id: string;
+        }[];
+      };
       rpc_adjust_expiration_batch: {
         Args: { p_batch_id: string; p_new_quantity: number; p_org_id: string };
         Returns: undefined;
@@ -3595,6 +3998,21 @@ export type Database = {
         }[];
       };
       rpc_bootstrap_platform_admin: { Args: never; Returns: undefined };
+      rpc_close_cash_session: {
+        Args: {
+          p_close_note?: string;
+          p_counted_cash_amount: number;
+          p_org_id: string;
+          p_session_id: string;
+        };
+        Returns: {
+          closed_at: string;
+          counted_cash_amount: number;
+          difference_amount: number;
+          expected_cash_amount: number;
+          session_id: string;
+        }[];
+      };
       rpc_create_expiration_batch_manual: {
         Args: {
           p_branch_id: string;
@@ -3610,11 +4028,14 @@ export type Database = {
       };
       rpc_create_sale: {
         Args: {
+          p_apply_cash_discount?: boolean;
           p_branch_id: string;
+          p_cash_discount_pct?: number;
           p_close_special_order?: boolean;
           p_items: Json;
           p_org_id: string;
           p_payment_method: Database['public']['Enums']['payment_method'];
+          p_payments?: Json;
           p_special_order_id?: string;
         };
         Returns: {
@@ -3647,6 +4068,29 @@ export type Database = {
         }[];
       };
       rpc_get_active_org_id: { Args: never; Returns: string };
+      rpc_get_cash_session_summary: {
+        Args: { p_org_id: string; p_session_id: string };
+        Returns: {
+          branch_id: string;
+          cash_sales_amount: number;
+          close_note: string;
+          closed_at: string;
+          closed_by: string;
+          counted_cash_amount: number;
+          difference_amount: number;
+          expected_cash_amount: number;
+          manual_expense_amount: number;
+          manual_income_amount: number;
+          movements_count: number;
+          opened_at: string;
+          opened_by: string;
+          opening_cash_amount: number;
+          period_type: string;
+          session_id: string;
+          session_label: string;
+          status: string;
+        }[];
+      };
       rpc_get_client_detail: {
         Args: { p_client_id: string; p_org_id: string };
         Returns: {
@@ -3674,6 +4118,10 @@ export type Database = {
         Args: { p_branch_id: string; p_org_id: string };
         Returns: {
           branch_id: string;
+          cash_discount_today_total: number;
+          cash_discounted_sales_today_count: number;
+          cash_sales_today_count: number;
+          cash_sales_today_total: number;
           client_orders_pending_count: number;
           expirations_critical_count: number;
           expirations_warning_count: number;
@@ -3770,6 +4218,19 @@ export type Database = {
         Returns: {
           total_amount: number;
           waste_id: string;
+        }[];
+      };
+      rpc_open_cash_session: {
+        Args: {
+          p_branch_id: string;
+          p_opening_cash_amount: number;
+          p_org_id: string;
+          p_period_type?: string;
+          p_session_label?: string;
+        };
+        Returns: {
+          opened_at: string;
+          session_id: string;
         }[];
       };
       rpc_receive_supplier_order:
@@ -4044,7 +4505,13 @@ export type Database = {
     };
     Enums: {
       order_frequency: 'weekly' | 'biweekly' | 'every_3_weeks' | 'monthly';
-      payment_method: 'cash' | 'debit' | 'credit' | 'transfer' | 'other';
+      payment_method:
+        | 'cash'
+        | 'debit'
+        | 'credit'
+        | 'transfer'
+        | 'other'
+        | 'mixed';
       sell_unit_type: 'unit' | 'weight' | 'bulk';
       special_order_status:
         | 'pending'
@@ -4196,7 +4663,7 @@ export const Constants = {
   public: {
     Enums: {
       order_frequency: ['weekly', 'biweekly', 'every_3_weeks', 'monthly'],
-      payment_method: ['cash', 'debit', 'credit', 'transfer', 'other'],
+      payment_method: ['cash', 'debit', 'credit', 'transfer', 'other', 'mixed'],
       sell_unit_type: ['unit', 'weight', 'bulk'],
       special_order_status: [
         'pending',
