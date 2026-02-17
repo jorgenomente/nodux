@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
+import CashCountPairFields from '@/app/cashbox/CashCountPairFields';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 
 const STAFF_MODULE_ORDER = [
@@ -517,54 +518,13 @@ export default async function CashboxPage({
                   <option value="day">Dia</option>
                 </select>
               </label>
-              <div className="grid gap-4 rounded border border-zinc-200 p-3 lg:grid-cols-2">
-                <div>
-                  <p className="text-xs font-semibold tracking-wide text-zinc-600 uppercase">
-                    Billetes iniciales en caja
-                  </p>
-                  <div className="mt-2 grid gap-2">
-                    {denominations.map((denominationValue, index) => (
-                      <label
-                        key={`open-drawer-${denominationValue}`}
-                        className="flex items-center justify-between gap-3 text-sm text-zinc-700"
-                      >
-                        <span>{formatCurrency(denominationValue)}</span>
-                        <input
-                          name={`open_drawer_qty_${index}`}
-                          type="number"
-                          min={0}
-                          step={1}
-                          defaultValue={0}
-                          className="w-24 rounded border border-zinc-200 px-2 py-1 text-right text-sm"
-                        />
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold tracking-wide text-zinc-600 uppercase">
-                    Billetes iniciales en reserva
-                  </p>
-                  <div className="mt-2 grid gap-2">
-                    {denominations.map((denominationValue, index) => (
-                      <label
-                        key={`open-reserve-${denominationValue}`}
-                        className="flex items-center justify-between gap-3 text-sm text-zinc-700"
-                      >
-                        <span>{formatCurrency(denominationValue)}</span>
-                        <input
-                          name={`open_reserve_qty_${index}`}
-                          type="number"
-                          min={0}
-                          step={1}
-                          defaultValue={0}
-                          className="w-24 rounded border border-zinc-200 px-2 py-1 text-right text-sm"
-                        />
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <CashCountPairFields
+                denominations={denominations}
+                drawerPrefix="open_drawer"
+                reservePrefix="open_reserve"
+                drawerTitle="Billetes iniciales en caja"
+                reserveTitle="Billetes iniciales en reserva"
+              />
               <label className="text-sm text-zinc-700">
                 Etiqueta (opcional)
                 <input
@@ -739,52 +699,13 @@ export default async function CashboxPage({
                     value={summary.session_id}
                   />
 
-                  <div className="grid gap-2 rounded border border-zinc-200 p-3">
-                    <p className="text-xs font-semibold tracking-wide text-zinc-600 uppercase">
-                      Billetes al cierre en caja
-                    </p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {denominations.map((denominationValue, index) => (
-                        <label
-                          key={`close-drawer-${denominationValue}`}
-                          className="flex items-center justify-between gap-3 text-sm text-zinc-700"
-                        >
-                          <span>{formatCurrency(denominationValue)}</span>
-                          <input
-                            name={`close_drawer_qty_${index}`}
-                            type="number"
-                            min={0}
-                            step={1}
-                            defaultValue={0}
-                            className="w-24 rounded border border-zinc-200 px-2 py-1 text-right text-sm"
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="grid gap-2 rounded border border-zinc-200 p-3">
-                    <p className="text-xs font-semibold tracking-wide text-zinc-600 uppercase">
-                      Billetes al cierre en reserva
-                    </p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {denominations.map((denominationValue, index) => (
-                        <label
-                          key={`close-reserve-${denominationValue}`}
-                          className="flex items-center justify-between gap-3 text-sm text-zinc-700"
-                        >
-                          <span>{formatCurrency(denominationValue)}</span>
-                          <input
-                            name={`close_reserve_qty_${index}`}
-                            type="number"
-                            min={0}
-                            step={1}
-                            defaultValue={0}
-                            className="w-24 rounded border border-zinc-200 px-2 py-1 text-right text-sm"
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+                  <CashCountPairFields
+                    denominations={denominations}
+                    drawerPrefix="close_drawer"
+                    reservePrefix="close_reserve"
+                    drawerTitle="Billetes al cierre en caja"
+                    reserveTitle="Billetes al cierre en reserva"
+                  />
                   <label className="text-sm text-zinc-700">
                     Controlado por (firma operativa)
                     <input

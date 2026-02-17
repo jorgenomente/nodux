@@ -3354,6 +3354,35 @@ Se implemento `/superadmin` con flujo operativo MVP: listado y busqueda de organ
 
 **Commit:** N/A
 
+## 2026-02-16 15:45 -03 — Totales automáticos en formulario de conteo de caja
+
+**Tipo:** ui
+**Lote:** cashbox-live-totals-drawer-reserve
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se agregó cálculo en vivo en la pantalla `/cashbox` para que al ingresar cantidades por denominación el usuario vea inmediatamente:
+
+- monto en caja
+- monto en reserva
+- total contado
+
+Aplicado tanto en apertura como en cierre.
+
+**Archivos**
+
+- app/cashbox/CashCountPairFields.tsx
+- app/cashbox/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-16)
+- npm run build OK (2026-02-16)
+
+**Commit:** N/A
+
 ## 2026-02-16 15:21 -03 — Caja por billetes en caja/reserva + denominaciones configurables
 
 **Tipo:** schema
