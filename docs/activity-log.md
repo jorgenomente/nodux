@@ -3354,6 +3354,31 @@ Se implemento `/superadmin` con flujo operativo MVP: listado y busqueda de organ
 
 **Commit:** N/A
 
+## 2026-02-17 21:03 -03 — Orders: monto estimado por pedido en listado
+
+**Tipo:** ui
+**Lote:** orders-list-estimated-supplier-amount
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se agregó en `/orders` la visualización de `Monto estimado` por pedido. El cálculo se realiza sumando los ítems del pedido (`ordered_qty * unit_cost`) y usando `products.unit_price` como fallback cuando `unit_cost` no está cargado. Además, al crear pedidos desde sugeridos se envía `unit_cost` estimado por ítem para mejorar la calidad de esa métrica.
+
+**Archivos**
+
+- app/orders/page.tsx
+- app/orders/OrderSuggestionsClient.tsx
+- docs/docs-app-screens-orders.md
+- docs/docs-modules-supplier-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-17)
+- npm run build OK (2026-02-17)
+
+**Commit:** N/A
+
 ## 2026-02-16 15:45 -03 — Totales automáticos en formulario de conteo de caja
 
 **Tipo:** ui

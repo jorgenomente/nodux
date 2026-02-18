@@ -50,6 +50,7 @@ Cada row:
 - proveedor
 - sucursal
 - estado
+- monto estimado a pagar (sumatoria de items del pedido)
 - fecha estimada de recepción (`expected_receive_on`, opcional)
 - fecha (created_at / sent_at)
 - acción: “Ver” → `/orders/[orderId]`
@@ -119,6 +120,12 @@ Salida mínima:
 - sent_at, received_at, reconciled_at (opcional)
 - expected_receive_on (opcional)
 - items_count (opcional)
+
+Monto estimado por pedido (UI):
+
+- La pantalla calcula `monto estimado` en frontend sumando los ítems del pedido:
+  - base: `supplier_order_items.ordered_qty * supplier_order_items.unit_cost`
+  - fallback si `unit_cost` no está cargado: `products.unit_price`
 
 ### Escritura
 

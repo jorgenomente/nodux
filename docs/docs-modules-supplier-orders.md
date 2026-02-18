@@ -158,6 +158,7 @@ Siempre `branch_id` (recepción e ingreso de stock ocurren en esa sucursal).
 ## Data contracts (resumen)
 
 - View: `v_orders_admin` (lista)
+  - la UI de lista muestra monto estimado por pedido (sumatoria de items)
 - View: `v_order_detail_admin(order_id)`
 - View: `v_supplier_product_suggestions(supplier_id, branch_id)`
 - View: `v_special_order_items_pending`

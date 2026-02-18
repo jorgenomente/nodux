@@ -141,6 +141,18 @@ export default function OrderSuggestionsClient({
         name="special_order_item_ids"
         value={JSON.stringify(specialOrderItemIds)}
       />
+      {suggestions.map((row) => {
+        const unitPrice = priceByProduct[row.product_id] ?? 0;
+        const unitCost = unitPrice * (1 - safeMarginPct / 100);
+        return (
+          <input
+            key={`unit-cost-${row.product_id}`}
+            type="hidden"
+            name={`unit_cost_${row.product_id}`}
+            value={unitCost}
+          />
+        );
+      })}
       {specialOrders.length > 0 ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <p className="text-xs font-semibold text-amber-700 uppercase">

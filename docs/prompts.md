@@ -1172,3 +1172,11 @@ ok para abrir caja usualmente se cuentan los billetes y monedas que hay segun su
 
 **Prompt**
 ok entonces al yo colocar el numero de billetes automaticamente deberia decirme los montos en reserva en caja y total
+
+## 2026-02-17 21:03 -03 — Orders: monto estimado en listado
+
+**Lote:** orders-list-estimated-supplier-amount
+**Objetivo:** Mostrar en `/orders` el monto estimado a pagar al proveedor por pedido, en base a los items cargados.
+
+**Prompt**
+vamos a trabajar sobre orders. me gustaria que en el listado tambien aparezca el monto estimado a pagar al proveedor segun el pedido

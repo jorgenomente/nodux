@@ -30,6 +30,7 @@ type OrderRow = {
   reconciled_at: string | null;
   expected_receive_on: string | null;
   items_count?: number | null;
+  estimated_total_amount?: number | null;
 };
 
 type SuggestionRow = {
@@ -46,6 +47,15 @@ type SuggestionRow = {
 type ProductPriceRow = {
   id: string;
   unit_price: number | null;
+};
+
+type OrderItemAmountRow = {
+  order_id: string;
+  ordered_qty: number | null;
+  unit_cost: number | null;
+  product: {
+    unit_price: number | null;
+  } | null;
 };
 
 type SpecialOrderItemRow = {
@@ -91,6 +101,13 @@ const formatAvgModeLabel = (mode: string) => {
 
 const formatDate = (value: string | null) =>
   value ? new Date(value).toLocaleDateString('es-AR') : '—';
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    maximumFractionDigits: 2,
+  }).format(value);
 
 const isExpectedReceiveOverdue = (
   expectedReceiveOn: string | null,
@@ -190,7 +207,42 @@ export default async function OrdersPage({
   }
 
   const { data: orders } = await orderQuery;
-  const ordersList = (orders as OrderRow[]) ?? [];
+  const orderRows = (orders as OrderRow[]) ?? [];
+  const orderIds = orderRows.map((order) => order.order_id).filter(Boolean);
+
+  const { data: orderItemsAmountData } =
+    orderIds.length > 0
+      ? await supabase
+          .from('supplier_order_items')
+          .select(
+            'order_id, ordered_qty, unit_cost, product:products(unit_price)',
+          )
+          .eq('org_id', orgId)
+          .in('order_id', orderIds)
+      : { data: [] };
+
+  const estimatedByOrderId = new Map<string, number>();
+  (orderItemsAmountData as OrderItemAmountRow[] | null)?.forEach((row) => {
+    const orderId = row.order_id;
+    if (!orderId) return;
+
+    const orderedQty = Number(row.ordered_qty ?? 0);
+    const unitCost = Number(row.unit_cost ?? 0);
+    const fallbackUnitPrice = Number(row.product?.unit_price ?? 0);
+    const estimatedUnitAmount = unitCost > 0 ? unitCost : fallbackUnitPrice;
+    const lineTotal = orderedQty * estimatedUnitAmount;
+
+    if (!Number.isFinite(lineTotal)) return;
+    estimatedByOrderId.set(
+      orderId,
+      Number(estimatedByOrderId.get(orderId) ?? 0) + lineTotal,
+    );
+  });
+
+  const ordersList = orderRows.map((order) => ({
+    ...order,
+    estimated_total_amount: Number(estimatedByOrderId.get(order.order_id) ?? 0),
+  }));
   const pendingOrders = ordersList.filter(
     (order) => order.status !== 'reconciled',
   );
@@ -274,6 +326,7 @@ export default async function OrdersPage({
       .map(([key, value]) => ({
         productId: key.replace('qty_', ''),
         qty: Number(value),
+        unitCost: Number(formData.get(`unit_cost_${key.replace('qty_', '')}`)),
       }))
       .filter((entry) => entry.productId && entry.qty > 0);
 
@@ -289,7 +342,10 @@ export default async function OrdersPage({
           p_order_id: orderId,
           p_product_id: item.productId,
           p_ordered_qty: item.qty,
-          p_unit_cost: 0,
+          p_unit_cost:
+            Number.isFinite(item.unitCost) && item.unitCost > 0
+              ? item.unitCost
+              : 0,
         }),
       ),
     );
@@ -579,6 +635,12 @@ export default async function OrdersPage({
                           {order.items_count ?? 0}
                         </p>
                         <p className="text-xs text-zinc-500">
+                          Monto estimado:{' '}
+                          {formatCurrency(
+                            Number(order.estimated_total_amount ?? 0),
+                          )}
+                        </p>
+                        <p className="text-xs text-zinc-500">
                           Estimado recepción:{' '}
                           {formatDate(order.expected_receive_on)}
                         </p>
@@ -622,6 +684,12 @@ export default async function OrdersPage({
                         <p className="text-xs text-zinc-500">
                           Estado: {formatStatusLabel(order.status)} · Items:{' '}
                           {order.items_count ?? 0}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          Monto estimado:{' '}
+                          {formatCurrency(
+                            Number(order.estimated_total_amount ?? 0),
+                          )}
                         </p>
                         <p className="text-xs text-zinc-500">
                           Estimado recepción:{' '}
