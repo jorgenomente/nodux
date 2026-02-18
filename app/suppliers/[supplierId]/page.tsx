@@ -17,6 +17,11 @@ type SupplierDetailRow = {
   order_frequency: string | null;
   order_day: string | null;
   receive_day: string | null;
+  payment_terms_days: number | null;
+  preferred_payment_method: 'cash' | 'transfer' | null;
+  accepts_cash: boolean;
+  accepts_transfer: boolean;
+  payment_note: string | null;
   product_id: string | null;
   product_name: string | null;
   product_is_active: boolean | null;
@@ -25,6 +30,15 @@ type SupplierDetailRow = {
   supplier_sku: string | null;
   supplier_product_name: string | null;
   relation_type: 'primary' | 'secondary' | null;
+};
+
+type SupplierPaymentAccountRow = {
+  id: string;
+  account_label: string | null;
+  bank_name: string | null;
+  account_holder_name: string | null;
+  account_identifier: string | null;
+  is_active: boolean;
 };
 
 const orderFrequencyOptions = [
@@ -72,6 +86,16 @@ export default async function SupplierDetailPage({
   }
 
   const supplier = detailRows[0] as SupplierDetailRow;
+  const { data: paymentAccountsData } = await supabase
+    .from('supplier_payment_accounts')
+    .select(
+      'id, account_label, bank_name, account_holder_name, account_identifier, is_active',
+    )
+    .eq('org_id', orgId)
+    .eq('supplier_id', supplierId)
+    .order('created_at', { ascending: false });
+  const paymentAccounts =
+    (paymentAccountsData as SupplierPaymentAccountRow[] | null) ?? [];
   const products = (detailRows as SupplierDetailRow[])
     .filter((row) => row.product_id)
     .map((row) => ({
@@ -105,6 +129,26 @@ export default async function SupplierDetailPage({
     const orderFrequency = String(formData.get('order_frequency') ?? '').trim();
     const orderDay = String(formData.get('order_day') ?? '').trim();
     const receiveDay = String(formData.get('receive_day') ?? '').trim();
+    const paymentTermsDaysRaw = String(
+      formData.get('payment_terms_days') ?? '',
+    ).trim();
+    const preferredPaymentMethod = String(
+      formData.get('preferred_payment_method') ?? '',
+    ).trim();
+    const acceptsCash = formData.get('accepts_cash') === 'on';
+    const acceptsTransfer = formData.get('accepts_transfer') === 'on';
+    const paymentNote = String(formData.get('payment_note') ?? '').trim();
+    const paymentTermsDays =
+      paymentTermsDaysRaw === ''
+        ? null
+        : Number.parseInt(paymentTermsDaysRaw, 10);
+
+    if (
+      paymentTermsDays !== null &&
+      (Number.isNaN(paymentTermsDays) || paymentTermsDays < 0)
+    ) {
+      return;
+    }
 
     await supabaseServer.rpc('rpc_upsert_supplier', {
       p_supplier_id: supplierId,
@@ -118,6 +162,15 @@ export default async function SupplierDetailPage({
       p_order_frequency: orderFrequency || null,
       p_order_day: orderDay || null,
       p_receive_day: receiveDay || null,
+      p_payment_terms_days: paymentTermsDays ?? undefined,
+      p_preferred_payment_method:
+        preferredPaymentMethod === 'cash' ||
+        preferredPaymentMethod === 'transfer'
+          ? preferredPaymentMethod
+          : undefined,
+      p_accepts_cash: acceptsCash,
+      p_accepts_transfer: acceptsTransfer,
+      p_payment_note: paymentNote || undefined,
     });
 
     revalidatePath(`/suppliers/${supplierId}`);
@@ -272,6 +325,61 @@ export default async function SupplierDetailPage({
     revalidatePath('/products');
   };
 
+  const upsertPaymentAccount = async (formData: FormData) => {
+    'use server';
+
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
+    const orgId = actionSession.orgId;
+    const accountId = String(formData.get('account_id') ?? '').trim();
+    const accountLabel = String(formData.get('account_label') ?? '').trim();
+    const bankName = String(formData.get('bank_name') ?? '').trim();
+    const accountHolderName = String(
+      formData.get('account_holder_name') ?? '',
+    ).trim();
+    const accountIdentifier = String(
+      formData.get('account_identifier') ?? '',
+    ).trim();
+    const isActive = formData.get('is_active') === 'on';
+
+    await supabaseServer.rpc('rpc_upsert_supplier_payment_account', {
+      p_org_id: orgId,
+      p_supplier_id: supplierId,
+      p_account_id: accountId || undefined,
+      p_account_label: accountLabel || undefined,
+      p_bank_name: bankName || undefined,
+      p_account_holder_name: accountHolderName || undefined,
+      p_account_identifier: accountIdentifier || undefined,
+      p_is_active: isActive,
+    });
+
+    revalidatePath(`/suppliers/${supplierId}`);
+    revalidatePath('/payments');
+  };
+
+  const setPaymentAccountActive = async (formData: FormData) => {
+    'use server';
+
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
+    const orgId = actionSession.orgId;
+    const accountId = String(formData.get('account_id') ?? '').trim();
+    const isActive = String(formData.get('is_active') ?? 'false') === 'true';
+
+    if (!accountId) return;
+
+    await supabaseServer.rpc('rpc_set_supplier_payment_account_active', {
+      p_org_id: orgId,
+      p_account_id: accountId,
+      p_is_active: isActive,
+    });
+
+    revalidatePath(`/suppliers/${supplierId}`);
+    revalidatePath('/payments');
+  };
+
   return (
     <PageShell>
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -398,6 +506,53 @@ export default async function SupplierDetailPage({
                 ))}
               </select>
             </label>
+            <label className="text-sm text-zinc-600">
+              Plazo de pago (días)
+              <input
+                name="payment_terms_days"
+                type="number"
+                min={0}
+                defaultValue={supplier.payment_terms_days ?? ''}
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="text-sm text-zinc-600">
+              Método preferido
+              <select
+                name="preferred_payment_method"
+                defaultValue={supplier.preferred_payment_method ?? ''}
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+              >
+                <option value="">Sin preferencia</option>
+                <option value="cash">Efectivo</option>
+                <option value="transfer">Transferencia</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-zinc-600">
+              <input
+                name="accepts_cash"
+                type="checkbox"
+                defaultChecked={supplier.accepts_cash}
+              />
+              Acepta efectivo
+            </label>
+            <label className="flex items-center gap-2 text-sm text-zinc-600">
+              <input
+                name="accepts_transfer"
+                type="checkbox"
+                defaultChecked={supplier.accepts_transfer}
+              />
+              Acepta transferencia
+            </label>
+            <label className="text-sm text-zinc-600 md:col-span-2">
+              Nota de pago
+              <textarea
+                name="payment_note"
+                defaultValue={supplier.payment_note ?? ''}
+                rows={2}
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </label>
             <div className="flex items-end">
               <button
                 type="submit"
@@ -407,6 +562,107 @@ export default async function SupplierDetailPage({
               </button>
             </div>
           </form>
+        </section>
+
+        <section className="rounded-2xl bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">
+            Cuentas de transferencia
+          </h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Puedes registrar cuentas para pagar por transferencia cuando
+            corresponda.
+          </p>
+          <form
+            action={upsertPaymentAccount}
+            className="mt-4 grid gap-3 md:grid-cols-2"
+          >
+            <label className="text-sm text-zinc-600">
+              Alias / etiqueta
+              <input
+                name="account_label"
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="text-sm text-zinc-600">
+              Banco
+              <input
+                name="bank_name"
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="text-sm text-zinc-600">
+              Titular
+              <input
+                name="account_holder_name"
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="text-sm text-zinc-600">
+              CBU/CVU/Alias
+              <input
+                name="account_identifier"
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm text-zinc-600">
+              <input name="is_active" type="checkbox" defaultChecked />
+              Activa
+            </label>
+            <div className="md:col-span-2">
+              <button
+                type="submit"
+                className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Guardar cuenta
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-4 space-y-2">
+            {paymentAccounts.length === 0 ? (
+              <p className="text-sm text-zinc-500">
+                Aún no hay cuentas registradas.
+              </p>
+            ) : (
+              paymentAccounts.map((account) => (
+                <div
+                  key={account.id}
+                  className="rounded border border-zinc-200 p-3"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-900">
+                        {account.account_label || 'Cuenta sin etiqueta'}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {account.bank_name || 'Sin banco'} ·{' '}
+                        {account.account_holder_name || 'Sin titular'} ·{' '}
+                        {account.account_identifier || 'Sin identificador'}
+                      </p>
+                    </div>
+                    <form action={setPaymentAccountActive}>
+                      <input
+                        type="hidden"
+                        name="account_id"
+                        value={account.id}
+                      />
+                      <input
+                        type="hidden"
+                        name="is_active"
+                        value={String(!account.is_active)}
+                      />
+                      <button
+                        type="submit"
+                        className="rounded border border-zinc-200 px-3 py-1 text-xs text-zinc-700"
+                      >
+                        {account.is_active ? 'Desactivar' : 'Activar'}
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </section>
 
         <section className="rounded-2xl bg-white p-6 shadow-sm">

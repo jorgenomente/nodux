@@ -50,6 +50,9 @@ Cada row:
 - proveedor
 - sucursal
 - estado
+- estado de pago (`payment_state`: pendiente/parcial/pagado/vencido)
+- saldo pendiente (`payable_outstanding_amount`)
+- vencimiento de pago (`payable_due_on`)
 - monto estimado a pagar (sumatoria de items del pedido)
 - fecha estimada de recepción (`expected_receive_on`, opcional)
 - fecha (created_at / sent_at)
@@ -120,6 +123,9 @@ Salida mínima:
 - sent_at, received_at, reconciled_at (opcional)
 - expected_receive_on (opcional)
 - items_count (opcional)
+- payment_state (derivado desde `supplier_payables`)
+- payable_due_on (opcional)
+- payable_outstanding_amount (opcional)
 
 Monto estimado por pedido (UI):
 

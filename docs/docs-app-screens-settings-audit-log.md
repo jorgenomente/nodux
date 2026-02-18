@@ -149,6 +149,10 @@ Action keys operativos relevantes (MVP actual):
 - `cash_movement_added`
 - `cash_session_closed` (incluye `closed_controlled_by_name`, `close_confirmed`, `closing_drawer_count_lines`, `closing_reserve_count_lines`)
 - `org_preferences_updated` (incluye cambios en `cash_discount_enabled` y `cash_discount_default_pct`)
+- `supplier_payable_updated`
+- `supplier_payment_registered`
+- `supplier_payment_account_upsert`
+- `supplier_payment_account_status_set`
 
 ---
 

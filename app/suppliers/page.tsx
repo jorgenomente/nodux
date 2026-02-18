@@ -40,6 +40,12 @@ type SupplierRow = {
   order_frequency: string | null;
   order_day: string | null;
   receive_day: string | null;
+  payment_terms_days: number | null;
+  preferred_payment_method: 'cash' | 'transfer' | null;
+  accepts_cash: boolean;
+  accepts_transfer: boolean;
+  payment_note: string | null;
+  payment_accounts_count?: number | null;
   products_count?: number | null;
 };
 
@@ -94,8 +100,27 @@ export default async function SuppliersPage({
     const orderFrequency = String(formData.get('order_frequency') ?? '').trim();
     const orderDay = String(formData.get('order_day') ?? '').trim();
     const receiveDay = String(formData.get('receive_day') ?? '').trim();
+    const paymentTermsDaysRaw = String(
+      formData.get('payment_terms_days') ?? '',
+    ).trim();
+    const preferredPaymentMethod = String(
+      formData.get('preferred_payment_method') ?? '',
+    ).trim();
+    const acceptsCash = formData.get('accepts_cash') === 'on';
+    const acceptsTransfer = formData.get('accepts_transfer') === 'on';
+    const paymentNote = String(formData.get('payment_note') ?? '').trim();
+    const paymentTermsDays =
+      paymentTermsDaysRaw === ''
+        ? null
+        : Number.parseInt(paymentTermsDaysRaw, 10);
 
     if (!name) return;
+    if (
+      paymentTermsDays !== null &&
+      (Number.isNaN(paymentTermsDays) || paymentTermsDays < 0)
+    ) {
+      return;
+    }
 
     await supabaseServer.rpc('rpc_upsert_supplier', {
       p_supplier_id: randomUUID(),
@@ -109,6 +134,15 @@ export default async function SuppliersPage({
       p_order_frequency: orderFrequency || null,
       p_order_day: orderDay || null,
       p_receive_day: receiveDay || null,
+      p_payment_terms_days: paymentTermsDays ?? undefined,
+      p_preferred_payment_method:
+        preferredPaymentMethod === 'cash' ||
+        preferredPaymentMethod === 'transfer'
+          ? preferredPaymentMethod
+          : undefined,
+      p_accepts_cash: acceptsCash,
+      p_accepts_transfer: acceptsTransfer,
+      p_payment_note: paymentNote || undefined,
     });
 
     revalidatePath('/suppliers');
@@ -131,8 +165,27 @@ export default async function SuppliersPage({
     const orderFrequency = String(formData.get('order_frequency') ?? '').trim();
     const orderDay = String(formData.get('order_day') ?? '').trim();
     const receiveDay = String(formData.get('receive_day') ?? '').trim();
+    const paymentTermsDaysRaw = String(
+      formData.get('payment_terms_days') ?? '',
+    ).trim();
+    const preferredPaymentMethod = String(
+      formData.get('preferred_payment_method') ?? '',
+    ).trim();
+    const acceptsCash = formData.get('accepts_cash') === 'on';
+    const acceptsTransfer = formData.get('accepts_transfer') === 'on';
+    const paymentNote = String(formData.get('payment_note') ?? '').trim();
+    const paymentTermsDays =
+      paymentTermsDaysRaw === ''
+        ? null
+        : Number.parseInt(paymentTermsDaysRaw, 10);
 
     if (!supplierId || !name) return;
+    if (
+      paymentTermsDays !== null &&
+      (Number.isNaN(paymentTermsDays) || paymentTermsDays < 0)
+    ) {
+      return;
+    }
 
     await supabaseServer.rpc('rpc_upsert_supplier', {
       p_supplier_id: supplierId,
@@ -146,6 +199,15 @@ export default async function SuppliersPage({
       p_order_frequency: orderFrequency || null,
       p_order_day: orderDay || null,
       p_receive_day: receiveDay || null,
+      p_payment_terms_days: paymentTermsDays ?? undefined,
+      p_preferred_payment_method:
+        preferredPaymentMethod === 'cash' ||
+        preferredPaymentMethod === 'transfer'
+          ? preferredPaymentMethod
+          : undefined,
+      p_accepts_cash: acceptsCash,
+      p_accepts_transfer: acceptsTransfer,
+      p_payment_note: paymentNote || undefined,
     });
 
     revalidatePath('/suppliers');
@@ -262,6 +324,42 @@ export default async function SuppliersPage({
                 ))}
               </select>
             </label>
+            <label className="text-sm text-zinc-600">
+              Plazo de pago (días)
+              <input
+                name="payment_terms_days"
+                type="number"
+                min={0}
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="text-sm text-zinc-600">
+              Método preferido
+              <select
+                name="preferred_payment_method"
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+              >
+                <option value="">Sin preferencia</option>
+                <option value="cash">Efectivo</option>
+                <option value="transfer">Transferencia</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-zinc-600">
+              <input name="accepts_cash" type="checkbox" defaultChecked />
+              Acepta efectivo
+            </label>
+            <label className="flex items-center gap-2 text-sm text-zinc-600">
+              <input name="accepts_transfer" type="checkbox" defaultChecked />
+              Acepta transferencia
+            </label>
+            <label className="text-sm text-zinc-600 md:col-span-2">
+              Nota de pago
+              <textarea
+                name="payment_note"
+                rows={2}
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </label>
             <div className="md:col-span-2">
               <button
                 type="submit"
@@ -332,6 +430,29 @@ export default async function SuppliersPage({
                             )?.label ?? supplier.receive_day)
                           : 'Sin definir'}
                       </p>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Pago: {supplier.accepts_cash ? 'Efectivo' : ''}
+                        {supplier.accepts_cash && supplier.accepts_transfer
+                          ? ' / '
+                          : ''}
+                        {supplier.accepts_transfer ? 'Transferencia' : ''}
+                        {' · '}Preferido:{' '}
+                        {supplier.preferred_payment_method === 'cash'
+                          ? 'Efectivo'
+                          : supplier.preferred_payment_method === 'transfer'
+                            ? 'Transferencia'
+                            : 'Sin preferencia'}
+                        {' · '}Plazo:{' '}
+                        {supplier.payment_terms_days == null
+                          ? 'Sin plazo'
+                          : `${supplier.payment_terms_days} días`}
+                        {' · '}Cuentas: {supplier.payment_accounts_count ?? 0}
+                      </p>
+                      {supplier.payment_note ? (
+                        <p className="mt-1 text-xs text-zinc-500">
+                          Nota pago: {supplier.payment_note}
+                        </p>
+                      ) : null}
                       {supplier.notes ? (
                         <p className="mt-2 text-xs text-zinc-500">
                           {supplier.notes}
@@ -356,6 +477,13 @@ export default async function SuppliersPage({
                         orderFrequency={supplier.order_frequency}
                         orderDay={supplier.order_day}
                         receiveDay={supplier.receive_day}
+                        paymentTermsDays={supplier.payment_terms_days}
+                        preferredPaymentMethod={
+                          supplier.preferred_payment_method
+                        }
+                        acceptsCash={supplier.accepts_cash}
+                        acceptsTransfer={supplier.accepts_transfer}
+                        paymentNote={supplier.payment_note}
                         orderFrequencyOptions={orderFrequencyOptions}
                         weekdayOptions={weekdayOptions}
                         onSubmit={updateSupplier}

@@ -244,3 +244,4 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-02-16: se agrega módulo Caja (`/cashbox`) por sucursal con sesiones de apertura/cierre, movimientos manuales y auditoría de actor/detalle.
 - 2026-02-16: hardening de cierre de Caja con firma operativa obligatoria, confirmación explícita y conteo por denominaciones.
 - 2026-02-16: caja pasa a conteo por denominaciones en apertura/cierre para caja + reserva, con denominaciones configurables por organización.
+- 2026-02-18: se agrega módulo `/payments` por sucursal para cuentas a pagar de proveedores (pendiente/parcial/pagado/vencido), registro de pagos y estado de pago integrado en `/orders`.

@@ -71,6 +71,10 @@ Campos:
 - order_frequency (weekly | biweekly | every_3_weeks | monthly)
 - order_day (weekday)
 - receive_day (weekday)
+- payment_terms_days (opcional)
+- preferred_payment_method (`cash` | `transfer`, opcional)
+- accepts_cash / accepts_transfer
+- payment_note (opcional)
 
 Submit → upsert
 
@@ -191,6 +195,7 @@ Policies:
 
 - suppliers: org_id match
 - supplier_products: org_id match + FK integrity
+- supplier_payment_accounts: org_id match + write OA/SA
 
 ---
 

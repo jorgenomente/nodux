@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: '/expirations', label: 'Vencimientos' },
   { href: '/suppliers', label: 'Proveedores' },
   { href: '/orders', label: 'Pedidos' },
+  { href: '/payments', label: 'Pagos' },
   { href: '/orders/calendar', label: 'Calendario' },
   { href: '/clients', label: 'Clientes' },
   { href: '/settings', label: 'Configuracion' },

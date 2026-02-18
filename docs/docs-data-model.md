@@ -37,6 +37,7 @@ Estado actual:
 - Split payments en POS en `supabase/migrations/20260216163000_034_split_payments_enum.sql` y `supabase/migrations/20260216164000_035_split_payments_pos.sql`.
 - Módulo Caja por sucursal (apertura, movimientos y cierre) en `supabase/migrations/20260216171000_036_cashbox_branch_sessions.sql`.
 - Cierre de caja con firma y conteo por denominaciones en `supabase/migrations/20260216182000_037_cashbox_close_signature_denominations.sql`.
+- Pagos proveedor por sucursal en `supabase/migrations/20260217213000_039_supplier_payments_branch_module.sql` (perfil de pago en supplier, cuentas por pagar por pedido, pagos y vistas/RPCs de pagos).
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 
@@ -460,6 +461,11 @@ Estado actual:
 - `order_frequency` (order_frequency, nullable)
 - `order_day` (weekday, nullable)
 - `receive_day` (weekday, nullable)
+- `payment_terms_days` (integer, nullable >= 0)
+- `preferred_payment_method` (`cash` | `transfer`, nullable)
+- `accepts_cash` (boolean)
+- `accepts_transfer` (boolean)
+- `payment_note` (text, nullable)
 - `created_at`, `updated_at`
 
 ---
@@ -526,6 +532,76 @@ Estado actual:
 **Constraints**:
 
 - unique (`order_id`, `product_id`)
+
+---
+
+### supplier_payment_accounts
+
+**Proposito**: cuentas de transferencia configuradas por proveedor.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `supplier_id` (uuid, FK)
+- `account_label` (text, nullable)
+- `bank_name` (text, nullable)
+- `account_holder_name` (text, nullable)
+- `account_identifier` (text, nullable)
+- `is_active` (boolean)
+- `created_by`, `updated_by` (uuid, nullable FK auth.users)
+- `created_at`, `updated_at`
+
+---
+
+### supplier_payables
+
+**Proposito**: cuenta por pagar por pedido de proveedor (scope por sucursal).
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `branch_id` (uuid, FK)
+- `supplier_id` (uuid, FK)
+- `order_id` (uuid, FK, unique)
+- `status` (`pending` | `partial` | `paid`)
+- `estimated_amount` (numeric)
+- `invoice_amount` (numeric, nullable)
+- `paid_amount` (numeric)
+- `outstanding_amount` (numeric)
+- `due_on` (date, nullable)
+- `payment_terms_days_snapshot` (integer, nullable)
+- `preferred_payment_method` (`cash` | `transfer`, nullable)
+- `selected_payment_method` (`cash` | `transfer`, nullable)
+- `invoice_photo_url` (text, nullable)
+- `invoice_note` (text, nullable)
+- `paid_at` (timestamptz, nullable)
+- `created_by`, `updated_by` (uuid, nullable FK auth.users)
+- `created_at`, `updated_at`
+
+---
+
+### supplier_payments
+
+**Proposito**: movimientos de pago de proveedor (parcial/total).
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `branch_id` (uuid, FK)
+- `supplier_id` (uuid, FK)
+- `payable_id` (uuid, FK)
+- `order_id` (uuid, FK)
+- `payment_method` (`cash` | `transfer`)
+- `transfer_account_id` (uuid, nullable FK)
+- `amount` (numeric > 0)
+- `paid_at` (timestamptz)
+- `reference` (text, nullable)
+- `note` (text, nullable)
+- `created_by` (uuid, nullable FK auth.users)
+- `created_at`
 
 ---
 

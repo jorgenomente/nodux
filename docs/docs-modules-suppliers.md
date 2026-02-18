@@ -41,6 +41,10 @@ Campos clave (conceptual):
 - order_frequency (order_frequency, optional)
 - order_day (weekday, optional)
 - receive_day (weekday, optional)
+- payment_terms_days (integer, optional)
+- preferred_payment_method (`cash` | `transfer`, optional)
+- accepts_cash / accepts_transfer (boolean)
+- payment_note (text, optional)
 - created_at
 - updated_at
 
@@ -119,6 +123,7 @@ Constraints:
 - Datos del proveedor
 - Lista de productos asociados
 - Historial de pedidos (MVP: link a pedidos filtrado o conteo simple)
+- Cuentas de transferencia del proveedor para el módulo de pagos
 
 ---
 

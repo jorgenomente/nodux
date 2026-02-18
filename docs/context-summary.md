@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-02-16 15:00
+Ultima actualizacion: 2026-02-18 12:00
 
 ## Estado general
 
@@ -63,6 +63,9 @@ Ultima actualizacion: 2026-02-16 15:00
 - Cierre de caja ahora requiere firma operativa (`controlled_by_name`), confirmación explícita y soporta conteo por denominaciones.
 - Caja ahora opera con conteo por denominaciones en apertura y cierre para caja + reserva.
 - Las denominaciones son configurables por organización desde preferencias.
+- Pagos a proveedor por sucursal agregados: `supplier_payables` por pedido y `supplier_payments` como movimientos.
+- `/orders` ahora muestra estado de pago y saldo pendiente; `/payments` concentra pendientes, vencidos y registro de pagos.
+- Proveedores incorporan perfil de pago: plazo (días), método preferido (cash/transfer), métodos aceptados y cuentas de transferencia.
 
 ## Post-MVP ya registrado
 

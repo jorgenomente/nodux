@@ -70,6 +70,7 @@ Navegación fija:
 - Vencimientos → `/expirations`
 - Proveedores → `/suppliers`
 - Pedidos → `/orders`
+- Pagos → `/payments`
 - Calendario proveedores → `/orders/calendar`
 - Clientes → `/clients`
 - Configuración → `/settings`
@@ -169,6 +170,7 @@ Acceso:
 - `/suppliers`
 - `/suppliers/[supplierId]`
 - `/orders`
+- `/payments`
 - `/orders/[orderId]`
 - `/orders/calendar`
 - `/clients`

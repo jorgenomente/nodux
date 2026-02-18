@@ -35,6 +35,7 @@ El MVP debe ser usable en producción real por una tienda.
 - Vencimientos (manual y automático)
 - Proveedores
 - Pedidos a proveedor
+- Pagos a proveedor por sucursal
 - Clientes y pedidos especiales
 - Dashboard operativo
 - Alertas in-app

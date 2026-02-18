@@ -1180,3 +1180,13 @@ ok entonces al yo colocar el numero de billetes automaticamente deberia decirme 
 
 **Prompt**
 vamos a trabajar sobre orders. me gustaria que en el listado tambien aparezca el monto estimado a pagar al proveedor segun el pedido
+
+## 2026-02-17 22:00 -03 — Pagos proveedor por sucursal integrados con orders
+
+**Lote:** supplier-payments-branch-module-foundation
+**Objetivo:** Implementar base operativa de pagos a proveedores por sucursal: perfil de pago en supplier, cuentas por pagar por pedido, registro de pagos y estado reflejado en `/orders`.
+
+**Prompt**
+Hay algo que pase por alto y es agregar el metodo de pago del proveedor. esto es importante porque vamos a incorporar un nuevo modulo de pagos donde vamos a gestionar el pago a los proveedores. Mi idea es que al registrar el proveedor tambien se le agregue el metodo de pago, si es efectivo o transferencia y agregar los datos de la cuenta. Es posible que hay veces que proveedores que se paga en efectivo se paguen por transferencia entonces seria conveniente tener esa informacion al registrar al proveedor. De igual manera este nuevo modulo de pagos la idea es que yo pueda ver los pedidos realizados y poder adjuntar una foto de la factura y ajustar el monto para colocar el monto exacto que debo pagar ya que el monto del pedido es aproximado. tambien importante seria agregar a la hora de registrar un proveedor es un plazo de pago si aplica. asi este modulo de pagos ya seria un modulo donde el que hace los pagos se mete a gestionar realizar pagos o saber que tiene que pagar, saber cuanto efectivo va a necesitar para la semana. Pero necesito que todo este conectado, porque asi en pedidos yo puedo ver si un pedido ha sido marcado como pagado desde este modulo de pagos o si esta pendiente por realizar pago. la idea es que yo al recibir el remito o factura le pueda tomar una foto y adjuntarla para tener, agregar comentarios y observaciones si es necesario, si el proveedor es en efectivo normalmente se paga al momento entonces este proceso debe ser simple y rapido, debe permitirme saber rapidamente que cosas se han pagado y estan pedientes, los pagos mas urgentes que estan vencidos o proximos por vencer etc, que te parece?
+
+ok hagamos eso, esto de igual manera se maneja por sucursal. Cada sucursal maneja sus pedidos y sus pagos

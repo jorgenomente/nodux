@@ -13,6 +13,11 @@ type Props = {
   orderFrequency: string | null;
   orderDay: string | null;
   receiveDay: string | null;
+  paymentTermsDays: number | null;
+  preferredPaymentMethod: string | null;
+  acceptsCash: boolean;
+  acceptsTransfer: boolean;
+  paymentNote: string | null;
   orderFrequencyOptions: ReadonlyArray<{ value: string; label: string }>;
   weekdayOptions: ReadonlyArray<{ value: string; label: string }>;
   onSubmit: (formData: FormData) => void;
@@ -29,6 +34,11 @@ export default function SupplierActions({
   orderFrequency,
   orderDay,
   receiveDay,
+  paymentTermsDays,
+  preferredPaymentMethod,
+  acceptsCash,
+  acceptsTransfer,
+  paymentNote,
   orderFrequencyOptions,
   weekdayOptions,
   onSubmit,
@@ -59,6 +69,27 @@ export default function SupplierActions({
         />
         <input type="hidden" name="order_day" value={orderDay ?? ''} />
         <input type="hidden" name="receive_day" value={receiveDay ?? ''} />
+        <input
+          type="hidden"
+          name="payment_terms_days"
+          value={paymentTermsDays ?? ''}
+        />
+        <input
+          type="hidden"
+          name="preferred_payment_method"
+          value={preferredPaymentMethod ?? ''}
+        />
+        <input
+          type="hidden"
+          name="accepts_cash"
+          value={acceptsCash ? 'on' : ''}
+        />
+        <input
+          type="hidden"
+          name="accepts_transfer"
+          value={acceptsTransfer ? 'on' : ''}
+        />
+        <input type="hidden" name="payment_note" value={paymentNote ?? ''} />
         <button
           type="submit"
           className="rounded border border-zinc-200 px-3 py-1 text-xs text-zinc-700"
@@ -169,6 +200,53 @@ export default function SupplierActions({
                 </option>
               ))}
             </select>
+          </label>
+          <label className="text-xs text-zinc-600">
+            Plazo de pago (días)
+            <input
+              name="payment_terms_days"
+              type="number"
+              min={0}
+              defaultValue={paymentTermsDays ?? ''}
+              className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+            />
+          </label>
+          <label className="text-xs text-zinc-600">
+            Método preferido
+            <select
+              name="preferred_payment_method"
+              defaultValue={preferredPaymentMethod ?? ''}
+              className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+            >
+              <option value="">Sin preferencia</option>
+              <option value="cash">Efectivo</option>
+              <option value="transfer">Transferencia</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-xs text-zinc-600">
+            <input
+              name="accepts_cash"
+              type="checkbox"
+              defaultChecked={acceptsCash}
+            />
+            Acepta efectivo
+          </label>
+          <label className="flex items-center gap-2 text-xs text-zinc-600">
+            <input
+              name="accepts_transfer"
+              type="checkbox"
+              defaultChecked={acceptsTransfer}
+            />
+            Acepta transferencia
+          </label>
+          <label className="text-xs text-zinc-600 md:col-span-2">
+            Nota de pago
+            <textarea
+              name="payment_note"
+              defaultValue={paymentNote ?? ''}
+              className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+              rows={2}
+            />
           </label>
           <div className="flex items-end">
             <button

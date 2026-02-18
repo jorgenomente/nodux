@@ -203,9 +203,15 @@ Regla base:
 
 ---
 
-## 6) Superadmin (Primary)
+## 6) Pagos y Superadmin (Primary)
 
-25. `/superadmin`
+25. `/payments`
+    - Roles: OA
+    - Tipo: Primary
+    - Módulo: Pagos a proveedor
+    - Propósito: gestionar cuentas por pagar y registrar pagos por sucursal
+
+26. `/superadmin`
     - Roles: SA
     - Tipo: Primary
     - Módulo: SaaS Admin
@@ -228,6 +234,7 @@ Regla base:
 - `/suppliers`
 - `/suppliers/[supplierId]`
 - `/orders`
+- `/payments`
 - `/orders/calendar`
 - `/orders/[orderId]`
 - `/products`

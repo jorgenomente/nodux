@@ -2251,6 +2251,455 @@ export type Database = {
           },
         ];
       };
+      supplier_payables: {
+        Row: {
+          branch_id: string;
+          created_at: string;
+          created_by: string | null;
+          due_on: string | null;
+          estimated_amount: number;
+          id: string;
+          invoice_amount: number | null;
+          invoice_note: string | null;
+          invoice_photo_url: string | null;
+          order_id: string;
+          org_id: string;
+          outstanding_amount: number;
+          paid_amount: number;
+          paid_at: string | null;
+          payment_terms_days_snapshot: number | null;
+          preferred_payment_method:
+            | Database['public']['Enums']['payment_method']
+            | null;
+          selected_payment_method:
+            | Database['public']['Enums']['payment_method']
+            | null;
+          status: string;
+          supplier_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          branch_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          due_on?: string | null;
+          estimated_amount?: number;
+          id?: string;
+          invoice_amount?: number | null;
+          invoice_note?: string | null;
+          invoice_photo_url?: string | null;
+          order_id: string;
+          org_id: string;
+          outstanding_amount?: number;
+          paid_amount?: number;
+          paid_at?: string | null;
+          payment_terms_days_snapshot?: number | null;
+          preferred_payment_method?:
+            | Database['public']['Enums']['payment_method']
+            | null;
+          selected_payment_method?:
+            | Database['public']['Enums']['payment_method']
+            | null;
+          status?: string;
+          supplier_id: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          branch_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          due_on?: string | null;
+          estimated_amount?: number;
+          id?: string;
+          invoice_amount?: number | null;
+          invoice_note?: string | null;
+          invoice_photo_url?: string | null;
+          order_id?: string;
+          org_id?: string;
+          outstanding_amount?: number;
+          paid_amount?: number;
+          paid_at?: string | null;
+          payment_terms_days_snapshot?: number | null;
+          preferred_payment_method?:
+            | Database['public']['Enums']['payment_method']
+            | null;
+          selected_payment_method?:
+            | Database['public']['Enums']['payment_method']
+            | null;
+          status?: string;
+          supplier_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'supplier_payables_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_branches_admin';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_product_suggestions';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_order_id_fkey';
+            columns: ['order_id'];
+            isOneToOne: true;
+            referencedRelation: 'supplier_orders';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_order_id_fkey';
+            columns: ['order_id'];
+            isOneToOne: true;
+            referencedRelation: 'v_order_detail_admin';
+            referencedColumns: ['order_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_order_id_fkey';
+            columns: ['order_id'];
+            isOneToOne: true;
+            referencedRelation: 'v_orders_admin';
+            referencedColumns: ['order_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'suppliers';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_detail_admin';
+            referencedColumns: ['supplier_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_suppliers_admin';
+            referencedColumns: ['supplier_id'];
+          },
+        ];
+      };
+      supplier_payment_accounts: {
+        Row: {
+          account_holder_name: string | null;
+          account_identifier: string | null;
+          account_label: string | null;
+          bank_name: string | null;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          is_active: boolean;
+          org_id: string;
+          supplier_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          account_holder_name?: string | null;
+          account_identifier?: string | null;
+          account_label?: string | null;
+          bank_name?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          org_id: string;
+          supplier_id: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          account_holder_name?: string | null;
+          account_identifier?: string | null;
+          account_label?: string | null;
+          bank_name?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          is_active?: boolean;
+          org_id?: string;
+          supplier_id?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'supplier_payment_accounts_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_payment_accounts_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payment_accounts_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payment_accounts_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'suppliers';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_payment_accounts_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_detail_admin';
+            referencedColumns: ['supplier_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payment_accounts_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_suppliers_admin';
+            referencedColumns: ['supplier_id'];
+          },
+        ];
+      };
+      supplier_payments: {
+        Row: {
+          amount: number;
+          branch_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          note: string | null;
+          order_id: string;
+          org_id: string;
+          paid_at: string;
+          payable_id: string;
+          payment_method: Database['public']['Enums']['payment_method'];
+          reference: string | null;
+          supplier_id: string;
+          transfer_account_id: string | null;
+        };
+        Insert: {
+          amount: number;
+          branch_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          note?: string | null;
+          order_id: string;
+          org_id: string;
+          paid_at?: string;
+          payable_id: string;
+          payment_method: Database['public']['Enums']['payment_method'];
+          reference?: string | null;
+          supplier_id: string;
+          transfer_account_id?: string | null;
+        };
+        Update: {
+          amount?: number;
+          branch_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          note?: string | null;
+          order_id?: string;
+          org_id?: string;
+          paid_at?: string;
+          payable_id?: string;
+          payment_method?: Database['public']['Enums']['payment_method'];
+          reference?: string | null;
+          supplier_id?: string;
+          transfer_account_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'supplier_payments_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_branches_admin';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_product_suggestions';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_order_id_fkey';
+            columns: ['order_id'];
+            isOneToOne: false;
+            referencedRelation: 'supplier_orders';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_order_id_fkey';
+            columns: ['order_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_order_detail_admin';
+            referencedColumns: ['order_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_order_id_fkey';
+            columns: ['order_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_orders_admin';
+            referencedColumns: ['order_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_payable_id_fkey';
+            columns: ['payable_id'];
+            isOneToOne: false;
+            referencedRelation: 'supplier_payables';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_payable_id_fkey';
+            columns: ['payable_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_orders_admin';
+            referencedColumns: ['payable_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_payable_id_fkey';
+            columns: ['payable_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_payables_admin';
+            referencedColumns: ['payable_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'suppliers';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_detail_admin';
+            referencedColumns: ['supplier_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_suppliers_admin';
+            referencedColumns: ['supplier_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payments_transfer_account_id_fkey';
+            columns: ['transfer_account_id'];
+            isOneToOne: false;
+            referencedRelation: 'supplier_payment_accounts';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       supplier_products: {
         Row: {
           created_at: string;
@@ -2360,6 +2809,8 @@ export type Database = {
       };
       suppliers: {
         Row: {
+          accepts_cash: boolean;
+          accepts_transfer: boolean;
           contact_name: string | null;
           created_at: string;
           email: string | null;
@@ -2372,11 +2823,18 @@ export type Database = {
             | Database['public']['Enums']['order_frequency']
             | null;
           org_id: string;
+          payment_note: string | null;
+          payment_terms_days: number | null;
           phone: string | null;
+          preferred_payment_method:
+            | Database['public']['Enums']['payment_method']
+            | null;
           receive_day: Database['public']['Enums']['weekday'] | null;
           updated_at: string;
         };
         Insert: {
+          accepts_cash?: boolean;
+          accepts_transfer?: boolean;
           contact_name?: string | null;
           created_at?: string;
           email?: string | null;
@@ -2389,11 +2847,18 @@ export type Database = {
             | Database['public']['Enums']['order_frequency']
             | null;
           org_id: string;
+          payment_note?: string | null;
+          payment_terms_days?: number | null;
           phone?: string | null;
+          preferred_payment_method?:
+            | Database['public']['Enums']['payment_method']
+            | null;
           receive_day?: Database['public']['Enums']['weekday'] | null;
           updated_at?: string;
         };
         Update: {
+          accepts_cash?: boolean;
+          accepts_transfer?: boolean;
           contact_name?: string | null;
           created_at?: string;
           email?: string | null;
@@ -2406,7 +2871,12 @@ export type Database = {
             | Database['public']['Enums']['order_frequency']
             | null;
           org_id?: string;
+          payment_note?: string | null;
+          payment_terms_days?: number | null;
           phone?: string | null;
+          preferred_payment_method?:
+            | Database['public']['Enums']['payment_method']
+            | null;
           receive_day?: Database['public']['Enums']['weekday'] | null;
           updated_at?: string;
         };
@@ -3312,6 +3782,11 @@ export type Database = {
           items_count: number | null;
           order_id: string | null;
           org_id: string | null;
+          payable_due_on: string | null;
+          payable_id: string | null;
+          payable_outstanding_amount: number | null;
+          payable_status: string | null;
+          payment_state: string | null;
           received_at: string | null;
           reconciled_at: string | null;
           sent_at: string | null;
@@ -3873,6 +4348,8 @@ export type Database = {
       };
       v_supplier_detail_admin: {
         Row: {
+          accepts_cash: boolean | null;
+          accepts_transfer: boolean | null;
           barcode: string | null;
           contact_name: string | null;
           created_at: string | null;
@@ -3886,7 +4363,12 @@ export type Database = {
             | Database['public']['Enums']['order_frequency']
             | null;
           org_id: string | null;
+          payment_note: string | null;
+          payment_terms_days: number | null;
           phone: string | null;
+          preferred_payment_method:
+            | Database['public']['Enums']['payment_method']
+            | null;
           product_id: string | null;
           product_is_active: boolean | null;
           product_name: string | null;
@@ -3948,6 +4430,141 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'v_superadmin_orgs';
             referencedColumns: ['org_id'];
+          },
+        ];
+      };
+      v_supplier_payables_admin: {
+        Row: {
+          branch_id: string | null;
+          branch_name: string | null;
+          created_at: string | null;
+          due_in_days: number | null;
+          due_on: string | null;
+          estimated_amount: number | null;
+          invoice_amount: number | null;
+          invoice_note: string | null;
+          invoice_photo_url: string | null;
+          is_overdue: boolean | null;
+          order_id: string | null;
+          order_status:
+            | Database['public']['Enums']['supplier_order_status']
+            | null;
+          org_id: string | null;
+          outstanding_amount: number | null;
+          paid_amount: number | null;
+          paid_at: string | null;
+          payable_id: string | null;
+          payable_status: string | null;
+          payment_state: string | null;
+          payment_terms_days_snapshot: number | null;
+          preferred_payment_method:
+            | Database['public']['Enums']['payment_method']
+            | null;
+          selected_payment_method:
+            | Database['public']['Enums']['payment_method']
+            | null;
+          supplier_id: string | null;
+          supplier_name: string | null;
+          updated_at: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'supplier_payables_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_branches_admin';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_product_suggestions';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_order_id_fkey';
+            columns: ['order_id'];
+            isOneToOne: true;
+            referencedRelation: 'supplier_orders';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_order_id_fkey';
+            columns: ['order_id'];
+            isOneToOne: true;
+            referencedRelation: 'v_order_detail_admin';
+            referencedColumns: ['order_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_order_id_fkey';
+            columns: ['order_id'];
+            isOneToOne: true;
+            referencedRelation: 'v_orders_admin';
+            referencedColumns: ['order_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'suppliers';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_detail_admin';
+            referencedColumns: ['supplier_id'];
+          },
+          {
+            foreignKeyName: 'supplier_payables_supplier_id_fkey';
+            columns: ['supplier_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_suppliers_admin';
+            referencedColumns: ['supplier_id'];
           },
         ];
       };
@@ -4042,6 +4659,8 @@ export type Database = {
       };
       v_suppliers_admin: {
         Row: {
+          accepts_cash: boolean | null;
+          accepts_transfer: boolean | null;
           contact_name: string | null;
           created_at: string | null;
           email: string | null;
@@ -4053,7 +4672,13 @@ export type Database = {
             | Database['public']['Enums']['order_frequency']
             | null;
           org_id: string | null;
+          payment_accounts_count: number | null;
+          payment_note: string | null;
+          payment_terms_days: number | null;
           phone: string | null;
+          preferred_payment_method:
+            | Database['public']['Enums']['payment_method']
+            | null;
           products_count: number | null;
           receive_day: Database['public']['Enums']['weekday'] | null;
           supplier_id: string | null;
@@ -4085,6 +4710,18 @@ export type Database = {
       };
     };
     Functions: {
+      fn_recompute_supplier_payable: {
+        Args: { p_actor_user_id?: string; p_payable_id: string };
+        Returns: undefined;
+      };
+      fn_sync_supplier_payable_from_order: {
+        Args: {
+          p_actor_user_id?: string;
+          p_order_id: string;
+          p_org_id: string;
+        };
+        Returns: string;
+      };
       is_org_admin: { Args: { check_org_id: string }; Returns: boolean };
       is_org_admin_or_superadmin: {
         Args: { check_org_id: string };
@@ -4396,6 +5033,23 @@ export type Database = {
             };
             Returns: undefined;
           };
+      rpc_register_supplier_payment: {
+        Args: {
+          p_amount: number;
+          p_note?: string;
+          p_org_id: string;
+          p_paid_at?: string;
+          p_payable_id: string;
+          p_payment_method: Database['public']['Enums']['payment_method'];
+          p_reference?: string;
+          p_transfer_account_id?: string;
+        };
+        Returns: {
+          outstanding_amount: number;
+          payable_status: string;
+          payment_id: string;
+        }[];
+      };
       rpc_remove_supplier_order_item: {
         Args: { p_order_id: string; p_org_id: string; p_product_id: string };
         Returns: undefined;
@@ -4455,6 +5109,10 @@ export type Database = {
         };
         Returns: undefined;
       };
+      rpc_set_supplier_payment_account_active: {
+        Args: { p_account_id: string; p_is_active: boolean; p_org_id: string };
+        Returns: undefined;
+      };
       rpc_superadmin_create_org: {
         Args: {
           p_initial_branch_address?: string;
@@ -4486,6 +5144,12 @@ export type Database = {
           branch_id: string;
         }[];
       };
+      rpc_sync_supplier_payable_from_order: {
+        Args: { p_order_id: string; p_org_id: string };
+        Returns: {
+          payable_id: string;
+        }[];
+      };
       rpc_update_expiration_batch_date: {
         Args: {
           p_batch_id: string;
@@ -4494,6 +5158,22 @@ export type Database = {
           p_reason: string;
         };
         Returns: undefined;
+      };
+      rpc_update_supplier_payable: {
+        Args: {
+          p_due_on?: string;
+          p_invoice_amount?: number;
+          p_invoice_note?: string;
+          p_invoice_photo_url?: string;
+          p_org_id: string;
+          p_payable_id: string;
+          p_selected_payment_method?: Database['public']['Enums']['payment_method'];
+        };
+        Returns: {
+          outstanding_amount: number;
+          payable_id: string;
+          status: string;
+        }[];
       };
       rpc_update_user_membership: {
         Args: {
@@ -4599,6 +5279,29 @@ export type Database = {
             Returns: {
               supplier_id: string;
             }[];
+          }
+        | {
+            Args: {
+              p_accepts_cash?: boolean;
+              p_accepts_transfer?: boolean;
+              p_contact_name: string;
+              p_email: string;
+              p_is_active: boolean;
+              p_name: string;
+              p_notes: string;
+              p_order_day?: Database['public']['Enums']['weekday'];
+              p_order_frequency?: Database['public']['Enums']['order_frequency'];
+              p_org_id: string;
+              p_payment_note?: string;
+              p_payment_terms_days?: number;
+              p_phone: string;
+              p_preferred_payment_method?: Database['public']['Enums']['payment_method'];
+              p_receive_day?: Database['public']['Enums']['weekday'];
+              p_supplier_id: string;
+            };
+            Returns: {
+              supplier_id: string;
+            }[];
           };
       rpc_upsert_supplier_order_item: {
         Args: {
@@ -4610,6 +5313,21 @@ export type Database = {
         };
         Returns: {
           order_item_id: string;
+        }[];
+      };
+      rpc_upsert_supplier_payment_account: {
+        Args: {
+          p_account_holder_name?: string;
+          p_account_id?: string;
+          p_account_identifier?: string;
+          p_account_label?: string;
+          p_bank_name?: string;
+          p_is_active?: boolean;
+          p_org_id: string;
+          p_supplier_id: string;
+        };
+        Returns: {
+          account_id: string;
         }[];
       };
       rpc_upsert_supplier_product:

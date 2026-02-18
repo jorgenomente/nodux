@@ -31,6 +31,9 @@ type OrderRow = {
   expected_receive_on: string | null;
   items_count?: number | null;
   estimated_total_amount?: number | null;
+  payment_state?: 'pending' | 'partial' | 'paid' | 'overdue' | 'not_created';
+  payable_due_on?: string | null;
+  payable_outstanding_amount?: number | null;
 };
 
 type SuggestionRow = {
@@ -96,6 +99,21 @@ const formatAvgModeLabel = (mode: string) => {
       return 'Mensual';
     default:
       return 'Segun proveedor';
+  }
+};
+
+const formatPaymentState = (state: string | null | undefined) => {
+  switch (state) {
+    case 'pending':
+      return 'Pendiente';
+    case 'partial':
+      return 'Parcial';
+    case 'paid':
+      return 'Pagado';
+    case 'overdue':
+      return 'Vencido';
+    default:
+      return 'Sin cuenta';
   }
 };
 
@@ -641,6 +659,26 @@ export default async function OrdersPage({
                           )}
                         </p>
                         <p className="text-xs text-zinc-500">
+                          Pago:{' '}
+                          <span
+                            className={`font-semibold ${
+                              order.payment_state === 'paid'
+                                ? 'text-emerald-700'
+                                : order.payment_state === 'overdue'
+                                  ? 'text-rose-700'
+                                  : 'text-amber-700'
+                            }`}
+                          >
+                            {formatPaymentState(order.payment_state)}
+                          </span>
+                          {' · '}Saldo:{' '}
+                          {formatCurrency(
+                            Number(order.payable_outstanding_amount ?? 0),
+                          )}
+                          {' · '}Vence:{' '}
+                          {formatDate(order.payable_due_on ?? null)}
+                        </p>
+                        <p className="text-xs text-zinc-500">
                           Estimado recepción:{' '}
                           {formatDate(order.expected_receive_on)}
                         </p>
@@ -690,6 +728,26 @@ export default async function OrdersPage({
                           {formatCurrency(
                             Number(order.estimated_total_amount ?? 0),
                           )}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          Pago:{' '}
+                          <span
+                            className={`font-semibold ${
+                              order.payment_state === 'paid'
+                                ? 'text-emerald-700'
+                                : order.payment_state === 'overdue'
+                                  ? 'text-rose-700'
+                                  : 'text-amber-700'
+                            }`}
+                          >
+                            {formatPaymentState(order.payment_state)}
+                          </span>
+                          {' · '}Saldo:{' '}
+                          {formatCurrency(
+                            Number(order.payable_outstanding_amount ?? 0),
+                          )}
+                          {' · '}Vence:{' '}
+                          {formatDate(order.payable_due_on ?? null)}
                         </p>
                         <p className="text-xs text-zinc-500">
                           Estimado recepción:{' '}

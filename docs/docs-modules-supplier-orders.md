@@ -129,6 +129,11 @@ Siempre `branch_id` (recepción e ingreso de stock ocurren en esa sucursal).
 - Permitidas (realidad operativa)
 - Deben quedar registradas (ordered_qty vs received_qty)
 
+### R4.1) Integración con pagos por proveedor
+
+- Al recibir/controlar un pedido, se sincroniza una cuenta por pagar (`supplier_payables`) ligada al `order_id`.
+- El estado de pago se opera en `/payments` y se refleja en `/orders`.
+
 ### R5) Proveedor inactivo
 
 - No se puede crear pedido nuevo con proveedor inactivo

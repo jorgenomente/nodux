@@ -18,6 +18,7 @@ Estado actual:
 - Split payments POS agregados en `supabase/migrations/20260216163000_034_split_payments_enum.sql` y `supabase/migrations/20260216164000_035_split_payments_pos.sql` (`sale_payments`, `payment_method='mixed'` y cash metrics por cobro real).
 - Módulo caja por sucursal agregado en `supabase/migrations/20260216171000_036_cashbox_branch_sessions.sql` (`cash_sessions`, `cash_session_movements`, `v_cashbox_session_current` y RPCs de apertura/movimientos/cierre).
 - Cierre de caja con firma y conteo por denominaciones agregado en `supabase/migrations/20260216182000_037_cashbox_close_signature_denominations.sql` (`cash_session_count_lines` y hardening de `rpc_close_cash_session`).
+- Módulo pagos proveedor por sucursal agregado en `supabase/migrations/20260217213000_039_supplier_payments_branch_module.sql` (`supplier_payment_accounts`, `supplier_payables`, `supplier_payments`, `v_supplier_payables_admin` y estado de pago en `v_orders_admin`).
 - Smoke RLS automatizado agregado en `scripts/rls-smoke-tests.mjs` (ejecución: `npm run db:rls:smoke`).
 - CI hardening agrega ejecución automática de smoke RLS + smoke Playwright en `.github/workflows/ci-hardening.yml`.
 
@@ -58,6 +59,9 @@ Estado actual:
 | `supplier_products`          | read/insert/update | read/insert/update | no                            | ST sin acceso                                             |
 | `supplier_orders`            | read/insert/update | read/insert/update | no                            | ST no en MVP                                              |
 | `supplier_order_items`       | read/insert/update | read/insert/update | no                            | ST no en MVP                                              |
+| `supplier_payment_accounts`  | read/insert/update | read/insert/update | no                            | Cuentas de transferencia por proveedor                    |
+| `supplier_payables`          | read/insert/update | read/insert/update | no                            | Cuenta por pagar por pedido (scope sucursal)              |
+| `supplier_payments`          | read/insert/update | read/insert/update | no                            | Movimientos de pago proveedor                             |
 | `clients`                    | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo en branch asignada                                |
 | `client_special_orders`      | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo su branch                                         |
 | `client_special_order_items` | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo su branch                                         |
@@ -90,6 +94,7 @@ Estado actual:
 - `rpc_adjust_stock_manual` -> solo OA.
 - `rpc_set_safety_stock` -> solo OA.
 - `rpc_create_supplier_order` y derivados -> solo OA.
+- `rpc_update_supplier_payable` y `rpc_register_supplier_payment` -> solo OA/SA en org activa.
 - `rpc_create_special_order` -> OA o ST con modulo `clients` habilitado.
 - `rpc_superadmin_create_org` -> solo SA global.
 - `rpc_superadmin_upsert_branch` -> solo SA global.

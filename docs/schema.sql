@@ -125,6 +125,174 @@ CREATE TYPE "public"."weekday" AS ENUM (
 ALTER TYPE "public"."weekday" OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."fn_recompute_supplier_payable"("p_payable_id" "uuid", "p_actor_user_id" "uuid" DEFAULT "auth"."uid"()) RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_payable record;
+  v_paid_amount numeric(12,2) := 0;
+  v_base_amount numeric(12,2) := 0;
+  v_outstanding numeric(12,2) := 0;
+  v_status text := 'pending';
+  v_last_paid_at timestamptz := null;
+begin
+  select * into v_payable
+  from public.supplier_payables sp
+  where sp.id = p_payable_id
+  for update;
+
+  if v_payable is null then
+    raise exception 'payable not found';
+  end if;
+
+  select coalesce(sum(spm.amount), 0), max(spm.paid_at)
+    into v_paid_amount, v_last_paid_at
+  from public.supplier_payments spm
+  where spm.payable_id = p_payable_id;
+
+  v_base_amount := coalesce(v_payable.invoice_amount, v_payable.estimated_amount, 0);
+  v_outstanding := greatest(v_base_amount - v_paid_amount, 0);
+
+  if v_outstanding = 0 then
+    v_status := 'paid';
+  elsif v_paid_amount > 0 then
+    v_status := 'partial';
+  else
+    v_status := 'pending';
+  end if;
+
+  update public.supplier_payables
+  set
+    paid_amount = round(v_paid_amount, 2),
+    outstanding_amount = round(v_outstanding, 2),
+    status = v_status,
+    paid_at = case when v_status = 'paid' then v_last_paid_at else null end,
+    updated_by = p_actor_user_id,
+    updated_at = now()
+  where id = p_payable_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."fn_recompute_supplier_payable"("p_payable_id" "uuid", "p_actor_user_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."fn_sync_supplier_payable_from_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_actor_user_id" "uuid" DEFAULT "auth"."uid"()) RETURNS "uuid"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_order record;
+  v_estimated_amount numeric(12,2) := 0;
+  v_due_on date := null;
+  v_payable_id uuid;
+begin
+  select so.id,
+         so.org_id,
+         so.branch_id,
+         so.supplier_id,
+         so.status,
+         so.received_at,
+         so.reconciled_at,
+         s.payment_terms_days,
+         s.preferred_payment_method
+    into v_order
+  from public.supplier_orders so
+  join public.suppliers s
+    on s.id = so.supplier_id
+   and s.org_id = so.org_id
+  where so.id = p_order_id
+    and so.org_id = p_org_id;
+
+  if v_order is null then
+    raise exception 'order not found';
+  end if;
+
+  if v_order.status not in ('received', 'reconciled') then
+    return null;
+  end if;
+
+  select coalesce(
+    sum(
+      soi.ordered_qty * coalesce(nullif(soi.unit_cost, 0), p.unit_price, 0)
+    ),
+    0
+  ) into v_estimated_amount
+  from public.supplier_order_items soi
+  left join public.products p
+    on p.id = soi.product_id
+   and p.org_id = soi.org_id
+  where soi.org_id = p_org_id
+    and soi.order_id = p_order_id;
+
+  if v_order.payment_terms_days is not null then
+    v_due_on := (
+      coalesce(v_order.reconciled_at, v_order.received_at, now())::date
+      + v_order.payment_terms_days
+    );
+  end if;
+
+  insert into public.supplier_payables (
+    org_id,
+    branch_id,
+    supplier_id,
+    order_id,
+    status,
+    estimated_amount,
+    invoice_amount,
+    paid_amount,
+    outstanding_amount,
+    due_on,
+    payment_terms_days_snapshot,
+    preferred_payment_method,
+    selected_payment_method,
+    created_by,
+    updated_by,
+    created_at,
+    updated_at
+  ) values (
+    p_org_id,
+    v_order.branch_id,
+    v_order.supplier_id,
+    p_order_id,
+    'pending',
+    round(v_estimated_amount, 2),
+    null,
+    0,
+    round(v_estimated_amount, 2),
+    v_due_on,
+    v_order.payment_terms_days,
+    v_order.preferred_payment_method,
+    null,
+    p_actor_user_id,
+    p_actor_user_id,
+    now(),
+    now()
+  )
+  on conflict (order_id) do update set
+    branch_id = excluded.branch_id,
+    supplier_id = excluded.supplier_id,
+    estimated_amount = excluded.estimated_amount,
+    due_on = coalesce(public.supplier_payables.due_on, excluded.due_on),
+    payment_terms_days_snapshot = excluded.payment_terms_days_snapshot,
+    preferred_payment_method = excluded.preferred_payment_method,
+    updated_by = p_actor_user_id,
+    updated_at = now()
+  returning id into v_payable_id;
+
+  perform public.fn_recompute_supplier_payable(v_payable_id, p_actor_user_id);
+
+  return v_payable_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."fn_sync_supplier_payable_from_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_actor_user_id" "uuid") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."is_org_admin"("check_org_id" "uuid") RETURNS boolean
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -2431,6 +2599,133 @@ $$;
 ALTER FUNCTION "public"."rpc_reconcile_supplier_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_controlled_by_user_id" "uuid", "p_controlled_by_name" "text") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."rpc_register_supplier_payment"("p_org_id" "uuid", "p_payable_id" "uuid", "p_amount" numeric, "p_payment_method" "public"."payment_method", "p_paid_at" timestamp with time zone DEFAULT "now"(), "p_transfer_account_id" "uuid" DEFAULT NULL::"uuid", "p_reference" "text" DEFAULT NULL::"text", "p_note" "text" DEFAULT NULL::"text") RETURNS TABLE("payment_id" "uuid", "payable_status" "text", "outstanding_amount" numeric)
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_payable record;
+  v_payment_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_org_admin_or_superadmin(p_org_id) then
+    raise exception 'not authorized';
+  end if;
+
+  if p_amount is null or p_amount <= 0 then
+    raise exception 'invalid payment amount';
+  end if;
+
+  if p_payment_method not in ('cash', 'transfer') then
+    raise exception 'invalid payment method';
+  end if;
+
+  select * into v_payable
+  from public.supplier_payables sp
+  where sp.id = p_payable_id
+    and sp.org_id = p_org_id
+  for update;
+
+  if v_payable is null then
+    raise exception 'payable not found';
+  end if;
+
+  if v_payable.status = 'paid' then
+    raise exception 'payable already paid';
+  end if;
+
+  if p_amount > v_payable.outstanding_amount and v_payable.outstanding_amount > 0 then
+    raise exception 'payment amount exceeds outstanding amount';
+  end if;
+
+  if p_payment_method = 'transfer' and p_transfer_account_id is not null then
+    if not exists (
+      select 1
+      from public.supplier_payment_accounts spa
+      where spa.id = p_transfer_account_id
+        and spa.org_id = p_org_id
+        and spa.supplier_id = v_payable.supplier_id
+    ) then
+      raise exception 'transfer account not found for supplier';
+    end if;
+  end if;
+
+  insert into public.supplier_payments (
+    org_id,
+    branch_id,
+    supplier_id,
+    payable_id,
+    order_id,
+    payment_method,
+    transfer_account_id,
+    amount,
+    paid_at,
+    reference,
+    note,
+    created_by,
+    created_at
+  ) values (
+    p_org_id,
+    v_payable.branch_id,
+    v_payable.supplier_id,
+    p_payable_id,
+    v_payable.order_id,
+    p_payment_method,
+    p_transfer_account_id,
+    round(p_amount, 2),
+    coalesce(p_paid_at, now()),
+    nullif(trim(coalesce(p_reference, '')), ''),
+    nullif(trim(coalesce(p_note, '')), ''),
+    auth.uid(),
+    now()
+  )
+  returning id into v_payment_id;
+
+  update public.supplier_payables
+  set
+    selected_payment_method = p_payment_method,
+    updated_by = auth.uid(),
+    updated_at = now()
+  where id = p_payable_id;
+
+  perform public.fn_recompute_supplier_payable(p_payable_id, auth.uid());
+
+  select * into v_payable
+  from public.supplier_payables
+  where id = p_payable_id;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'supplier_payment_registered',
+    'supplier_payment',
+    v_payment_id,
+    v_payable.branch_id,
+    jsonb_build_object(
+      'payable_id', p_payable_id,
+      'order_id', v_payable.order_id,
+      'amount', round(p_amount, 2),
+      'payment_method', p_payment_method,
+      'transfer_account_id', p_transfer_account_id,
+      'reference', nullif(trim(coalesce(p_reference, '')), ''),
+      'status', v_payable.status,
+      'outstanding_amount', v_payable.outstanding_amount
+    ),
+    auth.uid()
+  );
+
+  return query
+  select v_payment_id, v_payable.status, v_payable.outstanding_amount;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_register_supplier_payment"("p_org_id" "uuid", "p_payable_id" "uuid", "p_amount" numeric, "p_payment_method" "public"."payment_method", "p_paid_at" timestamp with time zone, "p_transfer_account_id" "uuid", "p_reference" "text", "p_note" "text") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rpc_remove_supplier_order_item"("p_org_id" "uuid", "p_order_id" "uuid", "p_product_id" "uuid") RETURNS "void"
     LANGUAGE "plpgsql"
     AS $$
@@ -2721,6 +3016,54 @@ $$;
 ALTER FUNCTION "public"."rpc_set_supplier_order_status"("p_org_id" "uuid", "p_order_id" "uuid", "p_status" "public"."supplier_order_status") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."rpc_set_supplier_payment_account_active"("p_org_id" "uuid", "p_account_id" "uuid", "p_is_active" boolean) RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_account record;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_org_admin_or_superadmin(p_org_id) then
+    raise exception 'not authorized';
+  end if;
+
+  update public.supplier_payment_accounts
+  set
+    is_active = coalesce(p_is_active, false),
+    updated_by = auth.uid(),
+    updated_at = now()
+  where id = p_account_id
+    and org_id = p_org_id
+  returning * into v_account;
+
+  if v_account is null then
+    raise exception 'account not found';
+  end if;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'supplier_payment_account_status_set',
+    'supplier_payment_account',
+    p_account_id,
+    null,
+    jsonb_build_object(
+      'supplier_id', v_account.supplier_id,
+      'is_active', coalesce(p_is_active, false)
+    ),
+    auth.uid()
+  );
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_set_supplier_payment_account_active"("p_org_id" "uuid", "p_account_id" "uuid", "p_is_active" boolean) OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rpc_superadmin_create_org"("p_org_name" "text", "p_timezone" "text" DEFAULT 'UTC'::"text", "p_initial_branch_name" "text" DEFAULT 'Casa Central'::"text", "p_initial_branch_address" "text" DEFAULT NULL::"text", "p_owner_user_id" "uuid" DEFAULT NULL::"uuid", "p_owner_display_name" "text" DEFAULT NULL::"text") RETURNS TABLE("org_id" "uuid", "branch_id" "uuid", "owner_user_id" "uuid")
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -2875,6 +3218,36 @@ $$;
 ALTER FUNCTION "public"."rpc_superadmin_upsert_branch"("p_org_id" "uuid", "p_branch_id" "uuid", "p_name" "text", "p_address" "text", "p_is_active" boolean) OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."rpc_sync_supplier_payable_from_order"("p_org_id" "uuid", "p_order_id" "uuid") RETURNS TABLE("payable_id" "uuid")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_payable_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_org_admin_or_superadmin(p_org_id) then
+    raise exception 'not authorized';
+  end if;
+
+  v_payable_id := public.fn_sync_supplier_payable_from_order(
+    p_org_id,
+    p_order_id,
+    auth.uid()
+  );
+
+  return query select v_payable_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_sync_supplier_payable_from_order"("p_org_id" "uuid", "p_order_id" "uuid") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rpc_update_expiration_batch_date"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_expires_on" "date", "p_reason" "text") RETURNS "void"
     LANGUAGE "plpgsql"
     AS $$
@@ -2901,6 +3274,80 @@ $$;
 
 
 ALTER FUNCTION "public"."rpc_update_expiration_batch_date"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_expires_on" "date", "p_reason" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_update_supplier_payable"("p_org_id" "uuid", "p_payable_id" "uuid", "p_invoice_amount" numeric DEFAULT NULL::numeric, "p_due_on" "date" DEFAULT NULL::"date", "p_invoice_photo_url" "text" DEFAULT NULL::"text", "p_invoice_note" "text" DEFAULT NULL::"text", "p_selected_payment_method" "public"."payment_method" DEFAULT NULL::"public"."payment_method") RETURNS TABLE("payable_id" "uuid", "status" "text", "outstanding_amount" numeric)
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_payable record;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_org_admin_or_superadmin(p_org_id) then
+    raise exception 'not authorized';
+  end if;
+
+  if p_invoice_amount is not null and p_invoice_amount < 0 then
+    raise exception 'invoice amount must be >= 0';
+  end if;
+
+  if p_selected_payment_method is not null
+    and p_selected_payment_method not in ('cash', 'transfer') then
+    raise exception 'invalid selected payment method';
+  end if;
+
+  update public.supplier_payables
+  set
+    invoice_amount = p_invoice_amount,
+    due_on = p_due_on,
+    invoice_photo_url = nullif(trim(coalesce(p_invoice_photo_url, '')), ''),
+    invoice_note = nullif(trim(coalesce(p_invoice_note, '')), ''),
+    selected_payment_method = p_selected_payment_method,
+    updated_by = auth.uid(),
+    updated_at = now()
+  where id = p_payable_id
+    and org_id = p_org_id
+  returning * into v_payable;
+
+  if v_payable is null then
+    raise exception 'payable not found';
+  end if;
+
+  perform public.fn_recompute_supplier_payable(p_payable_id, auth.uid());
+
+  select * into v_payable
+  from public.supplier_payables
+  where id = p_payable_id;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'supplier_payable_updated',
+    'supplier_payable',
+    p_payable_id,
+    v_payable.branch_id,
+    jsonb_build_object(
+      'invoice_amount', v_payable.invoice_amount,
+      'due_on', v_payable.due_on,
+      'invoice_photo_url', v_payable.invoice_photo_url,
+      'selected_payment_method', v_payable.selected_payment_method,
+      'status', v_payable.status,
+      'outstanding_amount', v_payable.outstanding_amount
+    ),
+    auth.uid()
+  );
+
+  return query
+  select v_payable.id, v_payable.status, v_payable.outstanding_amount;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_update_supplier_payable"("p_org_id" "uuid", "p_payable_id" "uuid", "p_invoice_amount" numeric, "p_due_on" "date", "p_invoice_photo_url" "text", "p_invoice_note" "text", "p_selected_payment_method" "public"."payment_method") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_update_user_membership"("p_org_id" "uuid", "p_user_id" "uuid", "p_role" "public"."user_role", "p_is_active" boolean, "p_display_name" "text", "p_branch_ids" "uuid"[]) RETURNS "void"
@@ -3261,6 +3708,133 @@ $$;
 ALTER FUNCTION "public"."rpc_upsert_supplier"("p_supplier_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_contact_name" "text", "p_phone" "text", "p_email" "text", "p_notes" "text", "p_is_active" boolean, "p_order_frequency" "public"."order_frequency", "p_order_day" "public"."weekday", "p_receive_day" "public"."weekday") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."rpc_upsert_supplier"("p_supplier_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_contact_name" "text", "p_phone" "text", "p_email" "text", "p_notes" "text", "p_is_active" boolean, "p_order_frequency" "public"."order_frequency" DEFAULT NULL::"public"."order_frequency", "p_order_day" "public"."weekday" DEFAULT NULL::"public"."weekday", "p_receive_day" "public"."weekday" DEFAULT NULL::"public"."weekday", "p_payment_terms_days" integer DEFAULT NULL::integer, "p_preferred_payment_method" "public"."payment_method" DEFAULT NULL::"public"."payment_method", "p_accepts_cash" boolean DEFAULT true, "p_accepts_transfer" boolean DEFAULT true, "p_payment_note" "text" DEFAULT NULL::"text") RETURNS TABLE("supplier_id" "uuid")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_supplier_id uuid;
+  v_accepts_cash boolean := coalesce(p_accepts_cash, true);
+  v_accepts_transfer boolean := coalesce(p_accepts_transfer, true);
+  v_preferred public.payment_method := p_preferred_payment_method;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_org_admin_or_superadmin(p_org_id) then
+    raise exception 'not authorized';
+  end if;
+
+  if coalesce(trim(p_name), '') = '' then
+    raise exception 'supplier name required';
+  end if;
+
+  if p_payment_terms_days is not null and p_payment_terms_days < 0 then
+    raise exception 'payment terms must be >= 0';
+  end if;
+
+  if not (v_accepts_cash or v_accepts_transfer) then
+    raise exception 'supplier must accept at least one payment method';
+  end if;
+
+  if v_preferred is not null and v_preferred not in ('cash', 'transfer') then
+    raise exception 'preferred payment method must be cash or transfer';
+  end if;
+
+  if v_preferred = 'cash' and not v_accepts_cash then
+    raise exception 'preferred payment method cash must be enabled in accepts_cash';
+  end if;
+
+  if v_preferred = 'transfer' and not v_accepts_transfer then
+    raise exception 'preferred payment method transfer must be enabled in accepts_transfer';
+  end if;
+
+  insert into public.suppliers (
+    id,
+    org_id,
+    name,
+    contact_name,
+    phone,
+    email,
+    notes,
+    is_active,
+    order_frequency,
+    order_day,
+    receive_day,
+    payment_terms_days,
+    preferred_payment_method,
+    accepts_cash,
+    accepts_transfer,
+    payment_note
+  ) values (
+    coalesce(p_supplier_id, gen_random_uuid()),
+    p_org_id,
+    trim(p_name),
+    nullif(trim(coalesce(p_contact_name, '')), ''),
+    nullif(trim(coalesce(p_phone, '')), ''),
+    nullif(trim(coalesce(p_email, '')), ''),
+    nullif(trim(coalesce(p_notes, '')), ''),
+    coalesce(p_is_active, true),
+    p_order_frequency,
+    p_order_day,
+    p_receive_day,
+    p_payment_terms_days,
+    v_preferred,
+    v_accepts_cash,
+    v_accepts_transfer,
+    nullif(trim(coalesce(p_payment_note, '')), '')
+  )
+  on conflict (id) do update set
+    name = excluded.name,
+    contact_name = excluded.contact_name,
+    phone = excluded.phone,
+    email = excluded.email,
+    notes = excluded.notes,
+    is_active = excluded.is_active,
+    order_frequency = excluded.order_frequency,
+    order_day = excluded.order_day,
+    receive_day = excluded.receive_day,
+    payment_terms_days = excluded.payment_terms_days,
+    preferred_payment_method = excluded.preferred_payment_method,
+    accepts_cash = excluded.accepts_cash,
+    accepts_transfer = excluded.accepts_transfer,
+    payment_note = excluded.payment_note
+  returning id into v_supplier_id;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'supplier_upsert',
+    'supplier',
+    v_supplier_id,
+    null,
+    jsonb_build_object(
+      'name', trim(p_name),
+      'contact_name', nullif(trim(coalesce(p_contact_name, '')), ''),
+      'phone', nullif(trim(coalesce(p_phone, '')), ''),
+      'email', nullif(trim(coalesce(p_email, '')), ''),
+      'is_active', coalesce(p_is_active, true),
+      'order_frequency', p_order_frequency,
+      'order_day', p_order_day,
+      'receive_day', p_receive_day,
+      'payment_terms_days', p_payment_terms_days,
+      'preferred_payment_method', v_preferred,
+      'accepts_cash', v_accepts_cash,
+      'accepts_transfer', v_accepts_transfer,
+      'payment_note', nullif(trim(coalesce(p_payment_note, '')), '')
+    ),
+    auth.uid()
+  );
+
+  return query select v_supplier_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_upsert_supplier"("p_supplier_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_contact_name" "text", "p_phone" "text", "p_email" "text", "p_notes" "text", "p_is_active" boolean, "p_order_frequency" "public"."order_frequency", "p_order_day" "public"."weekday", "p_receive_day" "public"."weekday", "p_payment_terms_days" integer, "p_preferred_payment_method" "public"."payment_method", "p_accepts_cash" boolean, "p_accepts_transfer" boolean, "p_payment_note" "text") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rpc_upsert_supplier_order_item"("p_org_id" "uuid", "p_order_id" "uuid", "p_product_id" "uuid", "p_ordered_qty" numeric, "p_unit_cost" numeric) RETURNS TABLE("order_item_id" "uuid")
     LANGUAGE "sql"
     AS $$
@@ -3295,6 +3869,92 @@ $$;
 
 
 ALTER FUNCTION "public"."rpc_upsert_supplier_order_item"("p_org_id" "uuid", "p_order_id" "uuid", "p_product_id" "uuid", "p_ordered_qty" numeric, "p_unit_cost" numeric) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_upsert_supplier_payment_account"("p_org_id" "uuid", "p_supplier_id" "uuid", "p_account_id" "uuid" DEFAULT NULL::"uuid", "p_account_label" "text" DEFAULT NULL::"text", "p_bank_name" "text" DEFAULT NULL::"text", "p_account_holder_name" "text" DEFAULT NULL::"text", "p_account_identifier" "text" DEFAULT NULL::"text", "p_is_active" boolean DEFAULT true) RETURNS TABLE("account_id" "uuid")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_account_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_org_admin_or_superadmin(p_org_id) then
+    raise exception 'not authorized';
+  end if;
+
+  if not exists (
+    select 1
+    from public.suppliers s
+    where s.id = p_supplier_id
+      and s.org_id = p_org_id
+  ) then
+    raise exception 'supplier not found';
+  end if;
+
+  insert into public.supplier_payment_accounts (
+    id,
+    org_id,
+    supplier_id,
+    account_label,
+    bank_name,
+    account_holder_name,
+    account_identifier,
+    is_active,
+    created_by,
+    updated_by,
+    created_at,
+    updated_at
+  ) values (
+    coalesce(p_account_id, gen_random_uuid()),
+    p_org_id,
+    p_supplier_id,
+    nullif(trim(coalesce(p_account_label, '')), ''),
+    nullif(trim(coalesce(p_bank_name, '')), ''),
+    nullif(trim(coalesce(p_account_holder_name, '')), ''),
+    nullif(trim(coalesce(p_account_identifier, '')), ''),
+    coalesce(p_is_active, true),
+    auth.uid(),
+    auth.uid(),
+    now(),
+    now()
+  )
+  on conflict (id) do update set
+    account_label = excluded.account_label,
+    bank_name = excluded.bank_name,
+    account_holder_name = excluded.account_holder_name,
+    account_identifier = excluded.account_identifier,
+    is_active = excluded.is_active,
+    updated_by = auth.uid(),
+    updated_at = now()
+  returning id into v_account_id;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'supplier_payment_account_upsert',
+    'supplier_payment_account',
+    v_account_id,
+    null,
+    jsonb_build_object(
+      'supplier_id', p_supplier_id,
+      'account_label', nullif(trim(coalesce(p_account_label, '')), ''),
+      'bank_name', nullif(trim(coalesce(p_bank_name, '')), ''),
+      'account_identifier', nullif(trim(coalesce(p_account_identifier, '')), ''),
+      'is_active', coalesce(p_is_active, true)
+    ),
+    auth.uid()
+  );
+
+  return query select v_account_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_upsert_supplier_payment_account"("p_org_id" "uuid", "p_supplier_id" "uuid", "p_account_id" "uuid", "p_account_label" "text", "p_bank_name" "text", "p_account_holder_name" "text", "p_account_identifier" "text", "p_is_active" boolean) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_upsert_supplier_product"("p_org_id" "uuid", "p_supplier_id" "uuid", "p_product_id" "uuid", "p_supplier_sku" "text", "p_supplier_product_name" "text") RETURNS TABLE("id" "uuid")
@@ -3383,6 +4043,24 @@ $$;
 
 
 ALTER FUNCTION "public"."set_updated_at"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."trg_sync_supplier_payable_from_order"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+begin
+  if new.status in ('received', 'reconciled') then
+    perform public.fn_sync_supplier_payable_from_order(new.org_id, new.id, coalesce(new.created_by, auth.uid()));
+  end if;
+
+  return new;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."trg_sync_supplier_payable_from_order"() OWNER TO "postgres";
 
 SET default_tablespace = '';
 
@@ -3805,6 +4483,84 @@ CREATE TABLE IF NOT EXISTS "public"."supplier_orders" (
 ALTER TABLE "public"."supplier_orders" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."supplier_payables" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "org_id" "uuid" NOT NULL,
+    "branch_id" "uuid" NOT NULL,
+    "supplier_id" "uuid" NOT NULL,
+    "order_id" "uuid" NOT NULL,
+    "status" "text" DEFAULT 'pending'::"text" NOT NULL,
+    "estimated_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "invoice_amount" numeric(12,2),
+    "paid_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "outstanding_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "due_on" "date",
+    "payment_terms_days_snapshot" integer,
+    "preferred_payment_method" "public"."payment_method",
+    "selected_payment_method" "public"."payment_method",
+    "invoice_photo_url" "text",
+    "invoice_note" "text",
+    "paid_at" timestamp with time zone,
+    "created_by" "uuid",
+    "updated_by" "uuid",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "supplier_payables_estimated_amount_ck" CHECK (("estimated_amount" >= (0)::numeric)),
+    CONSTRAINT "supplier_payables_invoice_amount_ck" CHECK ((("invoice_amount" IS NULL) OR ("invoice_amount" >= (0)::numeric))),
+    CONSTRAINT "supplier_payables_outstanding_amount_ck" CHECK (("outstanding_amount" >= (0)::numeric)),
+    CONSTRAINT "supplier_payables_paid_amount_ck" CHECK (("paid_amount" >= (0)::numeric)),
+    CONSTRAINT "supplier_payables_payment_terms_snapshot_ck" CHECK ((("payment_terms_days_snapshot" IS NULL) OR ("payment_terms_days_snapshot" >= 0))),
+    CONSTRAINT "supplier_payables_preferred_payment_method_ck" CHECK ((("preferred_payment_method" IS NULL) OR ("preferred_payment_method" = ANY (ARRAY['cash'::"public"."payment_method", 'transfer'::"public"."payment_method"])))),
+    CONSTRAINT "supplier_payables_selected_payment_method_ck" CHECK ((("selected_payment_method" IS NULL) OR ("selected_payment_method" = ANY (ARRAY['cash'::"public"."payment_method", 'transfer'::"public"."payment_method"])))),
+    CONSTRAINT "supplier_payables_status_ck" CHECK (("status" = ANY (ARRAY['pending'::"text", 'partial'::"text", 'paid'::"text"])))
+);
+
+
+ALTER TABLE "public"."supplier_payables" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."supplier_payment_accounts" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "org_id" "uuid" NOT NULL,
+    "supplier_id" "uuid" NOT NULL,
+    "account_label" "text",
+    "bank_name" "text",
+    "account_holder_name" "text",
+    "account_identifier" "text",
+    "is_active" boolean DEFAULT true NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "created_by" "uuid",
+    "updated_by" "uuid"
+);
+
+
+ALTER TABLE "public"."supplier_payment_accounts" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."supplier_payments" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "org_id" "uuid" NOT NULL,
+    "branch_id" "uuid" NOT NULL,
+    "supplier_id" "uuid" NOT NULL,
+    "payable_id" "uuid" NOT NULL,
+    "order_id" "uuid" NOT NULL,
+    "payment_method" "public"."payment_method" NOT NULL,
+    "transfer_account_id" "uuid",
+    "amount" numeric(12,2) NOT NULL,
+    "paid_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "reference" "text",
+    "note" "text",
+    "created_by" "uuid",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "supplier_payments_amount_positive_ck" CHECK (("amount" > (0)::numeric)),
+    CONSTRAINT "supplier_payments_method_ck" CHECK (("payment_method" = ANY (ARRAY['cash'::"public"."payment_method", 'transfer'::"public"."payment_method"])))
+);
+
+
+ALTER TABLE "public"."supplier_payments" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."supplier_products" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "org_id" "uuid" NOT NULL,
@@ -3834,7 +4590,15 @@ CREATE TABLE IF NOT EXISTS "public"."suppliers" (
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "order_frequency" "public"."order_frequency",
     "order_day" "public"."weekday",
-    "receive_day" "public"."weekday"
+    "receive_day" "public"."weekday",
+    "payment_terms_days" integer,
+    "preferred_payment_method" "public"."payment_method",
+    "accepts_cash" boolean DEFAULT true NOT NULL,
+    "accepts_transfer" boolean DEFAULT true NOT NULL,
+    "payment_note" "text",
+    CONSTRAINT "suppliers_accepts_any_payment_method_ck" CHECK (("accepts_cash" OR "accepts_transfer")),
+    CONSTRAINT "suppliers_payment_terms_days_nonnegative_ck" CHECK ((("payment_terms_days" IS NULL) OR ("payment_terms_days" >= 0))),
+    CONSTRAINT "suppliers_preferred_payment_method_ck" CHECK ((("preferred_payment_method" IS NULL) OR ("preferred_payment_method" = ANY (ARRAY['cash'::"public"."payment_method", 'transfer'::"public"."payment_method"]))))
 );
 
 
@@ -4186,14 +4950,24 @@ CREATE OR REPLACE VIEW "public"."v_orders_admin" AS
     "so"."received_at",
     "so"."reconciled_at",
     "so"."expected_receive_on",
-    COALESCE("items"."items_count", (0)::bigint) AS "items_count"
-   FROM ((("public"."supplier_orders" "so"
+    COALESCE("items"."items_count", (0)::bigint) AS "items_count",
+    "sp"."id" AS "payable_id",
+    "sp"."status" AS "payable_status",
+        CASE
+            WHEN ("sp"."id" IS NULL) THEN 'not_created'::"text"
+            WHEN (("sp"."status" <> 'paid'::"text") AND ("sp"."due_on" IS NOT NULL) AND ("sp"."due_on" < CURRENT_DATE)) THEN 'overdue'::"text"
+            ELSE "sp"."status"
+        END AS "payment_state",
+    "sp"."due_on" AS "payable_due_on",
+    "sp"."outstanding_amount" AS "payable_outstanding_amount"
+   FROM (((("public"."supplier_orders" "so"
      LEFT JOIN "public"."suppliers" "s" ON ((("s"."id" = "so"."supplier_id") AND ("s"."org_id" = "so"."org_id"))))
      LEFT JOIN "public"."branches" "b" ON ((("b"."id" = "so"."branch_id") AND ("b"."org_id" = "so"."org_id"))))
      LEFT JOIN ( SELECT "supplier_order_items"."order_id",
             "count"(*) AS "items_count"
            FROM "public"."supplier_order_items"
-          GROUP BY "supplier_order_items"."order_id") "items" ON (("items"."order_id" = "so"."id")));
+          GROUP BY "supplier_order_items"."order_id") "items" ON (("items"."order_id" = "so"."id")))
+     LEFT JOIN "public"."supplier_payables" "sp" ON ((("sp"."order_id" = "so"."id") AND ("sp"."org_id" = "so"."org_id"))));
 
 
 ALTER VIEW "public"."v_orders_admin" OWNER TO "postgres";
@@ -4416,13 +5190,59 @@ CREATE OR REPLACE VIEW "public"."v_supplier_detail_admin" AS
     "sp"."relation_type",
     "s"."order_frequency",
     "s"."order_day",
-    "s"."receive_day"
+    "s"."receive_day",
+    "s"."payment_terms_days",
+    "s"."preferred_payment_method",
+    "s"."accepts_cash",
+    "s"."accepts_transfer",
+    "s"."payment_note"
    FROM (("public"."suppliers" "s"
      LEFT JOIN "public"."supplier_products" "sp" ON ((("sp"."supplier_id" = "s"."id") AND ("sp"."org_id" = "s"."org_id"))))
      LEFT JOIN "public"."products" "p" ON ((("p"."id" = "sp"."product_id") AND ("p"."org_id" = "s"."org_id"))));
 
 
 ALTER VIEW "public"."v_supplier_detail_admin" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."v_supplier_payables_admin" AS
+ SELECT "sp"."id" AS "payable_id",
+    "sp"."org_id",
+    "sp"."branch_id",
+    "b"."name" AS "branch_name",
+    "sp"."supplier_id",
+    "s"."name" AS "supplier_name",
+    "sp"."order_id",
+    "so"."status" AS "order_status",
+    "sp"."status" AS "payable_status",
+        CASE
+            WHEN (("sp"."status" <> 'paid'::"text") AND ("sp"."due_on" IS NOT NULL) AND ("sp"."due_on" < CURRENT_DATE)) THEN 'overdue'::"text"
+            ELSE "sp"."status"
+        END AS "payment_state",
+    "sp"."estimated_amount",
+    "sp"."invoice_amount",
+    "sp"."paid_amount",
+    "sp"."outstanding_amount",
+    "sp"."due_on",
+        CASE
+            WHEN ("sp"."due_on" IS NULL) THEN NULL::integer
+            ELSE ("sp"."due_on" - CURRENT_DATE)
+        END AS "due_in_days",
+    (("sp"."status" <> 'paid'::"text") AND ("sp"."due_on" IS NOT NULL) AND ("sp"."due_on" < CURRENT_DATE)) AS "is_overdue",
+    "sp"."payment_terms_days_snapshot",
+    "sp"."preferred_payment_method",
+    "sp"."selected_payment_method",
+    "sp"."invoice_photo_url",
+    "sp"."invoice_note",
+    "sp"."paid_at",
+    "sp"."created_at",
+    "sp"."updated_at"
+   FROM ((("public"."supplier_payables" "sp"
+     JOIN "public"."supplier_orders" "so" ON ((("so"."id" = "sp"."order_id") AND ("so"."org_id" = "sp"."org_id"))))
+     JOIN "public"."suppliers" "s" ON ((("s"."id" = "sp"."supplier_id") AND ("s"."org_id" = "sp"."org_id"))))
+     JOIN "public"."branches" "b" ON ((("b"."id" = "sp"."branch_id") AND ("b"."org_id" = "sp"."org_id"))));
+
+
+ALTER VIEW "public"."v_supplier_payables_admin" OWNER TO "postgres";
 
 
 CREATE OR REPLACE VIEW "public"."v_supplier_product_suggestions" AS
@@ -4484,12 +5304,22 @@ CREATE OR REPLACE VIEW "public"."v_suppliers_admin" AS
     COALESCE("sp_count"."products_count", (0)::bigint) AS "products_count",
     "s"."order_frequency",
     "s"."order_day",
-    "s"."receive_day"
-   FROM ("public"."suppliers" "s"
+    "s"."receive_day",
+    "s"."payment_terms_days",
+    "s"."preferred_payment_method",
+    "s"."accepts_cash",
+    "s"."accepts_transfer",
+    "s"."payment_note",
+    COALESCE("accounts_count"."accounts_count", (0)::bigint) AS "payment_accounts_count"
+   FROM (("public"."suppliers" "s"
      LEFT JOIN ( SELECT "supplier_products"."supplier_id",
             "count"(*) AS "products_count"
            FROM "public"."supplier_products"
-          GROUP BY "supplier_products"."supplier_id") "sp_count" ON (("sp_count"."supplier_id" = "s"."id")));
+          GROUP BY "supplier_products"."supplier_id") "sp_count" ON (("sp_count"."supplier_id" = "s"."id")))
+     LEFT JOIN ( SELECT "spa"."supplier_id",
+            "count"(*) FILTER (WHERE ("spa"."is_active" = true)) AS "accounts_count"
+           FROM "public"."supplier_payment_accounts" "spa"
+          GROUP BY "spa"."supplier_id") "accounts_count" ON (("accounts_count"."supplier_id" = "s"."id")));
 
 
 ALTER VIEW "public"."v_suppliers_admin" OWNER TO "postgres";
@@ -4655,6 +5485,26 @@ ALTER TABLE ONLY "public"."supplier_orders"
 
 
 
+ALTER TABLE ONLY "public"."supplier_payables"
+    ADD CONSTRAINT "supplier_payables_order_id_key" UNIQUE ("order_id");
+
+
+
+ALTER TABLE ONLY "public"."supplier_payables"
+    ADD CONSTRAINT "supplier_payables_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."supplier_payment_accounts"
+    ADD CONSTRAINT "supplier_payment_accounts_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."supplier_payments"
+    ADD CONSTRAINT "supplier_payments_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."supplier_products"
     ADD CONSTRAINT "supplier_products_org_id_supplier_id_product_id_key" UNIQUE ("org_id", "supplier_id", "product_id");
 
@@ -4752,6 +5602,30 @@ CREATE INDEX "supplier_orders_expected_receive_on_idx" ON "public"."supplier_ord
 
 
 
+CREATE INDEX "supplier_payables_org_branch_status_due_idx" ON "public"."supplier_payables" USING "btree" ("org_id", "branch_id", "status", "due_on", "created_at" DESC);
+
+
+
+CREATE INDEX "supplier_payables_org_supplier_status_idx" ON "public"."supplier_payables" USING "btree" ("org_id", "supplier_id", "status", "created_at" DESC);
+
+
+
+CREATE UNIQUE INDEX "supplier_payment_accounts_org_supplier_identifier_uk" ON "public"."supplier_payment_accounts" USING "btree" ("org_id", "supplier_id", "account_identifier") WHERE (("account_identifier" IS NOT NULL) AND ("length"(TRIM(BOTH FROM "account_identifier")) > 0));
+
+
+
+CREATE INDEX "supplier_payment_accounts_org_supplier_idx" ON "public"."supplier_payment_accounts" USING "btree" ("org_id", "supplier_id", "is_active", "created_at" DESC);
+
+
+
+CREATE INDEX "supplier_payments_org_branch_idx" ON "public"."supplier_payments" USING "btree" ("org_id", "branch_id", "paid_at" DESC);
+
+
+
+CREATE INDEX "supplier_payments_payable_paid_at_idx" ON "public"."supplier_payments" USING "btree" ("payable_id", "paid_at" DESC);
+
+
+
 CREATE OR REPLACE VIEW "public"."v_products_admin" AS
  SELECT "p"."id" AS "product_id",
     "p"."org_id",
@@ -4827,6 +5701,10 @@ CREATE OR REPLACE TRIGGER "set_supplier_orders_updated_at" BEFORE UPDATE ON "pub
 
 
 CREATE OR REPLACE TRIGGER "set_suppliers_updated_at" BEFORE UPDATE ON "public"."suppliers" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_supplier_orders_sync_payable" AFTER INSERT OR UPDATE OF "status", "supplier_id", "branch_id", "received_at", "reconciled_at" ON "public"."supplier_orders" FOR EACH ROW EXECUTE FUNCTION "public"."trg_sync_supplier_payable_from_order"();
 
 
 
@@ -5157,6 +6035,91 @@ ALTER TABLE ONLY "public"."supplier_orders"
 
 ALTER TABLE ONLY "public"."supplier_orders"
     ADD CONSTRAINT "supplier_orders_supplier_id_fkey" FOREIGN KEY ("supplier_id") REFERENCES "public"."suppliers"("id") ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."supplier_payables"
+    ADD CONSTRAINT "supplier_payables_branch_id_fkey" FOREIGN KEY ("branch_id") REFERENCES "public"."branches"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."supplier_payables"
+    ADD CONSTRAINT "supplier_payables_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id");
+
+
+
+ALTER TABLE ONLY "public"."supplier_payables"
+    ADD CONSTRAINT "supplier_payables_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."supplier_orders"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."supplier_payables"
+    ADD CONSTRAINT "supplier_payables_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."supplier_payables"
+    ADD CONSTRAINT "supplier_payables_supplier_id_fkey" FOREIGN KEY ("supplier_id") REFERENCES "public"."suppliers"("id") ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."supplier_payables"
+    ADD CONSTRAINT "supplier_payables_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "auth"."users"("id");
+
+
+
+ALTER TABLE ONLY "public"."supplier_payment_accounts"
+    ADD CONSTRAINT "supplier_payment_accounts_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id");
+
+
+
+ALTER TABLE ONLY "public"."supplier_payment_accounts"
+    ADD CONSTRAINT "supplier_payment_accounts_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."supplier_payment_accounts"
+    ADD CONSTRAINT "supplier_payment_accounts_supplier_id_fkey" FOREIGN KEY ("supplier_id") REFERENCES "public"."suppliers"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."supplier_payment_accounts"
+    ADD CONSTRAINT "supplier_payment_accounts_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "auth"."users"("id");
+
+
+
+ALTER TABLE ONLY "public"."supplier_payments"
+    ADD CONSTRAINT "supplier_payments_branch_id_fkey" FOREIGN KEY ("branch_id") REFERENCES "public"."branches"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."supplier_payments"
+    ADD CONSTRAINT "supplier_payments_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id");
+
+
+
+ALTER TABLE ONLY "public"."supplier_payments"
+    ADD CONSTRAINT "supplier_payments_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "public"."supplier_orders"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."supplier_payments"
+    ADD CONSTRAINT "supplier_payments_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."supplier_payments"
+    ADD CONSTRAINT "supplier_payments_payable_id_fkey" FOREIGN KEY ("payable_id") REFERENCES "public"."supplier_payables"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."supplier_payments"
+    ADD CONSTRAINT "supplier_payments_supplier_id_fkey" FOREIGN KEY ("supplier_id") REFERENCES "public"."suppliers"("id") ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."supplier_payments"
+    ADD CONSTRAINT "supplier_payments_transfer_account_id_fkey" FOREIGN KEY ("transfer_account_id") REFERENCES "public"."supplier_payment_accounts"("id") ON DELETE SET NULL;
 
 
 
@@ -5522,6 +6485,51 @@ CREATE POLICY "supplier_orders_write" ON "public"."supplier_orders" FOR INSERT W
 
 
 
+ALTER TABLE "public"."supplier_payables" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "supplier_payables_select" ON "public"."supplier_payables" FOR SELECT USING ("public"."is_org_member"("org_id"));
+
+
+
+CREATE POLICY "supplier_payables_update" ON "public"."supplier_payables" FOR UPDATE USING ("public"."is_org_admin_or_superadmin"("org_id"));
+
+
+
+CREATE POLICY "supplier_payables_write" ON "public"."supplier_payables" FOR INSERT WITH CHECK ("public"."is_org_admin_or_superadmin"("org_id"));
+
+
+
+ALTER TABLE "public"."supplier_payment_accounts" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "supplier_payment_accounts_select" ON "public"."supplier_payment_accounts" FOR SELECT USING ("public"."is_org_member"("org_id"));
+
+
+
+CREATE POLICY "supplier_payment_accounts_update" ON "public"."supplier_payment_accounts" FOR UPDATE USING ("public"."is_org_admin_or_superadmin"("org_id"));
+
+
+
+CREATE POLICY "supplier_payment_accounts_write" ON "public"."supplier_payment_accounts" FOR INSERT WITH CHECK ("public"."is_org_admin_or_superadmin"("org_id"));
+
+
+
+ALTER TABLE "public"."supplier_payments" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "supplier_payments_select" ON "public"."supplier_payments" FOR SELECT USING ("public"."is_org_member"("org_id"));
+
+
+
+CREATE POLICY "supplier_payments_update" ON "public"."supplier_payments" FOR UPDATE USING ("public"."is_org_admin_or_superadmin"("org_id"));
+
+
+
+CREATE POLICY "supplier_payments_write" ON "public"."supplier_payments" FOR INSERT WITH CHECK ("public"."is_org_admin_or_superadmin"("org_id"));
+
+
+
 ALTER TABLE "public"."supplier_products" ENABLE ROW LEVEL SECURITY;
 
 
@@ -5571,6 +6579,18 @@ GRANT USAGE ON SCHEMA "public" TO "postgres";
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
 GRANT USAGE ON SCHEMA "public" TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."fn_recompute_supplier_payable"("p_payable_id" "uuid", "p_actor_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."fn_recompute_supplier_payable"("p_payable_id" "uuid", "p_actor_user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."fn_recompute_supplier_payable"("p_payable_id" "uuid", "p_actor_user_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."fn_sync_supplier_payable_from_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_actor_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."fn_sync_supplier_payable_from_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_actor_user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."fn_sync_supplier_payable_from_order"("p_org_id" "uuid", "p_order_id" "uuid", "p_actor_user_id" "uuid") TO "service_role";
 
 
 
@@ -5754,6 +6774,12 @@ GRANT ALL ON FUNCTION "public"."rpc_reconcile_supplier_order"("p_org_id" "uuid",
 
 
 
+GRANT ALL ON FUNCTION "public"."rpc_register_supplier_payment"("p_org_id" "uuid", "p_payable_id" "uuid", "p_amount" numeric, "p_payment_method" "public"."payment_method", "p_paid_at" timestamp with time zone, "p_transfer_account_id" "uuid", "p_reference" "text", "p_note" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_register_supplier_payment"("p_org_id" "uuid", "p_payable_id" "uuid", "p_amount" numeric, "p_payment_method" "public"."payment_method", "p_paid_at" timestamp with time zone, "p_transfer_account_id" "uuid", "p_reference" "text", "p_note" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_register_supplier_payment"("p_org_id" "uuid", "p_payable_id" "uuid", "p_amount" numeric, "p_payment_method" "public"."payment_method", "p_paid_at" timestamp with time zone, "p_transfer_account_id" "uuid", "p_reference" "text", "p_note" "text") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."rpc_remove_supplier_order_item"("p_org_id" "uuid", "p_order_id" "uuid", "p_product_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_remove_supplier_order_item"("p_org_id" "uuid", "p_order_id" "uuid", "p_product_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_remove_supplier_order_item"("p_org_id" "uuid", "p_order_id" "uuid", "p_product_id" "uuid") TO "service_role";
@@ -5802,6 +6828,12 @@ GRANT ALL ON FUNCTION "public"."rpc_set_supplier_order_status"("p_org_id" "uuid"
 
 
 
+GRANT ALL ON FUNCTION "public"."rpc_set_supplier_payment_account_active"("p_org_id" "uuid", "p_account_id" "uuid", "p_is_active" boolean) TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_set_supplier_payment_account_active"("p_org_id" "uuid", "p_account_id" "uuid", "p_is_active" boolean) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_set_supplier_payment_account_active"("p_org_id" "uuid", "p_account_id" "uuid", "p_is_active" boolean) TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."rpc_superadmin_create_org"("p_org_name" "text", "p_timezone" "text", "p_initial_branch_name" "text", "p_initial_branch_address" "text", "p_owner_user_id" "uuid", "p_owner_display_name" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_superadmin_create_org"("p_org_name" "text", "p_timezone" "text", "p_initial_branch_name" "text", "p_initial_branch_address" "text", "p_owner_user_id" "uuid", "p_owner_display_name" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_superadmin_create_org"("p_org_name" "text", "p_timezone" "text", "p_initial_branch_name" "text", "p_initial_branch_address" "text", "p_owner_user_id" "uuid", "p_owner_display_name" "text") TO "service_role";
@@ -5820,9 +6852,21 @@ GRANT ALL ON FUNCTION "public"."rpc_superadmin_upsert_branch"("p_org_id" "uuid",
 
 
 
+GRANT ALL ON FUNCTION "public"."rpc_sync_supplier_payable_from_order"("p_org_id" "uuid", "p_order_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_sync_supplier_payable_from_order"("p_org_id" "uuid", "p_order_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_sync_supplier_payable_from_order"("p_org_id" "uuid", "p_order_id" "uuid") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."rpc_update_expiration_batch_date"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_expires_on" "date", "p_reason" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_update_expiration_batch_date"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_expires_on" "date", "p_reason" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_update_expiration_batch_date"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_expires_on" "date", "p_reason" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_update_supplier_payable"("p_org_id" "uuid", "p_payable_id" "uuid", "p_invoice_amount" numeric, "p_due_on" "date", "p_invoice_photo_url" "text", "p_invoice_note" "text", "p_selected_payment_method" "public"."payment_method") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_update_supplier_payable"("p_org_id" "uuid", "p_payable_id" "uuid", "p_invoice_amount" numeric, "p_due_on" "date", "p_invoice_photo_url" "text", "p_invoice_note" "text", "p_selected_payment_method" "public"."payment_method") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_update_supplier_payable"("p_org_id" "uuid", "p_payable_id" "uuid", "p_invoice_amount" numeric, "p_due_on" "date", "p_invoice_photo_url" "text", "p_invoice_note" "text", "p_selected_payment_method" "public"."payment_method") TO "service_role";
 
 
 
@@ -5868,9 +6912,21 @@ GRANT ALL ON FUNCTION "public"."rpc_upsert_supplier"("p_supplier_id" "uuid", "p_
 
 
 
+GRANT ALL ON FUNCTION "public"."rpc_upsert_supplier"("p_supplier_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_contact_name" "text", "p_phone" "text", "p_email" "text", "p_notes" "text", "p_is_active" boolean, "p_order_frequency" "public"."order_frequency", "p_order_day" "public"."weekday", "p_receive_day" "public"."weekday", "p_payment_terms_days" integer, "p_preferred_payment_method" "public"."payment_method", "p_accepts_cash" boolean, "p_accepts_transfer" boolean, "p_payment_note" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_upsert_supplier"("p_supplier_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_contact_name" "text", "p_phone" "text", "p_email" "text", "p_notes" "text", "p_is_active" boolean, "p_order_frequency" "public"."order_frequency", "p_order_day" "public"."weekday", "p_receive_day" "public"."weekday", "p_payment_terms_days" integer, "p_preferred_payment_method" "public"."payment_method", "p_accepts_cash" boolean, "p_accepts_transfer" boolean, "p_payment_note" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_upsert_supplier"("p_supplier_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_contact_name" "text", "p_phone" "text", "p_email" "text", "p_notes" "text", "p_is_active" boolean, "p_order_frequency" "public"."order_frequency", "p_order_day" "public"."weekday", "p_receive_day" "public"."weekday", "p_payment_terms_days" integer, "p_preferred_payment_method" "public"."payment_method", "p_accepts_cash" boolean, "p_accepts_transfer" boolean, "p_payment_note" "text") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."rpc_upsert_supplier_order_item"("p_org_id" "uuid", "p_order_id" "uuid", "p_product_id" "uuid", "p_ordered_qty" numeric, "p_unit_cost" numeric) TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_upsert_supplier_order_item"("p_org_id" "uuid", "p_order_id" "uuid", "p_product_id" "uuid", "p_ordered_qty" numeric, "p_unit_cost" numeric) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_upsert_supplier_order_item"("p_org_id" "uuid", "p_order_id" "uuid", "p_product_id" "uuid", "p_ordered_qty" numeric, "p_unit_cost" numeric) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_upsert_supplier_payment_account"("p_org_id" "uuid", "p_supplier_id" "uuid", "p_account_id" "uuid", "p_account_label" "text", "p_bank_name" "text", "p_account_holder_name" "text", "p_account_identifier" "text", "p_is_active" boolean) TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_upsert_supplier_payment_account"("p_org_id" "uuid", "p_supplier_id" "uuid", "p_account_id" "uuid", "p_account_label" "text", "p_bank_name" "text", "p_account_holder_name" "text", "p_account_identifier" "text", "p_is_active" boolean) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_upsert_supplier_payment_account"("p_org_id" "uuid", "p_supplier_id" "uuid", "p_account_id" "uuid", "p_account_label" "text", "p_bank_name" "text", "p_account_holder_name" "text", "p_account_identifier" "text", "p_is_active" boolean) TO "service_role";
 
 
 
@@ -5889,6 +6945,12 @@ GRANT ALL ON FUNCTION "public"."rpc_upsert_supplier_product"("p_org_id" "uuid", 
 GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "anon";
 GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."trg_sync_supplier_payable_from_order"() TO "anon";
+GRANT ALL ON FUNCTION "public"."trg_sync_supplier_payable_from_order"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."trg_sync_supplier_payable_from_order"() TO "service_role";
 
 
 
@@ -6036,6 +7098,24 @@ GRANT ALL ON TABLE "public"."supplier_orders" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."supplier_payables" TO "anon";
+GRANT ALL ON TABLE "public"."supplier_payables" TO "authenticated";
+GRANT ALL ON TABLE "public"."supplier_payables" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."supplier_payment_accounts" TO "anon";
+GRANT ALL ON TABLE "public"."supplier_payment_accounts" TO "authenticated";
+GRANT ALL ON TABLE "public"."supplier_payment_accounts" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."supplier_payments" TO "anon";
+GRANT ALL ON TABLE "public"."supplier_payments" TO "authenticated";
+GRANT ALL ON TABLE "public"."supplier_payments" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."supplier_products" TO "anon";
 GRANT ALL ON TABLE "public"."supplier_products" TO "authenticated";
 GRANT ALL ON TABLE "public"."supplier_products" TO "service_role";
@@ -6177,6 +7257,12 @@ GRANT ALL ON TABLE "public"."v_superadmin_orgs" TO "service_role";
 GRANT ALL ON TABLE "public"."v_supplier_detail_admin" TO "anon";
 GRANT ALL ON TABLE "public"."v_supplier_detail_admin" TO "authenticated";
 GRANT ALL ON TABLE "public"."v_supplier_detail_admin" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."v_supplier_payables_admin" TO "anon";
+GRANT ALL ON TABLE "public"."v_supplier_payables_admin" TO "authenticated";
+GRANT ALL ON TABLE "public"."v_supplier_payables_admin" TO "service_role";
 
 
 

@@ -18,6 +18,64 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-17 22:00 -03 — Pagos proveedor por sucursal + integración con orders
+
+**Tipo:** schema
+**Lote:** supplier-payments-branch-module-foundation
+**Alcance:** db, ui, docs, tests
+
+**Resumen**
+Se implementó la base operativa del módulo `/payments` por sucursal: perfil de pago en proveedor (métodos/plazo), cuentas de transferencia, cuentas por pagar por pedido y registro de pagos. El estado de pago queda integrado en `/orders` para ver pendiente/parcial/pagado/vencido y saldo.
+
+**Impacto**
+
+- Nuevo flujo conectado `suppliers -> orders -> payments`.
+- Cada sucursal gestiona sus pedidos y pagos sobre `branch_id`.
+- Al recibir/controlar pedido se sincroniza automáticamente `supplier_payables`.
+- `/orders` muestra estado de pago y saldo pendiente por pedido.
+- `/suppliers` y `/suppliers/[supplierId]` incluyen método/plazo/cuentas de pago.
+
+**Archivos**
+
+- supabase/migrations/20260217213000_039_supplier_payments_branch_module.sql
+- app/payments/page.tsx
+- app/orders/page.tsx
+- app/suppliers/page.tsx
+- app/suppliers/[supplierId]/page.tsx
+- app/suppliers/SupplierActions.tsx
+- app/components/TopBar.tsx
+- docs/docs-app-sitemap.md
+- docs/docs-app-screens-index.md
+- docs/docs-app-screens-orders.md
+- docs/docs-app-screens-suppliers.md
+- docs/docs-app-screens-settings-audit-log.md
+- docs/docs-app-screens-payments.md
+- docs/docs-modules-suppliers.md
+- docs/docs-modules-supplier-orders.md
+- docs/docs-modules-supplier-payments.md
+- docs/docs-scope-mvp.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-schema-model.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/schema.sql
+- types/supabase.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-02-17)
+- npm run db:schema:snapshot OK (2026-02-17)
+- npm run types:gen OK (2026-02-17)
+- npm run db:seed:all OK (2026-02-17)
+- npm run db:rls:smoke OK (2026-02-17)
+- npm run lint OK (2026-02-17)
+- npm run build OK (2026-02-17)
+
+**Commit:** N/A
+
 ## 2026-02-13 — Auditoría: hardening operativo en proveedores/pedidos
 
 **Lote:** audit-log-operational-hardening

@@ -31,6 +31,7 @@ Estado: **baseline**. Este documento define una base de datos mínima coherente 
 - [x] `v_superadmin_orgs`
 - [x] `v_superadmin_org_detail`
 - [x] `v_cashbox_session_current`
+- [x] `v_supplier_payables_admin`
 
 **RPCs (escritura/lectura)**:
 
@@ -74,6 +75,11 @@ Estado: **baseline**. Este documento define una base de datos mínima coherente 
 - [x] `rpc_close_cash_session`
   - Hardening: firma de control + confirmación + `count_lines` por denominación.
   - Apertura/cierre con conteo por denominaciones en caja y reserva.
+- [x] `rpc_sync_supplier_payable_from_order`
+- [x] `rpc_update_supplier_payable`
+- [x] `rpc_register_supplier_payment`
+- [x] `rpc_upsert_supplier_payment_account`
+- [x] `rpc_set_supplier_payment_account_active`
 
 ---
 
