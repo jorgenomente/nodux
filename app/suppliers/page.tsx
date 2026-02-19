@@ -42,8 +42,6 @@ type SupplierRow = {
   receive_day: string | null;
   payment_terms_days: number | null;
   preferred_payment_method: 'cash' | 'transfer' | null;
-  accepts_cash: boolean;
-  accepts_transfer: boolean;
   payment_note: string | null;
   payment_accounts_count?: number | null;
   products_count?: number | null;
@@ -106,9 +104,9 @@ export default async function SuppliersPage({
     const preferredPaymentMethod = String(
       formData.get('preferred_payment_method') ?? '',
     ).trim();
-    const acceptsCash = formData.get('accepts_cash') === 'on';
-    const acceptsTransfer = formData.get('accepts_transfer') === 'on';
     const paymentNote = String(formData.get('payment_note') ?? '').trim();
+    const acceptsCash = preferredPaymentMethod !== 'transfer';
+    const acceptsTransfer = preferredPaymentMethod !== 'cash';
     const paymentTermsDays =
       paymentTermsDaysRaw === ''
         ? null
@@ -171,9 +169,9 @@ export default async function SuppliersPage({
     const preferredPaymentMethod = String(
       formData.get('preferred_payment_method') ?? '',
     ).trim();
-    const acceptsCash = formData.get('accepts_cash') === 'on';
-    const acceptsTransfer = formData.get('accepts_transfer') === 'on';
     const paymentNote = String(formData.get('payment_note') ?? '').trim();
+    const acceptsCash = preferredPaymentMethod !== 'transfer';
+    const acceptsTransfer = preferredPaymentMethod !== 'cash';
     const paymentTermsDays =
       paymentTermsDaysRaw === ''
         ? null
@@ -334,7 +332,7 @@ export default async function SuppliersPage({
               />
             </label>
             <label className="text-sm text-zinc-600">
-              Método preferido
+              Método de pago preferido
               <select
                 name="preferred_payment_method"
                 className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
@@ -344,16 +342,10 @@ export default async function SuppliersPage({
                 <option value="transfer">Transferencia</option>
               </select>
             </label>
-            <label className="flex items-center gap-2 text-sm text-zinc-600">
-              <input name="accepts_cash" type="checkbox" defaultChecked />
-              Acepta efectivo
-            </label>
-            <label className="flex items-center gap-2 text-sm text-zinc-600">
-              <input name="accepts_transfer" type="checkbox" defaultChecked />
-              Acepta transferencia
-            </label>
+            <input type="hidden" name="accepts_cash" value="on" />
+            <input type="hidden" name="accepts_transfer" value="on" />
             <label className="text-sm text-zinc-600 md:col-span-2">
-              Nota de pago
+              Datos de pago y notas del proveedor
               <textarea
                 name="payment_note"
                 rows={2}
@@ -431,12 +423,7 @@ export default async function SuppliersPage({
                           : 'Sin definir'}
                       </p>
                       <p className="mt-1 text-xs text-zinc-500">
-                        Pago: {supplier.accepts_cash ? 'Efectivo' : ''}
-                        {supplier.accepts_cash && supplier.accepts_transfer
-                          ? ' / '
-                          : ''}
-                        {supplier.accepts_transfer ? 'Transferencia' : ''}
-                        {' · '}Preferido:{' '}
+                        Método de pago preferido:{' '}
                         {supplier.preferred_payment_method === 'cash'
                           ? 'Efectivo'
                           : supplier.preferred_payment_method === 'transfer'
@@ -450,7 +437,8 @@ export default async function SuppliersPage({
                       </p>
                       {supplier.payment_note ? (
                         <p className="mt-1 text-xs text-zinc-500">
-                          Nota pago: {supplier.payment_note}
+                          Datos de pago y notas del proveedor:{' '}
+                          {supplier.payment_note}
                         </p>
                       ) : null}
                       {supplier.notes ? (
@@ -481,8 +469,6 @@ export default async function SuppliersPage({
                         preferredPaymentMethod={
                           supplier.preferred_payment_method
                         }
-                        acceptsCash={supplier.accepts_cash}
-                        acceptsTransfer={supplier.accepts_transfer}
                         paymentNote={supplier.payment_note}
                         orderFrequencyOptions={orderFrequencyOptions}
                         weekdayOptions={weekdayOptions}

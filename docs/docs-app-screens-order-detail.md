@@ -34,7 +34,9 @@ Gestionar un pedido end-to-end:
 
 - Breadcrumb: Pedidos → {orderId}
 - Estado (badge)
-- Info: proveedor, sucursal, fechas (creado / enviado / controlado)
+- Info: proveedor, sucursal, fechas (creado / enviado / controlado) + monto estimado total del pedido
+- Aclaración visible: el estimado es aproximado; el monto real se confirma en remito/factura.
+- Si corresponde: estado de pago en efectivo + monto pagado (y fecha/hora)
 - Selector de estado (borrador/enviado) + botón “Actualizar estado”
 - Acciones por estado:
   - Draft: “Enviar pedido”
@@ -48,34 +50,31 @@ Columnas:
 - producto
 - ordered_qty (editable en draft)
 - received_qty (editable en recepción/control)
+- costo estimado unitario (`unit_cost`)
+- subtotal estimado por item (`ordered_qty * unit_cost`)
 - diferencia (computed)
 - acciones: remover (solo draft)
 
 ### Footer / Summary
 
 - Conteo items
+- Monto estimado total del pedido
 - Notas del pedido
 
 ---
 
 ## Acciones (MVP)
 
-### A1) Agregar ítem
+### A1) Editar items del borrador (lista completa)
 
-- Selector simple (lista de productos activos)
-- Define ordered_qty
-- UPSERT item
+- En `draft`, se muestra la lista completa de artículos sugeridos del proveedor/sucursal.
+- Cada fila muestra estadísticas operativas (stock, stock mínimo, promedio por ciclo, sugerido).
+- Incluye buscador por artículo y campo de cantidad editable por fila.
+- “Guardar items del borrador” aplica la nueva lista completa:
+  - qty > 0: upsert item
+  - qty = 0 o no incluido: remover item existente
 
-### A2) Editar ordered_qty (solo draft)
-
-- inline edit
-- valida qty > 0
-
-### A3) Remover ítem (solo draft)
-
-- elimina item (o soft delete Post-MVP)
-
-### A4) Enviar pedido (draft → sent)
+### A2) Enviar pedido (draft → sent)
 
 Validaciones:
 
@@ -86,7 +85,7 @@ RPC status change:
 
 - set status sent + sent_at
 
-### A5) Recibir mercadería y controlar (sent → reconciled)
+### A3) Recibir mercadería y controlar (sent → reconciled)
 
 - UI cambia a modo recepción + control:
   - received_qty por item (default = ordered_qty)
@@ -101,13 +100,26 @@ RPC status change:
     RPC: `rpc_receive_supplier_order(order_id, received_items[], received_at, controlled_by)`
 - Compatibilidad legacy:
   - si existe un pedido en estado `received` (flujo anterior), el control final lo pasa a `reconciled` guardando fecha y firma.
+- Flujo efectivo (proveedor con método preferido `cash`):
+  - aparece un check “Pago en efectivo realizado” dentro del bloque de recepción/control.
+  - el input “Monto exacto pagado” se muestra siempre visible, pero bloqueado/vacío hasta marcar el check.
+  - incluye check adicional “Pago parcial”; al marcarlo exige “Monto total remito/factura” y muestra restante proyectado.
+  - al confirmar recepción/control:
+    - si el check no está marcado: solo controla el pedido.
+    - si el check está marcado: controla el pedido y registra el monto efectivo ingresado.
+  - si el check está marcado y falta monto exacto, no se aplica ningún cambio.
+  - si el payable ya está saldado, no se vuelve a mostrar la opción de registrar pago efectivo.
+  - si es pago parcial, el total declarado se aplica como `invoice_amount`; si no es parcial y el monto supera el saldo/estimado, también ajusta `invoice_amount` para reflejar monto real.
+- Segundo entry point factura/remito:
+  - en la misma pantalla existe “Registrar factura/remito (opcional)” con los mismos campos operativos de `/payments`.
+  - permite capturar número, monto, vencimiento, método seleccionado, foto y nota al momento de recibir/controlar.
 
-### A6) Actualizar estado manual (draft/sent)
+### A4) Actualizar estado manual (draft/sent)
 
 - Selector de estado (solo borrador/enviado)
 - Recibido/controlado se realizan solo via recepcion
 
-### A7) Ajustar fecha estimada de recepción (sent/received)
+### A5) Ajustar fecha estimada de recepción (sent/received)
 
 - Campo editable `expected_receive_on` en header
 - Permite refinar fecha de llegada cuando la programación del proveedor no es exacta
@@ -120,7 +132,7 @@ RPC status change:
 
 - Loading: skeleton
 - Error: 404 si order no pertenece a org o no existe
-- Empty items (draft): “Agregá productos al pedido” + CTA “Agregar ítem”
+- Empty items (draft): “No hay sugerencias para este proveedor y sucursal”.
 
 ---
 
@@ -145,6 +157,17 @@ Salida:
   - received_qty
   - unit_cost (optional)
   - diff_qty (computed)
+
+View auxiliar (solo `draft`): `v_supplier_product_suggestions(supplier_id, branch_id)`
+Salida mínima:
+
+- product_id
+- product_name
+- stock_on_hand
+- safety_stock
+- avg_daily_sales_30d
+- cycle_days
+- suggested_qty
 
 ### Escrituras
 

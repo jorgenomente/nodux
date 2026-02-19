@@ -40,6 +40,10 @@ Ultima actualizacion: 2026-02-18 12:00
 - /clients operativo con lista, detalle y pedidos especiales por sucursal.
 - Pedidos especiales usan items de catálogo y se entregan desde POS (stock se descuenta al cobrar).
 - Dashboard operativo con KPIs y alertas basicas via rpc_get_dashboard_admin.
+- Dashboard incorpora sección operativa con toggle hoy/semana para compras y pagos:
+  - pedidos a realizar (según `order_day` de proveedor),
+  - pedidos a recibir (según `expected_receive_on`),
+  - pagos a realizar (según `due_on`) separados por efectivo/transferencia.
 - Calendario de proveedores en `/orders/calendar` iterado a modo operativo: filtros por hoy/semana/mes/rango, estados (pendiente por realizar, realizado, pendiente por recibir, recibido/controlado), acceso directo a pedidos y edicion de fecha estimada de recepcion (`expected_receive_on`) para pedidos no exactos.
 - Settings operativo completo en frontend: hub `/settings` y subrutas `/settings/users`, `/settings/branches`, `/settings/staff-permissions`, `/settings/preferences`, `/settings/audit-log`.
 - Superadmin global operativo en `/superadmin`: listado/busqueda de orgs, creacion de org, alta de sucursal por org y activacion de org para contexto de soporte.
@@ -64,8 +68,14 @@ Ultima actualizacion: 2026-02-18 12:00
 - Caja ahora opera con conteo por denominaciones en apertura y cierre para caja + reserva.
 - Las denominaciones son configurables por organización desde preferencias.
 - Pagos a proveedor por sucursal agregados: `supplier_payables` por pedido y `supplier_payments` como movimientos.
+- `/payments` ahora incluye pedidos `sent` (pendiente por recibir) ademas de `received/reconciled` (controlado), con backfill para historicos.
+- `/payments` registra numero de factura/remito (`invoice_reference`) y permite registrar pago con fecha/hora (`paid_at`).
 - `/orders` ahora muestra estado de pago y saldo pendiente; `/payments` concentra pendientes, vencidos y registro de pagos.
-- Proveedores incorporan perfil de pago: plazo (días), método preferido (cash/transfer), métodos aceptados y cuentas de transferencia.
+- `/orders/[orderId]` en estado `draft` ahora usa editor batch de items con lista completa de sugeridos, buscador y guardado único de la nueva lista.
+- `/orders/[orderId]` muestra monto estimado total en header/recepción y costo estimado por item (unitario + subtotal).
+- `/orders/[orderId]` en recepción/control agrega segundo entry point para registrar factura/remito (número, monto, vencimiento, método, foto, nota) y soporta pago efectivo parcial con total declarado + restante proyectado.
+- Proveedores incorporan perfil de pago: plazo (días), método de pago preferido (cash/transfer), datos de pago/notas y cuentas de transferencia.
+- En `/payments`, la foto de factura/remito se comprime automáticamente (JPG liviano) y se guarda en Storage (`supplier-invoices`).
 
 ## Post-MVP ya registrado
 

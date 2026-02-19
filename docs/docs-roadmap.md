@@ -245,3 +245,6 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-02-16: hardening de cierre de Caja con firma operativa obligatoria, confirmación explícita y conteo por denominaciones.
 - 2026-02-16: caja pasa a conteo por denominaciones en apertura/cierre para caja + reserva, con denominaciones configurables por organización.
 - 2026-02-18: se agrega módulo `/payments` por sucursal para cuentas a pagar de proveedores (pendiente/parcial/pagado/vencido), registro de pagos y estado de pago integrado en `/orders`.
+- 2026-02-18: hardening de RPCs en pagos: se elimina sobrecarga legacy de `rpc_update_supplier_payable` para evitar errores de resolución ambigua en PostgREST durante pagos parciales/actualización de factura.
+- 2026-02-18: `/orders/[orderId]` agrega entry point operativo de factura/remito y soporte de pago efectivo parcial en recepción/control (total declarado + restante), alineado con `/payments`.
+- 2026-02-19: `/dashboard` agrega sección operativa hoy/semana para compras y pagos (pedidos a realizar, pedidos a recibir y pagos por método efectivo/transferencia).

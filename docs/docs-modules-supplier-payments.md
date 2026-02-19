@@ -34,8 +34,9 @@ Operar pagos de pedidos por sucursal con trazabilidad y visibilidad de urgencias
 
 3. Integración con pedidos:
 
-- al recibir/controlar pedido, se sincroniza la cuenta por pagar.
+- al enviar/recibir/controlar pedido, se sincroniza la cuenta por pagar.
 - `/orders` muestra `payment_state`, vencimiento y saldo.
+- `/payments` muestra además `order_status` para distinguir pendiente por recibir vs controlado.
 
 4. Métodos de pago MVP:
 
@@ -57,6 +58,10 @@ Operar pagos de pedidos por sucursal con trazabilidad y visibilidad de urgencias
 - `rpc_upsert_supplier_payment_account(...)`
 - `rpc_set_supplier_payment_account_active(...)`
 - `rpc_sync_supplier_payable_from_order(...)`
+
+Nota:
+
+- La firma canónica de `rpc_update_supplier_payable` incluye `p_invoice_reference`; la sobrecarga legacy (sin ese parámetro) fue eliminada para evitar ambigüedad.
 
 ## Auditoría
 

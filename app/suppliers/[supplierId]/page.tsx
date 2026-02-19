@@ -19,8 +19,6 @@ type SupplierDetailRow = {
   receive_day: string | null;
   payment_terms_days: number | null;
   preferred_payment_method: 'cash' | 'transfer' | null;
-  accepts_cash: boolean;
-  accepts_transfer: boolean;
   payment_note: string | null;
   product_id: string | null;
   product_name: string | null;
@@ -63,6 +61,11 @@ export default async function SupplierDetailPage({
 }: {
   params: Promise<{ supplierId: string }>;
 }) {
+  const deriveAccepts = (preferredPaymentMethod: string) => ({
+    acceptsCash: preferredPaymentMethod !== 'transfer',
+    acceptsTransfer: preferredPaymentMethod !== 'cash',
+  });
+
   const resolvedParams = await params;
   const session = await getOrgAdminSession();
   if (!session) {
@@ -135,9 +138,11 @@ export default async function SupplierDetailPage({
     const preferredPaymentMethod = String(
       formData.get('preferred_payment_method') ?? '',
     ).trim();
-    const acceptsCash = formData.get('accepts_cash') === 'on';
-    const acceptsTransfer = formData.get('accepts_transfer') === 'on';
     const paymentNote = String(formData.get('payment_note') ?? '').trim();
+    const { acceptsCash, acceptsTransfer } =
+      preferredPaymentMethod === 'cash' || preferredPaymentMethod === 'transfer'
+        ? deriveAccepts(preferredPaymentMethod)
+        : { acceptsCash: true, acceptsTransfer: true };
     const paymentTermsDays =
       paymentTermsDaysRaw === ''
         ? null
@@ -517,7 +522,7 @@ export default async function SupplierDetailPage({
               />
             </label>
             <label className="text-sm text-zinc-600">
-              Método preferido
+              Método de pago preferido
               <select
                 name="preferred_payment_method"
                 defaultValue={supplier.preferred_payment_method ?? ''}
@@ -528,24 +533,10 @@ export default async function SupplierDetailPage({
                 <option value="transfer">Transferencia</option>
               </select>
             </label>
-            <label className="flex items-center gap-2 text-sm text-zinc-600">
-              <input
-                name="accepts_cash"
-                type="checkbox"
-                defaultChecked={supplier.accepts_cash}
-              />
-              Acepta efectivo
-            </label>
-            <label className="flex items-center gap-2 text-sm text-zinc-600">
-              <input
-                name="accepts_transfer"
-                type="checkbox"
-                defaultChecked={supplier.accepts_transfer}
-              />
-              Acepta transferencia
-            </label>
+            <input type="hidden" name="accepts_cash" value="on" />
+            <input type="hidden" name="accepts_transfer" value="on" />
             <label className="text-sm text-zinc-600 md:col-span-2">
-              Nota de pago
+              Datos de pago y notas del proveedor
               <textarea
                 name="payment_note"
                 defaultValue={supplier.payment_note ?? ''}

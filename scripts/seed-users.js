@@ -120,8 +120,18 @@ const password = 'prueba123';
   if (orgError) throw orgError;
 
   const { error: branchError } = await supabase.from('branches').upsert([
-    { id: BRANCH_A, org_id: ORG_ID, name: 'Sucursal A', is_active: true },
-    { id: BRANCH_B, org_id: ORG_ID, name: 'Sucursal B', is_active: true },
+    {
+      id: BRANCH_A,
+      org_id: ORG_ID,
+      name: 'Sucursal Palermo',
+      is_active: true,
+    },
+    {
+      id: BRANCH_B,
+      org_id: ORG_ID,
+      name: 'Sucursal Caballito',
+      is_active: true,
+    },
   ]);
   if (branchError) throw branchError;
 

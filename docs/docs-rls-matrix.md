@@ -19,6 +19,10 @@ Estado actual:
 - Módulo caja por sucursal agregado en `supabase/migrations/20260216171000_036_cashbox_branch_sessions.sql` (`cash_sessions`, `cash_session_movements`, `v_cashbox_session_current` y RPCs de apertura/movimientos/cierre).
 - Cierre de caja con firma y conteo por denominaciones agregado en `supabase/migrations/20260216182000_037_cashbox_close_signature_denominations.sql` (`cash_session_count_lines` y hardening de `rpc_close_cash_session`).
 - Módulo pagos proveedor por sucursal agregado en `supabase/migrations/20260217213000_039_supplier_payments_branch_module.sql` (`supplier_payment_accounts`, `supplier_payables`, `supplier_payments`, `v_supplier_payables_admin` y estado de pago en `v_orders_admin`).
+- Sincronización extendida en `supabase/migrations/20260218102000_041_payables_include_sent_orders.sql`: `supplier_payables` también se crea/actualiza para pedidos `sent`.
+- `supplier_payables` incorpora `invoice_reference` y `rpc_update_supplier_payable` se extiende para persistir número de factura/remito (`supabase/migrations/20260218113000_042_supplier_payables_invoice_reference.sql`).
+- Limpieza de RPCs: se elimina overload legacy de `rpc_update_supplier_payable` en `supabase/migrations/20260218151000_043_drop_legacy_rpc_update_supplier_payable_overload.sql` para evitar resolución ambigua de firma en PostgREST (sin cambios de policies).
+- Bucket de facturas proveedor agregado en `supabase/migrations/20260217221500_040_supplier_invoice_storage_bucket.sql` (`storage.buckets: supplier-invoices` + policies en `storage.objects` por `org_id` en path).
 - Smoke RLS automatizado agregado en `scripts/rls-smoke-tests.mjs` (ejecución: `npm run db:rls:smoke`).
 - CI hardening agrega ejecución automática de smoke RLS + smoke Playwright en `.github/workflows/ci-hardening.yml`.
 

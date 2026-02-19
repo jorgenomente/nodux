@@ -15,6 +15,7 @@ type SearchParams = {
   draft_branch_id?: string;
   draft_margin_pct?: string;
   draft_avg_mode?: string;
+  result?: string;
 };
 
 type OrderRow = {
@@ -34,6 +35,13 @@ type OrderRow = {
   payment_state?: 'pending' | 'partial' | 'paid' | 'overdue' | 'not_created';
   payable_due_on?: string | null;
   payable_outstanding_amount?: number | null;
+};
+
+type SupplierPaymentPreferenceRow = {
+  id: string;
+  name: string | null;
+  is_active: boolean;
+  preferred_payment_method: 'cash' | 'transfer' | null;
 };
 
 type SuggestionRow = {
@@ -117,6 +125,19 @@ const formatPaymentState = (state: string | null | undefined) => {
   }
 };
 
+const formatPaymentMethod = (
+  method: 'cash' | 'transfer' | null | undefined,
+) => {
+  switch (method) {
+    case 'cash':
+      return 'Efectivo';
+    case 'transfer':
+      return 'Transferencia';
+    default:
+      return 'Sin definir';
+  }
+};
+
 const formatDate = (value: string | null) =>
   value ? new Date(value).toLocaleDateString('es-AR') : '—';
 
@@ -149,6 +170,28 @@ const isExpectedReceiveOverdue = (
   return expectedDay < todayDay;
 };
 
+const buildDraftResultUrl = ({
+  result,
+  supplierId,
+  branchId,
+  draftMarginPct,
+  draftAvgMode,
+}: {
+  result: string;
+  supplierId?: string;
+  branchId?: string;
+  draftMarginPct?: string;
+  draftAvgMode?: string;
+}) => {
+  const params = new URLSearchParams();
+  params.set('result', result);
+  if (supplierId) params.set('draft_supplier_id', supplierId);
+  if (branchId) params.set('draft_branch_id', branchId);
+  if (draftMarginPct) params.set('draft_margin_pct', draftMarginPct);
+  if (draftAvgMode) params.set('draft_avg_mode', draftAvgMode);
+  return `/orders?${params.toString()}`;
+};
+
 export default async function OrdersPage({
   searchParams,
 }: {
@@ -167,10 +210,16 @@ export default async function OrdersPage({
 
   const { data: suppliers } = await supabase
     .from('suppliers')
-    .select('id, name, is_active')
+    .select('id, name, is_active, preferred_payment_method')
     .eq('org_id', orgId)
     .eq('is_active', true)
     .order('name');
+
+  const supplierPaymentMethodById = new Map(
+    ((suppliers as SupplierPaymentPreferenceRow[] | null) ?? []).map(
+      (supplier) => [supplier.id, supplier.preferred_payment_method],
+    ),
+  );
 
   const { data: branches } = await supabase
     .from('branches')
@@ -318,9 +367,38 @@ export default async function OrdersPage({
     const supabaseServer = await createServerSupabaseClient();
     const supplierId = String(formData.get('supplier_id') ?? '').trim();
     const branchId = String(formData.get('branch_id') ?? '').trim();
+    const formDraftMarginPct = String(
+      formData.get('draft_margin_pct') ?? '',
+    ).trim();
+    const formDraftAvgMode = String(
+      formData.get('draft_avg_mode') ?? '',
+    ).trim();
     const notes = String(formData.get('notes') ?? '').trim();
+    const action = String(formData.get('order_action') ?? 'draft').trim();
 
     if (!supplierId || !branchId) return;
+
+    const items = Array.from(formData.entries())
+      .filter(([key]) => key.startsWith('qty_'))
+      .map(([key, value]) => ({
+        productId: key.replace('qty_', ''),
+        qty: Number(value),
+        unitCost: Number(formData.get(`unit_cost_${key.replace('qty_', '')}`)),
+      }))
+      .filter((entry) => entry.productId && entry.qty > 0);
+
+    if (items.length === 0) {
+      revalidatePath('/orders');
+      redirect(
+        buildDraftResultUrl({
+          result: 'order_items_required',
+          supplierId,
+          branchId,
+          draftMarginPct: formDraftMarginPct,
+          draftAvgMode: formDraftAvgMode,
+        }),
+      );
+    }
 
     const { data: result } = await supabaseServer.rpc(
       'rpc_create_supplier_order',
@@ -336,21 +414,15 @@ export default async function OrdersPage({
 
     if (!orderId) {
       revalidatePath('/orders');
-      return;
-    }
-
-    const items = Array.from(formData.entries())
-      .filter(([key]) => key.startsWith('qty_'))
-      .map(([key, value]) => ({
-        productId: key.replace('qty_', ''),
-        qty: Number(value),
-        unitCost: Number(formData.get(`unit_cost_${key.replace('qty_', '')}`)),
-      }))
-      .filter((entry) => entry.productId && entry.qty > 0);
-
-    if (items.length === 0) {
-      revalidatePath('/orders');
-      return;
+      redirect(
+        buildDraftResultUrl({
+          result: 'order_error',
+          supplierId,
+          branchId,
+          draftMarginPct: formDraftMarginPct,
+          draftAvgMode: formDraftAvgMode,
+        }),
+      );
     }
 
     await Promise.all(
@@ -368,7 +440,6 @@ export default async function OrdersPage({
       ),
     );
 
-    const action = String(formData.get('order_action') ?? 'draft').trim();
     if (action === 'sent') {
       await supabaseServer.rpc('rpc_set_supplier_order_status', {
         p_org_id: orgId,
@@ -396,6 +467,11 @@ export default async function OrdersPage({
     }
 
     revalidatePath('/orders');
+    redirect(
+      action === 'sent'
+        ? '/orders?result=order_sent'
+        : '/orders?result=order_draft_saved',
+    );
   };
 
   const selectedSupplier = suppliers?.find(
@@ -420,6 +496,10 @@ export default async function OrdersPage({
       ? (branchNameById.get(item.branch_id) ?? null)
       : null,
   }));
+  const result =
+    typeof resolvedSearchParams.result === 'string'
+      ? resolvedSearchParams.result
+      : '';
 
   return (
     <PageShell>
@@ -462,6 +542,26 @@ export default async function OrdersPage({
             </button>
           </form>
         </div>
+        {result === 'order_sent' ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            Pedido enviado correctamente.
+          </div>
+        ) : null}
+        {result === 'order_draft_saved' ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            Borrador guardado correctamente.
+          </div>
+        ) : null}
+        {result === 'order_items_required' ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            Debes agregar al menos un item para crear el pedido.
+          </div>
+        ) : null}
+        {result === 'order_error' ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            No se pudo crear el pedido. Intenta nuevamente.
+          </div>
+        ) : null}
 
         <section className="rounded-2xl bg-white p-6 shadow-sm">
           <details
@@ -565,6 +665,16 @@ export default async function OrdersPage({
                       type="hidden"
                       name="branch_id"
                       value={draftBranchId}
+                    />
+                    <input
+                      type="hidden"
+                      name="draft_margin_pct"
+                      value={draftMarginPctRaw}
+                    />
+                    <input
+                      type="hidden"
+                      name="draft_avg_mode"
+                      value={draftAvgMode}
                     />
                     <OrderSuggestionsClient
                       key={`${draftSupplierId}-${draftBranchId}`}
@@ -679,6 +789,14 @@ export default async function OrdersPage({
                           {formatDate(order.payable_due_on ?? null)}
                         </p>
                         <p className="text-xs text-zinc-500">
+                          Método requerido:{' '}
+                          <span className="font-semibold text-zinc-700">
+                            {formatPaymentMethod(
+                              supplierPaymentMethodById.get(order.supplier_id),
+                            )}
+                          </span>
+                        </p>
+                        <p className="text-xs text-zinc-500">
                           Estimado recepción:{' '}
                           {formatDate(order.expected_receive_on)}
                         </p>
@@ -748,6 +866,14 @@ export default async function OrdersPage({
                           )}
                           {' · '}Vence:{' '}
                           {formatDate(order.payable_due_on ?? null)}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          Método requerido:{' '}
+                          <span className="font-semibold text-zinc-700">
+                            {formatPaymentMethod(
+                              supplierPaymentMethodById.get(order.supplier_id),
+                            )}
+                          </span>
                         </p>
                         <p className="text-xs text-zinc-500">
                           Estimado recepción:{' '}

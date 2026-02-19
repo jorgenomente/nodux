@@ -51,6 +51,7 @@ Cada row:
 - sucursal
 - estado
 - estado de pago (`payment_state`: pendiente/parcial/pagado/vencido)
+- método requerido por proveedor (`preferred_payment_method`: efectivo/transferencia)
 - saldo pendiente (`payable_outstanding_amount`)
 - vencimiento de pago (`payable_due_on`)
 - monto estimado a pagar (sumatoria de items del pedido)
@@ -91,12 +92,14 @@ Campos:
 
 UI: la sección “Armar pedido” es colapsable para ahorrar espacio.
 
-Submit → crea order `draft` o `sent` según botón y vuelve al listado (sin redirigir).
+Submit → crea order `draft` o `sent` según botón y redirige al listado con banner de resultado.
+En error de validación (ej: sin ítems > 0), conserva contexto de armado (proveedor/sucursal/ajustes) para no perder el draft en pantalla.
 
 Validaciones:
 
 - proveedor activo
 - sucursal válida
+- al menos 1 ítem con cantidad > 0 antes de crear el pedido (si no, no se crea registro en `supplier_orders`)
 
 ---
 
@@ -105,6 +108,7 @@ Validaciones:
 - Loading: skeleton lista
 - Empty: “Aún no hay pedidos.” + CTA “Nuevo pedido”
 - Error: banner + reintentar
+- Success: banner explícito de confirmación (“Pedido enviado correctamente” / “Borrador guardado correctamente”)
 
 ---
 

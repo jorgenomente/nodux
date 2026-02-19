@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 type Props = {
@@ -15,12 +16,10 @@ type Props = {
   receiveDay: string | null;
   paymentTermsDays: number | null;
   preferredPaymentMethod: string | null;
-  acceptsCash: boolean;
-  acceptsTransfer: boolean;
   paymentNote: string | null;
   orderFrequencyOptions: ReadonlyArray<{ value: string; label: string }>;
   weekdayOptions: ReadonlyArray<{ value: string; label: string }>;
-  onSubmit: (formData: FormData) => void;
+  onSubmit: (formData: FormData) => Promise<void>;
 };
 
 export default function SupplierActions({
@@ -36,14 +35,20 @@ export default function SupplierActions({
   receiveDay,
   paymentTermsDays,
   preferredPaymentMethod,
-  acceptsCash,
-  acceptsTransfer,
   paymentNote,
   orderFrequencyOptions,
   weekdayOptions,
   onSubmit,
 }: Props) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const derivedAcceptsCash = preferredPaymentMethod !== 'transfer';
+  const derivedAcceptsTransfer = preferredPaymentMethod !== 'cash';
+  const submitWithRefresh = async (formData: FormData) => {
+    await onSubmit(formData);
+    setOpen(false);
+    router.refresh();
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -54,7 +59,7 @@ export default function SupplierActions({
       >
         {open ? 'Cerrar' : 'Editar'}
       </button>
-      <form action={onSubmit} className="inline">
+      <form action={submitWithRefresh} className="inline">
         <input type="hidden" name="supplier_id" value={supplierId} />
         <input type="hidden" name="name" value={name} />
         <input type="hidden" name="contact_name" value={contactName ?? ''} />
@@ -82,12 +87,12 @@ export default function SupplierActions({
         <input
           type="hidden"
           name="accepts_cash"
-          value={acceptsCash ? 'on' : ''}
+          value={derivedAcceptsCash ? 'on' : ''}
         />
         <input
           type="hidden"
           name="accepts_transfer"
-          value={acceptsTransfer ? 'on' : ''}
+          value={derivedAcceptsTransfer ? 'on' : ''}
         />
         <input type="hidden" name="payment_note" value={paymentNote ?? ''} />
         <button
@@ -99,7 +104,7 @@ export default function SupplierActions({
       </form>
       {open ? (
         <form
-          action={onSubmit}
+          action={submitWithRefresh}
           className="mt-2 grid w-full gap-2 md:grid-cols-2"
         >
           <input type="hidden" name="supplier_id" value={supplierId} />
@@ -212,7 +217,7 @@ export default function SupplierActions({
             />
           </label>
           <label className="text-xs text-zinc-600">
-            Método preferido
+            Método de pago preferido
             <select
               name="preferred_payment_method"
               defaultValue={preferredPaymentMethod ?? ''}
@@ -223,24 +228,18 @@ export default function SupplierActions({
               <option value="transfer">Transferencia</option>
             </select>
           </label>
-          <label className="flex items-center gap-2 text-xs text-zinc-600">
-            <input
-              name="accepts_cash"
-              type="checkbox"
-              defaultChecked={acceptsCash}
-            />
-            Acepta efectivo
-          </label>
-          <label className="flex items-center gap-2 text-xs text-zinc-600">
-            <input
-              name="accepts_transfer"
-              type="checkbox"
-              defaultChecked={acceptsTransfer}
-            />
-            Acepta transferencia
-          </label>
+          <input
+            type="hidden"
+            name="accepts_cash"
+            value={derivedAcceptsCash ? 'on' : ''}
+          />
+          <input
+            type="hidden"
+            name="accepts_transfer"
+            value={derivedAcceptsTransfer ? 'on' : ''}
+          />
           <label className="text-xs text-zinc-600 md:col-span-2">
-            Nota de pago
+            Datos de pago y notas del proveedor
             <textarea
               name="payment_note"
               defaultValue={paymentNote ?? ''}

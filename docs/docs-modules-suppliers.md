@@ -43,8 +43,7 @@ Campos clave (conceptual):
 - receive_day (weekday, optional)
 - payment_terms_days (integer, optional)
 - preferred_payment_method (`cash` | `transfer`, optional)
-- accepts_cash / accepts_transfer (boolean)
-- payment_note (text, optional)
+- payment_note (text, optional; en UI se muestra como “Datos de pago y notas del proveedor”)
 - created_at
 - updated_at
 
@@ -109,6 +108,7 @@ Constraints:
 
 - Crear/editar datos básicos
 - Definir frecuencia de pedido y días de pedido/recepción
+- Definir método de pago preferido (efectivo/transferencia)
 - Activar/desactivar
 
 ### O2) Asociar productos al proveedor

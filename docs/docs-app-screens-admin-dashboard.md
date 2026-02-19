@@ -87,6 +87,15 @@ Cada alerta debe tener:
 - Pedidos proveedor pendientes
 - Pedidos clientes pendientes
 
+### Sección D — Operación compras/pagos (hoy/semana)
+
+- Toggle de vista operativa: `today` | `week`.
+- Pedidos que se deberían realizar en el período (proveedores activos con `order_day` en alcance).
+- Pedidos que se deberían recibir en el período (órdenes `sent/received` con `expected_receive_on` en alcance).
+- Pagos a realizar en el período (cuentas por pagar no pagadas con `due_on` en alcance), separando:
+  - efectivo (`cash`)
+  - transferencia (`transfer`)
+
 ---
 
 ## Acciones del usuario (MVP)
@@ -199,6 +208,16 @@ Salida mínima:
 - `client_orders_pending_count`
 
 Las alertas y paneles se derivan de estos conteos en la UI.
+
+### Lecturas auxiliares (sección operativa hoy/semana)
+
+- `suppliers` (`id`, `name`, `order_day`) para “pedidos a realizar”.
+- `v_orders_admin` (`order_id`, `supplier_name`, `status`, `expected_receive_on`) para “pedidos a recibir”.
+- `v_supplier_payables_admin` (`payable_id`, `due_on`, `outstanding_amount`, `payable_status`, `selected_payment_method`, `preferred_payment_method`) para “pagos a realizar” por método.
+
+Nota:
+
+- El contrato principal de KPIs se mantiene en `rpc_get_dashboard_admin`; la sección operativa usa lecturas auxiliares por período (`today|week`) dentro de la misma pantalla.
 
 ---
 

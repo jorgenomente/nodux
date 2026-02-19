@@ -73,8 +73,7 @@ Campos:
 - receive_day (weekday)
 - payment_terms_days (opcional)
 - preferred_payment_method (`cash` | `transfer`, opcional)
-- accepts_cash / accepts_transfer
-- payment_note (opcional)
+- payment_note (opcional, label UI: “Datos de pago y notas del proveedor”)
 
 Submit → upsert
 
@@ -164,6 +163,7 @@ RPC 1: `rpc_upsert_supplier(input)`
 
 - supplier_id nullable
 - name, contact_name, phone, email, notes, is_active
+- payment_terms_days, preferred_payment_method, payment_note
 
 RPC 2: `rpc_upsert_supplier_product(input)`
 

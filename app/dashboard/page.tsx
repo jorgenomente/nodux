@@ -7,6 +7,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 type SearchParams = {
   branch_id?: string;
+  ops_scope?: string;
 };
 
 type BranchOption = {
@@ -31,10 +32,48 @@ type DashboardRow = {
   client_orders_pending_count: number | null;
 };
 
+type SupplierScheduleRow = {
+  id: string;
+  name: string | null;
+  order_day: 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun' | null;
+};
+
+type OrderReceiveRow = {
+  order_id: string;
+  supplier_name: string | null;
+  expected_receive_on: string | null;
+  status: 'draft' | 'sent' | 'received' | 'reconciled';
+};
+
+type PayableDueRow = {
+  payable_id: string | null;
+  due_on: string | null;
+  outstanding_amount: number | null;
+  payable_status: 'pending' | 'partial' | 'paid' | null;
+  selected_payment_method: 'cash' | 'transfer' | null;
+  preferred_payment_method: 'cash' | 'transfer' | null;
+};
+
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(
     value,
   );
+
+const formatDate = (value: string | null) =>
+  value ? new Date(`${value}T00:00:00`).toLocaleDateString('es-AR') : '—';
+
+const weekDayToIndex: Record<
+  'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun',
+  number
+> = {
+  mon: 1,
+  tue: 2,
+  wed: 3,
+  thu: 4,
+  fri: 5,
+  sat: 6,
+  sun: 0,
+};
 
 export default async function DashboardPage({
   searchParams,
@@ -100,6 +139,26 @@ export default async function DashboardPage({
   )
     ? requestedBranchId
     : (branchOptions[0]?.id ?? '');
+  const selectedOpsScope =
+    resolvedSearchParams.ops_scope === 'week' ? 'week' : 'today';
+
+  const now = new Date();
+  const todayYmd = now.toISOString().slice(0, 10);
+  const dayOfWeek = now.getUTCDay();
+  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const weekStartDate = new Date(now);
+  weekStartDate.setUTCDate(now.getUTCDate() - daysFromMonday);
+  const weekEndDate = new Date(weekStartDate);
+  weekEndDate.setUTCDate(weekStartDate.getUTCDate() + 6);
+  const weekStartYmd = weekStartDate.toISOString().slice(0, 10);
+  const weekEndYmd = weekEndDate.toISOString().slice(0, 10);
+  const rangeStartYmd = selectedOpsScope === 'today' ? todayYmd : weekStartYmd;
+  const rangeEndYmd = selectedOpsScope === 'today' ? todayYmd : weekEndYmd;
+
+  const weekDayIndexesInScope =
+    selectedOpsScope === 'today'
+      ? new Set([now.getUTCDay()])
+      : new Set([0, 1, 2, 3, 4, 5, 6]);
 
   const { data: dashboardData, error: dashboardError } = await supabase.rpc(
     'rpc_get_dashboard_admin',
@@ -110,6 +169,107 @@ export default async function DashboardPage({
   );
 
   const dashboardRow = (dashboardData?.[0] as DashboardRow | undefined) ?? null;
+
+  const { data: supplierScheduleData } = await supabase
+    .from('suppliers')
+    .select('id, name, order_day')
+    .eq('org_id', orgId)
+    .eq('is_active', true)
+    .order('name');
+  const suppliersToOrder = (
+    (supplierScheduleData ?? []) as SupplierScheduleRow[]
+  )
+    .filter(
+      (supplier) =>
+        supplier.order_day != null &&
+        weekDayIndexesInScope.has(weekDayToIndex[supplier.order_day]),
+    )
+    .slice(0, 5);
+
+  let receiveQuery = supabase
+    .from('v_orders_admin')
+    .select('order_id, supplier_name, expected_receive_on, status')
+    .eq('org_id', orgId)
+    .in('status', ['sent', 'received'])
+    .not('expected_receive_on', 'is', null)
+    .gte('expected_receive_on', rangeStartYmd)
+    .lte('expected_receive_on', rangeEndYmd)
+    .order('expected_receive_on', { ascending: true });
+  if (selectedBranchId) {
+    receiveQuery = receiveQuery.eq('branch_id', selectedBranchId);
+  }
+  const { data: receivesData } = await receiveQuery;
+  const ordersToReceive = (receivesData as OrderReceiveRow[] | null) ?? [];
+
+  let payablesQuery = supabase
+    .from('v_supplier_payables_admin')
+    .select(
+      'payable_id, due_on, outstanding_amount, payable_status, selected_payment_method, preferred_payment_method',
+    )
+    .eq('org_id', orgId)
+    .neq('payable_status', 'paid')
+    .not('due_on', 'is', null)
+    .gte('due_on', rangeStartYmd)
+    .lte('due_on', rangeEndYmd)
+    .order('due_on', { ascending: true });
+  if (selectedBranchId) {
+    payablesQuery = payablesQuery.eq('branch_id', selectedBranchId);
+  }
+  const { data: payablesDueData } = await payablesQuery;
+  const payablesDue = (payablesDueData as PayableDueRow[] | null) ?? [];
+  let overduePayablesQuery = supabase
+    .from('v_supplier_payables_admin')
+    .select(
+      'payable_id, due_on, outstanding_amount, payable_status, selected_payment_method, preferred_payment_method',
+    )
+    .eq('org_id', orgId)
+    .neq('payable_status', 'paid')
+    .not('due_on', 'is', null)
+    .lt('due_on', todayYmd)
+    .order('due_on', { ascending: true });
+  if (selectedBranchId) {
+    overduePayablesQuery = overduePayablesQuery.eq(
+      'branch_id',
+      selectedBranchId,
+    );
+  }
+  const { data: overduePayablesData } = await overduePayablesQuery;
+  const overduePayables = (overduePayablesData as PayableDueRow[] | null) ?? [];
+  const payableCash = payablesDue.filter(
+    (row) =>
+      (row.selected_payment_method ?? row.preferred_payment_method) === 'cash',
+  );
+  const payableTransfer = payablesDue.filter(
+    (row) =>
+      (row.selected_payment_method ?? row.preferred_payment_method) ===
+      'transfer',
+  );
+  const cashDueTotal = payableCash.reduce(
+    (sum, row) => sum + Number(row.outstanding_amount ?? 0),
+    0,
+  );
+  const transferDueTotal = payableTransfer.reduce(
+    (sum, row) => sum + Number(row.outstanding_amount ?? 0),
+    0,
+  );
+  const overdueCash = overduePayables.filter(
+    (row) =>
+      (row.selected_payment_method ?? row.preferred_payment_method) === 'cash',
+  );
+  const overdueTransfer = overduePayables.filter(
+    (row) =>
+      (row.selected_payment_method ?? row.preferred_payment_method) ===
+      'transfer',
+  );
+  const overdueCashTotal = overdueCash.reduce(
+    (sum, row) => sum + Number(row.outstanding_amount ?? 0),
+    0,
+  );
+  const overdueTransferTotal = overdueTransfer.reduce(
+    (sum, row) => sum + Number(row.outstanding_amount ?? 0),
+    0,
+  );
+  const overdueTotal = overdueCashTotal + overdueTransferTotal;
 
   const salesTodayTotal = Number(dashboardRow?.sales_today_total ?? 0);
   const salesTodayCount = Number(dashboardRow?.sales_today_count ?? 0);
@@ -201,12 +361,17 @@ export default async function DashboardPage({
           <DashboardFiltersClient
             branches={branchOptions}
             selectedBranchId={selectedBranchId}
+            selectedOpsScope={selectedOpsScope}
           />
           <div className="text-xs text-zinc-500">
             Mostrando:{' '}
             <strong className="text-zinc-700">
               {branchOptions.find((branch) => branch.id === selectedBranchId)
                 ?.name ?? 'Sucursal'}
+            </strong>
+            {' · '}
+            <strong className="text-zinc-700">
+              {selectedOpsScope === 'today' ? 'Hoy' : 'Esta semana'}
             </strong>
           </div>
         </section>
@@ -279,6 +444,108 @@ export default async function DashboardPage({
             <p className="mt-1 text-xs text-zinc-500">
               {cashDiscountedSalesTodayCount} ventas con descuento
             </p>
+          </div>
+        </section>
+
+        <section className="rounded-2xl bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold text-zinc-900">
+              Operación de compras y pagos
+            </h2>
+            <span className="text-xs text-zinc-500">
+              {selectedOpsScope === 'today'
+                ? `Fecha: ${formatDate(todayYmd)}`
+                : `Semana: ${formatDate(weekStartYmd)} - ${formatDate(weekEndYmd)}`}
+            </span>
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-zinc-200 p-4">
+              <p className="text-xs font-semibold text-zinc-500 uppercase">
+                Pedidos a realizar
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                {suppliersToOrder.length}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Proveedores programados{' '}
+                {selectedOpsScope === 'today' ? 'hoy' : 'esta semana'}
+              </p>
+              {suppliersToOrder.length > 0 ? (
+                <ul className="mt-2 space-y-1 text-xs text-zinc-600">
+                  {suppliersToOrder.map((supplier) => (
+                    <li key={supplier.id}>• {supplier.name ?? 'Proveedor'}</li>
+                  ))}
+                </ul>
+              ) : null}
+              <Link
+                href="/orders"
+                className="mt-3 inline-flex text-xs font-semibold text-zinc-700 hover:text-zinc-900"
+              >
+                Ir a pedidos →
+              </Link>
+            </div>
+            <div className="rounded-xl border border-zinc-200 p-4">
+              <p className="text-xs font-semibold text-zinc-500 uppercase">
+                Pedidos a recibir
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                {ordersToReceive.length}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Con fecha estimada en el período
+              </p>
+              {ordersToReceive.slice(0, 5).map((orderRow) => (
+                <p
+                  key={orderRow.order_id}
+                  className="mt-1 text-xs text-zinc-600"
+                >
+                  {formatDate(orderRow.expected_receive_on)} ·{' '}
+                  {orderRow.supplier_name ?? 'Proveedor'}
+                </p>
+              ))}
+              <Link
+                href="/orders/calendar"
+                className="mt-3 inline-flex text-xs font-semibold text-zinc-700 hover:text-zinc-900"
+              >
+                Ver calendario →
+              </Link>
+            </div>
+            <div className="rounded-xl border border-zinc-200 p-4">
+              <p className="text-xs font-semibold text-zinc-500 uppercase">
+                Pagos a realizar
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                {payablesDue.length}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Vencimientos en el período
+              </p>
+              <p className="mt-2 text-xs text-zinc-700">
+                Efectivo: {payableCash.length} · {formatCurrency(cashDueTotal)}
+              </p>
+              <p className="text-xs text-zinc-700">
+                Transferencia: {payableTransfer.length} ·{' '}
+                {formatCurrency(transferDueTotal)}
+              </p>
+              <div className="mt-2 rounded border border-rose-200 bg-rose-50 px-2 py-2 text-xs text-rose-700">
+                Vencidos: {overduePayables.length} ·{' '}
+                {formatCurrency(overdueTotal)}
+                <div className="mt-1">
+                  Efectivo: {overdueCash.length} ·{' '}
+                  {formatCurrency(overdueCashTotal)}
+                </div>
+                <div>
+                  Transferencia: {overdueTransfer.length} ·{' '}
+                  {formatCurrency(overdueTransferTotal)}
+                </div>
+              </div>
+              <Link
+                href="/payments"
+                className="mt-3 inline-flex text-xs font-semibold text-zinc-700 hover:text-zinc-900"
+              >
+                Ir a pagos →
+              </Link>
+            </div>
           </div>
         </section>
 

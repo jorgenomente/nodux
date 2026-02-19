@@ -38,6 +38,9 @@ Estado actual:
 - Módulo Caja por sucursal (apertura, movimientos y cierre) en `supabase/migrations/20260216171000_036_cashbox_branch_sessions.sql`.
 - Cierre de caja con firma y conteo por denominaciones en `supabase/migrations/20260216182000_037_cashbox_close_signature_denominations.sql`.
 - Pagos proveedor por sucursal en `supabase/migrations/20260217213000_039_supplier_payments_branch_module.sql` (perfil de pago en supplier, cuentas por pagar por pedido, pagos y vistas/RPCs de pagos).
+- Bucket/policies de facturas proveedor en `supabase/migrations/20260217221500_040_supplier_invoice_storage_bucket.sql` (`supplier-invoices`).
+- `supplier_payables` incorpora `invoice_reference` en `supabase/migrations/20260218113000_042_supplier_payables_invoice_reference.sql`.
+- Se elimina sobrecarga legacy de `rpc_update_supplier_payable` en `supabase/migrations/20260218151000_043_drop_legacy_rpc_update_supplier_payable_overload.sql` para evitar ambiguedad en PostgREST.
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 
@@ -556,7 +559,7 @@ Estado actual:
 
 ### supplier_payables
 
-**Proposito**: cuenta por pagar por pedido de proveedor (scope por sucursal).
+**Proposito**: cuenta por pagar por pedido de proveedor (scope por sucursal), sincronizada cuando el pedido queda `sent`, `received` o `reconciled`.
 
 **Campos clave**:
 
@@ -571,6 +574,7 @@ Estado actual:
 - `paid_amount` (numeric)
 - `outstanding_amount` (numeric)
 - `due_on` (date, nullable)
+- `invoice_reference` (text, nullable)
 - `payment_terms_days_snapshot` (integer, nullable)
 - `preferred_payment_method` (`cash` | `transfer`, nullable)
 - `selected_payment_method` (`cash` | `transfer`, nullable)

@@ -117,6 +117,12 @@ Siempre `branch_id` (recepción e ingreso de stock ocurren en esa sucursal).
 - `received`: permitir ajustar received_qty solo antes de reconciliar (opcional)
 - `reconciled`: no editable
 
+En detalle de pedido (`/orders/[orderId]`), el estado `draft` usa edición batch:
+
+- lista completa de sugeridos del proveedor/sucursal con métricas operativas
+- buscador por artículo
+- guardado único que reemplaza la lista de ítems (upsert qty > 0 y remueve qty = 0)
+
 ### R3) Ingreso a stock
 
 - El ingreso se hace al pasar a `received` (o en acción explícita “Recibir”)
@@ -133,6 +139,13 @@ Siempre `branch_id` (recepción e ingreso de stock ocurren en esa sucursal).
 
 - Al recibir/controlar un pedido, se sincroniza una cuenta por pagar (`supplier_payables`) ligada al `order_id`.
 - El estado de pago se opera en `/payments` y se refleja en `/orders`.
+- Para proveedores con método preferido `cash`, en el detalle del pedido (`/orders/[orderId]`) existe un check “Pago en efectivo realizado” dentro del flujo de control.
+  - al marcarlo, exige monto exacto pagado en efectivo.
+  - soporta check de pago parcial con monto total de remito/factura y cálculo de restante.
+  - si está marcado y falta monto, no se procesa ningún cambio del pedido.
+  - al confirmar control con check marcado, además de controlar se registra el pago efectivo por el monto ingresado.
+  - si hay pago parcial, actualiza `invoice_amount` con el total declarado; si no hay parcial y el monto supera saldo/estimado, también ajusta `invoice_amount` para reflejar el monto real.
+  - `/orders/[orderId]` incorpora además un segundo entry point para registrar factura/remito (número, monto, vencimiento, método, foto, nota), equivalente al flujo operativo de `/payments`.
 
 ### R5) Proveedor inactivo
 

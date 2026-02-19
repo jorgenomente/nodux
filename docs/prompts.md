@@ -12,6 +12,387 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-18 14:42 -03 — Orders detail cash: botón junto al bloque y monto visible bloqueado hasta check
+
+**Lote:** orders-detail-cash-row-inline-button-and-disabled-amount
+**Objetivo:** Ajustar layout y UX de recepción con pago efectivo para que todo quede visible y alineado.
+
+**Prompt**
+quiero que el boton confirmar recepcion no quede alineado hacia la derecha sino simplemente a la derecha de el texto de pago en efectivo realizado y monto exacto pagado. quizas vamos a dejarlo visible siempre pero que este bloqueado y vacio. que solo se active cuando le doy lcick al check de pagado en efectivo asi esta todo visible
+
+## 2026-02-18 14:38 -03 — Orders detail: anotación de monto estimado aproximado
+
+**Lote:** orders-detail-estimate-approx-note
+**Objetivo:** Aclarar que el monto estimado es referencial y el real surge de remito/factura.
+
+**Prompt**
+agreguemos un tooltip o pequena anotacion que diga que es solo un aproximado. El monto real se muestra en el remito/factura
+
+## 2026-02-18 14:36 -03 — Orders detail: mostrar monto estimado total y estimado por item
+
+**Lote:** orders-detail-show-estimated-total-and-item-estimates
+**Objetivo:** Dar visibilidad al estimado del pedido durante recepción/control.
+
+**Prompt**
+me acabo de dar cuenta que en /orders/id a la hora de recibir y confirmar el pedido no veo por ningun lado el monto estimado total del pedido. deberia ser el que me indica estimado a la hora re dealizarlo, quizas tambien en los items podriamos agregar el precio estimado
+
+## 2026-02-18 14:30 -03 — Orders: permitir borrar temporalmente cantidad en input
+
+**Lote:** orders-qty-input-allow-empty-editing
+**Objetivo:** Mejorar edición de cantidades permitiendo limpiar el input sin forzar `0`.
+
+**Prompt**
+en el input de cantidad a pedir de la tabla no puedo borrar el 0 del input me gustaria que eso fuera posible asi es mas facil modificar cantidades
+
+## 2026-02-18 14:27 -03 — Orders: evitar creación de pedido con 0 artículos
+
+**Lote:** orders-prevent-empty-order-creation
+**Objetivo:** Bloquear creación de `supplier_orders` cuando no hay ítems válidos.
+
+**Prompt**
+ok ahora se mantiene pero el problema es que si se crea en el listado el pedido con 0 articulos, podriamos evitar que se cree el pedido?
+
+## 2026-02-18 14:25 -03 — Orders: conservar contexto draft cuando falla por ítems en 0
+
+**Lote:** orders-draft-context-preserve-on-empty-items-error
+**Objetivo:** Evitar perder selección/contexto de armado al fallar validación de ítems.
+
+**Prompt**
+por error envie un pedido en 0 unidades y me dice este mensaje Debes agregar al menos un item para crear el pedido. lo que no me gusta es que se me cierra el desplegable y cuando intento abrirlo otra vez, ya no tengo la informacion tengo que volverla a buscar manualmente podemos chequear eso
+
+## 2026-02-18 13:00 -03 — Orders hydration mismatch por estado inicial de vista en cliente
+
+**Lote:** orders-hydration-mismatch-view-state-fix
+**Objetivo:** Resolver error de hidratación en `/orders` causado por inicialización cliente divergente.
+
+**Prompt**
+me dice esto ## Error Type
+Recoverable Error
+
+## Error Message
+
+Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+...
+<SegmentStateProvider>
+<RenderFromTemplateContext>
+<ScrollAndFocusHandler segmentPath={[...]}>
+<InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+<ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+<LoadingBoundary name="orders/" loading={null}>
+<HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+<RedirectBoundary>
+<RedirectErrorBoundary router={{...}}>
+<InnerLayoutRouter url={"/orders?..."} tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} ...>
+<SegmentViewNode type="page" pagePath="orders/pag...">
+<SegmentTrieNode>
+<OrdersPage>
+<PageShell>
+<div
+
+-                               className="min-h-screen bg-zinc-50"
+
+*                               className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 ..."
+                              >
+                                <TopBar>
+                                  <div
+
+-                                   className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-..."
+
+*                                   className="text-sm font-semibold text-zinc-900"
+                                  >
+
+-                                   <div className="text-sm font-semibold text-zinc-900">
+
+*                                   NODUX
+                                    ...
+                                ...
+                        ...
+                      ...
+            ...
+      ...
+
+  at div (<anonymous>:null:null)
+  at TopBar (app/components/TopBar.tsx:49:7)
+  at PageShell (app/components/PageShell.tsx:12:7)
+  at OrdersPage (app/orders/page.tsx:459:5)
+
+## Code Frame
+
+47 | return (
+48 | <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-6 py-3">
+
+> 49 | <div className="text-sm font-semibold text-zinc-900">NODUX</div>
+
+     |       ^
+
+50 | <nav className="flex flex-wrap items-center gap-2 text-xs text-zinc-600">
+51 | {links.map((link) => (
+52 | <Link
+
+Next.js version: 16.1.6 (Turbopack)
+estoy en http://localhost:3000/orders?draft_supplier_id=44444444-4444-4444-4444-444444444444&draft_branch_id=33333333-3333-3333-3333-333333333333&draft_avg_mode=cycle
+
+## 2026-02-18 12:57 -03 — Orders: confirmación visual al enviar pedido desde armar pedido
+
+**Lote:** orders-create-send-success-feedback-banner
+**Objetivo:** Mostrar confirmación clara cuando se envía pedido desde `/orders`.
+
+**Prompt**
+otro error que estoy viendo es que al armar nuevo pedido y darle al boton enviar pedido no veo nada que me confirme que el pedido se envio. si se envio porque lo veo en el listado pero es confuso porque no se directamente que ya se envio y esta todo en orden
+
+## 2026-02-18 12:54 -03 — Orders detail: mostrar pago efectivo aunque estado payable sea parcial
+
+**Lote:** orders-detail-header-cash-paid-visibility-partial
+**Objetivo:** Evitar que se oculte el bloque de pago efectivo en header cuando hay pago registrado pero el payable no quedó `paid`.
+
+**Prompt**
+hice la prueba y confirme el pago y todo y me dice Recepción/control confirmado y pago en efectivo registrado. pero veo Creado: 18/2/2026, 11:40:07 · Enviado: 18/2/2026, 12:08:13 · Controlado: 18/2/2026, 12:52:44
+Controlado por: paola zerpa y no veo el metodo de pago y el monto
+
+## 2026-02-18 12:51 -03 — Orders detail: mostrar pago efectivo y monto en info del pedido
+
+**Lote:** orders-detail-header-show-cash-payment-info
+**Objetivo:** Exponer en la cabecera del pedido, cuando aplique, que fue pagado en efectivo y el monto.
+
+**Prompt**
+perfecto ahora una vez controlado y pagado en ese pedido deberia decirme tambien en la info ademas de creado enviado y controlado que me diga pagado en efectivo y el monto que se pago en la info del pedido
+
+## 2026-02-18 12:49 -03 — Orders detail cash: evitar mensaje de pago no requerido y hacerlo idempotente
+
+**Lote:** orders-detail-cash-idempotent-no-confusing-error
+**Objetivo:** Quitar error confuso al reintentar pago efectivo y reflejar claramente cuando ya está pagado.
+
+**Prompt**
+intente el nuevo flujo y parece funcionar pero ahora me dice La cuenta por pagar no requiere un nuevo pago en efectivo. no se si se aplico o es porque ya intente marcar el pago antes pero necesitamos ajustar esto para que no suceda. puedes chequear?
+
+## 2026-02-18 12:46 -03 — Orders detail cash: checkbox + monto inline junto a confirmar
+
+**Lote:** orders-detail-cash-checkbox-inline-with-confirm
+**Objetivo:** Simplificar UX de control con check de pago efectivo y monto inline, manteniendo guardrails.
+
+**Prompt**
+ok vamos a cambiar un poco mas el flujo. el pago en efectivo realizado debe tener un checkmark que lo marco y al marcarlo al lado me debe aparecer el monto exacto pagado. A la derecha de esas dos cosas es que debe estar el boton de confirmar recepcion asi es mas facil. y quitamos el input de monto exacto pagado de arriba
+
+## 2026-02-18 12:38 -03 — Orders detail cash: evitar control al pagar sin monto
+
+**Lote:** orders-detail-cash-action-separation-and-guardrails
+**Objetivo:** Separar control vs pago efectivo y asegurar que sin monto no cambie estado del pedido.
+
+**Prompt**
+ok estoy teniendo esta dificultad que es que entre en un pedido que estaba pendiente por controlar y le di al boton de pago realizado en efectivo y me sale este mensaje Para registrar pago en efectivo debés ingresar el monto exacto pagado. pero si se proceso el cambio de estado a controlado y ya no puedo modificarlo. entonces tenemos que colocar reglas aca para que esto no suceda. si no hay el monto exacto entonces no deberia cambiar nada. y no deberia confirmarse como controlado al darle click a pago realizado, eese boton es solo para indicar que esta pagado y el de controlado es para indicar que esta controlado
+
+## 2026-02-18 12:14 -03 — Payments: método requerido alineado al perfil actual de proveedor
+
+**Lote:** payments-required-method-live-from-supplier-profile
+**Objetivo:** Evitar que `/payments` muestre método requerido desactualizado cuando cambia en `/suppliers`.
+
+**Prompt**
+el problema que tengo ahora es que desde proveedores edite el proveedor y cambie el metodo de pago de transferencia a efectivo y cuando voy a pagos pernientes por pagar me sigue mostrando transferencia. no estoy seguro se es porque ya el pedido estaba hecho
+
+## 2026-02-18 12:08 -03 — Orders detail draft: botón Guardar y enviar
+
+**Lote:** orders-detail-draft-save-and-send-button
+**Objetivo:** Agregar acción rápida para guardar ítems del borrador y cambiar estado a enviado en el mismo submit.
+
+**Prompt**
+excelente ahora al lado del boton de guardar borrador tambien un boton que diga guardar y enviar asi puedo cambiar el estado de ese pedido como para informar que ya lo envie asi cambia el estadoa pendiente por recibir
+
+## 2026-02-18 12:06 -03 — Orders detail draft: editor completo de ítems
+
+**Lote:** orders-detail-draft-full-items-editor
+**Objetivo:** Reemplazar flujo de “agregar ítem” por edición completa de artículos sugeridos con buscador y guardado batch.
+
+**Prompt**
+ahora en orders/id estoy entrando en un pedido que estaba en borrador y me sale una seccion de agregar item donde lo puedo seleccionar y decir la cantidad y darle agregar, pero ese flujo no es correcto. lo correcto es que alli me salgan todos los articulos en una lista con sus estadisticas y el pedido sugerido todo, como si estuviera armando un pedido y alli puedo modificar lo que yo quiera o buscar el articulo que yo quiera y agregarle una catidad y entonces darle guardar y esa seria la nueva lista de items. no se si se entiende
+
+## 2026-02-18 12:00 -03 — Refresh inmediato tras editar proveedor en `/suppliers`
+
+**Lote:** suppliers-immediate-refresh-after-save
+**Objetivo:** Evitar refresh manual para ver cambios al editar proveedor.
+
+**Prompt**
+en /suppliers estoy editando el metodo de pago de un proveedor y le di guardar cambios pero esto no se aplica inmediatamente sino que tengo que hacer refresh de la pagina. podemos hacer que los cambios se apliquen de una vez?
+
+## 2026-02-18 11:57 -03 — Fix Server Actions en `/suppliers` (Next 16 Turbopack)
+
+**Lote:** suppliers-server-action-closure-fix
+**Objetivo:** Resolver error de runtime en `/suppliers` por funciones no serializables al pasar Server Actions a Client Components.
+
+**Prompt**
+estoy teniendo estos isses ## Error Type
+Console Error
+
+## Error Message
+
+Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+[function deriveAccepts]
+^^^^^^^^^^^^^^^^^^^^^^
+
+    at SuppliersPage (app/suppliers/page.tsx:91:26)
+    at SuppliersPage (<anonymous>:null:null)
+
+## Code Frame
+
+89 | const shouldOpenNewSupplier = !suppliers || suppliers.length === 0;
+90 |
+
+> 91 | const createSupplier = async (formData: FormData) => {
+
+     |                          ^
+
+92 | 'use server';
+93 |
+94 | const actionSession = await getOrgAdminSession();
+
+Next.js version: 16.1.6 (Turbopack)
+
+## Error Type
+
+Console Error
+
+## Error Message
+
+Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+[function deriveAccepts]
+^^^^^^^^^^^^^^^^^^^^^^
+
+    at SuppliersPage (app/suppliers/page.tsx:156:26)
+    at SuppliersPage (<anonymous>:null:null)
+
+## Code Frame
+
+154 | };
+155 |
+
+> 156 | const updateSupplier = async (formData: FormData) => {
+
+      |                          ^
+
+157 | 'use server';
+158 |
+159 | const actionSession = await getOrgAdminSession();
+
+Next.js version: 16.1.6 (Turbopack)
+
+## Error Type
+
+Console Error
+
+## Error Message
+
+[31m[1m⨯[22m[39m "unhandledRejection:" Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+[function deriveAccepts]
+^^^^^^^^^^^^^^^^^^^^^^
+
+    at SuppliersPage (<anonymous>:null:null)
+
+Next.js version: 16.1.6 (Turbopack)
+
+## Error Type
+
+Console Error
+
+## Error Message
+
+[31m[1m⨯[22m[39m "unhandledRejection: " Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+[function deriveAccepts]
+^^^^^^^^^^^^^^^^^^^^^^
+
+    at SuppliersPage (<anonymous>:null:null)
+
+Next.js version: 16.1.6 (Turbopack)
+
+## 2026-02-18 09:47 -03 — Ajuste de datos demo reales + UI colapsable en pagos
+
+**Lote:** payments-orders-demo-data-hardening
+**Objetivo:** Reemplazar datos demo genéricos por datos operativos realistas y reducir carga visual en `/payments`.
+
+**Prompt**
+quiero que revises los cambios mas recientes. incorporamos el modulo de pagos e incorporamos informacion adicional en el listado de /orders. necesito adaptar los datos de prueba para que tengan cuenta y todos los datos esten llenos correctamente. asi como por ejemplo la fecha que vence el pago. en el listado por ejemplo dice proveedor mensual demo sucursal A, eso es muy generico necesito que tenga nombres reales como para entender mejor. Basicamente revisa todo e incorpora y modifica los datos demos reales. En el modulo de /payments debo ver los pedidos a proveedores del listado de /orders, eso ya sucede, pero los datos de factura y datos de pago debemos ocultarlos para evitar carga visual y que aparezcan como un desplegable al darle click a un boton
+
+## 2026-02-18 10:02 -03 — Sincronizar pagos con pedidos enviados + estado operativo en payments
+
+**Lote:** payments-sync-sent-orders
+**Objetivo:** Hacer que `/payments` incluya pedidos ya enviados (no solo controlados), sincronizar históricos y mostrar estado operativo del pedido.
+
+**Prompt**
+si necesitamos sincronizar todos los pagos y tienen que aparecer los pedidos que ya han sido enviados, los que estan en borrador no es necesario pero los que ya se enviaron si deben aparecer. en /payments tambien podriamos mostrar el estado si esta en pendiente por recibir o controlado segun los estados que ya se manejan
+
+## 2026-02-18 10:09 -03 — Mostrar método requerido de pago en orders y payments
+
+**Lote:** payment-method-visibility-orders-payments
+**Objetivo:** Exponer en UI el método de pago requerido por proveedor y el método seleccionado por cuenta por pagar.
+
+**Prompt**
+estoy viendo que en /orders en el listado no me aparece el metodo de pago requerido por el proveedor efectivo o transferencia. Esta configuracion ya existe, no? solo faltaria indicarlo alli lo mismo en /payments
+
+## 2026-02-18 10:39 -03 — Separar pendientes/pagadas y buscador flexible en payments
+
+**Lote:** payments-list-priority-search
+**Objetivo:** Mejorar legibilidad del listado de pagos separando facturas pendientes/pagadas y agregando buscador por nombre con tokens libres.
+
+**Prompt**
+ok ahora en /payments me gustaria diferenciar las facturas pagadas con las que estan todavia pendiente por pagar. entonces hagamos dos secciones donde abajo colocalmos las que ya fueron pagadas y arriba pendientes por pagar, y que se orden primero la que se vence mas pronto o esta vencida y despues las que todavia tienen mas tiempo. Tambien incorporemos justo debajo del filtro de sucursal, proveedor que una barra de busqueda para buscar por nombre sin importar el orden en el que lo escriba
+
+## 2026-02-18 10:45 -03 — Flujo de pago con fecha/hora + más demos pendientes transferencia
+
+**Lote:** payments-flow-paid-at-and-demo-transfer-pending
+**Objetivo:** Aclarar flujo de cambio a pagado, agregar fecha/hora de pago y ampliar seed con más pendientes por transferencia.
+
+**Prompt**
+tengo una pregunta. en /payments veo en facturas pagadas algunoas que requierem metodo de pago como transferencia, pero cuando yo le doy registrar pago me sale un formulario vacio. Como es el proceso de cambiar el pedido de pendiente por pagar a pagado? no seria llenando este formulario? en ese formulario hace falta agregar la fecha y hora de pago. Insertemos los datos de prueba necesarios para ver esto como deberia ser asi como colocar nuevas pedidos que esten pendientes por pagar y en transferencia como para visualizar como se veria
+
+## 2026-02-18 10:53 -03 — Quitar chevrons y scroll accidental en todos los inputs numéricos
+
+**Lote:** global-number-input-no-spinner-no-wheel
+**Objetivo:** Eliminar controles incrementales y evitar cambios por rueda en todos los `input[type=number]`.
+
+**Prompt**
+normalmente en los inputs de numero me salen estas flechitas chevron arriba abajo no me gustan para nada. porque cuando hago scroll me modifican el monto que esta escrito y es molesto. vamos a quitarlas de todo el proyecto. Un ejemplo es el input de monto en registrar pago. si yo hago scroll y paso por el input se me modifica la cantidad y es molesto. podemos hacer eso? ningun input debe tener esta configuracion. simplemente puedo colocar el numero que necesito y ya
+
+## 2026-02-18 10:58 -03 — Número de factura/remito + defaults automáticos en payments
+
+**Lote:** payments-invoice-reference-and-defaults
+**Objetivo:** Mejorar formulario de factura/remito en `/payments` con identificador explícito y defaults coherentes.
+
+**Prompt**
+excelente. tambien donde dice editar datos de factura vamos a cambiarlo por editar datos de factura/remito y dentro del formulario vamos a agregar un input que este de primero que diga numero de factura/remito que acepte numeros y letras asi se puede identificar la factura/remito. en el input de metodo seleccionado vamos a colocar automaticamente el que esta asignado para el proveedor, donde dice vence el, tambien si ya esta definido colocamos la fecha que ya esta definida todo esto en /payments
+
+## 2026-02-18 11:35 -03 — Botón de pago efectivo al controlar pedido en order detail
+
+**Lote:** orders-detail-cash-payment-at-receive
+**Objetivo:** Integrar flujo operativo de pago efectivo al momento de recepción/control en `/orders/[orderId]`.
+
+**Prompt**
+ok hay algo mas. Normalmente el pago a los proveedores en efectivo se realizan al momento de la entrega. Entonces cuando el proveedor es en efectivo en /ordersid justo donde esta el boton de confirmar recepcion que es donde se marca controlado el pedido debe haber al lado tambien un boton que diga pago en efectivo realizado asi se determina el flujo en efectivo. No se si me explique. normalmente la misma persona que lo controla lo paga entonces al momento de controlar alli tambien marcamos el pago en efectivo como realizado y aqui es donde se determina que ya esta pago el pago en efectivo. en caso de no marcar este boton entonces queda el pago pendiente pero noramlmente este es el flujo que debe seguir a menos que no haya efectivo disponible entonces ya queda pendiente o se puede aclarar al moemnto de registrar el pago desde /payments que el pago es en transferencia
+
+## 2026-02-18 11:38 -03 — Monto exacto obligatorio en pago efectivo al controlar
+
+**Lote:** orders-detail-cash-payment-exact-amount
+**Objetivo:** Exigir monto exacto al marcar pago efectivo en control de pedido y usarlo como monto real de la orden.
+
+**Prompt**
+ok esto es importante. al marcar el pago en efectivo realizado debemos especificar el monto exacto que se le dio y este seria el nuevo monto a ser considerado para esa orden ya que antes que eso el monto es solo aproximado
+
+## 2026-02-18 11:53 -03 — Simplificar formulario de pago en proveedores
+
+**Lote:** suppliers-payment-preference-ui-simplification
+**Objetivo:** Limpiar UX en `/suppliers` usando solo método de pago preferido y renombrar campo de notas de pago.
+
+**Prompt**
+hay algo que no esta muy claro. al registrar proveedor me dice metodo en /suppliers dice metodo preferido eso me gustaria modificarlo que diga metodo de pago preferido. tambien es un poco confuso los checkmark de acepta efectivo acepta transferencia. eso se define a traves de la opcion de metodo de pago preferido asi que quitemos eso. en donde dice nota de pago ese input de texto vamos a cambiarlo por Datos de pago y notas del proveedor asi alli puedo colocar los datos de transferencia.
+
 ## 2026-02-13 12:34 — Auditoría operativa end-to-end
 
 **Lote:** audit-log-operational-hardening
@@ -1190,3 +1571,141 @@ vamos a trabajar sobre orders. me gustaria que en el listado tambien aparezca el
 Hay algo que pase por alto y es agregar el metodo de pago del proveedor. esto es importante porque vamos a incorporar un nuevo modulo de pagos donde vamos a gestionar el pago a los proveedores. Mi idea es que al registrar el proveedor tambien se le agregue el metodo de pago, si es efectivo o transferencia y agregar los datos de la cuenta. Es posible que hay veces que proveedores que se paga en efectivo se paguen por transferencia entonces seria conveniente tener esa informacion al registrar al proveedor. De igual manera este nuevo modulo de pagos la idea es que yo pueda ver los pedidos realizados y poder adjuntar una foto de la factura y ajustar el monto para colocar el monto exacto que debo pagar ya que el monto del pedido es aproximado. tambien importante seria agregar a la hora de registrar un proveedor es un plazo de pago si aplica. asi este modulo de pagos ya seria un modulo donde el que hace los pagos se mete a gestionar realizar pagos o saber que tiene que pagar, saber cuanto efectivo va a necesitar para la semana. Pero necesito que todo este conectado, porque asi en pedidos yo puedo ver si un pedido ha sido marcado como pagado desde este modulo de pagos o si esta pendiente por realizar pago. la idea es que yo al recibir el remito o factura le pueda tomar una foto y adjuntarla para tener, agregar comentarios y observaciones si es necesario, si el proveedor es en efectivo normalmente se paga al momento entonces este proceso debe ser simple y rapido, debe permitirme saber rapidamente que cosas se han pagado y estan pedientes, los pagos mas urgentes que estan vencidos o proximos por vencer etc, que te parece?
 
 ok hagamos eso, esto de igual manera se maneja por sucursal. Cada sucursal maneja sus pedidos y sus pagos
+
+## 2026-02-17 22:11 -03 — Factura: compresión de imagen para storage liviano
+
+**Lote:** supplier-invoice-photo-compression-storage
+**Objetivo:** Subir foto de factura/remito comprimida y convertida para minimizar peso manteniendo legibilidad.
+
+**Prompt**
+despues de eso vamos a hacer que esta foto sea convertida y sea disminuida de peso ya que no quiero ocupar demasiado espacio. debe ser lo mas ligera posible pero debe tener calidad como para ser legible
+
+## 2026-02-18 14:52 -03 — Payments: badge de seguimiento de último pago
+
+**Lote:** payments-latest-payment-badge
+**Objetivo:** Mejorar la trazabilidad en `/payments` mostrando en cada cuenta por pagar un resumen del último pago registrado (fecha/hora y nota) para seguimiento rápido de pagos parciales.
+
+**Prompt**
+ayudame a resolver algo en /payments. Tengo un recibo en pendientes por pagar, estoy practicando las posibilidades y acabo de darle registrar pago y coloque un monto menor al total y ahora me dice que el pago es parcial y me dice el monto por pagar y pagado, todo eso esta perfecto, lo unico que me gustaria agregar es tambien ver una pequena targetita o badge que me indique la informacion de ese pago es decir la fecha y hora de pago registrada y si hubo alguna nota asi es mas facil hacerle seguimiento
+
+## 2026-02-18 14:55 -03 — Payments: botón `Restante` en registrar pago
+
+**Lote:** payments-register-payment-fill-remaining
+**Objetivo:** Agregar un botón en el formulario de pago para completar automáticamente el monto restante pendiente.
+
+**Prompt**
+ahora en la seccion de registrar pago agrega un boton al lado del input de monto que diga restante asi al darle ahi automaticamente coloca el restante en el input
+
+## 2026-02-18 15:04 -03 — Payments: pago parcial con total requerido + aceptar monto real mayor
+
+**Lote:** payments-partial-total-and-real-amount
+**Objetivo:** Mejorar el flujo de registrar pago para soportar pagos parciales con total declarado y permitir registrar montos reales mayores al estimado sin bloqueo.
+
+**Prompt**
+desde /payments estoy intentando registrar un pago en efectivo pero si el monto es mayor al monto estimado no me deja registrarlo. lo mas probable es que este monto no sea igual al monto estimado asi quedebemos poder colocar un checkmark que me indique que es un pago parcial en caso de que se haya pagado solo una parte o que simplemente me acepte el monto que yo le coloque porque este seria el monto real pagado, debo yo entender que el monto que estoy colocando ahi es lo que se le dio al proveedor a menos que este marcado el pago parcial. tambien me gustaria que me pidiera indicar el monto total cuando hago un pago parcial y me diga cual seria el restante, esto para hacer todo esto un poco mas completo a lo que ya esta ahora
+
+## 2026-02-18 15:07 -03 — Fix ambigüedad RPC `rpc_update_supplier_payable` al registrar pago parcial
+
+**Lote:** payments-rpc-overload-ambiguity-fix
+**Objetivo:** Resolver error por sobrecarga ambigua al actualizar payable antes de registrar pago parcial/monto real.
+
+**Prompt**
+ahora quedo perfecto exepto que me da este mensaje Error: Could not choose the best candidate function between: public.rpc_update_supplier_payable(p_org_id => uuid, p_payable_id => uuid, p_invoice_amount => numeric, p_due_on => date, p_invoice_photo_url => text, p_invoice_note => text, p_selected_payment_method => public.payment_method), public.rpc_update_supplier_payable(p_org_id => uuid, p_payable_id => uuid, p_invoice_amount => numeric, p_due_on => date, p_invoice_reference => text, p_invoice_photo_url => text, p_invoice_note => text, p_selected_payment_method => public.payment_method) intente pagar un monto parcial
+
+## 2026-02-18 15:09 -03 — DB hardening: eliminar overload legacy de `rpc_update_supplier_payable`
+
+**Lote:** payments-drop-legacy-rpc-overload
+**Objetivo:** Evitar ambigüedad de firma en PostgREST eliminando la versión legacy del RPC sin `p_invoice_reference`.
+
+**Prompt**
+ok adelante
+
+## 2026-02-18 15:13 -03 — Payments: manejar errores inesperados de Server Action sin romper UI
+
+**Lote:** payments-server-action-unexpected-response-hardening
+**Objetivo:** Evitar runtime genérico en `/payments` cuando falla `registerPayment`, mostrando error en banner y preservando flujo.
+
+**Prompt**
+lo intente nuevamente agregando un comentario y en la nota y me deice esto ## Error Type
+Runtime Error
+
+## Error Message
+
+An unexpected response was received from the server.
+
+    at form (<anonymous>:null:null)
+    at renderPayableCard (app/payments/page.tsx:893:15)
+    at <anonymous> (app/payments/page.tsx:1090:55)
+    at Array.map (<anonymous>:1:18)
+    at PaymentsPage (app/payments/page.tsx:1090:38)
+
+## Code Frame
+
+891 | Registrar pago
+892 | </summary>
+
+> 893 | <form action={registerPayment} className="mt-3 grid gap-2">
+
+      |               ^
+
+894 | <input type="hidden" name="payable_id" value={payable.payable_id} />
+895 | <input type="hidden" name="branch_id" value={selectedBranchId} />
+896 | <input type="hidden" name="supplier_id" value={selectedSupplierId} />
+
+Next.js version: 16.1.6 (Turbopack)
+Call Stack
+6
+
+Hide 1 ignore-listed frame(s)
+fetchServerAction
+node_modules/next/src/client/components/router-reducer/reducers/server-action-reducer.ts (205:11)
+form
+<anonymous>
+renderPayableCard
+app/payments/page.tsx (893:15)
+<anonymous>
+app/payments/page.tsx (1090:55)
+Array.map
+<anonymous>
+PaymentsPage
+app/payments/page.tsx (1090:38)
+
+## 2026-02-18 15:28 -03 — Orders detail: pago efectivo parcial + entry point de factura/remito
+
+**Lote:** orders-detail-partial-cash-and-invoice-entrypoint
+**Objetivo:** Extender `/orders/[orderId]` para soportar pago efectivo parcial al controlar recepción y permitir registrar factura/remito desde la misma pantalla como segundo entry point operativo.
+
+**Prompt**
+ok una cosa mas me acabo de dar cuenta que falta por implementar esta metodologia de pago parcial en /orders/id porque al momento de recibir y controlar mercaderia al yo marcar pago en efectivo realizado solo me dice monto exacto pagado pero no me deja indicar si es un pago parcial y cual seria el total del remito. Me gustaria tambien aqui incorporar un segundo entry point para registrar factura/remito, por ahora lo hacemos desde /payments donde tengo la parte de registrar los datos de factura/remito me gustaria incorporar ese formulario aqui cono un segundo entry point asi se puede permitir que la persona que reciba el pedido llene esta iformacion y no se genere deuda de trabajo por tener que hacer eso despues aunque se puede dejar para despues si no se llena esa info
+
+## 2026-02-18 15:31 -03 — Renombrar label de fecha en factura/remito (payments + order detail)
+
+**Lote:** invoice-date-label-rename-entrypoints
+**Objetivo:** Cambiar el label del campo `due_on` a “Fecha indicada del remito/factura” en ambos entry points operativos.
+
+**Prompt**
+ahora tambien me estoy dando cuenta que en esos formularios de registrar factura/remito hay un input que dice vence el me gustaria cambiar eso por fecha indicada del remito/factura en ambos entry points ya que esa fecha me interesa mas
+
+## 2026-02-18 15:37 -03 — Orders detail: preservar datos y resaltar campo faltante en control
+
+**Lote:** orders-detail-preserve-receive-form-on-missing-controller
+**Objetivo:** Evitar pérdida de datos en recepción/control cuando falta “Controlado por”, y señalar visualmente el campo faltante con estado de error.
+
+**Prompt**
+Ahorita estaba llenando los datos para hacer el pago parcial desde /orders/id y me falto llenar el nombre de controlado por y me dio el mensaje Indicá quién controló el pedido. lo que esta bien pero se me borro toda la info que ya habia metido sobre el pago lo que es molesto. podemos arreglar eso? tambien este mensaje debeia darme tambien una informacion mas especifica deberia alumbrarse en rojo el campo que me falta o algo asi ademas de que salga ese mensaje arriba
+
+## 2026-02-19 10:03 -03 — Dashboard: sección operativa hoy/semana para pedidos y pagos
+
+**Lote:** dashboard-ops-today-week-orders-payments
+**Objetivo:** Incorporar en `/dashboard` una sección informativa con toggle hoy/semana que muestre pedidos a realizar, pedidos a recibir y pagos a realizar por método (efectivo/transferencia).
+
+**Prompt**
+ahora vamos a incorporar al dashboard tambien una seccion informativa sobre los pagos. me gustaria ver una seccion donde me diga que pedidos se reciben hoy, con un toggle o boton para cambiarlo por esta semana y me dice la informaicon de essta semanao de hoy, los pedidos que deberia realizar hoy o esta semana, los pedidos que se reciben hoy o esta semana, los pagos que debo realizar hoy o esta semana bien sea en efectivo o por transferencia. tiene sentido?
+
+## 2026-02-19 10:06 -03 — Dashboard: incluir pagos vencidos en sección operativa
+
+**Lote:** dashboard-ops-include-overdue-payments
+**Objetivo:** Mostrar también cuentas por pagar vencidas (cantidad y montos) en el bloque operativo de pagos del dashboard.
+
+**Prompt**
+si muestra tambien los pagos vencidos

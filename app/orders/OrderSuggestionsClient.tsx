@@ -18,6 +18,7 @@ type Props = {
   priceByProduct: Record<string, number>;
   avgMode: 'cycle' | 'weekly' | 'biweekly' | 'monthly';
   safeMarginPct: number;
+  initialQuantities?: Record<string, number>;
   showingSummary?: string | null;
   specialOrders?: Array<{
     item_id: string;
@@ -51,27 +52,35 @@ export default function OrderSuggestionsClient({
   priceByProduct,
   avgMode,
   safeMarginPct,
+  initialQuantities,
   showingSummary,
   specialOrders = [],
 }: Props) {
-  const [view, setView] = useState<'table' | 'cards'>(() => {
-    if (typeof window === 'undefined') return 'table';
-    const stored = window.localStorage.getItem('orders_suggestions_view');
-    return stored === 'table' || stored === 'cards' ? stored : 'table';
-  });
+  const [view, setView] = useState<'table' | 'cards'>('table');
 
   useEffect(() => {
     window.localStorage.setItem('orders_suggestions_view', view);
   }, [view]);
 
-  const [quantities, setQuantities] = useState<Record<string, number>>(() => {
-    const next: Record<string, number> = {};
+  const [quantities, setQuantities] = useState<Record<string, string>>(() => {
+    const next: Record<string, string> = {};
     suggestions.forEach((row) => {
-      next[row.product_id] = Math.ceil(Number(row.suggested_qty ?? 0));
+      const initialQty = initialQuantities?.[row.product_id];
+      next[row.product_id] =
+        typeof initialQty === 'number' && Number.isFinite(initialQty)
+          ? String(Math.max(0, Math.round(initialQty)))
+          : String(Math.ceil(Number(row.suggested_qty ?? 0)));
     });
     return next;
   });
   const [specialOrderItemIds, setSpecialOrderItemIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredSuggestions = suggestions.filter((row) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return (row.product_name ?? '').toLowerCase().includes(query);
+  });
 
   const renderRow = (row: SuggestionRow) => {
     const cycleDays = Number(row.cycle_days ?? 30);
@@ -80,7 +89,8 @@ export default function OrderSuggestionsClient({
     const unitPrice = priceByProduct[row.product_id] ?? 0;
     const unitCost = unitPrice * (1 - safeMarginPct / 100);
     const suggestedQty = Math.ceil(Number(row.suggested_qty ?? 0));
-    const currentQty = quantities[row.product_id] ?? suggestedQty;
+    const currentQtyRaw = quantities[row.product_id] ?? String(suggestedQty);
+    const currentQty = currentQtyRaw === '' ? 0 : Number(currentQtyRaw);
     const subtotal = unitCost * currentQty;
 
     return {
@@ -88,26 +98,35 @@ export default function OrderSuggestionsClient({
       unitPrice,
       unitCost,
       suggestedQty,
+      currentQtyRaw,
       currentQty,
       subtotal,
     };
   };
 
   const handleQtyChange = (productId: string, value: string) => {
+    if (value === '') {
+      setQuantities((prev) => ({
+        ...prev,
+        [productId]: '',
+      }));
+      return;
+    }
     const parsed = Math.max(0, Math.round(Number(value)));
     setQuantities((prev) => ({
       ...prev,
-      [productId]: Number.isNaN(parsed) ? 0 : parsed,
+      [productId]: Number.isNaN(parsed) ? '' : String(parsed),
     }));
   };
 
   const handleAddSpecialOrderItem = (item: SpecialOrderItem) => {
     const remaining = Math.ceil(Number(item.remaining_qty ?? 0));
     setQuantities((prev) => {
-      const current = prev[item.product_id] ?? 0;
+      const currentRaw = prev[item.product_id] ?? '0';
+      const current = currentRaw === '' ? 0 : Number(currentRaw);
       return {
         ...prev,
-        [item.product_id]: current + Math.max(remaining, 0),
+        [item.product_id]: String(current + Math.max(remaining, 0)),
       };
     });
     setSpecialOrderItemIds((prev) =>
@@ -115,14 +134,15 @@ export default function OrderSuggestionsClient({
     );
   };
 
-  const totalItems = suggestions.reduce(
-    (total, row) => total + (quantities[row.product_id] ?? 0),
-    0,
-  );
+  const totalItems = suggestions.reduce((total, row) => {
+    const value = quantities[row.product_id];
+    return total + (value === '' || value == null ? 0 : Number(value));
+  }, 0);
   const totalCost = suggestions.reduce((total, row) => {
     const unitPrice = priceByProduct[row.product_id] ?? 0;
     const unitCost = unitPrice * (1 - safeMarginPct / 100);
-    const qty = quantities[row.product_id] ?? 0;
+    const qtyRaw = quantities[row.product_id];
+    const qty = qtyRaw === '' || qtyRaw == null ? 0 : Number(qtyRaw);
     return total + unitCost * qty;
   }, 0);
 
@@ -192,9 +212,20 @@ export default function OrderSuggestionsClient({
           Mostrando: {showingSummary}
         </div>
       ) : null}
+      <label className="block text-sm text-zinc-600">
+        Buscar artículo
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Ej: leche"
+          className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm md:max-w-sm"
+        />
+      </label>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-zinc-500">
-          Vista: {view === 'table' ? 'Tabla' : 'Tarjetas'}
+          Vista: {view === 'table' ? 'Tabla' : 'Tarjetas'} · Resultados:{' '}
+          {filteredSuggestions.length}
         </p>
         <div className="flex gap-2">
           <button
@@ -231,13 +262,13 @@ export default function OrderSuggestionsClient({
               </tr>
             </thead>
             <tbody>
-              {suggestions.map((row) => {
+              {filteredSuggestions.map((row) => {
                 const {
                   avgCycle,
                   unitPrice,
                   unitCost,
                   suggestedQty,
-                  currentQty,
+                  currentQtyRaw,
                   subtotal,
                 } = renderRow(row);
 
@@ -256,7 +287,7 @@ export default function OrderSuggestionsClient({
                         type="number"
                         min="0"
                         step="1"
-                        value={currentQty}
+                        value={currentQtyRaw}
                         onChange={(event) =>
                           handleQtyChange(row.product_id, event.target.value)
                         }
@@ -274,13 +305,13 @@ export default function OrderSuggestionsClient({
         </div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {suggestions.map((row) => {
+          {filteredSuggestions.map((row) => {
             const {
               avgCycle,
               unitPrice,
               unitCost,
               suggestedQty,
-              currentQty,
+              currentQtyRaw,
               subtotal,
             } = renderRow(row);
 
@@ -317,7 +348,7 @@ export default function OrderSuggestionsClient({
                       type="number"
                       min="0"
                       step="1"
-                      value={currentQty}
+                      value={currentQtyRaw}
                       onChange={(event) =>
                         handleQtyChange(row.product_id, event.target.value)
                       }

@@ -53,25 +53,53 @@ const randFloat = (min, max, decimals = 2) => {
   const factor = Math.pow(10, decimals);
   return Math.round((Math.random() * (max - min) + min) * factor) / factor;
 };
+const roundCurrency = (value) => Number(value.toFixed(2));
 
 const suppliersSeed = [
   {
-    name: 'Proveedor Semanal Demo',
+    name: 'Cafes del Puerto SRL',
+    contact_name: 'Lucia Herrera',
+    phone: '1145872210',
+    email: 'compras@cafesdelpuerto.com.ar',
+    notes: 'Tostadero para cafeterias de especialidad',
     order_frequency: 'weekly',
     order_day: 'mon',
     receive_day: 'tue',
+    payment_terms_days: 7,
+    preferred_payment_method: 'transfer',
+    accepts_cash: false,
+    accepts_transfer: true,
+    payment_note: 'Transferencia a Cta Cte Banco Galicia',
   },
   {
-    name: 'Proveedor Quincenal Demo',
+    name: 'Yerbatera La Colina SA',
+    contact_name: 'Diego Alvarez',
+    phone: '1138016642',
+    email: 'ventas@lacolina.com.ar',
+    notes: 'Distribucion mayorista de yerbas y mate cocido',
     order_frequency: 'biweekly',
     order_day: 'wed',
     receive_day: 'thu',
+    payment_terms_days: 15,
+    preferred_payment_method: 'cash',
+    accepts_cash: true,
+    accepts_transfer: true,
+    payment_note: 'Acepta pago contra entrega en sucursal',
   },
   {
-    name: 'Proveedor Mensual Demo',
+    name: 'Dulces del Litoral SAS',
+    contact_name: 'Paula Benitez',
+    phone: '1122967701',
+    email: 'facturacion@dulceslitoral.com.ar',
+    notes: 'Chocolates y dulces en presentacion minorista',
     order_frequency: 'monthly',
     order_day: 'fri',
     receive_day: 'sat',
+    payment_terms_days: 30,
+    preferred_payment_method: 'transfer',
+    accepts_cash: false,
+    accepts_transfer: true,
+    payment_note: 'Transferencia 72h antes del vencimiento',
   },
 ];
 
@@ -156,19 +184,137 @@ const smokeProducts = [
   },
 ];
 
+const demoProductCatalogBySupplier = [
+  {
+    prefix: 'CDP',
+    items: [
+      {
+        name: 'Cafe blend barista 1kg',
+        base_price: 12900,
+        shelf_life_days: 240,
+      },
+      {
+        name: 'Cafe blend desayuno 500g',
+        base_price: 7600,
+        shelf_life_days: 210,
+      },
+      {
+        name: 'Cafe molido Colombia 250g',
+        base_price: 5900,
+        shelf_life_days: 180,
+      },
+      {
+        name: 'Cafe en grano Brasil 1kg',
+        base_price: 11800,
+        shelf_life_days: 240,
+      },
+      {
+        name: 'Cafe descafeinado 500g',
+        base_price: 8400,
+        shelf_life_days: 220,
+      },
+      {
+        name: 'Capsulas espresso caja x10',
+        base_price: 4300,
+        shelf_life_days: 300,
+      },
+      { name: 'Azucar mascabo 1kg', base_price: 3100, shelf_life_days: 365 },
+      {
+        name: 'Endulzante stevia 250ml',
+        base_price: 2600,
+        shelf_life_days: 365,
+      },
+      { name: 'Leche de almendras 1L', base_price: 4100, shelf_life_days: 120 },
+      { name: 'Sirope vainilla 750ml', base_price: 6700, shelf_life_days: 300 },
+    ],
+  },
+  {
+    prefix: 'YLC',
+    items: [
+      { name: 'Yerba tradicional 1kg', base_price: 4600, shelf_life_days: 365 },
+      { name: 'Yerba suave 1kg', base_price: 4900, shelf_life_days: 365 },
+      {
+        name: 'Yerba con hierbas 500g',
+        base_price: 2800,
+        shelf_life_days: 365,
+      },
+      { name: 'Yerba premium 500g', base_price: 3600, shelf_life_days: 365 },
+      { name: 'Mate cocido caja x25', base_price: 2100, shelf_life_days: 420 },
+      { name: 'Te negro hebras 100g', base_price: 2200, shelf_life_days: 365 },
+      { name: 'Te verde hebras 100g', base_price: 2400, shelf_life_days: 365 },
+      {
+        name: 'Bombilla acero clasica',
+        base_price: 3900,
+        shelf_life_days: 999,
+      },
+      { name: 'Mate vidrio forrado', base_price: 7100, shelf_life_days: 999 },
+      { name: 'Termo inoxidable 1L', base_price: 17800, shelf_life_days: 999 },
+    ],
+  },
+  {
+    prefix: 'DDL',
+    items: [
+      {
+        name: 'Chocolate amargo 70 por ciento 100g',
+        base_price: 4100,
+        shelf_life_days: 330,
+      },
+      {
+        name: 'Chocolate con leche 100g',
+        base_price: 3700,
+        shelf_life_days: 300,
+      },
+      { name: 'Chocolate blanco 100g', base_price: 3900, shelf_life_days: 300 },
+      {
+        name: 'Alfajor chocolate negro',
+        base_price: 1800,
+        shelf_life_days: 180,
+      },
+      {
+        name: 'Alfajor chocolate blanco',
+        base_price: 1800,
+        shelf_life_days: 180,
+      },
+      {
+        name: 'Dulce de leche clasico 450g',
+        base_price: 3200,
+        shelf_life_days: 240,
+      },
+      {
+        name: 'Mermelada frutilla 454g',
+        base_price: 2900,
+        shelf_life_days: 270,
+      },
+      {
+        name: 'Mermelada frutos rojos 454g',
+        base_price: 3200,
+        shelf_life_days: 270,
+      },
+      {
+        name: 'Galletitas de manteca 150g',
+        base_price: 2300,
+        shelf_life_days: 150,
+      },
+      { name: 'Granola crocante 350g', base_price: 5100, shelf_life_days: 180 },
+    ],
+  },
+];
+
 const buildProducts = (supplierIndex) => {
-  const productPrefix = `DEMO-S${supplierIndex + 1}`;
-  const baseName = supplierIndex + 1;
-  return Array.from({ length: 10 }, (_, idx) => {
+  const catalog = demoProductCatalogBySupplier[supplierIndex];
+  if (!catalog) return [];
+
+  return catalog.items.map((item, idx) => {
     const suffix = String(idx + 1).padStart(2, '0');
+    const jitter = randFloat(-0.08, 0.08, 2);
     return {
-      name: `Producto Demo ${baseName}-${suffix}`,
-      internal_code: `${productPrefix}-${suffix}`,
-      barcode: `779000${supplierIndex + 1}${suffix}${rand(100, 999)}`,
+      name: item.name,
+      internal_code: `${catalog.prefix}-${suffix}`,
+      barcode: `7792${supplierIndex + 1}${suffix}${rand(1000, 9999)}`,
       sell_unit_type: 'unit',
       uom: 'unit',
-      unit_price: randFloat(1500, 15000, 2),
-      shelf_life_days: rand(7, 90),
+      unit_price: Number((item.base_price * (1 + jitter)).toFixed(2)),
+      shelf_life_days: item.shelf_life_days,
       is_active: true,
     };
   });
@@ -217,14 +363,19 @@ const isoDateFromOffset = (offsetDays) => {
     id: supplierIdByName.get(supplier.name) ?? randomUUID(),
     org_id: ORG_ID,
     name: supplier.name,
-    contact_name: 'Contacto Demo',
-    phone: '1122334455',
-    email: 'demo@proveedor.com',
-    notes: 'Proveedor de prueba',
+    contact_name: supplier.contact_name,
+    phone: supplier.phone,
+    email: supplier.email,
+    notes: supplier.notes,
     is_active: true,
     order_frequency: supplier.order_frequency,
     order_day: supplier.order_day,
     receive_day: supplier.receive_day,
+    payment_terms_days: supplier.payment_terms_days,
+    preferred_payment_method: supplier.preferred_payment_method,
+    accepts_cash: supplier.accepts_cash,
+    accepts_transfer: supplier.accepts_transfer,
+    payment_note: supplier.payment_note,
   }));
 
   const smokeSuppliers = suppliersSmoke.map((supplier) => ({
@@ -239,6 +390,11 @@ const isoDateFromOffset = (offsetDays) => {
     order_frequency: supplier.order_frequency,
     order_day: supplier.order_day,
     receive_day: supplier.receive_day,
+    payment_terms_days: 7,
+    preferred_payment_method: 'transfer',
+    accepts_cash: true,
+    accepts_transfer: true,
+    payment_note: 'Cuenta de pruebas smoke',
   }));
 
   const { error: supplierError } = await supabase
@@ -480,12 +636,78 @@ const isoDateFromOffset = (offsetDays) => {
   if (deleteOrdersError) throw deleteOrdersError;
 
   const orderSeeds = [
-    { status: 'draft', daysAgo: 3, expectedReceiveOffsetDays: 2 },
-    { status: 'draft', daysAgo: 8, expectedReceiveOffsetDays: 6 },
-    { status: 'sent', daysAgo: 2, expectedReceiveOffsetDays: 3 },
-    { status: 'sent', daysAgo: 10, expectedReceiveOffsetDays: -1 },
-    { status: 'received', daysAgo: 6, expectedReceiveOffsetDays: 0 },
-    { status: 'reconciled', daysAgo: 12, expectedReceiveOffsetDays: -4 },
+    {
+      status: 'draft',
+      daysAgo: 1,
+      expectedReceiveOffsetDays: 2,
+      note: 'Reposicion de granos para barra',
+    },
+    {
+      status: 'draft',
+      daysAgo: 5,
+      expectedReceiveOffsetDays: 7,
+      note: 'Pedido base para gondola de yerbas',
+    },
+    {
+      status: 'sent',
+      daysAgo: 2,
+      expectedReceiveOffsetDays: 4,
+      note: 'Pedido enviado para chocolates fin de semana',
+    },
+    {
+      status: 'sent',
+      daysAgo: 7,
+      expectedReceiveOffsetDays: -1,
+      note: 'Pedido demorado por logistica',
+    },
+    {
+      status: 'sent',
+      daysAgo: 3,
+      expectedReceiveOffsetDays: 1,
+      note: 'Pedido enviado pendiente de pago por transferencia',
+    },
+    {
+      status: 'sent',
+      daysAgo: 11,
+      expectedReceiveOffsetDays: -2,
+      note: 'Pedido enviado con fecha de recepcion vencida',
+    },
+    {
+      status: 'received',
+      daysAgo: 4,
+      expectedReceiveOffsetDays: 0,
+      note: 'Recepcion parcial de insumos de cafeteria',
+    },
+    {
+      status: 'reconciled',
+      daysAgo: 9,
+      expectedReceiveOffsetDays: -3,
+      note: 'Pedido controlado y listo para pago total',
+    },
+    {
+      status: 'reconciled',
+      daysAgo: 13,
+      expectedReceiveOffsetDays: -8,
+      note: 'Pedido controlado con vencimiento ya superado',
+    },
+    {
+      status: 'received',
+      daysAgo: 6,
+      expectedReceiveOffsetDays: -2,
+      note: 'Recepcion reciente pendiente de completar pago',
+    },
+    {
+      status: 'received',
+      daysAgo: 8,
+      expectedReceiveOffsetDays: -1,
+      note: 'Recepcion completa con pago transfer pendiente',
+    },
+    {
+      status: 'reconciled',
+      daysAgo: 15,
+      expectedReceiveOffsetDays: -9,
+      note: 'Controlado historico con saldo pendiente',
+    },
   ];
 
   const orderPayload = [];
@@ -503,7 +725,7 @@ const isoDateFromOffset = (offsetDays) => {
       branch_id: branchId,
       supplier_id: supplier.id,
       status: seed.status,
-      notes: `Pedido demo ${seed.status}`,
+      notes: seed.note,
       created_by: adminUserId,
       created_at: createdAt,
       sent_at:
@@ -536,8 +758,10 @@ const isoDateFromOffset = (offsetDays) => {
       const orderedQty = rand(2, 15);
       const receivedQty =
         seed.status === 'received' || seed.status === 'reconciled'
-          ? orderedQty
+          ? Math.max(orderedQty + rand(-2, 1), 1)
           : 0;
+      const baseUnitCost =
+        Number(product.unit_price ?? 0) * randFloat(0.5, 0.82, 2);
       orderItemsPayload.push({
         id: randomUUID(),
         org_id: ORG_ID,
@@ -545,7 +769,7 @@ const isoDateFromOffset = (offsetDays) => {
         product_id: product.id,
         ordered_qty: orderedQty,
         received_qty: receivedQty,
-        unit_cost: 0,
+        unit_cost: roundCurrency(baseUnitCost),
       });
     });
   });
@@ -559,6 +783,214 @@ const isoDateFromOffset = (offsetDays) => {
     .from('supplier_order_items')
     .insert(orderItemsPayload);
   if (orderItemsError) throw orderItemsError;
+
+  const { data: existingPaymentAccounts, error: existingPaymentAccountsError } =
+    await supabase
+      .from('supplier_payment_accounts')
+      .select('id, supplier_id')
+      .eq('org_id', ORG_ID)
+      .in(
+        'supplier_id',
+        suppliers.map((supplier) => supplier.id),
+      )
+      .order('created_at', { ascending: true });
+  if (existingPaymentAccountsError) throw existingPaymentAccountsError;
+
+  const accountIdBySupplierSeed = new Map();
+  (existingPaymentAccounts ?? []).forEach((account) => {
+    if (!accountIdBySupplierSeed.has(account.supplier_id)) {
+      accountIdBySupplierSeed.set(account.supplier_id, account.id);
+    }
+  });
+
+  const paymentAccountsSeed = suppliers.map((supplier, idx) => ({
+    id: accountIdBySupplierSeed.get(supplier.id) ?? randomUUID(),
+    org_id: ORG_ID,
+    supplier_id: supplier.id,
+    account_label: `Cuenta principal ${supplier.name}`,
+    bank_name: ['Banco Galicia', 'Banco Nacion', 'Banco Santander'][idx % 3],
+    account_holder_name: supplier.name,
+    account_identifier: `ALIAS.${supplier.name.replace(/[^A-Za-z0-9]/g, '').toUpperCase()}.${idx + 1}`,
+    is_active: true,
+    created_by: adminUserId,
+    updated_by: adminUserId,
+  }));
+
+  const { error: paymentAccountsError } = await supabase
+    .from('supplier_payment_accounts')
+    .upsert(paymentAccountsSeed, {
+      onConflict: 'id',
+    });
+  if (paymentAccountsError) throw paymentAccountsError;
+
+  const { data: paymentAccountsData, error: paymentAccountsQueryError } =
+    await supabase
+      .from('supplier_payment_accounts')
+      .select('id, supplier_id')
+      .eq('org_id', ORG_ID)
+      .in(
+        'supplier_id',
+        suppliers.map((supplier) => supplier.id),
+      )
+      .eq('is_active', true);
+  if (paymentAccountsQueryError) throw paymentAccountsQueryError;
+
+  const accountIdBySupplierId = new Map(
+    (paymentAccountsData ?? []).map((account) => [
+      account.supplier_id,
+      account.id,
+    ]),
+  );
+
+  const { data: payablesData, error: payablesError } = await supabase
+    .from('supplier_payables')
+    .select('id, order_id, supplier_id, branch_id, estimated_amount')
+    .eq('org_id', ORG_ID)
+    .in(
+      'supplier_id',
+      suppliers.map((supplier) => supplier.id),
+    )
+    .order('created_at', { ascending: true });
+  if (payablesError) throw payablesError;
+
+  const payableScenarios = [
+    {
+      invoiceMultiplier: 1.02,
+      dueOffsetDays: -2,
+      status: 'pending',
+      method: 'transfer',
+      note: 'Pendiente por transferencia vencida',
+      paymentSlices: [],
+    },
+    {
+      invoiceMultiplier: 1.01,
+      dueOffsetDays: 1,
+      status: 'pending',
+      method: 'transfer',
+      note: 'Pendiente por transferencia con vencimiento inmediato',
+      paymentSlices: [],
+    },
+    {
+      invoiceMultiplier: 1.04,
+      dueOffsetDays: 5,
+      status: 'pending',
+      method: 'transfer',
+      note: 'Pendiente por transferencia a 5 dias',
+      paymentSlices: [],
+    },
+    {
+      invoiceMultiplier: 1.01,
+      dueOffsetDays: 2,
+      status: 'partial',
+      method: 'transfer',
+      note: 'Pago parcial via transferencia',
+      paymentSlices: [0.4],
+    },
+    {
+      invoiceMultiplier: 1.0,
+      dueOffsetDays: 4,
+      status: 'partial',
+      method: 'cash',
+      note: 'Pago parcial en efectivo',
+      paymentSlices: [0.5],
+    },
+    {
+      invoiceMultiplier: 1.0,
+      dueOffsetDays: 12,
+      status: 'paid',
+      method: 'transfer',
+      note: 'Pago completo por transferencia',
+      paymentSlices: [0.5, 0.5],
+    },
+    {
+      invoiceMultiplier: 0.98,
+      dueOffsetDays: -4,
+      status: 'paid',
+      method: 'cash',
+      note: 'Factura cerrada en efectivo',
+      paymentSlices: [1],
+    },
+  ];
+
+  const supplierPaymentsPayload = [];
+  for (let idx = 0; idx < (payablesData ?? []).length; idx += 1) {
+    const payable = payablesData[idx];
+    const scenario = payableScenarios[idx % payableScenarios.length];
+    const invoiceAmount = roundCurrency(
+      Number(payable.estimated_amount ?? 0) * scenario.invoiceMultiplier,
+    );
+    const paidAmount =
+      scenario.status === 'pending'
+        ? 0
+        : scenario.status === 'partial'
+          ? roundCurrency(invoiceAmount * scenario.paymentSlices[0])
+          : invoiceAmount;
+    const outstandingAmount = roundCurrency(
+      Math.max(invoiceAmount - paidAmount, 0),
+    );
+    const payableStatus =
+      outstandingAmount === 0 ? 'paid' : paidAmount > 0 ? 'partial' : 'pending';
+
+    const { error: payableUpdateError } = await supabase
+      .from('supplier_payables')
+      .update({
+        invoice_amount: invoiceAmount,
+        due_on: isoDateFromOffset(scenario.dueOffsetDays),
+        invoice_reference:
+          scenario.method === 'transfer'
+            ? `FAC-T-${String(idx + 1).padStart(4, '0')}`
+            : `REM-C-${String(idx + 1).padStart(4, '0')}`,
+        selected_payment_method: scenario.method,
+        invoice_note: scenario.note,
+        paid_amount: paidAmount,
+        outstanding_amount: outstandingAmount,
+        status: payableStatus,
+        paid_at: payableStatus === 'paid' ? daysAgo(rand(0, 2), 11, 30) : null,
+        updated_by: adminUserId,
+      })
+      .eq('id', payable.id)
+      .eq('org_id', ORG_ID);
+    if (payableUpdateError) throw payableUpdateError;
+
+    if (paidAmount <= 0) continue;
+
+    let remaining = paidAmount;
+    scenario.paymentSlices.forEach((slice, paymentIdx) => {
+      const amount =
+        paymentIdx === scenario.paymentSlices.length - 1
+          ? roundCurrency(remaining)
+          : roundCurrency(paidAmount * slice);
+      remaining = roundCurrency(Math.max(remaining - amount, 0));
+
+      supplierPaymentsPayload.push({
+        org_id: ORG_ID,
+        branch_id: payable.branch_id,
+        supplier_id: payable.supplier_id,
+        payable_id: payable.id,
+        order_id: payable.order_id,
+        payment_method: scenario.method,
+        transfer_account_id:
+          scenario.method === 'transfer'
+            ? (accountIdBySupplierId.get(payable.supplier_id) ?? null)
+            : null,
+        amount,
+        paid_at: daysAgo(rand(0, 5), 10 + paymentIdx, rand(0, 59)),
+        reference:
+          scenario.method === 'transfer'
+            ? `TRX-${String(idx + 1).padStart(3, '0')}-${paymentIdx + 1}`
+            : `CAJA-${String(idx + 1).padStart(3, '0')}`,
+        note: scenario.note,
+        created_by: adminUserId,
+      });
+    });
+  }
+
+  if (supplierPaymentsPayload.length > 0) {
+    const { error: supplierPaymentsError } = await supabase
+      .from('supplier_payments')
+      .insert(supplierPaymentsPayload);
+    if (supplierPaymentsError) throw supplierPaymentsError;
+  }
 
   const { error: deleteExpirationBatchesError } = await supabase
     .from('expiration_batches')

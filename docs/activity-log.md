@@ -18,6 +18,715 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-18 14:42 -03 — Orders detail: fila de acciones inline para recepción + pago efectivo
+
+**Tipo:** ui
+**Lote:** orders-detail-cash-row-inline-button-and-disabled-amount
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se ajustó el layout del bloque de confirmación en `/orders/[orderId]`: el botón “Confirmar recepción/control” ahora queda inline a la derecha del check de pago efectivo y su monto. El input de monto exacto se mantiene siempre visible pero bloqueado/vacío hasta marcar “Pago en efectivo realizado”.
+
+**Archivos**
+
+- app/orders/ReceiveActionsRow.tsx
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 14:38 -03 — Orders detail: nota de “estimado aproximado” en monto
+
+**Tipo:** ui
+**Lote:** orders-detail-estimate-approx-note
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se agregó anotación/tooltip en `/orders/[orderId]` junto al monto estimado (header y bloque de recepción) aclarando que es aproximado y que el monto real se confirma en remito/factura.
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 14:36 -03 — Orders detail: estimado total visible y estimado por item
+
+**Tipo:** ui
+**Lote:** orders-detail-show-estimated-total-and-item-estimates
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+En `/orders/[orderId]` se agregó visibilidad del monto estimado total del pedido en el header y en el bloque de recepción/control. Además, en la lista de ítems se incorporó costo estimado unitario y subtotal estimado por item para mejorar validación operativa al recibir/controlar.
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 14:30 -03 — Orders: input de cantidad permite vacío temporal al editar
+
+**Tipo:** ui
+**Lote:** orders-qty-input-allow-empty-editing
+**Alcance:** frontend, tests
+
+**Resumen**
+Se mejoró la UX del input “Cantidad a pedir” en sugeridos (`OrderSuggestionsClient`): ahora permite borrar temporalmente el valor (estado vacío) sin forzar `0` en cada tecla, facilitando edición manual de cantidades.
+
+**Archivos**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 14:27 -03 — Orders: bloquear creación de pedido sin ítems válidos
+
+**Tipo:** ui
+**Lote:** orders-prevent-empty-order-creation
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se corrigió el flujo de creación en `/orders` para validar primero que exista al menos un ítem con cantidad > 0 antes de invocar `rpc_create_supplier_order`. Con esto se evita crear pedidos vacíos en el listado.
+
+**Archivos**
+
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 14:25 -03 — Orders: preservar contexto de draft en error por ítems vacíos
+
+**Tipo:** ui
+**Lote:** orders-draft-context-preserve-on-empty-items-error
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se mejoró UX de `/orders` al crear pedido: cuando falla por ítems en 0, el redirect de error ahora conserva proveedor, sucursal y ajustes del draft (`draft_margin_pct`, `draft_avg_mode`) para que el desplegable siga abierto con el contexto armado y no haya que reconfigurar manualmente.
+
+**Archivos**
+
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 13:00 -03 — Orders: fix de hydration mismatch en sugeridos
+
+**Tipo:** ui
+**Lote:** orders-hydration-mismatch-view-state-fix
+**Alcance:** frontend, tests
+
+**Resumen**
+Se resolvió un `hydration mismatch` en `/orders` causado por inicializar la vista (tabla/tarjetas) con branch `typeof window` durante render del Client Component `OrderSuggestionsClient`. La vista ahora arranca estable en `table` para SSR/cliente y evita desalineación de HTML en hidratación.
+
+**Archivos**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 12:57 -03 — Orders: banner de confirmación al guardar/enviar desde armar pedido
+
+**Tipo:** ui
+**Lote:** orders-create-send-success-feedback-banner
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se agregó feedback explícito en `/orders` al crear pedidos desde “Armar pedido”. El submit ahora redirige con `result` y muestra banner claro para: pedido enviado, borrador guardado y errores de creación/ítems vacíos.
+
+**Archivos**
+
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 12:54 -03 — Orders detail: visibilidad de pago efectivo sin requerir estado `paid`
+
+**Tipo:** ui
+**Lote:** orders-detail-header-cash-paid-visibility-partial
+**Alcance:** frontend, tests
+
+**Resumen**
+Se ajustó la condición del header de `/orders/[orderId]` para mostrar “Pagado en efectivo” y monto cuando exista pago efectivo registrado (`selected_payment_method='cash'` y `paid_amount>0`), aunque el payable no esté en estado final `paid` (por ejemplo `partial`).
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 12:51 -03 — Orders detail: header con “Pagado en efectivo” y monto
+
+**Tipo:** ui
+**Lote:** orders-detail-header-show-cash-payment-info
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se agregó en la info superior de `/orders/[orderId]` el estado de pago en efectivo cuando aplica, mostrando monto pagado (ARS) y fecha/hora de pago junto a creado/enviado/controlado.
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 12:49 -03 — Orders detail: pago efectivo idempotente sin error confuso
+
+**Tipo:** ui
+**Lote:** orders-detail-cash-idempotent-no-confusing-error
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se eliminó el mensaje de error confuso “La cuenta por pagar no requiere un nuevo pago en efectivo” en `/orders/[orderId]` para el flujo de control con check de pago efectivo. Ahora, si el payable ya quedó saldado, la acción no intenta registrar otro pago y la UI ya no muestra el check de pago efectivo para ese pedido; en su lugar informa que el pago ya está registrado.
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 12:46 -03 — Orders detail: check de pago efectivo inline en confirmación
+
+**Tipo:** ui
+**Lote:** orders-detail-cash-checkbox-inline-with-confirm
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se iteró la UX en `/orders/[orderId]`: en recepción/control para proveedores de efectivo ahora se usa un check “Pago en efectivo realizado” y el monto exacto aparece inline al marcarlo, en la misma fila del botón “Confirmar recepción/control”. Se removió el input de monto separado de arriba y se mantuvo la regla de seguridad: si el check está marcado sin monto válido, no se procesa ningún cambio.
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/docs-modules-supplier-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 12:38 -03 — Orders detail: separación estricta entre controlar y pagar efectivo
+
+**Tipo:** ui
+**Lote:** orders-detail-cash-action-separation-and-guardrails
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se corrigió el flujo en `/orders/[orderId]` para evitar regresión de estado al usar “Pago en efectivo realizado”. Ahora el botón de pago es una acción separada que no cambia estado del pedido. Además, si no se informa monto exacto, no se procesa ningún cambio. Se agregaron guardrails para impedir pago efectivo antes de confirmar control/recepción.
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/docs-modules-supplier-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 12:14 -03 — Payments: método requerido en vivo desde perfil de proveedor
+
+**Tipo:** ui
+**Lote:** payments-required-method-live-from-supplier-profile
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se corrigió la visualización de “Método requerido” en `/payments`: ahora toma el método preferido actual del proveedor (`suppliers.preferred_payment_method`) en lugar de depender solo del snapshot de `supplier_payables`. Con esto, cambios recientes en `/suppliers` (por ejemplo transfer -> efectivo) se reflejan inmediatamente en pendientes por pagar.
+
+**Archivos**
+
+- app/payments/page.tsx
+- docs/docs-app-screens-payments.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 12:08 -03 — Orders detail: acción Guardar y enviar en borrador
+
+**Tipo:** ui
+**Lote:** orders-detail-draft-save-and-send-button
+**Alcance:** frontend, tests
+
+**Resumen**
+En el editor de borrador de `/orders/[orderId]` se agregó el botón `Guardar y enviar` junto a `Guardar borrador`. La acción reutiliza el guardado batch de ítems y, en el mismo submit, cambia el estado del pedido a `sent` para que pase a “Pendiente por recibir”.
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 12:06 -03 — Orders detail: editor batch de borrador con sugeridos + buscador
+
+**Tipo:** ui
+**Lote:** orders-detail-draft-full-items-editor
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+En `/orders/[orderId]` (estado `draft`) se reemplazó el flujo de “Agregar ítem” + edición individual por un editor completo de borrador con lista de artículos sugeridos del proveedor/sucursal, estadísticas operativas, buscador por artículo y guardado batch. Al guardar, se aplica la nueva lista completa de ítems (upsert qty > 0 y remoción de los que quedan en 0/no incluidos).
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- app/orders/OrderSuggestionsClient.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/docs-modules-supplier-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 12:00 -03 — Suppliers: aplicar cambios de edición sin refresh manual
+
+**Tipo:** ui
+**Lote:** suppliers-immediate-refresh-after-save
+**Alcance:** frontend, tests
+
+**Resumen**
+Se mejoró la UX de edición en `/suppliers` para que los cambios (incluyendo método de pago) se reflejen inmediatamente tras guardar, sin recargar manualmente la página. `SupplierActions` ahora ejecuta la Server Action y luego fuerza `router.refresh()`; además cierra el formulario de edición al completar.
+
+**Archivos**
+
+- app/suppliers/SupplierActions.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 11:57 -03 — Suppliers: fix Server Action closure en Next 16
+
+**Tipo:** ui
+**Lote:** suppliers-server-action-closure-fix
+**Alcance:** frontend, tests
+
+**Resumen**
+Se corrigió el error de runtime en `/suppliers` bajo Next.js 16.1.6 (Turbopack) donde `createSupplier` y `updateSupplier` quedaban enlazadas a una función local (`deriveAccepts`) no serializable al cruzar el boundary Server Component -> Client Component. Se eliminó el closure y se derivaron `accepts_cash`/`accepts_transfer` inline dentro de cada Server Action.
+
+**Archivos**
+
+- app/suppliers/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 11:53 -03 — Suppliers: método de pago preferido como único control UX
+
+**Tipo:** ui
+**Lote:** suppliers-payment-preference-ui-simplification
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se simplificó la UX de pagos en proveedores (`/suppliers` y `/suppliers/[supplierId]`): “Método preferido” pasó a “Método de pago preferido”, se removieron los checkboxes visibles de “Acepta efectivo/transferencia”, y “Nota de pago” se renombró a “Datos de pago y notas del proveedor”. Internamente, la aceptación se deriva automáticamente desde el método preferido para mantener compatibilidad con RPC/DB.
+
+**Archivos**
+
+- app/suppliers/page.tsx
+- app/suppliers/[supplierId]/page.tsx
+- app/suppliers/SupplierActions.tsx
+- docs/docs-app-screens-suppliers.md
+- docs/docs-modules-suppliers.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 11:38 -03 — Order detail cash: monto exacto obligatorio y monto real de la orden
+
+**Tipo:** ui
+**Lote:** orders-detail-cash-payment-exact-amount
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+El botón “Pago en efectivo realizado” en `/orders/[orderId]` ahora exige monto exacto pagado. Ese monto se usa para actualizar el `invoice_amount` real del payable de la orden y luego registrar el pago en efectivo en el mismo flujo de control.
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/docs-modules-supplier-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 11:35 -03 — Order detail: pago en efectivo al controlar recepción
+
+**Tipo:** ui
+**Lote:** orders-detail-cash-payment-at-receive
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+En `/orders/[orderId]` se agregó botón “Pago en efectivo realizado” junto a la confirmación de recepción/control para proveedores con método preferido `cash`. Esa acción confirma el control del pedido y registra automáticamente un pago en efectivo por el saldo pendiente del payable asociado. Si no se usa, el pedido queda controlado y el pago permanece pendiente/parcial para gestionarse en `/payments`.
+
+**Archivos**
+
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/docs-modules-supplier-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 10:58 -03 — Payments: número factura/remito persistente + defaults de método/fecha
+
+**Tipo:** schema
+**Lote:** payments-invoice-reference-and-defaults
+**Alcance:** db, ui, docs, tests
+
+**Resumen**
+Se agregó `invoice_reference` en `supplier_payables` y se extendió `rpc_update_supplier_payable` para guardar número de factura/remito. En `/payments` el formulario ahora se llama “Editar datos de factura/remito”, incluye ese campo al inicio, precarga método seleccionado con el preferido del proveedor cuando no había selección y usa `due_on` guardado sin conversión de zona horaria.
+
+**Archivos**
+
+- supabase/migrations/20260218113000_042_supplier_payables_invoice_reference.sql
+- app/payments/page.tsx
+- scripts/seed-demo-data.js
+- docs/docs-app-screens-payments.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-02-18)
+- node scripts/seed-demo-data.js OK (2026-02-18)
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 10:53 -03 — Inputs numéricos sin chevrons y sin cambio por scroll (global)
+
+**Tipo:** ui
+**Lote:** global-number-input-no-spinner-no-wheel
+**Alcance:** frontend, ux, tests
+
+**Resumen**
+Se aplicó hardening global para inputs numéricos: se removieron los chevrons (spin buttons) en todos los navegadores y se bloqueó el cambio de valor por rueda del mouse cuando un `input[type=number]` está enfocado.
+
+**Archivos**
+
+- app/globals.css
+- app/layout.tsx
+- app/components/NumberInputScrollGuard.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 10:45 -03 — Payments: fecha/hora en registro + bloqueo en pagadas + seed con más transfer pendientes
+
+**Tipo:** ui
+**Lote:** payments-flow-paid-at-and-demo-transfer-pending
+**Alcance:** frontend, db, docs, tests
+
+**Resumen**
+Se agregó `fecha y hora de pago` al formulario de “Registrar pago” en `/payments` y se envía como `p_paid_at` al RPC. Para facturas ya pagadas se oculta la acción de registrar nuevos pagos y se muestra mensaje de estado final con fecha/hora. Además, se amplió el seed con nuevos pedidos y más escenarios `pending` por transferencia para visualización operativa.
+
+**Archivos**
+
+- app/payments/page.tsx
+- scripts/seed-demo-data.js
+- docs/docs-app-screens-payments.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- node scripts/seed-demo-data.js OK (2026-02-18)
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 10:39 -03 — Payments: pendientes/pagadas + orden por urgencia + buscador flexible
+
+**Tipo:** ui
+**Lote:** payments-list-priority-search
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+En `/payments` el listado se dividió en dos secciones (pendientes arriba, pagadas abajo). Las pendientes se ordenan por prioridad operativa: vencidas primero, luego próximo vencimiento y por último sin vencimiento. Se agregó buscador por nombre debajo de filtros, con coincidencia por palabras en cualquier orden.
+
+**Archivos**
+
+- app/payments/page.tsx
+- docs/docs-app-screens-payments.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 10:09 -03 — Visibilidad de método de pago requerido en listados
+
+**Tipo:** ui
+**Lote:** payment-method-visibility-orders-payments
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se agregó en `/orders` la visualización del método de pago requerido por proveedor (`preferred_payment_method`) y en `/payments` se muestra en cada cuenta por pagar el método requerido + método seleccionado.
+
+**Archivos**
+
+- app/orders/page.tsx
+- app/payments/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/docs-app-screens-payments.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 10:02 -03 — Pagos sincronizados con pedidos enviados + estado operativo visible
+
+**Tipo:** schema
+**Lote:** payments-sync-sent-orders
+**Alcance:** db, ui, docs, tests
+
+**Resumen**
+Se extendió la sincronización de `supplier_payables` para incluir pedidos `sent` además de `received/reconciled`, con backfill automático sobre históricos. En `/payments` se expone el estado operativo del pedido para distinguir “pendiente por recibir” vs “controlado”.
+
+**Archivos**
+
+- supabase/migrations/20260218102000_041_payables_include_sent_orders.sql
+- app/payments/page.tsx
+- docs/docs-app-screens-payments.md
+- docs/docs-modules-supplier-payments.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-02-18)
+- node scripts/seed-demo-data.js OK (2026-02-18)
+- psql local check `v_supplier_payables_admin` OK (sent=2, received=2, reconciled=2)
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 09:47 -03 — Datos demo realistas en orders/payments + UI colapsable
+
+**Tipo:** ui
+**Lote:** payments-orders-demo-data-hardening
+**Alcance:** frontend, db, docs, tests
+
+**Resumen**
+Se ajustaron los datos demo para que `/orders` y `/payments` muestren proveedores/sucursales con nombres reales, perfiles de pago completos y cuentas por pagar con factura, vencimiento y estados pendientes/parciales/pagados. En `/payments` se ocultaron formularios de factura y pago en secciones desplegables para reducir carga visual.
+
+**Archivos**
+
+- scripts/seed-users.js
+- scripts/seed-demo-data.js
+- app/payments/page.tsx
+- docs/docs-app-screens-payments.md
+- docs/docs-demo-users.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- node scripts/seed-demo-data.js OK (2026-02-18)
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-17 22:11 -03 — Factura comprimida para pagos proveedor
+
+**Tipo:** ui
+**Lote:** supplier-invoice-photo-compression-storage
+**Alcance:** db, ui, docs, tests
+
+**Resumen**
+Se incorporó carga de foto de factura/remito en `/payments` con conversión y compresión automática a JPG para minimizar peso manteniendo legibilidad. La imagen se sube a Storage en bucket `supplier-invoices` y se guarda el path en `supplier_payables.invoice_photo_url`.
+
+**Archivos**
+
+- supabase/migrations/20260217221500_040_supplier_invoice_storage_bucket.sql
+- app/payments/InvoiceImageField.tsx
+- app/payments/page.tsx
+- docs/docs-app-screens-payments.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/schema.sql
+- types/supabase.ts
+
+**Tests:**
+
+- npm run db:reset OK (2026-02-17)
+- npm run db:schema:snapshot OK (2026-02-17)
+- npm run types:gen OK (2026-02-17)
+- npm run db:seed:all OK (2026-02-17)
+- npm run db:rls:smoke OK (2026-02-17)
+- npm run lint OK (2026-02-17)
+- npm run build OK (2026-02-17)
+
+**Commit:** N/A
+
 ## 2026-02-17 22:00 -03 — Pagos proveedor por sucursal + integración con orders
 
 **Tipo:** schema
@@ -3736,5 +4445,236 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run lint OK (2026-02-16)
 - npm run build OK (2026-02-16)
 - npx playwright test -g "smoke" OK (2026-02-16)
+
+**Commit:** N/A
+
+## 2026-02-18 14:52 -03 — Seguimiento de último pago en `/payments`
+
+**Tipo:** ui  
+**Lote:** payments-latest-payment-badge  
+**Descripción:** Se agregó en cada card de `/payments` una tarjeta de seguimiento con el último pago registrado (fecha/hora, monto y nota), incluyendo casos de pago parcial para facilitar trazabilidad operativa. Se mantuvo el contrato principal de pantalla y se añadió lectura auxiliar desde `supplier_payments` para obtener el movimiento más reciente por `payable_id`.
+
+**Archivos afectados:**
+
+- app/payments/page.tsx
+- docs/docs-app-screens-payments.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 14:55 -03 — Botón `Restante` en formulario de registrar pago
+
+**Tipo:** ui
+**Lote:** payments-register-payment-fill-remaining
+**Descripción:** Se agregó un botón `Restante` junto al input de monto en la sección “Registrar pago” de `/payments`. Al hacer click, completa automáticamente el monto pendiente (`outstanding_amount`) en el campo `amount` para agilizar pagos totales desde parciales.
+
+**Archivos afectados:**
+
+- app/payments/PaymentAmountField.tsx
+- app/payments/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 15:04 -03 — Registrar pago: parcial con total y aceptación de monto real mayor
+
+**Tipo:** ui
+**Lote:** payments-partial-total-and-real-amount
+**Descripción:** Se ajustó el flujo de `/payments` para registrar pagos sin bloquear montos mayores al saldo estimado cuando representan el monto real pagado. Se agregó check `Es pago parcial` con campo obligatorio de monto total y cálculo de restante proyectado. En backend de la acción server-side se ajusta `invoice_amount` antes de registrar el pago cuando corresponde (parcial declarado o monto real superior al saldo), manteniendo consistencia de estado y saldo.
+
+**Archivos afectados:**
+
+- app/payments/PaymentAmountField.tsx
+- app/payments/page.tsx
+- docs/docs-app-screens-payments.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 15:07 -03 — Fix de ambigüedad en llamada RPC de actualización de payable
+
+**Tipo:** ui
+**Lote:** payments-rpc-overload-ambiguity-fix
+**Descripción:** Se corrigió la llamada a `rpc_update_supplier_payable` para enviar siempre `p_invoice_reference` (incluyendo `null` cuando no hay valor), evitando que PostgREST elija de forma ambigua entre firmas sobrecargadas durante el flujo de pago parcial.
+
+**Archivos afectados:**
+
+- app/payments/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 15:09 -03 — Hardening DB: eliminación de overload legacy en `rpc_update_supplier_payable`
+
+**Tipo:** schema
+**Lote:** payments-drop-legacy-rpc-overload
+**Descripción:** Se agregó migración para eliminar la firma antigua de `rpc_update_supplier_payable` (sin `p_invoice_reference`) que generaba resolución ambigua en PostgREST. Se mantuvo únicamente la firma canónica con `p_invoice_reference`.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260218151000_043_drop_legacy_rpc_update_supplier_payable_overload.sql
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/docs-modules-supplier-payments.md
+- docs/docs-app-screens-payments.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-02-18)
+- Verificación SQL `pg_proc` OK: solo existe `rpc_update_supplier_payable(uuid,uuid,numeric,date,text,text,text,payment_method)` (2026-02-18)
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 15:13 -03 — Hardening de error handling en `registerPayment` (Server Action)
+
+**Tipo:** ui
+**Lote:** payments-server-action-unexpected-response-hardening
+**Descripción:** Se encapsuló la lógica de `registerPayment` en manejo explícito de excepciones para convertir fallos inesperados en `redirect` con banner de error en `/payments` (en vez de runtime genérico “An unexpected response was received from the server”). Se preserva el comportamiento de redirects válidos de Next.
+
+**Archivos afectados:**
+
+- app/payments/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 15:28 -03 — `/orders/[orderId]`: pago efectivo parcial + formulario de factura/remito
+
+**Tipo:** ui
+**Lote:** orders-detail-partial-cash-and-invoice-entrypoint
+**Descripción:** Se amplió el bloque de recepción/control en `/orders/[orderId]` para soportar pago en efectivo parcial (check parcial + total declarado + restante proyectado) y se incorporó un segundo entry point de factura/remito en la misma pantalla (número, monto, vencimiento, método, foto y nota) usando `rpc_update_supplier_payable`.
+
+**Archivos afectados:**
+
+- app/orders/ReceiveActionsRow.tsx
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/docs-modules-supplier-orders.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 15:31 -03 — Ajuste de copy en campo de fecha de factura/remito
+
+**Tipo:** ui
+**Lote:** invoice-date-label-rename-entrypoints
+**Descripción:** Se renombró el label del input de fecha (`due_on`) de “Vence el” a “Fecha indicada del remito/factura” en los dos entry points de carga de factura/remito (`/payments` y `/orders/[orderId]`).
+
+**Archivos afectados:**
+
+- app/payments/page.tsx
+- app/orders/[orderId]/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-18 15:37 -03 — Preservar formulario de recepción/control y highlight de “Controlado por”
+
+**Tipo:** ui
+**Lote:** orders-detail-preserve-receive-form-on-missing-controller
+**Descripción:** Se ajustó `/orders/[orderId]` para que, al faltar “Controlado por (nombre)”, no se pierdan los datos ya cargados en el formulario (fecha/hora, pago efectivo, parcial, montos) y se resalte en rojo el campo faltante con mensaje inline específico además del banner superior.
+
+**Archivos afectados:**
+
+- app/orders/[orderId]/page.tsx
+- app/orders/ReceiveActionsRow.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-18)
+- npm run build OK (2026-02-18)
+
+**Commit:** N/A
+
+## 2026-02-19 10:03 -03 — Dashboard operativo hoy/semana para compras y pagos
+
+**Tipo:** ui
+**Lote:** dashboard-ops-today-week-orders-payments
+**Descripción:** Se agregó en `/dashboard` una sección operativa con selector de período (`today`/`week`) que informa: pedidos a realizar (según `order_day`), pedidos a recibir (según `expected_receive_on`) y pagos a realizar (según `due_on`) desglosados por método efectivo/transferencia. Se extendió el filtro cliente para conservar sucursal + período en URL.
+
+**Archivos afectados:**
+
+- app/dashboard/page.tsx
+- app/dashboard/DashboardFiltersClient.tsx
+- docs/docs-app-screens-admin-dashboard.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-19)
+- npm run build OK (2026-02-19)
+
+**Commit:** N/A
+
+## 2026-02-19 10:06 -03 — Dashboard operativo: pagos vencidos visibles
+
+**Tipo:** ui
+**Lote:** dashboard-ops-include-overdue-payments
+**Descripción:** Se extendió el bloque de pagos de la sección operativa del dashboard para incluir cuentas vencidas (`due_on < hoy`) no pagadas, mostrando cantidad y monto total, con desglose por método efectivo/transferencia.
+
+**Archivos afectados:**
+
+- app/dashboard/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-19)
+- npm run build OK (2026-02-19)
 
 **Commit:** N/A

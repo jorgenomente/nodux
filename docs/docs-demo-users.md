@@ -14,7 +14,7 @@ Password comun: `prueba123`
 ## Configuracion aplicada
 
 - Org demo: `Demo Org`
-- Sucursales: `Sucursal A`, `Sucursal B`
+- Sucursales: `Sucursal Palermo`, `Sucursal Caballito`
 - Staff asignado a ambas sucursales
 - Modulos habilitados para Staff: `pos`, `products_lookup`, `clients`, `expirations`
 
