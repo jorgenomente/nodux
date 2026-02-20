@@ -2,6 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import {
+  detectMercadoPagoChannel,
+  methodRequiresDevice,
+  POS_PAYMENT_METHOD_OPTIONS,
+  type MercadoPagoChannel,
+  type PosPaymentMethod,
+} from '@/lib/payments/catalog';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 type BranchOption = {
@@ -27,10 +34,10 @@ type CartItem = ProductCatalogItem & {
 };
 
 type SplitPaymentEntry = {
-  payment_method: PaymentMethod;
+  payment_method: PosPaymentMethod;
   amountInput: string;
   paymentDeviceId: string;
-  mercadopagoChannel: 'qr' | 'posnet' | 'alias_mp';
+  mercadopagoChannel: MercadoPagoChannel;
 };
 
 type PaymentDevice = {
@@ -64,14 +71,6 @@ type Props = {
   };
 };
 
-const PAYMENT_METHODS = [
-  { value: 'cash', label: 'Efectivo' },
-  { value: 'card', label: 'Tarjeta (débito/crédito)' },
-  { value: 'mercadopago', label: 'MercadoPago' },
-] as const;
-
-type PaymentMethod = (typeof PAYMENT_METHODS)[number]['value'];
-
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(
     value,
@@ -82,21 +81,6 @@ const normalizeForMatch = (value: string) =>
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
-
-const detectMercadoPagoChannel = (device: PaymentDevice) => {
-  if (device.provider !== 'mercadopago') return null;
-  const deviceName = normalizeForMatch(device.device_name);
-  if (deviceName.includes('alias') || deviceName.includes('transfer')) {
-    return 'alias_mp';
-  }
-  if (deviceName.includes('posnet')) {
-    return 'posnet';
-  }
-  if (deviceName.includes('qr')) {
-    return 'qr';
-  }
-  return 'posnet';
-};
 
 const optionButtonClass = (isSelected: boolean) =>
   `rounded-md border px-3 py-2 text-sm font-medium transition ${
@@ -116,9 +100,6 @@ const formatSellUnitType = (value: ProductCatalogItem['sell_unit_type']) => {
   if (value === 'weight') return 'Peso';
   return 'Granel';
 };
-
-const methodRequiresDevice = (method: PaymentMethod) =>
-  method === 'card' || method === 'mercadopago';
 
 const ACTIVE_BRANCH_COOKIE = 'nodux_active_branch_id';
 
@@ -157,7 +138,7 @@ export default function PosClient({
         quantityInput: String(item.quantity),
       }));
   });
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<PosPaymentMethod>('cash');
   const [paymentDeviceId, setPaymentDeviceId] = useState('');
   const [paymentDevices, setPaymentDevices] = useState<PaymentDevice[]>(
     initialPaymentDevices,
@@ -178,7 +159,7 @@ export default function PosClient({
     },
   ]);
   const [mercadoPagoChannel, setMercadoPagoChannel] =
-    useState<SplitPaymentEntry['mercadopagoChannel']>('qr');
+    useState<MercadoPagoChannel>('qr');
   const [applyCashDiscount, setApplyCashDiscount] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -1018,7 +999,7 @@ export default function PosClient({
                 </label>
                 {!isSplitPayment ? (
                   <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                    {PAYMENT_METHODS.map((method) => (
+                    {POS_PAYMENT_METHOD_OPTIONS.map((method) => (
                       <button
                         key={method.value}
                         type="button"
@@ -1137,7 +1118,7 @@ export default function PosClient({
                         className="rounded-md border border-zinc-200 p-2"
                       >
                         <div className="grid gap-2 sm:grid-cols-3">
-                          {PAYMENT_METHODS.map((method) => (
+                          {POS_PAYMENT_METHOD_OPTIONS.map((method) => (
                             <button
                               key={method.value}
                               type="button"

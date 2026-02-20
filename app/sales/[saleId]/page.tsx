@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
+import SalePaymentCorrectionForm from '@/app/sales/SalePaymentCorrectionForm';
+import { formatOperationalPaymentMethod } from '@/lib/payments/catalog';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
 
 export const dynamic = 'force-dynamic';
@@ -49,16 +51,6 @@ type SalePayment = {
   payment_device_provider: string | null;
   created_at: string;
 };
-
-const PAYMENT_METHOD_OPTIONS = [
-  { value: 'cash', label: 'Efectivo' },
-  { value: 'card', label: 'Tarjeta' },
-  { value: 'mercadopago', label: 'MercadoPago' },
-  { value: 'debit', label: 'Débito (legacy)' },
-  { value: 'credit', label: 'Crédito (legacy)' },
-  { value: 'transfer', label: 'Transferencia' },
-  { value: 'other', label: 'Otro' },
-] as const;
 
 const parseItems = (value: unknown): SaleItem[] => {
   if (!Array.isArray(value)) return [];
@@ -119,11 +111,8 @@ const formatDateTime = (value: string) => {
   return parsed.toLocaleString('es-AR', { hour12: false });
 };
 
-const formatPaymentMethod = (value: string) => {
-  const match = PAYMENT_METHOD_OPTIONS.find((option) => option.value === value);
-  if (match) return match.label;
-  return value;
-};
+const formatPaymentMethod = (value: string) =>
+  formatOperationalPaymentMethod(value);
 
 export default async function SaleDetailPage({
   params,
@@ -179,6 +168,9 @@ export default async function SaleDetailPage({
 
     const salePaymentId = String(formData.get('sale_payment_id') ?? '').trim();
     const paymentMethod = String(formData.get('payment_method') ?? '').trim();
+    const mercadopagoChannel = String(
+      formData.get('mercadopago_channel') ?? '',
+    ).trim();
     const paymentDeviceIdRaw = String(
       formData.get('payment_device_id') ?? '',
     ).trim();
@@ -188,7 +180,23 @@ export default async function SaleDetailPage({
       redirect(`/sales/${saleId}?notice=missing_fields`);
     }
 
-    const paymentDeviceId = paymentDeviceIdRaw || null;
+    const channelLabel =
+      paymentMethod === 'mercadopago'
+        ? mercadopagoChannel === 'alias_mp'
+          ? 'alias_mp'
+          : mercadopagoChannel === 'qr'
+            ? 'qr'
+            : 'posnet'
+        : '';
+    const reasonWithChannel =
+      paymentMethod === 'mercadopago' && channelLabel
+        ? `${reason} (canal: ${channelLabel})`
+        : reason;
+
+    const paymentDeviceId =
+      paymentMethod === 'mercadopago' && mercadopagoChannel !== 'posnet'
+        ? null
+        : paymentDeviceIdRaw || null;
 
     const { error } = await actionSession.supabase.rpc(
       'rpc_correct_sale_payment_method' as never,
@@ -197,7 +205,7 @@ export default async function SaleDetailPage({
         p_sale_payment_id: salePaymentId,
         p_payment_method: paymentMethod,
         p_payment_device_id: paymentDeviceId,
-        p_reason: reason,
+        p_reason: reasonWithChannel,
       } as never,
     );
 
@@ -371,63 +379,11 @@ export default async function SaleDetailPage({
                     </div>
                   </div>
 
-                  <form
-                    action={correctPaymentMethod}
-                    className="mt-3 grid gap-2 md:grid-cols-4"
-                  >
-                    <input
-                      type="hidden"
-                      name="sale_payment_id"
-                      value={payment.sale_payment_id}
-                    />
-                    <label className="flex flex-col gap-1 text-xs text-zinc-600">
-                      Método corregido
-                      <select
-                        name="payment_method"
-                        defaultValue={payment.payment_method}
-                        className="rounded border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
-                      >
-                        {PAYMENT_METHOD_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="flex flex-col gap-1 text-xs text-zinc-600">
-                      Dispositivo (si aplica)
-                      <select
-                        name="payment_device_id"
-                        defaultValue={payment.payment_device_id ?? ''}
-                        className="rounded border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
-                      >
-                        <option value="">Sin dispositivo</option>
-                        {paymentDevices.map((device) => (
-                          <option key={device.id} value={device.id}>
-                            {device.device_name} ({device.provider}
-                            {device.is_active ? '' : ', inactivo'})
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="flex flex-col gap-1 text-xs text-zinc-600 md:col-span-2">
-                      Motivo de corrección
-                      <input
-                        name="reason"
-                        placeholder="Ej: Cobro fue por Posnet 2 y se registró como efectivo"
-                        className="rounded border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
-                        required
-                      />
-                    </label>
-                    <div className="md:col-span-4">
-                      <button
-                        type="submit"
-                        className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
-                      >
-                        Guardar corrección
-                      </button>
-                    </div>
-                  </form>
+                  <SalePaymentCorrectionForm
+                    payment={payment}
+                    paymentDevices={paymentDevices}
+                    onSubmit={correctPaymentMethod}
+                  />
                 </article>
               ))}
             </div>

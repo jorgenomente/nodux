@@ -64,6 +64,57 @@ Se agregó contrato completo de historial y detalle de ventas con filtros operat
 
 **Commit:** N/A
 
+## 2026-02-20 12:13 -03 — Catálogo compartido de pagos entre POS y Sales
+
+**Tipo:** refactor
+**Lote:** payments-catalog-single-source-pos-sales
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se centralizó el catálogo operativo de pagos en `lib/payments/catalog.ts` y se conectó tanto en `POS` como en la corrección de pagos de `/sales/[saleId]`. Con esto, métodos/labels/reglas base se mantienen en un solo lugar y evita divergencias futuras entre módulos.
+
+**Archivos**
+
+- lib/payments/catalog.ts
+- app/pos/PosClient.tsx
+- app/sales/SalePaymentCorrectionForm.tsx
+- app/sales/[saleId]/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-20)
+- npm run build OK (2026-02-20)
+
+**Commit:** N/A
+
+## 2026-02-20 12:01 -03 — Sales detail: corrección de pago con botones visibles y canales MP
+
+**Tipo:** ui
+**Lote:** sales-detail-visible-payment-correction-controls
+**Alcance:** frontend, db, docs, tests
+
+**Resumen**
+En `/sales/[saleId]` se reemplazó el formulario de corrección basado en dropdowns por controles visibles (botones) para método de pago. Ahora el flujo muestra explícitamente: `efectivo`, `débito`, `crédito` y `mercadopago`; para MercadoPago se agrega selector visible de canal (`Posnet MP`, `QR`, `Transferencia a alias MP`) y para débito/crédito se muestran dispositivos de cobro visibles. Además, se endureció la RPC para exigir dispositivo en débito/crédito y permitir MercadoPago sin dispositivo cuando no es canal posnet.
+
+**Archivos**
+
+- app/sales/[saleId]/page.tsx
+- app/sales/SalePaymentCorrectionForm.tsx
+- supabase/migrations/20260220114500_046_rpc_correct_sale_payment_method_channels.sql
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-20)
+- npm run build OK (2026-02-20)
+- npm run db:reset OK (2026-02-20)
+- npm run db:seed:all OK (2026-02-20)
+
+**Commit:** N/A
+
 ## 2026-02-20 11:07 -03 — Ventas: default en sucursal activa del POS
 
 **Tipo:** ui

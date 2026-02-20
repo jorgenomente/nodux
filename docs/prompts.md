@@ -34,6 +34,24 @@ ok pero no entiendo por que no veo las ventas que acabo de procesar en el pos en
 
 lo estoy haciendo. estoy yendo a pos estoy procesando compras y luego voy a /sales y ver ventas de hoy pero me dice No hay ventas para los filtros seleccionados. vamos a establecer que por defecto en los filtros se seleccione la sucursal que esta en el pos porque ese es el flujo natural estar en una misma sucursal a menos que rara vez se quiera ver cosas en otra sucursal
 
+## 2026-02-20 12:01 -03 — Sales detail: corrección de pago visible sin desplegables
+
+**Lote:** sales-detail-visible-payment-correction-controls
+**Objetivo:** Hacer más rápida y clara la corrección de método de pago en `/sales/[saleId]` con botones visibles y reglas operativas por canal/dispositivo.
+
+**Prompt**
+estoy en /sales/id y veo que hay un formulario para corregir el metodo de pago y veo que hay mas metodos de los que deberia ver. En tal caso serian efectivo debito/credito y mercadopago. al seleccionar debito/credito deberia aparecer los dispositivos, si selecciono mercadopago entonces me dice si fue con posnet o qr o transferencia a alias. Necesito que todo esto sea mas visible que no dependa de desplegables para evitar hacer tantos clicks, que piensas?
+
+## 2026-02-20 12:13 -03 — POS/Sales: catálogo de métodos compartido
+
+**Lote:** payments-catalog-single-source-pos-sales
+**Objetivo:** Evitar doble mantenimiento de métodos/reglas entre POS y corrección en ventas.
+
+**Prompt**
+solo para tener en cuenta, si yo hago en el futuro un cambio en el pos por ejemplo agregar un dispositivo mas o algun otro metodo de pago, esto se va a ver cambiado aqui tambien no? no hay que hacer tambien el cambio manualmente desde esta seccion?
+
+hagamos eso entonces asi queda todo mas consistente
+
 ## 2026-02-18 14:42 -03 — Orders detail cash: botón junto al bloque y monto visible bloqueado hasta check
 
 **Lote:** orders-detail-cash-row-inline-button-and-disabled-amount

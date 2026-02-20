@@ -39,7 +39,11 @@ Auditar una venta puntual y corregir método de pago cuando hubo error operativo
 ### Bloque pagos
 
 - lista de componentes de pago (`sale_payments`)
-- cada fila permite corrección de método/dispositivo con motivo obligatorio
+- cada fila permite corrección de método con controles visibles (sin dropdown):
+  - métodos: `efectivo`, `débito`, `crédito`, `mercadopago`
+  - para `débito/crédito`: selector visible de dispositivo
+  - para `mercadopago`: selector visible de canal (`Posnet MP`, `QR`, `Transferencia a alias MP`)
+- motivo de corrección obligatorio en todos los casos
 
 ## Data Contract
 
@@ -70,7 +74,8 @@ Reglas críticas:
 
 - Solo OA/SA.
 - No permite `mixed`.
-- Si método es `card` o `mercadopago`, exige dispositivo válido de la sucursal.
+- Si método es `débito/crédito` (y `card` legacy), exige dispositivo válido de la sucursal.
+- Si método es `mercadopago`, dispositivo opcional para canales `QR/alias`; para `Posnet MP`, exige dispositivo.
 - Si la venta pertenece a una sesión de caja ya cerrada, bloquea corrección.
 - Actualiza `sales.payment_method` en base al conjunto actual de `sale_payments`.
 - Audita evento `sale_payment_method_corrected`.
