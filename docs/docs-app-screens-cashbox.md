@@ -28,8 +28,12 @@ Operar caja por sucursal con flujo simple:
   - apertura en caja
   - apertura en reserva
   - cobros en efectivo POS (`sale_payments.payment_method='cash'`)
+  - egresos automáticos por pagos a proveedor en efectivo (`supplier_payments.payment_method='cash'`)
   - ingresos manuales
   - gastos manuales
+- La pantalla muestra resumen adicional de cobros no-efectivo de la sesión:
+  - tarjeta (`card`, incluyendo histórico `debit/credit`)
+  - `mercadopago`
 - Al cerrar:
   - se guarda cierre en caja
   - se guarda cierre en reserva
@@ -50,6 +54,7 @@ Operar caja por sucursal con flujo simple:
   - `opening_cash_amount`, `opening_reserve_amount`
   - `closing_drawer_amount`, `closing_reserve_amount`
   - `cash_sales_amount`
+  - `card_sales_amount`, `mercadopago_sales_amount`
   - `manual_income_amount`, `manual_expense_amount`
   - `expected_cash_amount`, `counted_cash_amount`, `difference_amount`
   - `opened_by`, `closed_by`, `opened_at`, `closed_at`, `close_note`

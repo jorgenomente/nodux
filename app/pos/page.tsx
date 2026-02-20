@@ -168,6 +168,16 @@ export default async function PosPage({
         .limit(20)
     : { data: [] };
 
+  const { data: initialPaymentDevices } = defaultBranchId
+    ? await supabase
+        .from('pos_payment_devices' as never)
+        .select('id, device_name, provider')
+        .eq('org_id', orgId)
+        .eq('branch_id', defaultBranchId)
+        .eq('is_active', true)
+        .order('device_name')
+    : { data: [] };
+
   const { data: preferencesRow } = await supabase
     .from('org_preferences')
     .select('cash_discount_enabled, cash_discount_default_pct')
@@ -197,6 +207,13 @@ export default async function PosPage({
             unit_price: number;
             stock_on_hand: number;
             is_active: boolean;
+          }>
+        }
+        initialPaymentDevices={
+          (initialPaymentDevices ?? []) as Array<{
+            id: string;
+            device_name: string;
+            provider: 'posnet' | 'mercadopago' | 'other';
           }>
         }
         specialOrder={{

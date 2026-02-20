@@ -42,6 +42,7 @@ Operar pagos de pedidos por sucursal con trazabilidad y visibilidad de urgencias
 
 - `cash` y `transfer`.
 - proveedor puede preferir un método sin bloquear excepciones.
+- cuando se registra pago `cash` y existe caja abierta en la sucursal, se registra automáticamente un egreso en `cash_session_movements` para conciliación.
 
 ## Pantallas
 

@@ -15,6 +15,8 @@ Permitir cierre operativo de caja por sucursal de forma rápida y auditable.
 - Conteo por denominaciones en el cierre.
 - Denominaciones configurables por organización (billetes/monedas).
 - Conciliación automática contra cobros en efectivo POS.
+- Registro automático de egresos por pagos a proveedor en efectivo (si existe sesión abierta en la sucursal).
+- Resumen operativo de cobros no-efectivo por sesión (`card` y `mercadopago`).
 
 ## Fuentes de datos
 
@@ -22,6 +24,7 @@ Permitir cierre operativo de caja por sucursal de forma rápida y auditable.
 - `cash_session_movements`
 - `cash_session_count_lines`
 - `sale_payments` (solo componente `cash`)
+- `supplier_payments` (solo componente `cash` para egreso automático)
 - `audit_log`
 
 ## Contratos

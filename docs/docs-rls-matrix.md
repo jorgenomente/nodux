@@ -22,6 +22,8 @@ Estado actual:
 - Sincronización extendida en `supabase/migrations/20260218102000_041_payables_include_sent_orders.sql`: `supplier_payables` también se crea/actualiza para pedidos `sent`.
 - `supplier_payables` incorpora `invoice_reference` y `rpc_update_supplier_payable` se extiende para persistir número de factura/remito (`supabase/migrations/20260218113000_042_supplier_payables_invoice_reference.sql`).
 - Limpieza de RPCs: se elimina overload legacy de `rpc_update_supplier_payable` en `supabase/migrations/20260218151000_043_drop_legacy_rpc_update_supplier_payable_overload.sql` para evitar resolución ambigua de firma en PostgREST (sin cambios de policies).
+- POS agrega `pos_payment_devices` y trazabilidad por dispositivo en `sale_payments` (`supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`).
+- `rpc_register_supplier_payment` registra automáticamente egreso en `cash_session_movements` cuando el pago a proveedor es en efectivo y hay sesión abierta de caja (`supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`).
 - Bucket de facturas proveedor agregado en `supabase/migrations/20260217221500_040_supplier_invoice_storage_bucket.sql` (`storage.buckets: supplier-invoices` + policies en `storage.objects` por `org_id` en path).
 - Smoke RLS automatizado agregado en `scripts/rls-smoke-tests.mjs` (ejecución: `npm run db:rls:smoke`).
 - CI hardening agrega ejecución automática de smoke RLS + smoke Playwright en `.github/workflows/ci-hardening.yml`.
@@ -53,6 +55,7 @@ Estado actual:
 | `stock_movements`            | read               | read/insert        | insert (via RPC)              | ST no lectura historica por defecto                       |
 | `sales`                      | read               | read/insert        | insert (via RPC)              | ST crea ventas en su branch                               |
 | `sale_payments`              | read               | read/insert        | insert (via RPC)              | Desglose de cobro por método                              |
+| `pos_payment_devices`        | read/insert/update | read/insert/update | read/insert/update            | Catálogo de dispositivos de cobro por sucursal            |
 | `cash_sessions`              | read               | read/insert/update | insert/update (via RPC)       | Caja por sucursal (1 abierta por vez)                     |
 | `cash_session_movements`     | read               | read/insert        | insert (via RPC)              | Gastos/ingresos manuales de caja                          |
 | `cash_session_count_lines`   | read               | read/insert        | insert (via RPC)              | Conteo por denominaciones (apertura/cierre, caja/reserva) |
@@ -89,6 +92,7 @@ Estado actual:
 ## Endpoints criticos que deben validar modulos
 
 - `rpc_create_sale` -> requiere modulo `pos` habilitado, permite pagos divididos (`payments`) y solo permite descuento cuando el cobro es 100% cash.
+  - para `card` y `mercadopago` exige `payment_device_id` válido en la sucursal.
 - `rpc_open_cash_session` -> requiere modulo `cashbox` habilitado para ST y valida sucursal asignada.
   - requiere `opening_drawer_count_lines` y `opening_reserve_count_lines`.
 - `rpc_add_cash_session_movement` -> requiere modulo `cashbox` habilitado para ST y sesión abierta de la sucursal.
@@ -99,6 +103,7 @@ Estado actual:
 - `rpc_set_safety_stock` -> solo OA.
 - `rpc_create_supplier_order` y derivados -> solo OA.
 - `rpc_update_supplier_payable` y `rpc_register_supplier_payment` -> solo OA/SA en org activa.
+  - `rpc_register_supplier_payment` con método `cash` agrega egreso automático en sesión abierta de caja.
 - `rpc_create_special_order` -> OA o ST con modulo `clients` habilitado.
 - `rpc_superadmin_create_org` -> solo SA global.
 - `rpc_superadmin_upsert_branch` -> solo SA global.

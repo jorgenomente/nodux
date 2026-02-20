@@ -29,6 +29,14 @@ type CartItem = ProductCatalogItem & {
 type SplitPaymentEntry = {
   payment_method: PaymentMethod;
   amountInput: string;
+  paymentDeviceId: string;
+  mercadopagoChannel: 'qr' | 'posnet' | 'alias_mp';
+};
+
+type PaymentDevice = {
+  id: string;
+  device_name: string;
+  provider: 'posnet' | 'mercadopago' | 'other';
 };
 
 type Props = {
@@ -37,6 +45,7 @@ type Props = {
   branches: BranchOption[];
   defaultBranchId: string | null;
   initialProducts: ProductCatalogItem[];
+  initialPaymentDevices: PaymentDevice[];
   specialOrder?: {
     specialOrderId: string | null;
     clientName: string | null;
@@ -57,10 +66,8 @@ type Props = {
 
 const PAYMENT_METHODS = [
   { value: 'cash', label: 'Efectivo' },
-  { value: 'debit', label: 'Débito' },
-  { value: 'credit', label: 'Crédito' },
-  { value: 'transfer', label: 'Transferencia' },
-  { value: 'other', label: 'Otro' },
+  { value: 'card', label: 'Tarjeta (débito/crédito)' },
+  { value: 'mercadopago', label: 'MercadoPago' },
 ] as const;
 
 type PaymentMethod = (typeof PAYMENT_METHODS)[number]['value'];
@@ -69,6 +76,34 @@ const formatCurrency = (value: number) =>
   new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(
     value,
   );
+
+const normalizeForMatch = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+const detectMercadoPagoChannel = (device: PaymentDevice) => {
+  if (device.provider !== 'mercadopago') return null;
+  const deviceName = normalizeForMatch(device.device_name);
+  if (deviceName.includes('alias') || deviceName.includes('transfer')) {
+    return 'alias_mp';
+  }
+  if (deviceName.includes('posnet')) {
+    return 'posnet';
+  }
+  if (deviceName.includes('qr')) {
+    return 'qr';
+  }
+  return 'posnet';
+};
+
+const optionButtonClass = (isSelected: boolean) =>
+  `rounded-md border px-3 py-2 text-sm font-medium transition ${
+    isSelected
+      ? 'border-zinc-900 bg-zinc-900 text-white'
+      : 'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-500'
+  }`;
 
 const parseQuantity = (value: string) => {
   if (value.trim() === '') return 0;
@@ -82,12 +117,16 @@ const formatSellUnitType = (value: ProductCatalogItem['sell_unit_type']) => {
   return 'Granel';
 };
 
+const methodRequiresDevice = (method: PaymentMethod) =>
+  method === 'card' || method === 'mercadopago';
+
 export default function PosClient({
   orgId,
   role,
   branches,
   defaultBranchId,
   initialProducts,
+  initialPaymentDevices,
   specialOrder,
   cashDiscount,
 }: Props) {
@@ -117,11 +156,28 @@ export default function PosClient({
       }));
   });
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [paymentDeviceId, setPaymentDeviceId] = useState('');
+  const [paymentDevices, setPaymentDevices] = useState<PaymentDevice[]>(
+    initialPaymentDevices,
+  );
   const [isSplitPayment, setIsSplitPayment] = useState(false);
   const [splitPayments, setSplitPayments] = useState<SplitPaymentEntry[]>([
-    { payment_method: 'cash', amountInput: '' },
-    { payment_method: 'debit', amountInput: '' },
+    {
+      payment_method: 'cash',
+      amountInput: '',
+      paymentDeviceId: '',
+      mercadopagoChannel: 'qr',
+    },
+    {
+      payment_method: 'card',
+      amountInput: '',
+      paymentDeviceId: '',
+      mercadopagoChannel: 'qr',
+    },
   ]);
+  const [mercadoPagoChannel, setMercadoPagoChannel] = useState<
+    SplitPaymentEntry['mercadopagoChannel']
+  >('qr');
   const [applyCashDiscount, setApplyCashDiscount] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -162,17 +218,70 @@ export default function PosClient({
     () => Math.max(subtotal - cashDiscountAmount, 0),
     [cashDiscountAmount, subtotal],
   );
+  const mercadopagoDevices = useMemo(
+    () => paymentDevices.filter((device) => device.provider === 'mercadopago'),
+    [paymentDevices],
+  );
+  const getMercadoPagoDevicesByChannel = useCallback(
+    (channel: SplitPaymentEntry['mercadopagoChannel']) => {
+      const channelDevices = mercadopagoDevices.filter(
+        (device) => detectMercadoPagoChannel(device) === channel,
+      );
+      return channelDevices;
+    },
+    [mercadopagoDevices],
+  );
+  const getFallbackMercadoPagoDeviceId = useCallback(
+    (channel: SplitPaymentEntry['mercadopagoChannel']) =>
+      getMercadoPagoDevicesByChannel(channel)[0]?.id ??
+      mercadopagoDevices[0]?.id ??
+      '',
+    [getMercadoPagoDevicesByChannel, mercadopagoDevices],
+  );
+  const singleMercadoPagoChannelDevices = useMemo(
+    () => getMercadoPagoDevicesByChannel(mercadoPagoChannel),
+    [getMercadoPagoDevicesByChannel, mercadoPagoChannel],
+  );
+  const singleMercadoPagoNeedsManualDevice =
+    paymentMethod === 'mercadopago' &&
+    mercadoPagoChannel === 'posnet' &&
+    singleMercadoPagoChannelDevices.length > 1;
+  const singleMercadoPagoResolvedDeviceId =
+    paymentMethod === 'mercadopago'
+      ? paymentDeviceId || getFallbackMercadoPagoDeviceId(mercadoPagoChannel)
+      : '';
   const splitPaymentRows = useMemo(
     () =>
       splitPayments.map((payment) => ({
         payment_method: payment.payment_method,
         amount: Number(payment.amountInput),
+        payment_device_id:
+          payment.payment_method === 'card'
+            ? payment.paymentDeviceId || null
+            : payment.payment_method === 'mercadopago'
+              ? payment.paymentDeviceId ||
+                getFallbackMercadoPagoDeviceId(payment.mercadopagoChannel) ||
+                null
+              : null,
+        hasRequiredDevice:
+          payment.payment_method === 'card'
+            ? payment.paymentDeviceId.trim().length > 0
+            : payment.payment_method === 'mercadopago'
+              ? payment.mercadopagoChannel === 'posnet'
+                ? getMercadoPagoDevicesByChannel(payment.mercadopagoChannel)
+                    .length > 1
+                  ? payment.paymentDeviceId.trim().length > 0
+                  : getFallbackMercadoPagoDeviceId(payment.mercadopagoChannel) !==
+                    ''
+                : getFallbackMercadoPagoDeviceId(payment.mercadopagoChannel) !==
+                  ''
+              : true,
         isValid:
           payment.amountInput.trim() !== '' &&
           Number.isFinite(Number(payment.amountInput)) &&
           Number(payment.amountInput) > 0,
       })),
-    [splitPayments],
+    [getFallbackMercadoPagoDeviceId, getMercadoPagoDevicesByChannel, splitPayments],
   );
   const splitPaymentsTotal = useMemo(
     () =>
@@ -194,11 +303,22 @@ export default function PosClient({
   const hasInvalidSplit =
     isSplitPayment &&
     (splitPaymentRows.length === 0 ||
-      splitPaymentRows.some((payment) => !payment.isValid) ||
+      splitPaymentRows.some(
+        (payment) => !payment.isValid || !payment.hasRequiredDevice,
+      ) ||
       Math.abs(splitRemaining) > 0.009);
 
   const isCheckoutDisabled =
-    cart.length === 0 || hasInvalidQty || hasInvalidSplit;
+    cart.length === 0 ||
+    hasInvalidQty ||
+    hasInvalidSplit ||
+    (!isSplitPayment &&
+      ((paymentMethod === 'card' && paymentDeviceId.trim().length === 0) ||
+        (paymentMethod === 'mercadopago' &&
+          ((singleMercadoPagoNeedsManualDevice &&
+            paymentDeviceId.trim().length === 0) ||
+            (!singleMercadoPagoNeedsManualDevice &&
+              singleMercadoPagoResolvedDeviceId === '')))));
   const checkoutReason =
     cart.length === 0
       ? 'Agrega productos para cobrar.'
@@ -206,13 +326,23 @@ export default function PosClient({
         ? 'Corrige las cantidades para cobrar.'
         : hasInvalidSplit
           ? 'Completa pagos divididos y valida que sumen el total.'
-          : '';
+          : !isSplitPayment &&
+              paymentMethod === 'card' &&
+              paymentDeviceId.trim().length === 0
+            ? 'Selecciona el dispositivo de cobro.'
+            : !isSplitPayment &&
+                paymentMethod === 'mercadopago' &&
+                singleMercadoPagoNeedsManualDevice &&
+                paymentDeviceId.trim().length === 0
+              ? 'Selecciona el dispositivo de cobro.'
+              : !isSplitPayment &&
+                  paymentMethod === 'mercadopago' &&
+                  singleMercadoPagoResolvedDeviceId === ''
+                ? 'No hay dispositivos MercadoPago activos en esta sucursal.'
+            : '';
 
   const normalizeText = useCallback((value: string) => {
-    return value
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
+    return normalizeForMatch(value);
   }, []);
 
   const tokenize = useCallback(
@@ -276,6 +406,44 @@ export default function PosClient({
     [normalizeText, orgId, supabase, tokenize],
   );
 
+  const loadPaymentDevices = useCallback(
+    async (branchId: string) => {
+      if (!branchId) {
+        setPaymentDevices([]);
+        setPaymentDeviceId('');
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('pos_payment_devices' as never)
+        .select('id, device_name, provider')
+        .eq('org_id', orgId)
+        .eq('branch_id', branchId)
+        .eq('is_active', true)
+        .order('device_name');
+
+      if (error) {
+        setPaymentDevices([]);
+        setPaymentDeviceId('');
+        return;
+      }
+
+      const rows = (data ?? []) as PaymentDevice[];
+      setPaymentDevices(rows);
+      setPaymentDeviceId((prev) =>
+        rows.some((row) => row.id === prev) ? prev : '',
+      );
+      setSplitPayments((prev) =>
+        prev.map((payment) =>
+          rows.some((row) => row.id === payment.paymentDeviceId)
+            ? payment
+            : { ...payment, paymentDeviceId: '' },
+        ),
+      );
+    },
+    [orgId, supabase],
+  );
+
   const addToCart = useCallback((product: ProductCatalogItem) => {
     setSuccessMessage(null);
     setErrorMessage(null);
@@ -330,9 +498,14 @@ export default function PosClient({
   const handleBranchChange = async (nextBranchId: string) => {
     setActiveBranchId(nextBranchId);
     if (nextBranchId) {
-      await loadProducts(nextBranchId, searchTerm);
+      await Promise.all([
+        loadProducts(nextBranchId, searchTerm),
+        loadPaymentDevices(nextBranchId),
+      ]);
     } else {
       setResults([]);
+      setPaymentDevices([]);
+      setPaymentDeviceId('');
     }
   };
 
@@ -358,9 +531,21 @@ export default function PosClient({
     setCart([]);
     setIsSplitPayment(false);
     setSplitPayments([
-      { payment_method: 'cash', amountInput: '' },
-      { payment_method: 'debit', amountInput: '' },
+      {
+        payment_method: 'cash',
+        amountInput: '',
+        paymentDeviceId: '',
+        mercadopagoChannel: 'qr',
+      },
+      {
+        payment_method: 'card',
+        amountInput: '',
+        paymentDeviceId: '',
+        mercadopagoChannel: 'qr',
+      },
     ]);
+    setPaymentDeviceId('');
+    setMercadoPagoChannel('qr');
     setApplyCashDiscount(false);
     setSuccessMessage(null);
     setErrorMessage(null);
@@ -402,6 +587,26 @@ export default function PosClient({
       return;
     }
 
+    if (
+      !isSplitPayment &&
+      ((paymentMethod === 'card' && paymentDeviceId.trim().length === 0) ||
+        (paymentMethod === 'mercadopago' &&
+          singleMercadoPagoNeedsManualDevice &&
+          paymentDeviceId.trim().length === 0))
+    ) {
+      setErrorMessage('Selecciona el dispositivo de cobro.');
+      return;
+    }
+
+    if (
+      !isSplitPayment &&
+      paymentMethod === 'mercadopago' &&
+      singleMercadoPagoResolvedDeviceId === ''
+    ) {
+      setErrorMessage('No hay dispositivos MercadoPago activos en esta sucursal.');
+      return;
+    }
+
     const items = cart.map((item) => ({
       product_id: item.product_id,
       quantity: item.quantity,
@@ -411,36 +616,55 @@ export default function PosClient({
       ? splitPaymentRows.map((payment) => ({
           payment_method: payment.payment_method,
           amount: payment.amount,
+          payment_device_id: payment.payment_device_id,
         }))
-      : undefined;
+      : methodRequiresDevice(paymentMethod)
+        ? [
+            {
+              payment_method: paymentMethod,
+              amount: total,
+              payment_device_id:
+                paymentMethod === 'mercadopago'
+                  ? singleMercadoPagoResolvedDeviceId || null
+                  : paymentDeviceId,
+            },
+          ]
+        : undefined;
     const summaryPaymentMethod = isSplitPayment
       ? paymentsPayload && paymentsPayload.length > 1
         ? 'mixed'
         : (paymentsPayload?.[0]?.payment_method ?? paymentMethod)
       : paymentMethod;
 
-    const { data, error } = await supabase.rpc('rpc_create_sale', {
-      p_org_id: orgId,
-      p_branch_id: activeBranchId,
-      p_payment_method: summaryPaymentMethod as unknown as PaymentMethod,
-      p_items: items,
-      p_special_order_id: specialOrderId ?? undefined,
-      p_close_special_order: closeSpecialOrder,
-      p_apply_cash_discount: !isSplitPayment && applyCashDiscount,
-      p_cash_discount_pct:
-        !isSplitPayment && applyCashDiscount ? cashDiscountPct : undefined,
-      p_payments: paymentsPayload,
-    });
+    const { data, error } = await supabase.rpc(
+      'rpc_create_sale' as never,
+      {
+        p_org_id: orgId,
+        p_branch_id: activeBranchId,
+        p_payment_method: summaryPaymentMethod,
+        p_items: items,
+        p_special_order_id: specialOrderId ?? undefined,
+        p_close_special_order: closeSpecialOrder,
+        p_apply_cash_discount: !isSplitPayment && applyCashDiscount,
+        p_cash_discount_pct:
+          !isSplitPayment && applyCashDiscount ? cashDiscountPct : undefined,
+        p_payments: paymentsPayload,
+      } as never,
+    );
 
     if (error) {
       const message = error.message.includes('insufficient stock')
         ? 'Stock insuficiente para completar la venta.'
         : error.message.includes('pos module disabled')
           ? 'El módulo POS está deshabilitado.'
-          : error.message.includes('payments total must equal sale total')
-            ? 'La suma de pagos debe coincidir con el total.'
+            : error.message.includes('payments total must equal sale total')
+              ? 'La suma de pagos debe coincidir con el total.'
             : error.message.includes('payments must be an array')
               ? 'Formato de pagos inválido.'
+              : error.message.includes('payment_device_id required')
+                ? 'Debes seleccionar un dispositivo para tarjeta o MercadoPago.'
+                : error.message.includes('invalid payment device')
+                  ? 'El dispositivo seleccionado no es válido para esta sucursal.'
               : 'No pudimos registrar la venta.';
       setErrorMessage(message);
       setDebugMessage(
@@ -460,7 +684,9 @@ export default function PosClient({
       return;
     }
 
-    const sale = Array.isArray(data) ? data[0] : data;
+    const sale = (Array.isArray(data) ? data[0] : data) as
+      | { total?: number | null }
+      | null;
     const totalAmount = Number(sale?.total ?? total);
 
     setSuccessMessage(
@@ -469,9 +695,21 @@ export default function PosClient({
     setCart([]);
     setIsSplitPayment(false);
     setSplitPayments([
-      { payment_method: 'cash', amountInput: '' },
-      { payment_method: 'debit', amountInput: '' },
+      {
+        payment_method: 'cash',
+        amountInput: '',
+        paymentDeviceId: '',
+        mercadopagoChannel: 'qr',
+      },
+      {
+        payment_method: 'card',
+        amountInput: '',
+        paymentDeviceId: '',
+        mercadopagoChannel: 'qr',
+      },
     ]);
+    setPaymentDeviceId('');
+    setMercadoPagoChannel('qr');
     setApplyCashDiscount(false);
     setSpecialOrderId(null);
     setSpecialOrderClientName(null);
@@ -479,6 +717,40 @@ export default function PosClient({
       loadProducts(activeBranchId, searchTerm);
     }
   };
+
+  const singlePaymentDevices = useMemo(() => {
+    if (!methodRequiresDevice(paymentMethod)) return [];
+    if (paymentMethod === 'card') {
+      return paymentDevices.filter(
+        (device) => detectMercadoPagoChannel(device) !== 'qr',
+      );
+    }
+    if (mercadoPagoChannel !== 'posnet') {
+      return [];
+    }
+    return singleMercadoPagoChannelDevices;
+  }, [
+    mercadoPagoChannel,
+    paymentDevices,
+    paymentMethod,
+    singleMercadoPagoChannelDevices,
+  ]);
+
+  const getRowPaymentDevices = useCallback(
+    (payment: SplitPaymentEntry) => {
+      if (!methodRequiresDevice(payment.payment_method)) return [];
+      if (payment.payment_method === 'card') {
+        return paymentDevices.filter(
+          (device) => detectMercadoPagoChannel(device) !== 'qr',
+        );
+      }
+      if (payment.mercadopagoChannel !== 'posnet') {
+        return [];
+      }
+      return getMercadoPagoDevicesByChannel(payment.mercadopagoChannel);
+    },
+    [getMercadoPagoDevicesByChannel, paymentDevices],
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -714,12 +986,9 @@ export default function PosClient({
                 </span>
               </div>
               <div className="mt-4">
-                <label
-                  className="text-xs font-semibold text-zinc-600"
-                  htmlFor="paymentMethod"
-                >
+                <div className="text-xs font-semibold text-zinc-600">
                   Método de pago
-                </label>
+                </div>
                 <label className="mt-2 flex items-center gap-2 text-sm text-zinc-700">
                   <input
                     type="checkbox"
@@ -734,25 +1003,112 @@ export default function PosClient({
                   />
                   Pago dividido
                 </label>
-                <select
-                  id="paymentMethod"
-                  value={paymentMethod}
-                  disabled={isSplitPayment}
-                  onChange={(event) => {
-                    const nextMethod = event.target.value as PaymentMethod;
-                    setPaymentMethod(nextMethod);
-                    if (nextMethod !== 'cash') {
-                      setApplyCashDiscount(false);
-                    }
-                  }}
-                  className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                >
-                  {PAYMENT_METHODS.map((method) => (
-                    <option key={method.value} value={method.value}>
-                      {method.label}
-                    </option>
-                  ))}
-                </select>
+                {!isSplitPayment ? (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                    {PAYMENT_METHODS.map((method) => (
+                      <button
+                        key={method.value}
+                        type="button"
+                        onClick={() => {
+                          setPaymentMethod(method.value);
+                          if (method.value !== 'cash') {
+                            setApplyCashDiscount(false);
+                          }
+                          if (!methodRequiresDevice(method.value)) {
+                            setPaymentDeviceId('');
+                          }
+                        }}
+                        className={optionButtonClass(
+                          paymentMethod === method.value,
+                        )}
+                      >
+                        {method.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {!isSplitPayment && methodRequiresDevice(paymentMethod) ? (
+                  <div className="mt-3">
+                    {paymentMethod === 'mercadopago' ? (
+                      <div className="mb-2">
+                        <div className="mb-1 text-xs font-semibold text-zinc-600">
+                          MercadoPago
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMercadoPagoChannel('qr');
+                              setPaymentDeviceId('');
+                            }}
+                            className={optionButtonClass(
+                              mercadoPagoChannel === 'qr',
+                            )}
+                          >
+                            QR
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMercadoPagoChannel('posnet');
+                              setPaymentDeviceId('');
+                            }}
+                            className={optionButtonClass(
+                              mercadoPagoChannel === 'posnet',
+                            )}
+                          >
+                            Posnet MP
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMercadoPagoChannel('alias_mp');
+                              setPaymentDeviceId('');
+                            }}
+                            className={optionButtonClass(
+                              mercadoPagoChannel === 'alias_mp',
+                            )}
+                          >
+                            Transferencia a alias MP
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                    {paymentMethod !== 'mercadopago' ||
+                    (mercadoPagoChannel === 'posnet' &&
+                      singlePaymentDevices.length > 1) ? (
+                      <>
+                        <div className="text-xs font-semibold text-zinc-600">
+                          Dispositivo de cobro
+                        </div>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                          {singlePaymentDevices.map((device) => (
+                            <button
+                              key={device.id}
+                              type="button"
+                              onClick={() => setPaymentDeviceId(device.id)}
+                              className={optionButtonClass(
+                                paymentDeviceId === device.id,
+                              )}
+                            >
+                              {device.device_name}
+                            </button>
+                          ))}
+                        </div>
+                        {singlePaymentDevices.length === 0 ? (
+                          <p className="mt-2 text-xs text-amber-700">
+                            No hay dispositivos activos para esta opción.
+                          </p>
+                        ) : null}
+                      </>
+                    ) : (
+                      <p className="text-xs text-zinc-600">
+                        Cobro por {mercadoPagoChannel === 'qr' ? 'QR' : 'alias MP'}:
+                        no requiere seleccionar dispositivo.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
               </div>
 
               {isSplitPayment ? (
@@ -764,61 +1120,183 @@ export default function PosClient({
                     {splitPayments.map((payment, index) => (
                       <div
                         key={`${index}-${payment.payment_method}`}
-                        className="flex gap-2"
+                        className="rounded-md border border-zinc-200 p-2"
                       >
-                        <select
-                          value={payment.payment_method}
-                          onChange={(event) => {
-                            const nextMethod = event.target
-                              .value as PaymentMethod;
-                            setSplitPayments((prev) =>
-                              prev.map((row, rowIndex) =>
-                                rowIndex === index
-                                  ? { ...row, payment_method: nextMethod }
-                                  : row,
-                              ),
-                            );
-                          }}
-                          className="w-40 rounded border border-zinc-200 px-2 py-2 text-sm"
-                        >
+                        <div className="grid gap-2 sm:grid-cols-3">
                           {PAYMENT_METHODS.map((method) => (
-                            <option key={method.value} value={method.value}>
-                              {method.label}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="number"
-                          min={0.01}
-                          step={0.01}
-                          value={payment.amountInput}
-                          onChange={(event) =>
-                            setSplitPayments((prev) =>
-                              prev.map((row, rowIndex) =>
-                                rowIndex === index
-                                  ? { ...row, amountInput: event.target.value }
-                                  : row,
-                              ),
-                            )
-                          }
-                          placeholder="Monto"
-                          className="w-full rounded border border-zinc-200 px-2 py-2 text-sm"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setSplitPayments((prev) =>
-                              prev.length <= 1
-                                ? prev
-                                : prev.filter(
-                                    (_, rowIndex) => rowIndex !== index,
+                            <button
+                              key={method.value}
+                              type="button"
+                              onClick={() => {
+                                setSplitPayments((prev) =>
+                                  prev.map((row, rowIndex) =>
+                                    rowIndex === index
+                                      ? {
+                                          ...row,
+                                          payment_method: method.value,
+                                          paymentDeviceId: methodRequiresDevice(
+                                            method.value,
+                                          )
+                                            ? row.paymentDeviceId
+                                            : '',
+                                        }
+                                      : row,
                                   ),
-                            )
-                          }
-                          className="rounded border border-zinc-200 px-2 py-2 text-xs text-zinc-600"
-                        >
-                          Quitar
-                        </button>
+                                );
+                              }}
+                              className={optionButtonClass(
+                                payment.payment_method === method.value,
+                              )}
+                            >
+                              {method.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="mt-2 flex gap-2">
+                          <input
+                            type="number"
+                            min={0.01}
+                            step={0.01}
+                            value={payment.amountInput}
+                            onChange={(event) =>
+                              setSplitPayments((prev) =>
+                                prev.map((row, rowIndex) =>
+                                  rowIndex === index
+                                    ? { ...row, amountInput: event.target.value }
+                                    : row,
+                                ),
+                              )
+                            }
+                            placeholder="Monto"
+                            className="w-full rounded border border-zinc-200 px-2 py-2 text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSplitPayments((prev) =>
+                                prev.length <= 1
+                                  ? prev
+                                  : prev.filter(
+                                      (_, rowIndex) => rowIndex !== index,
+                                    ),
+                              )
+                            }
+                            className="rounded border border-zinc-200 px-2 py-2 text-xs text-zinc-600"
+                          >
+                            Quitar
+                          </button>
+                        </div>
+                        {methodRequiresDevice(payment.payment_method) ? (
+                          <div className="mt-2">
+                            {payment.payment_method === 'mercadopago' ? (
+                              <div className="mb-2 flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSplitPayments((prev) =>
+                                      prev.map((row, rowIndex) =>
+                                        rowIndex === index
+                                          ? {
+                                              ...row,
+                                              mercadopagoChannel: 'qr',
+                                              paymentDeviceId: '',
+                                            }
+                                          : row,
+                                      ),
+                                    )
+                                  }
+                                  className={optionButtonClass(
+                                    payment.mercadopagoChannel === 'qr',
+                                  )}
+                                >
+                                  QR
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSplitPayments((prev) =>
+                                      prev.map((row, rowIndex) =>
+                                        rowIndex === index
+                                          ? {
+                                              ...row,
+                                              mercadopagoChannel: 'posnet',
+                                              paymentDeviceId: '',
+                                            }
+                                          : row,
+                                      ),
+                                    )
+                                  }
+                                  className={optionButtonClass(
+                                    payment.mercadopagoChannel === 'posnet',
+                                  )}
+                                >
+                                  Posnet MP
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSplitPayments((prev) =>
+                                      prev.map((row, rowIndex) =>
+                                        rowIndex === index
+                                          ? {
+                                              ...row,
+                                              mercadopagoChannel: 'alias_mp',
+                                              paymentDeviceId: '',
+                                            }
+                                          : row,
+                                      ),
+                                    )
+                                  }
+                                  className={optionButtonClass(
+                                    payment.mercadopagoChannel === 'alias_mp',
+                                  )}
+                                >
+                                  Transferencia a alias MP
+                                </button>
+                              </div>
+                            ) : null}
+                            {payment.payment_method !== 'mercadopago' ||
+                            (payment.mercadopagoChannel === 'posnet' &&
+                              getRowPaymentDevices(payment).length > 1) ? (
+                              <>
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                  {getRowPaymentDevices(payment).map((device) => (
+                                    <button
+                                      key={device.id}
+                                      type="button"
+                                      onClick={() =>
+                                        setSplitPayments((prev) =>
+                                          prev.map((row, rowIndex) =>
+                                            rowIndex === index
+                                              ? {
+                                                  ...row,
+                                                  paymentDeviceId: device.id,
+                                                }
+                                              : row,
+                                          ),
+                                        )
+                                      }
+                                      className={optionButtonClass(
+                                        payment.paymentDeviceId === device.id,
+                                      )}
+                                    >
+                                      {device.device_name}
+                                    </button>
+                                  ))}
+                                </div>
+                                {getRowPaymentDevices(payment).length === 0 ? (
+                                  <p className="mt-2 text-xs text-amber-700">
+                                    Sin dispositivos activos para esta opción.
+                                  </p>
+                                ) : null}
+                              </>
+                            ) : (
+                              <p className="text-xs text-zinc-600">
+                                Este cobro no requiere seleccionar dispositivo.
+                              </p>
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </div>
@@ -827,7 +1305,12 @@ export default function PosClient({
                     onClick={() =>
                       setSplitPayments((prev) => [
                         ...prev,
-                        { payment_method: 'other', amountInput: '' },
+                        {
+                          payment_method: 'card',
+                          amountInput: '',
+                          paymentDeviceId: '',
+                          mercadopagoChannel: 'qr',
+                        },
                       ])
                     }
                     className="mt-2 rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-700"

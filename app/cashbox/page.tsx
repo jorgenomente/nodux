@@ -62,6 +62,8 @@ type SessionSummary = {
   closing_drawer_amount: number | null;
   closing_reserve_amount: number | null;
   cash_sales_amount: number;
+  card_sales_amount: number;
+  mercadopago_sales_amount: number;
   manual_income_amount: number;
   manual_expense_amount: number;
   expected_cash_amount: number;
@@ -138,6 +140,13 @@ const formatDateTime = (value: string | null) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString('es-AR', { hour12: false });
+};
+
+const formatMovementCategory = (categoryKey: string) => {
+  if (categoryKey === 'supplier_payment_cash') {
+    return 'Pago proveedor (efectivo)';
+  }
+  return categoryKey;
 };
 
 const buildResultUrl = (branchId: string, result: string) => {
@@ -545,7 +554,7 @@ export default async function CashboxPage({
           </section>
         ) : (
           <>
-            <section className="grid gap-3 md:grid-cols-3">
+            <section className="grid gap-3 md:grid-cols-5">
               <article className="rounded-xl border border-zinc-200 bg-white p-4">
                 <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
                   Efectivo esperado total
@@ -572,6 +581,28 @@ export default async function CashboxPage({
                 <p className="mt-2 text-xs text-zinc-500">
                   Ingresos manuales:{' '}
                   {formatCurrency(Number(summary.manual_income_amount ?? 0))}
+                </p>
+              </article>
+              <article className="rounded-xl border border-zinc-200 bg-white p-4">
+                <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                  Ventas con tarjeta
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                  {formatCurrency(Number(summary.card_sales_amount ?? 0))}
+                </p>
+                <p className="mt-2 text-xs text-zinc-500">
+                  Método: Tarjeta débito/crédito
+                </p>
+              </article>
+              <article className="rounded-xl border border-zinc-200 bg-white p-4">
+                <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                  Ventas MercadoPago
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                  {formatCurrency(Number(summary.mercadopago_sales_amount ?? 0))}
+                </p>
+                <p className="mt-2 text-xs text-zinc-500">
+                  Método: MercadoPago
                 </p>
               </article>
               <article className="rounded-xl border border-zinc-200 bg-white p-4">
@@ -776,7 +807,9 @@ export default async function CashboxPage({
                               ? 'Ingreso'
                               : 'Gasto'}
                           </td>
-                          <td className="px-3 py-2">{movement.category_key}</td>
+                          <td className="px-3 py-2">
+                            {formatMovementCategory(movement.category_key)}
+                          </td>
                           <td className="px-3 py-2">
                             {formatCurrency(Number(movement.amount ?? 0))}
                           </td>

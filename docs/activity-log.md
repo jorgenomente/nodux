@@ -4678,3 +4678,176 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run build OK (2026-02-19)
 
 **Commit:** N/A
+
+## 2026-02-20 09:03 -03 — Cashbox: inputs numéricos permiten vacío temporal al editar
+
+**Tipo:** ui
+**Lote:** cashbox-number-input-allow-empty-editing
+**Descripción:** Se corrigió `CashCountPairFields` usado en `/cashbox` (apertura/cierre) para que los inputs de cantidad por denominación no fuercen `0` en cada `onChange`. Ahora aceptan estado vacío temporal (`''`) para facilitar edición; los totales siguen calculando vacío como `0` y el backend sigue recibiendo cantidades válidas.
+
+**Archivos afectados:**
+
+- app/cashbox/CashCountPairFields.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-20)
+- npm run build OK (2026-02-20)
+- npm run db:reset OK (2026-02-20)
+- npm run db:rls:smoke FAIL (2026-02-20, baseline preexistente: `staff puede leer products de su org`)
+- Verificación RLS puntual `pos_payment_devices` OK (2026-02-20):
+  - allow: `authenticated + staff@demo.com` -> `count=4`
+  - deny: `authenticated + user fuera de org` -> `count=0`
+
+**Commit:** N/A
+
+## 2026-02-20 09:07 -03 — Auditoría global de inputs numéricos (forzado de `0`)
+
+**Tipo:** decision
+**Lote:** global-number-input-allow-empty-audit
+**Descripción:** Se realizó barrido repo-wide de todos los `input[type=number]` para detectar campos controlados que repongan `0` al editar. Resultado: no se encontraron más casos con forzado de `0` en `onChange`; el único caso real estaba en `app/cashbox/CashCountPairFields.tsx` y quedó corregido en el lote previo.
+
+**Archivos afectados:**
+
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- N/A (sin cambios de runtime adicionales)
+
+**Commit:** N/A
+
+## 2026-02-20 09:26 -03 — Caja/POS: tarjeta unificada, mercadopago y trazabilidad por dispositivo
+
+**Tipo:** ui
+**Lote:** cashbox-pos-card-mercadopago-devices
+**Descripción:** Se implementó la iteración operativa de cobros y cierre de caja: (1) nuevo esquema para dispositivos de cobro por sucursal (`pos_payment_devices`) y vínculo en `sale_payments.payment_device_id`; (2) POS con métodos visibles `cash`, `card` (débito/crédito unificado) y `mercadopago`, exigiendo dispositivo para `card/mercadopago` tanto en pago simple como dividido; (3) `rpc_register_supplier_payment` ahora registra automáticamente egreso `supplier_payment_cash` en `cash_session_movements` cuando el pago de proveedor es en efectivo y existe sesión de caja abierta; (4) `/cashbox` incorpora resumen de cobros no-efectivo (`card`, `mercadopago`) y muestra la categoría amigable del egreso automático.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql
+- app/pos/PosClient.tsx
+- app/pos/page.tsx
+- app/cashbox/page.tsx
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-app-screens-cashbox.md
+- docs/docs-modules-cashbox.md
+- docs/docs-modules-supplier-payments.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-20)
+- npm run build OK (2026-02-20)
+
+**Commit:** N/A
+
+## 2026-02-20 09:45 -03 — POS: método/dispositivo con botones visibles + QR/Posnet MP
+
+**Tipo:** ui
+**Lote:** pos-checkout-buttons-ux
+**Descripción:** En `/pos` se reemplazaron los selects de método de pago y dispositivo por botones visibles para acelerar el cobro táctil. Se agregó selector visible de canal `QR`/`Posnet MP` cuando el método es `mercadopago`, tanto en pago simple como en pago dividido, filtrando dispositivos por canal seleccionado. Se mantuvo la validación existente de dispositivo obligatorio para `card` y `mercadopago`.
+
+**Archivos afectados:**
+
+- app/pos/PosClient.tsx
+- docs/docs-app-screens-staff-pos.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-20)
+- npm run build OK (2026-02-20)
+
+**Commit:** N/A
+
+## 2026-02-20 09:50 -03 — POS: QR habilitado sin selección manual + canal alias MP
+
+**Tipo:** ui
+**Lote:** pos-mercadopago-qr-alias-flow
+**Descripción:** Se ajustó `/pos` para que MercadoPago no bloquee cobro en canal `QR`: ya no exige seleccionar dispositivo manualmente en UI para `QR` y se agregó el canal `Transferencia a alias MP`. `Posnet MP` sigue requiriendo dispositivo explícito. Para compatibilidad con validación backend actual, en QR/alias se resuelve automáticamente un dispositivo MercadoPago activo de la sucursal.
+
+**Archivos afectados:**
+
+- app/pos/PosClient.tsx
+- docs/docs-app-screens-staff-pos.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-20)
+- npm run build OK (2026-02-20)
+
+**Commit:** N/A
+
+## 2026-02-20 10:07 -03 — POS: Posnet MP auto con 1 dispositivo + gestión en Settings/Branches
+
+**Tipo:** ui
+**Lote:** pos-mp-posnet-devices-config
+**Descripción:** Se ajustó `/pos` para que en canal `Posnet MP` no bloquee cuando hay un único dispositivo MercadoPago compatible: se resuelve automáticamente. Si hay 2 o más dispositivos compatibles, la UI exige selección explícita (ej. `Posnet MP 1`, `Posnet MP 2`). Además, se incorporó gestión de dispositivos de cobro por sucursal en `/settings/branches` (alta, edición de nombre/proveedor y activación), permitiendo configurar escenarios futuros sin tocar código.
+
+**Archivos afectados:**
+
+- app/pos/PosClient.tsx
+- app/settings/branches/page.tsx
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-app-screens-settings-branches.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-20)
+- npm run build OK (2026-02-20)
+
+**Commit:** N/A
+
+## 2026-02-20 10:14 -03 — Convención de nombres de dispositivos en Settings/POS
+
+**Tipo:** docs
+**Lote:** pos-device-naming-convention
+**Descripción:** Se incorporó convención operativa de naming para dispositivos de cobro (ej. `MP QR`, `MP Posnet 1`, `MP Posnet 2`, `MP Alias`, `Posnet principal`) visible en `/settings/branches` y documentada en contratos de pantalla para evitar ambigüedad al operar y conciliar cobros.
+
+**Archivos afectados:**
+
+- app/settings/branches/page.tsx
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-app-screens-settings-branches.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-20)
+
+**Commit:** N/A
+
+## 2026-02-20 10:17 -03 — Sugerencias automáticas de nombres en dispositivos (validación suave)
+
+**Tipo:** ui
+**Lote:** pos-device-naming-soft-validation
+**Descripción:** Se agregó validación suave en `/settings/branches` para `device_name` mediante sugerencias automáticas (`datalist`) con nombres estándar (`MP QR`, `MP Posnet 1`, `MP Posnet 2`, `MP Alias`, `Posnet principal`) en alta y edición, manteniendo guardado no bloqueante.
+
+**Archivos afectados:**
+
+- app/settings/branches/page.tsx
+- docs/docs-app-screens-settings-branches.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-20)
+- npm run build OK (2026-02-20)
+
+**Commit:** N/A

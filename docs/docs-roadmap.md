@@ -248,3 +248,4 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-02-18: hardening de RPCs en pagos: se elimina sobrecarga legacy de `rpc_update_supplier_payable` para evitar errores de resolución ambigua en PostgREST durante pagos parciales/actualización de factura.
 - 2026-02-18: `/orders/[orderId]` agrega entry point operativo de factura/remito y soporte de pago efectivo parcial en recepción/control (total declarado + restante), alineado con `/payments`.
 - 2026-02-19: `/dashboard` agrega sección operativa hoy/semana para compras y pagos (pedidos a realizar, pedidos a recibir y pagos por método efectivo/transferencia).
+- 2026-02-20: POS unifica tarjeta en método `card`, agrega `mercadopago` y trazabilidad por dispositivo (`pos_payment_devices` + `sale_payments.payment_device_id`); Caja integra egreso automático por pago proveedor en efectivo y resumen de cobros no-efectivo (`card`/`mercadopago`).

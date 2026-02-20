@@ -32,6 +32,14 @@ activar/desactivar (si aplica)
 
 ver resumen básico (usuarios asignados, opcional)
 
+Gestionar dispositivos de cobro por sucursal (POS):
+
+alta de dispositivo
+
+edición de nombre/proveedor
+
+activar/desactivar
+
 UI
 
 Lista de sucursales
@@ -45,6 +53,28 @@ name (requerido)
 address (opcional)
 
 is_active (default true)
+
+Bloque dispositivos de cobro por sucursal:
+
+device_name (requerido)
+
+provider (`posnet` | `mercadopago` | `other`)
+
+is_active
+
+Convención sugerida de nombres (operativa):
+
+`MP QR`
+
+`MP Posnet 1`, `MP Posnet 2`, ...
+
+`MP Alias`
+
+`Posnet principal`
+
+Validación suave UX:
+
+autocomplete/sugerencias en input `device_name` (sin bloqueo) con nombres estándar.
 
 Data Contract
 Lectura
@@ -70,6 +100,20 @@ branch_id nullable
 name
 
 address optional
+
+is_active
+
+Tabla: pos_payment_devices (insert/update)
+
+id
+
+org_id
+
+branch_id
+
+device_name
+
+provider
 
 is_active
 

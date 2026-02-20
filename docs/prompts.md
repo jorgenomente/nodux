@@ -98,6 +98,7 @@ https://react.dev/link/hydration-mismatch
 <SegmentTrieNode>
 <OrdersPage>
 <PageShell>
+
 <div
 
 -                               className="min-h-screen bg-zinc-50"
@@ -1709,3 +1710,75 @@ ahora vamos a incorporar al dashboard tambien una seccion informativa sobre los 
 
 **Prompt**
 si muestra tambien los pagos vencidos
+
+## 2026-02-20 09:03 -03 — Cashbox: permitir borrar `0` en inputs numéricos
+
+**Lote:** cashbox-number-input-allow-empty-editing
+**Objetivo:** Mejorar la edición de cantidades en `/cashbox` para permitir dejar temporalmente vacío el input numérico (sin reponer `0` en cada tecla) y mantener cálculo/envío coherente.
+
+**Prompt**
+vamos a trabajar sobre /cashbox. para empezar necesito que en este y todos los inputs numericos se pueda borrar el 0 ya que si no se puede es muy molesto para editar
+
+## 2026-02-20 09:07 -03 — Barrido global de inputs numéricos (forzado de `0`)
+
+**Lote:** global-number-input-allow-empty-audit
+**Objetivo:** Verificar y ajustar, si aplica, el comportamiento de edición en todos los `input[type=number]` para permitir vacío temporal sin reponer `0` automáticamente.
+
+**Prompt**
+si, haz eso ya que es muy molesto
+
+## 2026-02-20 09:26 -03 — Caja/POS: tarjeta unificada, mercadopago y trazabilidad por dispositivo
+
+**Lote:** cashbox-pos-card-mercadopago-devices
+**Objetivo:** Iterar cierre de caja y POS para: egresos automáticos de pagos proveedor cash en `/cashbox`, resumen de cobros `card`/`mercadopago`, método `tarjeta` unificado y selección obligatoria de dispositivo de cobro por sucursal.
+
+**Prompt**
+esta bien. ahora lo que necesito es poder iterar sobre el cierre de caja. SObre el cierre de caja me deben aparecer los proveedores que se hayan pagado en efectivo ese dia. Cuando se confirma el proveedor y se chequea que se ha realizado el pago en efectivo y se controla desde /orders. ya que es un egreso que hay en efectivo este deberia aparecerme automaticamente como un movimiento de egreso en /cashbox.. tambien necesito ver un resumen de lo esperado en tarjetas para cuando se selecciona ese metodo de pago que es tarjeta de credito/debito. Necesito hacer tambien algunas modificaciones en el pos, para registrar de mejor manera estos pagos con tarjeta asi puedo seleccionar el dispositivo desde el cual se cobra asi es mas facil trackear el dinero. que piensas y que recomiendas hacer mejor. otro metodo de pago que me gustaria agregar es mercadopago
+
+## 2026-02-20 09:26 -03 — Confirmación de método operativo POS
+
+**Lote:** cashbox-pos-card-mercadopago-devices
+**Objetivo:** Consolidar definición final de métodos de cobro POS (`cash`, `card`, `mercadopago`) y criterio de conciliación por dispositivo al cierre.
+
+**Prompt**
+si esta bien. la opcion de tarjeta debe ser una sola, tarjeta debito/credito y el posnet es el que se debe seleccionar. La opcion de mercadopago es otra opcion aparte de cash y tarjeta debito/credito. se entiende? porque al final del dia a mi lo que me interesa es saber cuanto dinero dice que se cobro en tal dispositivo y poder chequear que todo efectivamente esta ahi.
+
+## 2026-02-20 09:45 -03 — POS: simplificar cobro con botones visibles para método/dispositivo
+
+**Lote:** pos-checkout-buttons-ux
+**Objetivo:** Reducir fricción en cobro POS reemplazando dropdowns de método/dispositivo por botones visibles y exponer selector QR/Posnet para MercadoPago.
+
+**Prompt**
+ok estoy probando lo que recientemente hicimos del pos para registrar pagos sobre un dispositivo determinado y todo funciona bien, lo que falta acomodar es la experiencia del usuario ya que necesito que sea mas sencillo. en vez de que sea un seleccionable desplegable de metodo de pago, necesito que sean botones visibles a los cuales le pueda hacer click. por ejemplo efectivo, debito/credito, Mercadopago y lo mismo para el dispositivo de cobro. tambien debe estar visibles las opciones cuando yo elija debito/credito o cuando elija mercadopago si fue con QR o posnet de mercadopago. todo esto para que el proceso sea simple rapido y sin muchos clicks
+
+## 2026-02-20 09:50 -03 — POS: MercadoPago QR sin bloqueo + opción alias MP
+
+**Lote:** pos-mercadopago-qr-alias-flow
+**Objetivo:** Evitar bloqueo de cobro en MercadoPago QR cuando no hay dispositivo QR explícito y agregar canal operativo “Transferencia a alias MP”.
+
+**Prompt**
+ok lo unico que falta acomodar es que cuando selecciono mercadopago y selecciono QR me dice No hay dispositivos activos para esta opción. y no me deja efectuar el cobro, entonces eso hay que acomodarlo porque QR ya es suficiente, eso es un codigo QR que siempre esta visible para el cliente y lo escanea y paga con eso. es solo como para informar que esta pagando con eso. QUizas agreguemos una 3ra opcion que diga transferencia a alias MP
+
+## 2026-02-20 10:07 -03 — POS: Posnet MP sin bloqueo con 1 dispositivo + configuración en sucursales
+
+**Lote:** pos-mp-posnet-devices-config
+**Objetivo:** Resolver bloqueo en canal `Posnet MP` cuando solo existe un dispositivo y habilitar configuración operativa de dispositivos de cobro desde `/settings/branches`.
+
+**Prompt**
+Excelente y lo mismo para las otras opciones de mercadopago en la opcion de posnet mp, ese seria el dispositivo, si solo es uno, pero podria aparecer posnet mp 2 en caso de que hayan 2? se entiende? el tema es que cuando selecciono la opcion posnet mp me dice No hay dispositivos activos para esta opción. entonces hay que agregar un dispositivo o que al igual que la opcion de QR este sea el posnet directamente y solo si hay otro entonces que aparezca otra opcion. Esto debe ser perfectamente configurable desde configuracion, no se si ya lo hiciste, pero vamos a chequear de que exista la posibilidad de por ejemplo modificar estas opciones como agregar dispositivos de posnet, otros metodos de pago que puedan surgir. que te parece?
+
+## 2026-02-20 10:14 -03 — Convención de nombres para dispositivos POS/MP
+
+**Lote:** pos-device-naming-convention
+**Objetivo:** Definir y exponer convención de nombres para dispositivos de cobro en Settings/POS para operación consistente.
+
+**Prompt**
+ok hazlo
+
+## 2026-02-20 10:17 -03 — Validación suave con sugerencias automáticas de nombres
+
+**Lote:** pos-device-naming-soft-validation
+**Objetivo:** Agregar sugerencias automáticas de nombres estándar en el alta/edición de dispositivos sin bloquear guardado.
+
+**Prompt**
+ok adelante

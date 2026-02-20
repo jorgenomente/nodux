@@ -59,6 +59,7 @@ Ultima actualizacion: 2026-02-18 12:00
 - Workflow CI de hardening agregado en `.github/workflows/ci-hardening.yml` con Supabase local, seed y smoke E2E.
 - POS soporta descuento por efectivo con toggle operativo; el porcentaje no es editable en caja y se toma fijo desde `settings/preferences`.
 - POS soporta pagos divididos (`cash/debit/credit/transfer/other`) con validación de suma exacta en DB.
+- POS evoluciona a métodos operativos `cash`, `card` (débito/crédito unificado) y `mercadopago`, con selección de dispositivo de cobro por sucursal para trazabilidad.
 - `rpc_create_sale` valida en DB que el descuento solo aplica cuando `payment_method='cash'`.
 - Dashboard incorpora métricas de efectivo y descuento (`cash_sales_today_total`, `cash_discount_today_total`, etc.).
 - Cambios de preferencias (incluyendo descuento efectivo) quedan auditados con `org_preferences_updated`.
@@ -66,6 +67,8 @@ Ultima actualizacion: 2026-02-18 12:00
 - Caja audita actor y metadata operativa en `audit_log` (`cash_session_opened`, `cash_movement_added`, `cash_session_closed`).
 - Cierre de caja ahora requiere firma operativa (`controlled_by_name`), confirmación explícita y soporta conteo por denominaciones.
 - Caja ahora opera con conteo por denominaciones en apertura y cierre para caja + reserva.
+- Pagos a proveedor en efectivo ahora generan egreso automático en caja (movimiento `supplier_payment_cash`) si hay sesión abierta en la sucursal.
+- `/cashbox` muestra resumen adicional de cobros por `card` y `mercadopago` para conciliación diaria por dispositivo.
 - Las denominaciones son configurables por organización desde preferencias.
 - Pagos a proveedor por sucursal agregados: `supplier_payables` por pedido y `supplier_payments` como movimientos.
 - `/payments` ahora incluye pedidos `sent` (pendiente por recibir) ademas de `received/reconciled` (controlado), con backfill para historicos.

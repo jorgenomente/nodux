@@ -41,6 +41,8 @@ Estado actual:
 - Bucket/policies de facturas proveedor en `supabase/migrations/20260217221500_040_supplier_invoice_storage_bucket.sql` (`supplier-invoices`).
 - `supplier_payables` incorpora `invoice_reference` en `supabase/migrations/20260218113000_042_supplier_payables_invoice_reference.sql`.
 - Se elimina sobrecarga legacy de `rpc_update_supplier_payable` en `supabase/migrations/20260218151000_043_drop_legacy_rpc_update_supplier_payable_overload.sql` para evitar ambiguedad en PostgREST.
+- POS agrega dispositivos de cobro por sucursal, método `card` unificado y `mercadopago` en `supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`.
+- Caja integra egreso automático por pago proveedor en efectivo y resumen de cobros no-efectivo por sesión en `supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`.
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 
@@ -64,7 +66,7 @@ Estado actual:
 - `stock_movement_type`: `sale` | `purchase` | `manual_adjustment` | `expiration_adjustment`
 - `supplier_order_status`: `draft` | `sent` | `received` | `reconciled`
 - `special_order_status`: `pending` | `ordered` | `partial` | `delivered` | `cancelled`
-- `payment_method`: `cash` | `debit` | `credit` | `transfer` | `other` | `mixed`
+- `payment_method`: `cash` | `card` | `mercadopago` | `debit` | `credit` | `transfer` | `other` | `mixed`
 - `order_frequency`: `weekly` | `biweekly` | `every_3_weeks` | `monthly`
 - `weekday`: `mon` | `tue` | `wed` | `thu` | `fri` | `sat` | `sun`
 - `supplier_product_relation_type`: `primary` | `secondary`
@@ -319,6 +321,7 @@ Estado actual:
 - `sale_id` (uuid, FK -> sales.id)
 - `payment_method` (payment_method, no permite `mixed`)
 - `amount` (numeric > 0)
+- `payment_device_id` (uuid, nullable FK -> pos_payment_devices.id)
 - `created_at`
 
 ---
@@ -369,6 +372,7 @@ Estado actual:
 - `category_key` (text)
 - `amount` (numeric > 0)
 - `note` (text, nullable)
+- `supplier_payment_id` (uuid, nullable FK -> supplier_payments.id, único cuando existe)
 - `movement_at` (timestamptz)
 - `created_by` (uuid, FK auth.users)
 - `created_at`
@@ -389,6 +393,23 @@ Estado actual:
 - `quantity` (int >= 0)
 - `count_scope` (`opening_drawer` | `opening_reserve` | `closing_drawer` | `closing_reserve`)
 - `created_at`
+
+---
+
+### pos_payment_devices
+
+**Proposito**: dispositivos de cobro por sucursal para trazabilidad de pagos `card` y `mercadopago`.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `branch_id` (uuid, FK)
+- `device_name` (text)
+- `provider` (`posnet` | `mercadopago` | `other`)
+- `is_active` (boolean)
+- `created_by`, `updated_by` (uuid, nullable FK auth.users)
+- `created_at`, `updated_at`
 
 ---
 

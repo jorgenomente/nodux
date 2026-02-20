@@ -102,10 +102,21 @@ Una venta es un registro con:
 
 ### A5) Seleccionar método de pago (simple)
 
-- Enumeración MVP: `cash`, `debit`, `credit`, `transfer`, `other`
+- Enumeración operativa: `cash`, `card` (débito/crédito), `mercadopago`
+- UX: métodos y dispositivos se presentan como botones visibles (no dropdown) para reducir clics en caja.
 - Permite:
   - pago único (1 método)
   - pago dividido (múltiples métodos con monto por método)
+- Para `card` se requiere seleccionar dispositivo de cobro de la sucursal (`pos_payment_devices`).
+- Para `mercadopago`, la UI muestra selector visible de canal: `QR`, `Posnet MP` o `Transferencia a alias MP`.
+- Si el canal es `Posnet MP`:
+  - con 1 dispositivo compatible, se toma automáticamente;
+  - con 2 o más, la UI exige seleccionar cuál se usó (ej. `Posnet MP 1`, `Posnet MP 2`).
+- Si el canal es `QR` o `Transferencia a alias MP`, no se exige selección manual de dispositivo en UI.
+- Convención operativa recomendada de nombres:
+  - `MP QR` para cobro QR fijo
+  - `MP Posnet 1`, `MP Posnet 2`, ... para terminales MP
+  - `MP Alias` para transferencia a alias/cuenta MP
 - Si el método es `cash`, se puede activar toggle `Aplicar descuento efectivo`.
 - El porcentaje no se edita en POS: se toma fijo desde `settings/preferences`.
 
@@ -245,7 +256,7 @@ Una venta es un registro con:
   - close_special_order (opcional)
   - apply_cash_discount (opcional, solo si payment_method=`cash`)
   - cash_discount_pct (opcional, solo informativo/override; en MVP UI usa valor fijo de preferencias)
-  - payments (opcional): [{ payment_method, amount }]
+  - payments (opcional): [{ payment_method, amount, payment_device_id? }]
 - Regla crítica:
   - si `payments` existe, la suma de montos debe coincidir exactamente con el total.
   - descuento efectivo solo aplica para pago 100% cash (no split).

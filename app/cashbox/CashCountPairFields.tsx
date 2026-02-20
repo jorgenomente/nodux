@@ -17,6 +17,12 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value);
 
+const parseCount = (value: string | undefined) => {
+  if (!value || value.trim() === '') return 0;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
+};
+
 export default function CashCountPairFields({
   denominations,
   drawerPrefix,
@@ -24,18 +30,18 @@ export default function CashCountPairFields({
   drawerTitle,
   reserveTitle,
 }: CashCountPairFieldsProps) {
-  const [drawerCounts, setDrawerCounts] = useState<number[]>(
-    denominations.map(() => 0),
+  const [drawerCounts, setDrawerCounts] = useState<string[]>(
+    denominations.map(() => '0'),
   );
-  const [reserveCounts, setReserveCounts] = useState<number[]>(
-    denominations.map(() => 0),
+  const [reserveCounts, setReserveCounts] = useState<string[]>(
+    denominations.map(() => '0'),
   );
 
   const drawerAmount = useMemo(
     () =>
       denominations.reduce(
         (acc, denominationValue, index) =>
-          acc + denominationValue * (drawerCounts[index] ?? 0),
+          acc + denominationValue * parseCount(drawerCounts[index]),
         0,
       ),
     [denominations, drawerCounts],
@@ -45,7 +51,7 @@ export default function CashCountPairFields({
     () =>
       denominations.reduce(
         (acc, denominationValue, index) =>
-          acc + denominationValue * (reserveCounts[index] ?? 0),
+          acc + denominationValue * parseCount(reserveCounts[index]),
         0,
       ),
     [denominations, reserveCounts],
@@ -72,10 +78,20 @@ export default function CashCountPairFields({
                   type="number"
                   min={0}
                   step={1}
-                  value={drawerCounts[index] ?? 0}
+                  value={drawerCounts[index] ?? '0'}
                   onChange={(event) => {
-                    const raw = Number.parseInt(event.target.value || '0', 10);
-                    const next = Number.isNaN(raw) || raw < 0 ? 0 : raw;
+                    const rawValue = event.target.value;
+                    if (rawValue === '') {
+                      setDrawerCounts((prev) => {
+                        const cloned = [...prev];
+                        cloned[index] = '';
+                        return cloned;
+                      });
+                      return;
+                    }
+                    const raw = Number.parseInt(rawValue, 10);
+                    const next =
+                      Number.isNaN(raw) || raw < 0 ? '0' : String(raw);
                     setDrawerCounts((prev) => {
                       const cloned = [...prev];
                       cloned[index] = next;
@@ -105,10 +121,20 @@ export default function CashCountPairFields({
                   type="number"
                   min={0}
                   step={1}
-                  value={reserveCounts[index] ?? 0}
+                  value={reserveCounts[index] ?? '0'}
                   onChange={(event) => {
-                    const raw = Number.parseInt(event.target.value || '0', 10);
-                    const next = Number.isNaN(raw) || raw < 0 ? 0 : raw;
+                    const rawValue = event.target.value;
+                    if (rawValue === '') {
+                      setReserveCounts((prev) => {
+                        const cloned = [...prev];
+                        cloned[index] = '';
+                        return cloned;
+                      });
+                      return;
+                    }
+                    const raw = Number.parseInt(rawValue, 10);
+                    const next =
+                      Number.isNaN(raw) || raw < 0 ? '0' : String(raw);
                     setReserveCounts((prev) => {
                       const cloned = [...prev];
                       cloned[index] = next;
