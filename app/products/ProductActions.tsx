@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+import AmountInputAR from '@/app/components/AmountInputAR';
+
 type Notice = { tone: 'success' | 'error'; message: string } | null;
 
 type EditPayload = {
@@ -207,10 +209,8 @@ export default function ProductActions({
           </label>
           <label className="flex flex-col gap-1">
             Precio
-            <input
+            <AmountInputAR
               name="edit_unit_price"
-              type="number"
-              step="0.01"
               defaultValue={unitPrice ?? 0}
               className="rounded border border-zinc-200 px-2 py-1"
             />

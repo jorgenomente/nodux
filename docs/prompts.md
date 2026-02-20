@@ -12,6 +12,89 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-20 12:35 -03 — Caja: conciliación con input manual por fila y agregado MercadoPago
+
+**Lote:** cashbox-reconciliation-inputs-mercadopago-total
+**Objetivo:** Permitir cargar monto de comprobante por fila de conciliación en `/cashbox`, mostrando diferencia contra sistema y agrupando MercadoPago en una sola fila total.
+
+**Prompt**
+perfecto ahora quiero trabajar sobre /cashbox hay una seccion de Conciliación por medio y dispositivo
+Compara los totales del sistema por método y por posnet contra tus comprobantes del turno. esto necesito que funcione de la siguiente manera me tiene que salir en la lista los dispositivos usados junto con el monto que registro el sistema. Yo por mi parte debo tener a la derecha un input vacio donde yo coloco la informacion que me arroja el dispositivo. Entonces si con posnet central el sistema registra 30mil pesos yo en el input vacio voy a colocar lo que veo en el resumen de mi posnet que si todo esta bien deberia coincidir si no entonces entiendo que hay alguna orden que no esta bien pasada. me explico? el tema es que cuando se trata de mercadopago, el monto que yo veo es la suma de todas las transacciones sin importar el medio entonces hay que buscar la manera de agrupar los resultados de mercadopago, creo que eso afecta un poco la arquitectura de los medios de pago pero queria conversarlo para ver si se te ocurre algo
+
+adelante
+
+## 2026-02-20 12:46 -03 — Seed operativo caja: ventas de hoy + pedido controlado pagado en efectivo
+
+**Lote:** cashbox-today-seed-sales-and-cash-payment
+**Objetivo:** Insertar datos de prueba para validar `/cashbox` con ventas de hoy y reflejo de pago proveedor en efectivo sobre pedido reconciliado.
+
+**Prompt**
+ok ahora hagamos insert ahora de los datos de pruebas, agreguemos tambien ventas realizadas hoy para probar esto de la caja, asi como tambien pedidos controlados y pagados en efectivo para ver como se refleja en /cashbox
+
+## 2026-02-20 12:51 -03 — Script reusable por defecto para seed de caja
+
+**Lote:** cashbox-default-seed-script
+**Objetivo:** Dejar un script reusable y comando npm para insertar escenario de prueba de `/cashbox` en futuras corridas.
+
+**Prompt**
+dale si deja este script por defecto para insertar datos de prueba en el futuro
+
+## 2026-02-20 14:34 -03 — Seed caja: pedido sent con items para control manual
+
+**Lote:** cashbox-default-seed-script
+**Objetivo:** Ajustar `db:seed:cashbox` para crear pedido en `/orders` con items y cantidades > 0, listo para control manual y validación de caja en efectivo.
+
+**Prompt**
+vamos a incorporar en este scripts que en la parte de pedidos haya proveedores con items porque en este momento me lo muestra en 0 y no me sirve para la prueba necesito poder yo meterme controlar un pedido para ver como queda la caja en efectivo
+
+## 2026-02-20 14:44 -03 — Caja: incluir efectivo esperado total en conciliación
+
+**Lote:** cashbox-reconciliation-cash-expected-row
+**Objetivo:** Ajustar conciliación de `/cashbox` para mostrar efectivo esperado total + dispositivos + MercadoPago total, evitando que quede solo MP.
+
+**Prompt**
+hay algo que debemos chequear con respecto a la seccion de Conciliación por medio y dispositivo. ya que en este momento solo me esta mostrando lo de mercado pago, creo que el error fue cuando antes agrupamos a los tipos de pago dentro de mercadopago eso quizas desconfiguro todo. necesito que alli me salga lo que el sistema registro en efectivo: este monto me indica cuanto efectivo deberia existir en total junto con la caja y la reserva entoces este monto lo obtenemos automaticamente cuando se colocan alli los montos de caja y reserva al cierre, despues son los montos segun el dispositivo cobrado y despues los que fueron con mercadopago. no se si me explico
+
+## 2026-02-20 14:52 -03 — Caja: tarjeta en dispositivo MP debe seguir como tarjeta
+
+**Lote:** cashbox-reconciliation-mp-method-clarification
+**Objetivo:** Evitar que cobros con método `card` y dispositivo MercadoPago se agrupen en MercadoPago total; MercadoPago debe depender del método elegido.
+
+**Prompt**
+hay algo que me estoy dando cuenta que esta mal hecho. cuando en el pos yo proceso una venta y selecciono tarjeta debito/credito y selecciono el dispositivo mercadopago principal me lo esta contando en mercadopago. Hay que aclarar algo, si selecciono metodo de pago tarjeta debito/credito y luego el dispositivo, es para seleccionar el dispoisitvo con el que cobre, el error mio esta en nombrarlo mercadopago posnet, ahi deberia tener otro nombre como payway o nave, y deberia verse eso como cobro con tarjeta. para eso en el boton de mercadopago ya tengo el boton de seleccion de posnt mp. entonces creo que ahi esta la confusion
+
+## 2026-02-20 15:02 -03 — Caja: mostrar automáticamente conteo de cierre en conciliación
+
+**Lote:** cashbox-live-close-count-in-reconciliation
+**Objetivo:** Reflejar en conciliación el total contado de cierre (caja + reserva) antes de cerrar caja, para visualizar sobrante/faltante en tiempo real.
+
+**Prompt**
+bien. ahora para cerrar la caja uno coloca los billetes que hay en caja y en reserva y te da un monto estimado, ese monto es el que tiene que aparecer automaticamente abajo en la conciliacion antes de que yo le de a cerrar caja asi puedo ver si me sobra o me falta algo. se entiende?
+
+## 2026-02-20 15:07 -03 — Caja: desglose del esperado en efectivo para facilitar cierre
+
+**Lote:** cashbox-expected-cash-breakdown-visibility
+**Objetivo:** Mostrar desglose explicativo del esperado en efectivo (aperturas, ventas cash, ingresos, egresos proveedor y otros egresos) para ayudar al cierre operativo.
+
+**Prompt**
+es posible colocar una especie de desglose de lo que esta contando el sistema en el conteo en efectivo que pueda ayudar a quien hace la caja, por ejemplo: monto de apertura en caaja y reserva, egresos de pago a proveedor y egreso por compra de libreria, por poner un ejemplo, es eso posible?
+
+## 2026-02-20 15:15 -03 — UX montos: formato AR en inputs de importes altos
+
+**Lote:** amount-inputs-ar-format-ux
+**Objetivo:** Mejorar legibilidad de montos grandes en inputs usando separador de miles argentino (`100.000`) en campos críticos.
+
+**Prompt**
+hoy en dia los inputs de montos son confusos porque los numeros son planos, en argentina se usa mucho los 100000 y la idea es que se vea 100.000 mas que todo para enteneder los montos en los inputs de manera mas facil. podemos hacer esto en aquellos inputs que necesiten cantidades grandes como montos? Explora los inputs a los que les podemos dar esta configuracion mas que todo para mejorar la experiencia del usuario a la hora de colocar montos
+
+## 2026-02-20 15:17 -03 — Extensión formato AR a más inputs de montos
+
+**Lote:** amount-inputs-ar-format-ux
+**Objetivo:** Extender formateo de miles AR a más inputs críticos de monto/precio tras revisión de formularios.
+
+**Prompt**
+adelante
+
 ## 2026-02-20 10:39 -03 — Ventas: historial/detalle + conciliación de caja por dispositivo
 
 **Lote:** sales-history-detail-cashbox-device-reconciliation

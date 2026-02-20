@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
+import AmountInputAR from '@/app/components/AmountInputAR';
 import PageShell from '@/app/components/PageShell';
 import OrderSuggestionsClient from '@/app/orders/OrderSuggestionsClient';
 import ReceiveActionsRow from '@/app/orders/ReceiveActionsRow';
@@ -1089,11 +1090,8 @@ export default async function OrderDetailPage({
                   </label>
                   <label className="text-xs text-zinc-600">
                     Monto exacto factura
-                    <input
+                    <AmountInputAR
                       name="invoice_amount"
-                      type="number"
-                      min={0}
-                      step="0.01"
                       defaultValue={payableStatus.invoice_amount ?? ''}
                       className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
                     />

@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-02-20 10:39
+Ultima actualizacion: 2026-02-20 12:35
 
 ## Estado general
 
@@ -70,6 +70,8 @@ Ultima actualizacion: 2026-02-20 10:39
 - Pagos a proveedor en efectivo ahora generan egreso automático en caja (movimiento `supplier_payment_cash`) si hay sesión abierta en la sucursal.
 - `/cashbox` muestra resumen adicional de cobros por `card` y `mercadopago` para conciliación diaria por dispositivo.
 - `/cashbox` incorpora desglose por método/dispositivo de la sesión para conciliación operativa contra comprobantes.
+- `/cashbox` permite cargar monto de comprobante por fila y calcula diferencia contra sistema.
+- En conciliación de caja, MercadoPago se agrupa en una fila total (`MercadoPago (total)`) aunque existan distintos métodos registrados.
 - Nuevo módulo de historial de ventas en `/sales` y detalle en `/sales/[saleId]` con filtros por monto, método, hora e ítems.
 - Corrección de método de pago en detalle de venta vía RPC auditada (`sale_payment_method_corrected`) y bloqueada para ventas de sesiones de caja ya cerradas.
 - Las denominaciones son configurables por organización desde preferencias.

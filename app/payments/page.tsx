@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
+import AmountInputAR from '@/app/components/AmountInputAR';
 import PageShell from '@/app/components/PageShell';
 import InvoiceImageField from '@/app/payments/InvoiceImageField';
 import PaymentAmountField from '@/app/payments/PaymentAmountField';
@@ -866,11 +867,8 @@ export default async function PaymentsPage({
               </label>
               <label className="text-xs text-zinc-600">
                 Monto exacto factura
-                <input
+                <AmountInputAR
                   name="invoice_amount"
-                  type="number"
-                  min={0}
-                  step="0.01"
                   defaultValue={payable.invoice_amount ?? ''}
                   className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
                 />

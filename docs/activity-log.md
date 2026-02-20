@@ -18,6 +18,260 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-20 12:35 -03 — Caja: conciliación con comprobante por fila + MercadoPago total
+
+**Tipo:** db
+**Lote:** cashbox-reconciliation-inputs-mercadopago-total
+**Alcance:** db, frontend, docs, tests
+
+**Resumen**
+Se implementó conciliación operativa en `/cashbox` con input manual por fila para registrar el monto del comprobante y diferencia automática contra monto sistema. La conciliación no-efectivo ahora agrupa MercadoPago en una única fila total (sin separar por método), manteniendo filas por dispositivo/método para el resto de cobros.
+
+**Archivos**
+
+- supabase/migrations/20260220153000_047_cashbox_reconciliation_inputs.sql
+- app/cashbox/page.tsx
+- docs/docs-app-screens-cashbox.md
+- docs/docs-modules-cashbox.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-20)
+- npm run build OK (2026-02-20)
+- npm run db:reset OK (2026-02-20)
+- Verificación DB objetos: `cash_session_reconciliation_inputs`, `rpc_get_cash_session_reconciliation_rows`, `rpc_upsert_cash_session_reconciliation_inputs` OK
+- Verificación RLS mínima:
+  - ALLOW: `org_admin` ejecuta `rpc_get_cash_session_reconciliation_rows` sin error
+  - DENY: `staff` sin módulo `cashbox` recibe `cashbox module disabled` en `rpc_get_cash_session_reconciliation_rows`
+
+**Commit:** N/A
+
+## 2026-02-20 12:46 -03 — Seed operativo caja (hoy): ventas + pago proveedor cash
+
+**Tipo:** tests
+**Lote:** cashbox-today-seed-sales-and-cash-payment
+**Alcance:** db, tests
+
+**Resumen**
+Se insertaron datos de prueba operativos para validar `/cashbox` con escenario real de hoy: ventas no-efectivo en sucursal Palermo y pago a proveedor en efectivo sobre pedido reconciliado (generando movimiento automático `supplier_payment_cash` en sesión de caja abierta).
+
+**Archivos**
+
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:seed:demo` OK (2026-02-20)
+- Verificación ventas hoy (Palermo): `sales_today=4`, `total_today=141473.37`
+- Verificación medios hoy:
+  - `card` + `Posnet principal`: `13602.00`
+  - `card` + `MercadoPago principal`: `7659.20`
+  - `mercadopago` + `MercadoPago principal`: `33146.80`
+- Verificación RPC conciliación (`rpc_get_cash_session_reconciliation_rows`) en sesión abierta `44444444-4444-4444-4444-444444444444`:
+  - `Posnet principal` (`card`): `13602.00`
+  - `MercadoPago (total)`: `40806.00`
+- Verificación pago proveedor cash:
+  - `payable_id=2d393e90-3225-4c56-8248-8cfdf579bd78` actualizado a `invoice_amount=12000`
+  - pago `3000` por `rpc_register_supplier_payment`
+  - payable resultante `status=partial`, `outstanding_amount=9000`
+  - movimiento caja generado: `category_key=supplier_payment_cash`, `amount=3000`
+
+**Commit:** N/A
+
+## 2026-02-20 14:34 -03 — Script de seed caja: pedido `sent` con items para control
+
+**Tipo:** tests
+**Lote:** cashbox-default-seed-script
+**Alcance:** db, docs, tests
+
+**Resumen**
+Se ajustó `scripts/seed-cashbox-today.js` para que también cree/actualice un pedido en estado `sent` con items y cantidades > 0 en sucursal Palermo, permitiendo prueba manual de control en `/orders` antes de registrar pago en efectivo y validar impacto en `/cashbox`.
+
+**Archivos**
+
+- scripts/seed-cashbox-today.js
+- package.json
+- docs/docs-demo-users.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:seed:cashbox` OK (2026-02-20)
+- Verificación pedido seed en DB:
+  - `id=93000000-0000-0000-0000-000000000001`
+  - `status=sent`
+  - `items=3`
+  - `ordered_total=18.000`
+- `npm run lint` OK (2026-02-20)
+
+**Commit:** N/A
+
+## 2026-02-20 14:44 -03 — Caja: conciliación con fila de efectivo esperado total
+
+**Tipo:** db
+**Lote:** cashbox-reconciliation-cash-expected-row
+**Alcance:** db, frontend, docs, tests
+
+**Resumen**
+Se corrigió la conciliación en `/cashbox` para incluir explícitamente una fila de `Efectivo esperado total (caja + reserva)` dentro de la sesión, además de filas por dispositivo no-MP y fila agregada `MercadoPago (total)`. En UI, la fila de efectivo se muestra como cálculo automático sin input manual.
+
+**Archivos**
+
+- supabase/migrations/20260220170000_048_cashbox_reconciliation_include_cash_expected.sql
+- app/cashbox/page.tsx
+- scripts/seed-cashbox-today.js
+- docs/docs-app-screens-cashbox.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:reset` OK (2026-02-20)
+- `npm run db:seed:demo` OK (2026-02-20)
+- `npm run db:seed:cashbox` OK (2026-02-20)
+- Verificación seed conciliación: `Reconciliation rows: 3` y `MercadoPago total: 26122`
+- `npm run lint` OK (2026-02-20)
+- `npm run build` OK (2026-02-20)
+
+**Commit:** N/A
+
+## 2026-02-20 14:52 -03 — Caja: MercadoPago total solo por método `mercadopago`
+
+**Tipo:** db
+**Lote:** cashbox-reconciliation-mp-method-clarification
+**Alcance:** db, tests, docs
+
+**Resumen**
+Se ajustó la clasificación de conciliación para que `MercadoPago (total)` dependa solo del método seleccionado (`payment_method='mercadopago'`). Los cobros `card` permanecen en filas de tarjeta por dispositivo, incluso cuando el dispositivo es `MercadoPago principal`.
+
+**Archivos**
+
+- supabase/migrations/20260220182000_049_cashbox_reconciliation_mp_by_method_only.sql
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:reset` OK (2026-02-20)
+- `npm run db:seed:demo` OK (2026-02-20)
+- `npm run db:seed:cashbox` OK (2026-02-20)
+- Verificación RPC (`rpc_get_cash_session_reconciliation_rows`) en sesión abierta:
+  - `cash_expected_total`: `92000`
+  - `card` + `MercadoPago principal`: `5302`
+  - `card` + `Posnet principal`: `13255`
+  - `mercadopago_total`: `21208`
+
+**Commit:** N/A
+
+## 2026-02-20 15:02 -03 — Caja: conciliación muestra conteo de cierre en vivo
+
+**Tipo:** ui
+**Lote:** cashbox-live-close-count-in-reconciliation
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se conectó el conteo de cierre (`Billetes al cierre en caja` + `Billetes al cierre en reserva`) con la sección de conciliación para mostrar en vivo el total contado antes de cerrar caja. En la fila de efectivo, `Monto comprobante` ahora se completa automáticamente con ese total y la diferencia se calcula en tiempo real contra el esperado de sistema.
+
+**Archivos**
+
+- app/cashbox/CashCountPairFields.tsx
+- app/cashbox/CashboxReconciliationSection.tsx
+- app/cashbox/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-20)
+- `npm run build` OK (2026-02-20)
+
+**Commit:** N/A
+
+## 2026-02-20 15:07 -03 — Caja: desglose visible del esperado en efectivo
+
+**Tipo:** ui
+**Lote:** cashbox-expected-cash-breakdown-visibility
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se agregó en el bloque `Cerrar caja` un desglose explícito del esperado en efectivo para facilitar auditoría operativa durante el cierre: apertura caja, apertura reserva, ventas en efectivo, ingresos manuales, egresos por pago a proveedor en efectivo, otros egresos manuales y total egresos.
+
+**Archivos**
+
+- app/cashbox/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-20)
+- `npm run build` OK (2026-02-20)
+
+**Commit:** N/A
+
+## 2026-02-20 15:15 -03 — UX montos: inputs con separador de miles AR
+
+**Tipo:** ui
+**Lote:** amount-inputs-ar-format-ux
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se agregó componente reusable `AmountInputAR` para mostrar montos con formato argentino en inputs (`100.000`, decimales con coma) sin romper formularios server-side. El componente renderiza input visible formateado + hidden con valor normalizado para backend.
+
+**Archivos**
+
+- app/components/AmountInputAR.tsx
+- app/cashbox/page.tsx
+- app/cashbox/CashboxReconciliationSection.tsx
+- app/payments/page.tsx
+- app/payments/PaymentAmountField.tsx
+- app/orders/ReceiveActionsRow.tsx
+- app/orders/[orderId]/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-20)
+- `npm run build` OK (2026-02-20)
+
+**Commit:** N/A
+
+## 2026-02-20 15:17 -03 — UX montos: extensión a ventas/productos/proveedores
+
+**Tipo:** ui
+**Lote:** amount-inputs-ar-format-ux
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se extendió el uso de `AmountInputAR` a más puntos de alto uso para lectura de montos grandes: filtros de ventas por monto, alta/edición de precio unitario en productos y alta de producto en detalle de proveedor.
+
+**Archivos**
+
+- app/sales/page.tsx
+- app/products/page.tsx
+- app/products/ProductActions.tsx
+- app/suppliers/[supplierId]/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-20)
+- `npm run build` OK (2026-02-20)
+
+**Commit:** N/A
+
 ## 2026-02-20 10:39 -03 — Ventas auditables + conciliación caja por dispositivo
 
 **Tipo:** db

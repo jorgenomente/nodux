@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 
+import AmountInputAR from '@/app/components/AmountInputAR';
 import PageShell from '@/app/components/PageShell';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
 
@@ -336,22 +337,16 @@ export default async function SalesPage({
               </label>
               <label className="flex flex-col gap-1 text-xs text-zinc-600">
                 Monto mínimo
-                <input
+                <AmountInputAR
                   name="min_amount"
-                  type="number"
-                  min={0}
-                  step="0.01"
                   defaultValue={minAmountRaw}
                   className="rounded border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
                 />
               </label>
               <label className="flex flex-col gap-1 text-xs text-zinc-600">
                 Monto máximo
-                <input
+                <AmountInputAR
                   name="max_amount"
-                  type="number"
-                  min={0}
-                  step="0.01"
                   defaultValue={maxAmountRaw}
                   className="rounded border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
                 />

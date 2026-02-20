@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type CashCountPairFieldsProps = {
   denominations: number[];
@@ -58,6 +58,20 @@ export default function CashCountPairFields({
   );
 
   const totalAmount = drawerAmount + reserveAmount;
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent('cashbox-count-pair-change', {
+        detail: {
+          drawerPrefix,
+          reservePrefix,
+          drawerAmount,
+          reserveAmount,
+          totalAmount,
+        },
+      }),
+    );
+  }, [drawerAmount, drawerPrefix, reserveAmount, reservePrefix, totalAmount]);
 
   return (
     <div className="grid gap-4 rounded border border-zinc-200 p-3">

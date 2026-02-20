@@ -1,59 +1,52 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
+
+import AmountInputAR from '@/app/components/AmountInputAR';
 
 type PaymentAmountFieldProps = {
   remainingAmount: number;
   paidAmount: number;
 };
 
-const toInputAmount = (value: number) => Number(value.toFixed(2)).toString();
-const parseDecimal = (value: string) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
 export default function PaymentAmountField({
   remainingAmount,
   paidAmount,
 }: PaymentAmountFieldProps) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [amountValue, setAmountValue] = useState('');
+  const [amountValue, setAmountValue] = useState<number | null>(null);
+  const [amountInputSeed, setAmountInputSeed] = useState(0);
   const [isPartial, setIsPartial] = useState(false);
-  const [partialTotalValue, setPartialTotalValue] = useState('');
+  const [partialTotalValue, setPartialTotalValue] = useState<number | null>(
+    null,
+  );
+  const currentPayment = amountValue ?? 0;
+  const partialTotal = partialTotalValue ?? 0;
 
   const partialRemaining = useMemo(() => {
-    if (!isPartial || partialTotalValue.trim() === '') return null;
-    const total = parseDecimal(partialTotalValue);
-    const currentPayment = parseDecimal(amountValue);
-    return Number((total - (paidAmount + currentPayment)).toFixed(2));
-  }, [amountValue, isPartial, paidAmount, partialTotalValue]);
+    if (!isPartial || partialTotalValue == null) return null;
+    return Number((partialTotal - (paidAmount + currentPayment)).toFixed(2));
+  }, [currentPayment, isPartial, paidAmount, partialTotal, partialTotalValue]);
 
   return (
     <div className="grid gap-2">
       <label className="text-xs text-zinc-600">
         Monto
         <div className="mt-1 flex items-center gap-2">
-          <input
-            ref={inputRef}
+          <AmountInputAR
+            key={amountInputSeed}
             name="amount"
-            type="number"
-            min={0.01}
-            step="0.01"
-            value={amountValue}
-            onChange={(event) => setAmountValue(event.target.value)}
+            defaultValue={amountValue ?? ''}
             className="w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+            placeholder="0"
             required
+            onValueChange={setAmountValue}
           />
           <button
             type="button"
             className="rounded border border-zinc-300 px-3 py-1 text-xs font-semibold text-zinc-700"
             onClick={() => {
-              if (!inputRef.current) return;
-              const value = toInputAmount(remainingAmount);
-              inputRef.current.value = value;
-              setAmountValue(value);
-              inputRef.current.focus();
+              setAmountValue(Number(remainingAmount.toFixed(2)));
+              setAmountInputSeed((prev) => prev + 1);
             }}
           >
             Restante
@@ -75,15 +68,13 @@ export default function PaymentAmountField({
       {isPartial ? (
         <label className="text-xs text-zinc-600">
           Monto total de la factura/remito
-          <input
+          <AmountInputAR
             name="partial_total_amount"
-            type="number"
-            min={0.01}
-            step="0.01"
-            value={partialTotalValue}
-            onChange={(event) => setPartialTotalValue(event.target.value)}
+            defaultValue={partialTotalValue ?? ''}
             className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+            placeholder="0"
             required
+            onValueChange={setPartialTotalValue}
           />
         </label>
       ) : null}

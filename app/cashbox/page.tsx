@@ -2,8 +2,10 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
+import AmountInputAR from '@/app/components/AmountInputAR';
 import PageShell from '@/app/components/PageShell';
 import CashCountPairFields from '@/app/cashbox/CashCountPairFields';
+import CashboxReconciliationSection from '@/app/cashbox/CashboxReconciliationSection';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 
 const STAFF_MODULE_ORDER = [
@@ -88,6 +90,12 @@ type MovementRow = {
   created_by: string;
 };
 
+type MovementBreakdownRow = {
+  movement_type: 'expense' | 'income';
+  category_key: string;
+  amount: number;
+};
+
 type ClosedSessionRow = {
   session_id: string;
   session_label: string | null;
@@ -100,7 +108,9 @@ type ClosedSessionRow = {
   closed_at: string | null;
 };
 
-type SessionPaymentBreakdownRow = {
+type SessionReconciliationRow = {
+  row_key: string;
+  row_group: 'cash_expected_total' | 'device' | 'mercadopago_total';
   payment_method:
     | 'cash'
     | 'card'
@@ -112,8 +122,10 @@ type SessionPaymentBreakdownRow = {
   payment_device_id: string | null;
   payment_device_name: string | null;
   payment_device_provider: string | null;
-  total_amount: number;
+  system_amount: number;
   payments_count: number;
+  reported_amount: number | null;
+  difference_amount: number | null;
 };
 
 const DEFAULT_CASH_DENOMINATIONS = [20000, 10000, 2000, 1000, 500, 200, 100];
@@ -163,27 +175,6 @@ const formatMovementCategory = (categoryKey: string) => {
     return 'Pago proveedor (efectivo)';
   }
   return categoryKey;
-};
-
-const formatPaymentMethod = (method: string) => {
-  switch (method) {
-    case 'cash':
-      return 'Efectivo';
-    case 'card':
-      return 'Tarjeta';
-    case 'mercadopago':
-      return 'MercadoPago';
-    case 'debit':
-      return 'Débito';
-    case 'credit':
-      return 'Crédito';
-    case 'transfer':
-      return 'Transferencia';
-    case 'other':
-      return 'Otro';
-    default:
-      return method;
-  }
 };
 
 const buildResultUrl = (branchId: string, result: string) => {
@@ -325,17 +316,59 @@ export default async function CashboxPage({
 
   const movements = (movementsData ?? []) as MovementRow[];
 
-  const { data: paymentBreakdownData } = openSessionId
+  const { data: movementBreakdownData } = openSessionId
+    ? await supabase
+        .from('cash_session_movements')
+        .select('movement_type, category_key, amount')
+        .eq('org_id', orgId)
+        .eq('session_id', openSessionId)
+    : { data: [] };
+  const movementBreakdown = (movementBreakdownData ?? []) as
+    | MovementBreakdownRow[]
+    | [];
+
+  const supplierPaymentCashExpense = movementBreakdown.reduce(
+    (sum, row) =>
+      row.movement_type === 'expense' &&
+      row.category_key === 'supplier_payment_cash'
+        ? sum + Number(row.amount ?? 0)
+        : sum,
+    0,
+  );
+  const allExpenseFromBreakdown = movementBreakdown.reduce(
+    (sum, row) =>
+      row.movement_type === 'expense' ? sum + Number(row.amount ?? 0) : sum,
+    0,
+  );
+  const allIncomeFromBreakdown = movementBreakdown.reduce(
+    (sum, row) =>
+      row.movement_type === 'income' ? sum + Number(row.amount ?? 0) : sum,
+    0,
+  );
+  const otherManualExpense = Math.max(
+    allExpenseFromBreakdown - supplierPaymentCashExpense,
+    0,
+  );
+  const manualIncomeForBreakdown =
+    movementBreakdown.length > 0
+      ? allIncomeFromBreakdown
+      : Number(summary?.manual_income_amount ?? 0);
+  const manualExpenseForBreakdown =
+    movementBreakdown.length > 0
+      ? allExpenseFromBreakdown
+      : Number(summary?.manual_expense_amount ?? 0);
+
+  const { data: reconciliationRowsData } = openSessionId
     ? await supabase.rpc(
-        'rpc_get_cash_session_payment_breakdown' as never,
+        'rpc_get_cash_session_reconciliation_rows' as never,
         {
           p_org_id: orgId,
           p_session_id: openSessionId,
         } as never,
       )
     : { data: [] };
-  const paymentBreakdown = (paymentBreakdownData ?? []) as
-    | SessionPaymentBreakdownRow[]
+  const reconciliationRows = (reconciliationRowsData ?? []) as
+    | SessionReconciliationRow[]
     | [];
 
   const { data: closedSessionsData } = await supabase
@@ -484,6 +517,57 @@ export default async function CashboxPage({
     redirect(buildResultUrl(branchId, 'closed'));
   };
 
+  const saveReconciliationInputs = async (formData: FormData) => {
+    'use server';
+
+    const actionSession = await getOrgMemberSession();
+    if (!actionSession?.orgId) {
+      redirect('/no-access');
+    }
+
+    const branchId = String(formData.get('branch_id') ?? '').trim();
+    const cashSessionId = String(formData.get('session_id') ?? '').trim();
+    const rowCount = Number.parseInt(
+      String(formData.get('row_count') ?? '0'),
+      10,
+    );
+
+    const entries: Array<{ row_key: string; reported_amount: number }> = [];
+    const maxRows = Number.isNaN(rowCount) || rowCount < 0 ? 0 : rowCount;
+
+    for (let index = 0; index < maxRows; index += 1) {
+      const rowKey = String(formData.get(`row_key_${index}`) ?? '').trim();
+      const rawReported = String(
+        formData.get(`reported_amount_${index}`) ?? '',
+      ).trim();
+      if (!rowKey || rawReported === '') continue;
+      const reportedAmount = Number(rawReported);
+      if (!Number.isFinite(reportedAmount) || reportedAmount < 0) continue;
+      entries.push({
+        row_key: rowKey,
+        reported_amount: Math.round(reportedAmount * 100) / 100,
+      });
+    }
+
+    const { error } = await actionSession.supabase.rpc(
+      'rpc_upsert_cash_session_reconciliation_inputs' as never,
+      {
+        p_org_id: actionSession.orgId,
+        p_session_id: cashSessionId,
+        p_entries: entries,
+      } as never,
+    );
+
+    revalidatePath('/cashbox');
+    revalidatePath('/settings/audit-log');
+
+    if (error) {
+      redirect(buildResultUrl(branchId, `error:${error.message}`));
+    }
+
+    redirect(buildResultUrl(branchId, 'reconciliation_saved'));
+  };
+
   const result =
     typeof resolvedSearchParams.result === 'string'
       ? resolvedSearchParams.result
@@ -520,6 +604,11 @@ export default async function CashboxPage({
         {result === 'closed' ? (
           <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
             Caja cerrada correctamente.
+          </p>
+        ) : null}
+        {result === 'reconciliation_saved' ? (
+          <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            Conciliación guardada.
           </p>
         ) : null}
         {result.startsWith('error:') ? (
@@ -721,12 +810,10 @@ export default async function CashboxPage({
 
                   <label className="text-sm text-zinc-700">
                     Monto
-                    <input
+                    <AmountInputAR
                       name="amount"
-                      type="number"
-                      min={0.01}
-                      step="0.01"
                       className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                      placeholder="0"
                       required
                     />
                   </label>
@@ -767,6 +854,51 @@ export default async function CashboxPage({
                   <p>
                     Esperado actual:{' '}
                     {formatCurrency(Number(summary.expected_cash_amount ?? 0))}
+                  </p>
+                </div>
+                <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-3 text-sm text-zinc-700">
+                  <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                    Desglose del esperado en efectivo
+                  </p>
+                  <p className="mt-2">
+                    Apertura caja:{' '}
+                    <strong>
+                      {formatCurrency(Number(summary.opening_cash_amount ?? 0))}
+                    </strong>
+                  </p>
+                  <p>
+                    Apertura reserva:{' '}
+                    <strong>
+                      {formatCurrency(
+                        Number(summary.opening_reserve_amount ?? 0),
+                      )}
+                    </strong>
+                  </p>
+                  <p>
+                    Ventas en efectivo:{' '}
+                    <strong>
+                      {formatCurrency(Number(summary.cash_sales_amount ?? 0))}
+                    </strong>
+                  </p>
+                  <p>
+                    Ingresos manuales:{' '}
+                    <strong>{formatCurrency(manualIncomeForBreakdown)}</strong>
+                  </p>
+                  <p>
+                    Egresos por pago proveedor (efectivo):{' '}
+                    <strong>
+                      {formatCurrency(Number(supplierPaymentCashExpense ?? 0))}
+                    </strong>
+                  </p>
+                  <p>
+                    Otros egresos manuales:{' '}
+                    <strong>
+                      {formatCurrency(Number(otherManualExpense ?? 0))}
+                    </strong>
+                  </p>
+                  <p>
+                    Total egresos manuales:{' '}
+                    <strong>{formatCurrency(manualExpenseForBreakdown)}</strong>
                   </p>
                 </div>
 
@@ -823,54 +955,12 @@ export default async function CashboxPage({
               </article>
             </section>
 
-            <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-              <h2 className="text-lg font-semibold text-zinc-900">
-                Conciliación por medio y dispositivo
-              </h2>
-              <p className="mt-1 text-sm text-zinc-500">
-                Compara los totales del sistema por método y por posnet contra
-                tus comprobantes del turno.
-              </p>
-              {paymentBreakdown.length === 0 ? (
-                <p className="mt-3 text-sm text-zinc-500">
-                  Sin cobros registrados en la sesión.
-                </p>
-              ) : (
-                <div className="mt-4 overflow-x-auto">
-                  <table className="min-w-full text-left text-sm">
-                    <thead className="bg-zinc-50 text-xs text-zinc-500 uppercase">
-                      <tr>
-                        <th className="px-3 py-2">Método</th>
-                        <th className="px-3 py-2">Dispositivo</th>
-                        <th className="px-3 py-2">Operaciones</th>
-                        <th className="px-3 py-2">Monto sistema</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paymentBreakdown.map((row) => (
-                        <tr
-                          key={`${row.payment_method}-${row.payment_device_id ?? 'none'}`}
-                          className="border-t border-zinc-100"
-                        >
-                          <td className="px-3 py-2">
-                            {formatPaymentMethod(row.payment_method)}
-                          </td>
-                          <td className="px-3 py-2">
-                            {row.payment_device_name ?? 'Sin dispositivo'}
-                          </td>
-                          <td className="px-3 py-2">
-                            {Number(row.payments_count ?? 0)}
-                          </td>
-                          <td className="px-3 py-2 font-semibold text-zinc-900">
-                            {formatCurrency(Number(row.total_amount ?? 0))}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
+            <CashboxReconciliationSection
+              branchId={selectedBranchId}
+              sessionId={summary.session_id}
+              rows={reconciliationRows}
+              onSave={saveReconciliationInputs}
+            />
 
             <section className="rounded-2xl border border-zinc-200 bg-white p-5">
               <h2 className="text-lg font-semibold text-zinc-900">

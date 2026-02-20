@@ -44,6 +44,9 @@ Estado actual:
 - POS agrega dispositivos de cobro por sucursal, método `card` unificado y `mercadopago` en `supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`.
 - Caja integra egreso automático por pago proveedor en efectivo y resumen de cobros no-efectivo por sesión en `supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`.
 - Historial/detalle de ventas y conciliación por dispositivo en caja en `supabase/migrations/20260220113000_045_sales_history_cashbox_reconciliation.sql` (`v_sales_admin`, `v_sale_detail_admin`, `rpc_get_cash_session_payment_breakdown`, `rpc_correct_sale_payment_method`).
+- Conciliación operativa en caja con inputs por fila y agregado MercadoPago total en `supabase/migrations/20260220153000_047_cashbox_reconciliation_inputs.sql` (`cash_session_reconciliation_inputs`, `rpc_get_cash_session_reconciliation_rows`, `rpc_upsert_cash_session_reconciliation_inputs`).
+- Conciliación de caja ajustada para incluir fila de `Efectivo esperado total (caja + reserva)` en `supabase/migrations/20260220170000_048_cashbox_reconciliation_include_cash_expected.sql`.
+- Conciliación de caja ajustada para clasificar `MercadoPago (total)` solo por método `mercadopago` en `supabase/migrations/20260220182000_049_cashbox_reconciliation_mp_by_method_only.sql`.
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 
@@ -397,6 +400,23 @@ Estado actual:
 
 ---
 
+### cash_session_reconciliation_inputs
+
+**Proposito**: montos de comprobante cargados manualmente para conciliación operativa por fila en una sesión de caja.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `branch_id` (uuid, FK)
+- `session_id` (uuid, FK -> cash_sessions.id)
+- `row_key` (text, único por sesión)
+- `reported_amount` (numeric >= 0)
+- `created_by`, `updated_by` (uuid, FK auth.users)
+- `created_at`, `updated_at`
+
+---
+
 ### pos_payment_devices
 
 **Proposito**: dispositivos de cobro por sucursal para trazabilidad de pagos `card` y `mercadopago`.
@@ -697,7 +717,7 @@ Ver contratos en `docs/docs-schema-model.md`:
 - Views de superadmin global: `v_superadmin_orgs`, `v_superadmin_org_detail`
 - RPCs para escrituras (POS, stock, orders, permissions, clients)
 - RPCs de caja: `rpc_open_cash_session(...)`, `rpc_add_cash_session_movement(...)`, `rpc_get_cash_session_summary(...)`, `rpc_close_cash_session(...)`
-- RPCs de conciliación/corrección ventas: `rpc_get_cash_session_payment_breakdown(...)`, `rpc_correct_sale_payment_method(...)`
+- RPCs de conciliación/corrección ventas: `rpc_get_cash_session_payment_breakdown(...)`, `rpc_get_cash_session_reconciliation_rows(...)`, `rpc_upsert_cash_session_reconciliation_inputs(...)`, `rpc_correct_sale_payment_method(...)`
 - RPC de fechas estimadas de pedidos proveedor: `rpc_set_supplier_order_expected_receive_on(...)`
 - RPC de auditoria append-only: `rpc_log_audit_event(...)`
 - RPCs de superadmin: `rpc_bootstrap_platform_admin(...)`, `rpc_superadmin_create_org(...)`, `rpc_superadmin_upsert_branch(...)`, `rpc_superadmin_set_active_org(...)`, `rpc_get_active_org_id(...)`

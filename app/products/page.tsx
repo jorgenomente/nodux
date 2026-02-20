@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
+import AmountInputAR from '@/app/components/AmountInputAR';
 import ProductListClient from '@/app/products/ProductListClient';
 import PageShell from '@/app/components/PageShell';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
@@ -478,10 +479,8 @@ export default async function ProductsPage() {
               </label>
               <label className="text-sm font-medium text-zinc-700">
                 Precio unitario
-                <input
+                <AmountInputAR
                   name="unit_price"
-                  type="number"
-                  step="0.01"
                   className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
                   defaultValue="0"
                 />

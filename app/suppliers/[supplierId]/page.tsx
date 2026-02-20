@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
+import AmountInputAR from '@/app/components/AmountInputAR';
 import PageShell from '@/app/components/PageShell';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
 
@@ -722,10 +723,8 @@ export default async function SupplierDetailPage({
             </label>
             <label className="text-sm text-zinc-600">
               Precio unitario
-              <input
+              <AmountInputAR
                 name="unit_price"
-                type="number"
-                step="0.01"
                 defaultValue="0"
                 className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
               />

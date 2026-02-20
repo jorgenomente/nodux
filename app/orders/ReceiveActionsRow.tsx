@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+import AmountInputAR from '@/app/components/AmountInputAR';
+
 type Props = {
   isCashSupplier: boolean;
   isPayableAlreadyPaid: boolean;
@@ -26,15 +28,23 @@ export default function ReceiveActionsRow({
   const [markCashPayment, setMarkCashPayment] = useState(
     initialMarkCashPayment,
   );
-  const [cashPaidAmount, setCashPaidAmount] = useState(initialCashPaidAmount);
+  const [cashPaidAmount, setCashPaidAmount] = useState<number | null>(() => {
+    const parsed = Number(initialCashPaidAmount || '');
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  });
+  const [cashAmountInputSeed, setCashAmountInputSeed] = useState(0);
   const [isPartialPayment, setIsPartialPayment] = useState(
     initialIsPartialPayment,
   );
-  const [partialTotalAmount, setPartialTotalAmount] = useState(
-    initialPartialTotalAmount,
+  const [partialTotalAmount, setPartialTotalAmount] = useState<number | null>(
+    () => {
+      const parsed = Number(initialPartialTotalAmount || '');
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    },
   );
-  const paidAmountValue = Number(cashPaidAmount || '0');
-  const totalAmountValue = Number(partialTotalAmount || '0');
+  const [partialAmountInputSeed, setPartialAmountInputSeed] = useState(0);
+  const paidAmountValue = cashPaidAmount ?? 0;
+  const totalAmountValue = partialTotalAmount ?? 0;
   const remainingAfterPayment =
     totalAmountValue > 0
       ? Number(
@@ -57,9 +67,11 @@ export default function ReceiveActionsRow({
                 const nextChecked = event.target.checked;
                 setMarkCashPayment(nextChecked);
                 if (!nextChecked) {
-                  setCashPaidAmount('');
+                  setCashPaidAmount(null);
                   setIsPartialPayment(false);
-                  setPartialTotalAmount('');
+                  setPartialTotalAmount(null);
+                  setCashAmountInputSeed((prev) => prev + 1);
+                  setPartialAmountInputSeed((prev) => prev + 1);
                 }
               }}
               className="h-4 w-4 rounded border-zinc-300"
@@ -73,16 +85,14 @@ export default function ReceiveActionsRow({
           />
           <label className="text-sm text-zinc-600">
             Monto exacto pagado
-            <input
+            <AmountInputAR
+              key={cashAmountInputSeed}
               name="cash_paid_amount"
-              type="number"
-              min={0.01}
-              step="0.01"
+              defaultValue={cashPaidAmount ?? ''}
               placeholder={markCashPayment ? 'Ej: 185000' : ''}
               disabled={!markCashPayment}
-              value={cashPaidAmount}
-              onChange={(event) => setCashPaidAmount(event.target.value)}
               className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm disabled:bg-zinc-100 disabled:text-zinc-400 md:w-56"
+              onValueChange={setCashPaidAmount}
             />
           </label>
           <label className="flex items-center gap-2 text-sm text-zinc-700">
@@ -94,7 +104,8 @@ export default function ReceiveActionsRow({
                 const nextChecked = event.target.checked;
                 setIsPartialPayment(nextChecked);
                 if (!nextChecked) {
-                  setPartialTotalAmount('');
+                  setPartialTotalAmount(null);
+                  setPartialAmountInputSeed((prev) => prev + 1);
                 }
               }}
               className="h-4 w-4 rounded border-zinc-300"
@@ -109,17 +120,15 @@ export default function ReceiveActionsRow({
           {isPartialPayment ? (
             <label className="text-sm text-zinc-600">
               Monto total del remito/factura
-              <input
+              <AmountInputAR
+                key={partialAmountInputSeed}
                 name="cash_partial_total_amount"
-                type="number"
-                min={0.01}
-                step="0.01"
+                defaultValue={partialTotalAmount ?? ''}
                 placeholder="Ej: 250000"
                 disabled={!markCashPayment}
-                value={partialTotalAmount}
-                onChange={(event) => setPartialTotalAmount(event.target.value)}
                 className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm disabled:bg-zinc-100 disabled:text-zinc-400 md:w-56"
                 required={markCashPayment && isPartialPayment}
+                onValueChange={setPartialTotalAmount}
               />
               {remainingAfterPayment != null ? (
                 <span className="mt-1 block text-xs text-zinc-500">

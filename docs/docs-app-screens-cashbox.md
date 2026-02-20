@@ -34,7 +34,14 @@ Operar caja por sucursal con flujo simple:
 - La pantalla muestra resumen adicional de cobros no-efectivo de la sesión:
   - tarjeta (`card`, incluyendo histórico `debit/credit`)
   - `mercadopago`
-- La pantalla muestra tabla de conciliación por método/dispositivo (ej. posnet) con cantidad de operaciones y monto sistema.
+- La pantalla muestra tabla de conciliación operativa con:
+  - fila fija de `Efectivo esperado total (caja + reserva)` calculada por sesión
+  - al completar conteo de cierre (caja + reserva), la fila de efectivo muestra automáticamente el contado y diferencia en vivo antes de cerrar
+  - filas por método/dispositivo para cobros no-efectivo (ej. posnet)
+  - fila agregada `MercadoPago (total)` sumando solo transacciones con `payment_method='mercadopago'`
+  - cobros con `payment_method='card'` siempre quedan en tarjeta, aunque el dispositivo sea de proveedor MercadoPago
+  - input manual por fila para registrar monto de comprobante
+  - diferencia (`comprobante - sistema`) por fila
 - Al cerrar:
   - se guarda cierre en caja
   - se guarda cierre en reserva
@@ -65,7 +72,8 @@ Operar caja por sucursal con flujo simple:
 - `rpc_open_cash_session(...)`
 - `rpc_add_cash_session_movement(...)`
 - `rpc_get_cash_session_summary(...)`
-- `rpc_get_cash_session_payment_breakdown(...)`
+- `rpc_get_cash_session_reconciliation_rows(...)`
+- `rpc_upsert_cash_session_reconciliation_inputs(...)`
 - `rpc_close_cash_session(...)`
   - requiere `closed_controlled_by_name`
   - requiere `close_confirmed=true`
