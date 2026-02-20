@@ -40,7 +40,9 @@ CREATE TYPE "public"."payment_method" AS ENUM (
     'credit',
     'transfer',
     'other',
-    'mixed'
+    'mixed',
+    'card',
+    'mercadopago'
 );
 
 
@@ -195,6 +197,7 @@ begin
          so.branch_id,
          so.supplier_id,
          so.status,
+         so.sent_at,
          so.received_at,
          so.reconciled_at,
          s.payment_terms_days,
@@ -211,7 +214,7 @@ begin
     raise exception 'order not found';
   end if;
 
-  if v_order.status not in ('received', 'reconciled') then
+  if v_order.status not in ('sent', 'received', 'reconciled') then
     return null;
   end if;
 
@@ -230,7 +233,12 @@ begin
 
   if v_order.payment_terms_days is not null then
     v_due_on := (
-      coalesce(v_order.reconciled_at, v_order.received_at, now())::date
+      coalesce(
+        v_order.reconciled_at,
+        v_order.received_at,
+        v_order.sent_at,
+        now()
+      )::date
       + v_order.payment_terms_days
     );
   end if;
@@ -850,6 +858,143 @@ $$;
 ALTER FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_session_id" "uuid", "p_close_note" "text", "p_closed_controlled_by_name" "text", "p_close_confirmed" boolean, "p_closing_drawer_count_lines" "jsonb", "p_closing_reserve_count_lines" "jsonb") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."rpc_correct_sale_payment_method"("p_org_id" "uuid", "p_sale_payment_id" "uuid", "p_payment_method" "public"."payment_method", "p_payment_device_id" "uuid" DEFAULT NULL::"uuid", "p_reason" "text" DEFAULT NULL::"text") RETURNS TABLE("sale_id" "uuid", "sale_payment_id" "uuid", "previous_payment_method" "public"."payment_method", "payment_method" "public"."payment_method")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_payment record;
+  v_sale record;
+  v_distinct_methods integer := 0;
+  v_summary_method public.payment_method;
+  v_reason text;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_org_admin_or_superadmin(p_org_id) then
+    raise exception 'not authorized';
+  end if;
+
+  if p_payment_method = 'mixed' then
+    raise exception 'invalid payment method';
+  end if;
+
+  v_reason := nullif(trim(coalesce(p_reason, '')), '');
+  if v_reason is null then
+    raise exception 'reason is required';
+  end if;
+
+  select sp.*
+  into v_payment
+  from public.sale_payments sp
+  where sp.id = p_sale_payment_id
+    and sp.org_id = p_org_id
+  for update;
+
+  if not found then
+    raise exception 'sale payment not found';
+  end if;
+
+  select s.*
+  into v_sale
+  from public.sales s
+  where s.id = v_payment.sale_id
+    and s.org_id = p_org_id
+  for update;
+
+  if not found then
+    raise exception 'sale not found';
+  end if;
+
+  if exists (
+    select 1
+    from public.cash_sessions cs
+    where cs.org_id = p_org_id
+      and cs.branch_id = v_sale.branch_id
+      and cs.status = 'closed'
+      and v_sale.created_at >= cs.opened_at
+      and v_sale.created_at <= cs.closed_at
+  ) then
+    raise exception 'sale belongs to a closed cash session';
+  end if;
+
+  if p_payment_method in ('card', 'mercadopago') then
+    if p_payment_device_id is null then
+      raise exception 'payment_device_id required for card and mercadopago';
+    end if;
+
+    if not exists (
+      select 1
+      from public.pos_payment_devices ppd
+      where ppd.id = p_payment_device_id
+        and ppd.org_id = p_org_id
+        and ppd.branch_id = v_sale.branch_id
+    ) then
+      raise exception 'invalid payment device';
+    end if;
+  elsif p_payment_device_id is not null then
+    raise exception 'payment_device_id only allowed for card and mercadopago';
+  end if;
+
+  update public.sale_payments
+  set
+    payment_method = p_payment_method,
+    payment_device_id = p_payment_device_id
+  where id = p_sale_payment_id
+    and org_id = p_org_id;
+
+  select count(distinct sp.payment_method)
+  into v_distinct_methods
+  from public.sale_payments sp
+  where sp.sale_id = v_sale.id
+    and sp.org_id = p_org_id;
+
+  if v_distinct_methods > 1 then
+    v_summary_method := 'mixed';
+  else
+    select sp.payment_method
+    into v_summary_method
+    from public.sale_payments sp
+    where sp.sale_id = v_sale.id
+      and sp.org_id = p_org_id
+    order by sp.created_at, sp.id
+    limit 1;
+  end if;
+
+  update public.sales
+  set payment_method = coalesce(v_summary_method, p_payment_method)
+  where id = v_sale.id
+    and org_id = p_org_id;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'sale_payment_method_corrected',
+    'sale_payment',
+    p_sale_payment_id,
+    v_sale.branch_id,
+    jsonb_build_object(
+      'sale_id', v_sale.id,
+      'previous_payment_method', v_payment.payment_method,
+      'new_payment_method', p_payment_method,
+      'previous_payment_device_id', v_payment.payment_device_id,
+      'new_payment_device_id', p_payment_device_id,
+      'reason', v_reason
+    ),
+    auth.uid()
+  );
+
+  return query
+  select v_sale.id, p_sale_payment_id, v_payment.payment_method, p_payment_method;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_correct_sale_payment_method"("p_org_id" "uuid", "p_sale_payment_id" "uuid", "p_payment_method" "public"."payment_method", "p_payment_device_id" "uuid", "p_reason" "text") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_expires_on" "date", "p_quantity" numeric, "p_source_ref_id" "uuid") RETURNS TABLE("batch_id" "uuid")
     LANGUAGE "sql"
     AS $$
@@ -882,7 +1027,7 @@ $$;
 ALTER FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_expires_on" "date", "p_quantity" numeric, "p_source_ref_id" "uuid") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid" DEFAULT NULL::"uuid", "p_close_special_order" boolean DEFAULT false, "p_apply_cash_discount" boolean DEFAULT false, "p_cash_discount_pct" numeric DEFAULT NULL::numeric, "p_payments" "jsonb" DEFAULT NULL::"jsonb") RETURNS TABLE("sale_id" "uuid", "total" numeric, "created_at" timestamp with time zone)
+CREATE OR REPLACE FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid" DEFAULT NULL::"uuid", "p_close_special_order" boolean DEFAULT false, "p_apply_cash_discount" boolean DEFAULT false, "p_cash_discount_pct" numeric DEFAULT NULL::numeric, "p_payments" "jsonb" DEFAULT NULL::"jsonb", "p_payment_device_id" "uuid" DEFAULT NULL::"uuid") RETURNS TABLE("sale_id" "uuid", "total" numeric, "created_at" timestamp with time zone)
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     SET "row_security" TO 'off'
@@ -922,6 +1067,9 @@ declare
   v_single_payment_method public.payment_method := null;
   v_summary_payment_method public.payment_method := null;
   v_payment_rows jsonb := '[]'::jsonb;
+  v_payment_device_id uuid;
+  v_single_payment_device_id uuid := null;
+  v_effective_payment_method public.payment_method;
 begin
   if auth.uid() is null then
     raise exception 'not authenticated';
@@ -973,12 +1121,37 @@ begin
     end if;
   end if;
 
-  if p_payment_method::text = 'mixed' and (p_payments is null or jsonb_typeof(p_payments) <> 'array' or jsonb_array_length(p_payments) = 0) then
+  v_effective_payment_method := p_payment_method;
+
+  if v_effective_payment_method::text = 'mixed' and (p_payments is null or jsonb_typeof(p_payments) <> 'array' or jsonb_array_length(p_payments) = 0) then
     raise exception 'mixed payment requires payments detail';
   end if;
 
   if p_cash_discount_pct is not null and not coalesce(p_apply_cash_discount, false) then
     raise exception 'cash discount pct requires apply_cash_discount';
+  end if;
+
+  if p_payments is null then
+    if v_effective_payment_method::text in ('card', 'mercadopago') and p_payment_device_id is null then
+      raise exception 'payment_device_id required for card and mercadopago';
+    end if;
+
+    if p_payment_device_id is not null and v_effective_payment_method::text not in ('card', 'mercadopago') then
+      raise exception 'payment_device_id only allowed for card and mercadopago';
+    end if;
+
+    if p_payment_device_id is not null and not exists (
+      select 1
+      from public.pos_payment_devices ppd
+      where ppd.id = p_payment_device_id
+        and ppd.org_id = p_org_id
+        and ppd.branch_id = p_branch_id
+        and ppd.is_active = true
+    ) then
+      raise exception 'invalid payment device';
+    end if;
+
+    v_single_payment_device_id := p_payment_device_id;
   end if;
 
   select
@@ -1021,7 +1194,7 @@ begin
     p_org_id,
     p_branch_id,
     auth.uid(),
-    case when p_payment_method::text = 'mixed' then 'other'::public.payment_method else p_payment_method end,
+    case when v_effective_payment_method::text = 'mixed' then 'other'::public.payment_method else v_effective_payment_method end,
     0,
     0,
     0,
@@ -1142,13 +1315,13 @@ begin
   v_total := v_subtotal;
 
   if p_payments is null then
-    if p_payment_method::text = 'mixed' then
+    if v_effective_payment_method::text = 'mixed' then
       raise exception 'mixed payment requires payments detail';
     end if;
 
     v_payments_count := 1;
-    v_single_payment_method := p_payment_method;
-    v_has_cash_payment := p_payment_method = 'cash';
+    v_single_payment_method := v_effective_payment_method;
+    v_has_cash_payment := v_effective_payment_method = 'cash';
   else
     if jsonb_typeof(p_payments) <> 'array' then
       raise exception 'payments must be an array';
@@ -1165,6 +1338,7 @@ begin
       end if;
 
       v_payment_method := (v_payment->>'payment_method')::public.payment_method;
+
       if v_payment_method::text = 'mixed' then
         raise exception 'mixed is not allowed inside payments detail';
       end if;
@@ -1174,17 +1348,40 @@ begin
         raise exception 'payment amount must be greater than 0';
       end if;
 
+      v_payment_device_id := nullif(v_payment->>'payment_device_id', '')::uuid;
+
+      if v_payment_method::text in ('card', 'mercadopago') and v_payment_device_id is null then
+        raise exception 'payment_device_id required for card and mercadopago';
+      end if;
+
+      if v_payment_method::text not in ('card', 'mercadopago') and v_payment_device_id is not null then
+        raise exception 'payment_device_id only allowed for card and mercadopago';
+      end if;
+
+      if v_payment_device_id is not null and not exists (
+        select 1
+        from public.pos_payment_devices ppd
+        where ppd.id = v_payment_device_id
+          and ppd.org_id = p_org_id
+          and ppd.branch_id = p_branch_id
+          and ppd.is_active = true
+      ) then
+        raise exception 'invalid payment device';
+      end if;
+
       v_payments_sum := v_payments_sum + v_payment_amount;
       v_payments_count := v_payments_count + 1;
       v_has_cash_payment := v_has_cash_payment or v_payment_method = 'cash';
 
       if v_payments_count = 1 then
         v_single_payment_method := v_payment_method;
+        v_single_payment_device_id := v_payment_device_id;
       end if;
 
       v_payment_rows := v_payment_rows || jsonb_build_object(
         'payment_method', v_payment_method,
-        'amount', v_payment_amount
+        'amount', v_payment_amount,
+        'payment_device_id', v_payment_device_id
       );
     end loop;
   end if;
@@ -1212,8 +1409,9 @@ begin
   if p_payments is null then
     v_payment_rows := jsonb_build_array(
       jsonb_build_object(
-        'payment_method', p_payment_method,
-        'amount', v_total
+        'payment_method', v_effective_payment_method,
+        'amount', v_total,
+        'payment_device_id', v_single_payment_device_id
       )
     );
     v_payments_sum := v_total;
@@ -1236,12 +1434,14 @@ begin
       sale_id,
       payment_method,
       amount,
+      payment_device_id,
       created_at
     ) values (
       p_org_id,
       v_sale_id,
       (v_payment->>'payment_method')::public.payment_method,
       (v_payment->>'amount')::numeric,
+      nullif(v_payment->>'payment_device_id', '')::uuid,
       v_created_at
     );
   end loop;
@@ -1308,7 +1508,7 @@ end;
 $$;
 
 
-ALTER FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean, "p_apply_cash_discount" boolean, "p_cash_discount_pct" numeric, "p_payments" "jsonb") OWNER TO "postgres";
+ALTER FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean, "p_apply_cash_discount" boolean, "p_cash_discount_pct" numeric, "p_payments" "jsonb", "p_payment_device_id" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_create_special_order"("p_org_id" "uuid", "p_branch_id" "uuid", "p_client_id" "uuid", "p_items" "jsonb", "p_notes" "text") RETURNS TABLE("special_order_id" "uuid")
@@ -1453,7 +1653,110 @@ $$;
 ALTER FUNCTION "public"."rpc_get_active_org_id"() OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."rpc_get_cash_session_summary"("p_org_id" "uuid", "p_session_id" "uuid") RETURNS TABLE("session_id" "uuid", "branch_id" "uuid", "status" "text", "period_type" "text", "session_label" "text", "opening_cash_amount" numeric, "opening_reserve_amount" numeric, "closing_drawer_amount" numeric, "closing_reserve_amount" numeric, "cash_sales_amount" numeric, "manual_income_amount" numeric, "manual_expense_amount" numeric, "expected_cash_amount" numeric, "counted_cash_amount" numeric, "difference_amount" numeric, "movements_count" bigint, "opened_by" "uuid", "closed_by" "uuid", "opened_at" timestamp with time zone, "closed_at" timestamp with time zone, "close_note" "text", "closed_controlled_by_name" "text", "close_confirmed" boolean)
+CREATE OR REPLACE FUNCTION "public"."rpc_get_cash_session_payment_breakdown"("p_org_id" "uuid", "p_session_id" "uuid") RETURNS TABLE("payment_method" "public"."payment_method", "payment_device_id" "uuid", "payment_device_name" "text", "payment_device_provider" "text", "total_amount" numeric, "payments_count" bigint)
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_session record;
+  v_cashbox_enabled boolean := false;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  select cs.*
+  into v_session
+  from public.cash_sessions cs
+  where cs.id = p_session_id
+    and cs.org_id = p_org_id;
+
+  if not found then
+    raise exception 'cash session not found';
+  end if;
+
+  if not public.is_org_admin_or_superadmin(p_org_id) then
+    if not exists (
+      select 1
+      from public.org_users ou
+      where ou.org_id = p_org_id
+        and ou.user_id = auth.uid()
+        and ou.is_active = true
+        and ou.role = 'staff'
+    ) then
+      raise exception 'not authorized';
+    end if;
+
+    if not exists (
+      select 1
+      from public.branch_memberships bm
+      where bm.org_id = p_org_id
+        and bm.user_id = auth.uid()
+        and bm.branch_id = v_session.branch_id
+        and bm.is_active = true
+    ) then
+      raise exception 'branch not allowed';
+    end if;
+
+    select exists (
+      select 1
+      from public.staff_module_access sma
+      where sma.org_id = p_org_id
+        and sma.role = 'staff'
+        and sma.module_key = 'cashbox'
+        and sma.is_enabled = true
+        and (sma.branch_id = v_session.branch_id or sma.branch_id is null)
+      order by case when sma.branch_id is null then 0 else 1 end desc
+      limit 1
+    ) into v_cashbox_enabled;
+
+    if not v_cashbox_enabled then
+      raise exception 'cashbox module disabled';
+    end if;
+  end if;
+
+  return query
+  select
+    sp.payment_method,
+    sp.payment_device_id,
+    case
+      when sp.payment_method = 'cash' then 'Efectivo'
+      when ppd.device_name is null then 'Sin dispositivo'
+      else ppd.device_name
+    end as payment_device_name,
+    ppd.provider as payment_device_provider,
+    coalesce(sum(sp.amount), 0)::numeric(12,2) as total_amount,
+    count(*)::bigint as payments_count
+  from public.sales s
+  join public.sale_payments sp
+    on sp.sale_id = s.id
+   and sp.org_id = s.org_id
+  left join public.pos_payment_devices ppd
+    on ppd.id = sp.payment_device_id
+   and ppd.org_id = sp.org_id
+  where s.org_id = p_org_id
+    and s.branch_id = v_session.branch_id
+    and s.created_at >= v_session.opened_at
+    and s.created_at <= coalesce(v_session.closed_at, now())
+  group by
+    sp.payment_method,
+    sp.payment_device_id,
+    case
+      when sp.payment_method = 'cash' then 'Efectivo'
+      when ppd.device_name is null then 'Sin dispositivo'
+      else ppd.device_name
+    end,
+    ppd.provider
+  order by sp.payment_method::text, payment_device_name;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_get_cash_session_payment_breakdown"("p_org_id" "uuid", "p_session_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_get_cash_session_summary"("p_org_id" "uuid", "p_session_id" "uuid") RETURNS TABLE("session_id" "uuid", "branch_id" "uuid", "status" "text", "period_type" "text", "session_label" "text", "opening_cash_amount" numeric, "opening_reserve_amount" numeric, "closing_drawer_amount" numeric, "closing_reserve_amount" numeric, "cash_sales_amount" numeric, "card_sales_amount" numeric, "mercadopago_sales_amount" numeric, "manual_income_amount" numeric, "manual_expense_amount" numeric, "expected_cash_amount" numeric, "counted_cash_amount" numeric, "difference_amount" numeric, "movements_count" bigint, "opened_by" "uuid", "closed_by" "uuid", "opened_at" timestamp with time zone, "closed_at" timestamp with time zone, "close_note" "text", "closed_controlled_by_name" "text", "close_confirmed" boolean)
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     SET "row_security" TO 'off'
@@ -1531,6 +1834,8 @@ begin
     v.closing_drawer_amount,
     v.closing_reserve_amount,
     v.cash_sales_amount,
+    v.card_sales_amount,
+    v.mercadopago_sales_amount,
     v.manual_income_amount,
     v.manual_expense_amount,
     v.expected_cash_amount,
@@ -2607,6 +2912,9 @@ CREATE OR REPLACE FUNCTION "public"."rpc_register_supplier_payment"("p_org_id" "
 declare
   v_payable record;
   v_payment_id uuid;
+  v_open_session_id uuid;
+  v_supplier_name text;
+  v_cash_movement_note text;
 begin
   if auth.uid() is null then
     raise exception 'not authenticated';
@@ -2684,6 +2992,66 @@ begin
     now()
   )
   returning id into v_payment_id;
+
+  if p_payment_method = 'cash' then
+    select cs.id
+    into v_open_session_id
+    from public.cash_sessions cs
+    where cs.org_id = p_org_id
+      and cs.branch_id = v_payable.branch_id
+      and cs.status = 'open'
+      and coalesce(p_paid_at, now()) >= cs.opened_at
+    order by cs.opened_at desc
+    limit 1;
+
+    if v_open_session_id is not null then
+      select s.name
+      into v_supplier_name
+      from public.suppliers s
+      where s.id = v_payable.supplier_id
+        and s.org_id = p_org_id;
+
+      v_cash_movement_note := trim(
+        both ' '
+        from concat(
+          'Pago proveedor ',
+          coalesce(v_supplier_name, 'Proveedor'),
+          ' · pedido ',
+          v_payable.order_id::text,
+          case
+            when nullif(trim(coalesce(p_note, '')), '') is null then ''
+            else concat(' · ', nullif(trim(coalesce(p_note, '')), ''))
+          end
+        )
+      );
+
+      insert into public.cash_session_movements (
+        org_id,
+        branch_id,
+        session_id,
+        movement_type,
+        category_key,
+        amount,
+        note,
+        movement_at,
+        created_by,
+        created_at,
+        supplier_payment_id
+      ) values (
+        p_org_id,
+        v_payable.branch_id,
+        v_open_session_id,
+        'expense',
+        'supplier_payment_cash',
+        round(p_amount, 2),
+        nullif(v_cash_movement_note, ''),
+        coalesce(p_paid_at, now()),
+        auth.uid(),
+        now(),
+        v_payment_id
+      );
+    end if;
+  end if;
 
   update public.supplier_payables
   set
@@ -3276,7 +3644,7 @@ $$;
 ALTER FUNCTION "public"."rpc_update_expiration_batch_date"("p_org_id" "uuid", "p_batch_id" "uuid", "p_new_expires_on" "date", "p_reason" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."rpc_update_supplier_payable"("p_org_id" "uuid", "p_payable_id" "uuid", "p_invoice_amount" numeric DEFAULT NULL::numeric, "p_due_on" "date" DEFAULT NULL::"date", "p_invoice_photo_url" "text" DEFAULT NULL::"text", "p_invoice_note" "text" DEFAULT NULL::"text", "p_selected_payment_method" "public"."payment_method" DEFAULT NULL::"public"."payment_method") RETURNS TABLE("payable_id" "uuid", "status" "text", "outstanding_amount" numeric)
+CREATE OR REPLACE FUNCTION "public"."rpc_update_supplier_payable"("p_org_id" "uuid", "p_payable_id" "uuid", "p_invoice_amount" numeric DEFAULT NULL::numeric, "p_due_on" "date" DEFAULT NULL::"date", "p_invoice_reference" "text" DEFAULT NULL::"text", "p_invoice_photo_url" "text" DEFAULT NULL::"text", "p_invoice_note" "text" DEFAULT NULL::"text", "p_selected_payment_method" "public"."payment_method" DEFAULT NULL::"public"."payment_method") RETURNS TABLE("payable_id" "uuid", "status" "text", "outstanding_amount" numeric)
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     SET "row_security" TO 'off'
@@ -3305,6 +3673,7 @@ begin
   set
     invoice_amount = p_invoice_amount,
     due_on = p_due_on,
+    invoice_reference = nullif(trim(coalesce(p_invoice_reference, '')), ''),
     invoice_photo_url = nullif(trim(coalesce(p_invoice_photo_url, '')), ''),
     invoice_note = nullif(trim(coalesce(p_invoice_note, '')), ''),
     selected_payment_method = p_selected_payment_method,
@@ -3333,6 +3702,7 @@ begin
     jsonb_build_object(
       'invoice_amount', v_payable.invoice_amount,
       'due_on', v_payable.due_on,
+      'invoice_reference', v_payable.invoice_reference,
       'invoice_photo_url', v_payable.invoice_photo_url,
       'selected_payment_method', v_payable.selected_payment_method,
       'status', v_payable.status,
@@ -3347,7 +3717,7 @@ end;
 $$;
 
 
-ALTER FUNCTION "public"."rpc_update_supplier_payable"("p_org_id" "uuid", "p_payable_id" "uuid", "p_invoice_amount" numeric, "p_due_on" "date", "p_invoice_photo_url" "text", "p_invoice_note" "text", "p_selected_payment_method" "public"."payment_method") OWNER TO "postgres";
+ALTER FUNCTION "public"."rpc_update_supplier_payable"("p_org_id" "uuid", "p_payable_id" "uuid", "p_invoice_amount" numeric, "p_due_on" "date", "p_invoice_reference" "text", "p_invoice_photo_url" "text", "p_invoice_note" "text", "p_selected_payment_method" "public"."payment_method") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_update_user_membership"("p_org_id" "uuid", "p_user_id" "uuid", "p_role" "public"."user_role", "p_is_active" boolean, "p_display_name" "text", "p_branch_ids" "uuid"[]) RETURNS "void"
@@ -4045,14 +4415,42 @@ $$;
 ALTER FUNCTION "public"."set_updated_at"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."trg_seed_pos_payment_devices_for_branch"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+begin
+  insert into public.pos_payment_devices (
+    org_id,
+    branch_id,
+    device_name,
+    provider,
+    is_active
+  ) values
+    (new.org_id, new.id, 'Posnet principal', 'posnet', true),
+    (new.org_id, new.id, 'MercadoPago principal', 'mercadopago', true)
+  on conflict (org_id, branch_id, device_name) do nothing;
+
+  return new;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."trg_seed_pos_payment_devices_for_branch"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."trg_sync_supplier_payable_from_order"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     SET "row_security" TO 'off'
     AS $$
 begin
-  if new.status in ('received', 'reconciled') then
-    perform public.fn_sync_supplier_payable_from_order(new.org_id, new.id, coalesce(new.created_by, auth.uid()));
+  if new.status in ('sent', 'received', 'reconciled') then
+    perform public.fn_sync_supplier_payable_from_order(
+      new.org_id,
+      new.id,
+      coalesce(new.created_by, auth.uid())
+    );
   end if;
 
   return new;
@@ -4141,6 +4539,7 @@ CREATE TABLE IF NOT EXISTS "public"."cash_session_movements" (
     "movement_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "created_by" "uuid" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "supplier_payment_id" "uuid",
     CONSTRAINT "cash_session_movements_amount_positive_ck" CHECK (("amount" > (0)::numeric)),
     CONSTRAINT "cash_session_movements_movement_type_ck" CHECK (("movement_type" = ANY (ARRAY['expense'::"text", 'income'::"text"])))
 );
@@ -4330,6 +4729,25 @@ CREATE TABLE IF NOT EXISTS "public"."platform_admins" (
 ALTER TABLE "public"."platform_admins" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."pos_payment_devices" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "org_id" "uuid" NOT NULL,
+    "branch_id" "uuid" NOT NULL,
+    "device_name" "text" NOT NULL,
+    "provider" "text" DEFAULT 'posnet'::"text" NOT NULL,
+    "is_active" boolean DEFAULT true NOT NULL,
+    "created_by" "uuid",
+    "updated_by" "uuid",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "pos_payment_devices_device_name_not_blank_ck" CHECK (("length"(TRIM(BOTH FROM "device_name")) > 0)),
+    CONSTRAINT "pos_payment_devices_provider_ck" CHECK (("provider" = ANY (ARRAY['posnet'::"text", 'mercadopago'::"text", 'other'::"text"])))
+);
+
+
+ALTER TABLE "public"."pos_payment_devices" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."products" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "org_id" "uuid" NOT NULL,
@@ -4372,6 +4790,7 @@ CREATE TABLE IF NOT EXISTS "public"."sale_payments" (
     "payment_method" "public"."payment_method" NOT NULL,
     "amount" numeric(12,2) NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "payment_device_id" "uuid",
     CONSTRAINT "sale_payments_amount_positive_ck" CHECK (("amount" > (0)::numeric)),
     CONSTRAINT "sale_payments_method_not_mixed_ck" CHECK ((("payment_method")::"text" <> 'mixed'::"text"))
 );
@@ -4505,6 +4924,7 @@ CREATE TABLE IF NOT EXISTS "public"."supplier_payables" (
     "updated_by" "uuid",
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "invoice_reference" "text",
     CONSTRAINT "supplier_payables_estimated_amount_ck" CHECK (("estimated_amount" >= (0)::numeric)),
     CONSTRAINT "supplier_payables_invoice_amount_ck" CHECK ((("invoice_amount" IS NULL) OR ("invoice_amount" >= (0)::numeric))),
     CONSTRAINT "supplier_payables_outstanding_amount_ck" CHECK (("outstanding_amount" >= (0)::numeric)),
@@ -4657,12 +5077,14 @@ ALTER VIEW "public"."v_branches_admin" OWNER TO "postgres";
 
 
 CREATE OR REPLACE VIEW "public"."v_cashbox_session_current" AS
- WITH "sales_cash" AS (
+ WITH "sales_by_method" AS (
          SELECT "cs_1"."id" AS "session_id",
-            COALESCE("sum"("sp"."amount"), (0)::numeric) AS "cash_sales_amount"
+            COALESCE("sum"("sp"."amount") FILTER (WHERE ("sp"."payment_method" = 'cash'::"public"."payment_method")), (0)::numeric) AS "cash_sales_amount",
+            COALESCE("sum"("sp"."amount") FILTER (WHERE (("sp"."payment_method")::"text" = ANY (ARRAY['card'::"text", 'debit'::"text", 'credit'::"text"]))), (0)::numeric) AS "card_sales_amount",
+            COALESCE("sum"("sp"."amount") FILTER (WHERE (("sp"."payment_method")::"text" = 'mercadopago'::"text")), (0)::numeric) AS "mercadopago_sales_amount"
            FROM (("public"."cash_sessions" "cs_1"
              LEFT JOIN "public"."sales" "s" ON ((("s"."org_id" = "cs_1"."org_id") AND ("s"."branch_id" = "cs_1"."branch_id") AND ("s"."created_at" >= "cs_1"."opened_at") AND ("s"."created_at" <= COALESCE("cs_1"."closed_at", "now"())))))
-             LEFT JOIN "public"."sale_payments" "sp" ON ((("sp"."sale_id" = "s"."id") AND ("sp"."payment_method" = 'cash'::"public"."payment_method"))))
+             LEFT JOIN "public"."sale_payments" "sp" ON (("sp"."sale_id" = "s"."id")))
           GROUP BY "cs_1"."id"
         ), "movement_totals" AS (
          SELECT "csm"."session_id",
@@ -4690,14 +5112,16 @@ CREATE OR REPLACE VIEW "public"."v_cashbox_session_current" AS
     "cs"."opening_reserve_amount",
     "cs"."closing_drawer_amount",
     "cs"."closing_reserve_amount",
-    COALESCE("sc"."cash_sales_amount", (0)::numeric) AS "cash_sales_amount",
+    COALESCE("sbm"."cash_sales_amount", (0)::numeric) AS "cash_sales_amount",
+    COALESCE("sbm"."card_sales_amount", (0)::numeric) AS "card_sales_amount",
+    COALESCE("sbm"."mercadopago_sales_amount", (0)::numeric) AS "mercadopago_sales_amount",
     COALESCE("mt"."manual_income_amount", (0)::numeric) AS "manual_income_amount",
     COALESCE("mt"."manual_expense_amount", (0)::numeric) AS "manual_expense_amount",
-    ((((("cs"."opening_cash_amount" + "cs"."opening_reserve_amount") + COALESCE("sc"."cash_sales_amount", (0)::numeric)) + COALESCE("mt"."manual_income_amount", (0)::numeric)) - COALESCE("mt"."manual_expense_amount", (0)::numeric)))::numeric(12,2) AS "expected_cash_amount",
+    ((((("cs"."opening_cash_amount" + "cs"."opening_reserve_amount") + COALESCE("sbm"."cash_sales_amount", (0)::numeric)) + COALESCE("mt"."manual_income_amount", (0)::numeric)) - COALESCE("mt"."manual_expense_amount", (0)::numeric)))::numeric(12,2) AS "expected_cash_amount",
     "cs"."counted_cash_amount",
         CASE
             WHEN ("cs"."counted_cash_amount" IS NULL) THEN NULL::numeric
-            ELSE (("cs"."counted_cash_amount" - (((("cs"."opening_cash_amount" + "cs"."opening_reserve_amount") + COALESCE("sc"."cash_sales_amount", (0)::numeric)) + COALESCE("mt"."manual_income_amount", (0)::numeric)) - COALESCE("mt"."manual_expense_amount", (0)::numeric))))::numeric(12,2)
+            ELSE (("cs"."counted_cash_amount" - (((("cs"."opening_cash_amount" + "cs"."opening_reserve_amount") + COALESCE("sbm"."cash_sales_amount", (0)::numeric)) + COALESCE("mt"."manual_income_amount", (0)::numeric)) - COALESCE("mt"."manual_expense_amount", (0)::numeric))))::numeric(12,2)
         END AS "difference_amount",
     COALESCE("mt"."movements_count", (0)::bigint) AS "movements_count",
     "cs"."opened_by",
@@ -4710,7 +5134,7 @@ CREATE OR REPLACE VIEW "public"."v_cashbox_session_current" AS
     "cs"."created_at",
     "cs"."updated_at"
    FROM (("public"."cash_sessions" "cs"
-     LEFT JOIN "sales_cash" "sc" ON (("sc"."session_id" = "cs"."id")))
+     LEFT JOIN "sales_by_method" "sbm" ON (("sbm"."session_id" = "cs"."id")))
      LEFT JOIN "movement_totals" "mt" ON (("mt"."session_id" = "cs"."id")));
 
 
@@ -5025,6 +5449,103 @@ CREATE OR REPLACE VIEW "public"."v_products_typeahead_admin" AS
 ALTER VIEW "public"."v_products_typeahead_admin" OWNER TO "postgres";
 
 
+CREATE OR REPLACE VIEW "public"."v_sale_detail_admin" WITH ("security_invoker"='true') AS
+ WITH "items_by_sale" AS (
+         SELECT "si"."sale_id",
+            "jsonb_agg"("jsonb_build_object"('sale_item_id', "si"."id", 'product_id', "si"."product_id", 'product_name', "si"."product_name_snapshot", 'unit_price', "si"."unit_price_snapshot", 'quantity', "si"."quantity", 'line_total', "si"."line_total") ORDER BY "si"."product_name_snapshot") AS "items"
+           FROM "public"."sale_items" "si"
+          GROUP BY "si"."sale_id"
+        ), "payments_by_sale" AS (
+         SELECT "sp"."sale_id",
+            "jsonb_agg"("jsonb_build_object"('sale_payment_id', "sp"."id", 'payment_method', "sp"."payment_method", 'amount', "sp"."amount", 'payment_device_id', "sp"."payment_device_id", 'payment_device_name', "ppd"."device_name", 'payment_device_provider', "ppd"."provider", 'created_at', "sp"."created_at") ORDER BY "sp"."created_at", "sp"."id") AS "payments"
+           FROM ("public"."sale_payments" "sp"
+             LEFT JOIN "public"."pos_payment_devices" "ppd" ON ((("ppd"."id" = "sp"."payment_device_id") AND ("ppd"."org_id" = "sp"."org_id"))))
+          GROUP BY "sp"."sale_id"
+        ), "creator_names" AS (
+         SELECT "ou"."org_id",
+            "ou"."user_id",
+            COALESCE(NULLIF(TRIM(BOTH FROM "ou"."display_name"), ''::"text"), ("ou"."user_id")::"text") AS "creator_name"
+           FROM "public"."org_users" "ou"
+        )
+ SELECT "s"."id" AS "sale_id",
+    "s"."org_id",
+    "s"."branch_id",
+    "b"."name" AS "branch_name",
+    "s"."created_at",
+    "s"."created_by",
+    COALESCE("cn"."creator_name", ("s"."created_by")::"text") AS "created_by_name",
+    "s"."payment_method" AS "payment_method_summary",
+    "s"."subtotal_amount",
+    "s"."discount_amount",
+    "s"."discount_pct",
+    "s"."total_amount",
+    COALESCE("ibs"."items", '[]'::"jsonb") AS "items",
+    COALESCE("pbs"."payments", '[]'::"jsonb") AS "payments"
+   FROM (((("public"."sales" "s"
+     JOIN "public"."branches" "b" ON ((("b"."id" = "s"."branch_id") AND ("b"."org_id" = "s"."org_id"))))
+     LEFT JOIN "items_by_sale" "ibs" ON (("ibs"."sale_id" = "s"."id")))
+     LEFT JOIN "payments_by_sale" "pbs" ON (("pbs"."sale_id" = "s"."id")))
+     LEFT JOIN "creator_names" "cn" ON ((("cn"."org_id" = "s"."org_id") AND ("cn"."user_id" = "s"."created_by"))));
+
+
+ALTER VIEW "public"."v_sale_detail_admin" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."v_sales_admin" WITH ("security_invoker"='true') AS
+ WITH "payment_totals" AS (
+         SELECT "sp"."sale_id",
+            (COALESCE("sum"("sp"."amount") FILTER (WHERE ("sp"."payment_method" = 'cash'::"public"."payment_method")), (0)::numeric))::numeric(12,2) AS "cash_amount",
+            (COALESCE("sum"("sp"."amount") FILTER (WHERE (("sp"."payment_method")::"text" = ANY (ARRAY['card'::"text", 'debit'::"text", 'credit'::"text"]))), (0)::numeric))::numeric(12,2) AS "card_amount",
+            (COALESCE("sum"("sp"."amount") FILTER (WHERE (("sp"."payment_method")::"text" = 'mercadopago'::"text")), (0)::numeric))::numeric(12,2) AS "mercadopago_amount",
+            (COALESCE("sum"("sp"."amount") FILTER (WHERE (("sp"."payment_method")::"text" <> ALL (ARRAY['cash'::"text", 'card'::"text", 'debit'::"text", 'credit'::"text", 'mercadopago'::"text"]))), (0)::numeric))::numeric(12,2) AS "other_amount",
+            "array_agg"(DISTINCT ("sp"."payment_method")::"text" ORDER BY ("sp"."payment_method")::"text") AS "payment_methods"
+           FROM "public"."sale_payments" "sp"
+          GROUP BY "sp"."sale_id"
+        ), "item_totals" AS (
+         SELECT "si"."sale_id",
+            ("count"(*))::integer AS "items_count",
+            (COALESCE("sum"("si"."quantity"), (0)::numeric))::numeric(14,3) AS "items_qty_total",
+            "string_agg"(DISTINCT "si"."product_name_snapshot", ', '::"text" ORDER BY "si"."product_name_snapshot") AS "item_names_summary",
+            "lower"("string_agg"(DISTINCT "si"."product_name_snapshot", ' '::"text" ORDER BY "si"."product_name_snapshot")) AS "item_names_search"
+           FROM "public"."sale_items" "si"
+          GROUP BY "si"."sale_id"
+        ), "creator_names" AS (
+         SELECT "ou"."org_id",
+            "ou"."user_id",
+            COALESCE(NULLIF(TRIM(BOTH FROM "ou"."display_name"), ''::"text"), ("ou"."user_id")::"text") AS "creator_name"
+           FROM "public"."org_users" "ou"
+        )
+ SELECT "s"."id" AS "sale_id",
+    "s"."org_id",
+    "s"."branch_id",
+    "b"."name" AS "branch_name",
+    "s"."created_at",
+    "s"."created_by",
+    COALESCE("cn"."creator_name", ("s"."created_by")::"text") AS "created_by_name",
+    "s"."payment_method" AS "payment_method_summary",
+    "s"."subtotal_amount",
+    "s"."discount_amount",
+    "s"."discount_pct",
+    "s"."total_amount",
+    COALESCE("it"."items_count", 0) AS "items_count",
+    (COALESCE("it"."items_qty_total", (0)::numeric))::numeric(14,3) AS "items_qty_total",
+    COALESCE("it"."item_names_summary", ''::"text") AS "item_names_summary",
+    COALESCE("it"."item_names_search", ''::"text") AS "item_names_search",
+    COALESCE("pt"."payment_methods", ARRAY[]::"text"[]) AS "payment_methods",
+    (COALESCE("pt"."cash_amount", (0)::numeric))::numeric(12,2) AS "cash_amount",
+    (COALESCE("pt"."card_amount", (0)::numeric))::numeric(12,2) AS "card_amount",
+    (COALESCE("pt"."mercadopago_amount", (0)::numeric))::numeric(12,2) AS "mercadopago_amount",
+    (COALESCE("pt"."other_amount", (0)::numeric))::numeric(12,2) AS "other_amount"
+   FROM (((("public"."sales" "s"
+     JOIN "public"."branches" "b" ON ((("b"."id" = "s"."branch_id") AND ("b"."org_id" = "s"."org_id"))))
+     LEFT JOIN "payment_totals" "pt" ON (("pt"."sale_id" = "s"."id")))
+     LEFT JOIN "item_totals" "it" ON (("it"."sale_id" = "s"."id")))
+     LEFT JOIN "creator_names" "cn" ON ((("cn"."org_id" = "s"."org_id") AND ("cn"."user_id" = "s"."created_by"))));
+
+
+ALTER VIEW "public"."v_sales_admin" OWNER TO "postgres";
+
+
 CREATE OR REPLACE VIEW "public"."v_settings_users_admin" AS
  SELECT "ou"."org_id",
     "ou"."user_id",
@@ -5231,6 +5752,7 @@ CREATE OR REPLACE VIEW "public"."v_supplier_payables_admin" AS
     "sp"."payment_terms_days_snapshot",
     "sp"."preferred_payment_method",
     "sp"."selected_payment_method",
+    "sp"."invoice_reference",
     "sp"."invoice_photo_url",
     "sp"."invoice_note",
     "sp"."paid_at",
@@ -5425,6 +5947,16 @@ ALTER TABLE ONLY "public"."platform_admins"
 
 
 
+ALTER TABLE ONLY "public"."pos_payment_devices"
+    ADD CONSTRAINT "pos_payment_devices_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."pos_payment_devices"
+    ADD CONSTRAINT "pos_payment_devices_unique_org_branch_name" UNIQUE ("org_id", "branch_id", "device_name");
+
+
+
 ALTER TABLE ONLY "public"."products"
     ADD CONSTRAINT "products_pkey" PRIMARY KEY ("id");
 
@@ -5562,6 +6094,10 @@ CREATE INDEX "cash_session_movements_session_idx" ON "public"."cash_session_move
 
 
 
+CREATE UNIQUE INDEX "cash_session_movements_supplier_payment_uniq_idx" ON "public"."cash_session_movements" USING "btree" ("supplier_payment_id") WHERE ("supplier_payment_id" IS NOT NULL);
+
+
+
 CREATE UNIQUE INDEX "cash_sessions_open_unique" ON "public"."cash_sessions" USING "btree" ("org_id", "branch_id") WHERE ("status" = 'open'::"text");
 
 
@@ -5578,6 +6114,10 @@ CREATE INDEX "expiration_waste_org_branch_idx" ON "public"."expiration_waste" US
 
 
 
+CREATE INDEX "pos_payment_devices_org_branch_active_idx" ON "public"."pos_payment_devices" USING "btree" ("org_id", "branch_id", "is_active", "device_name");
+
+
+
 CREATE UNIQUE INDEX "products_org_barcode_uq" ON "public"."products" USING "btree" ("org_id", "barcode") WHERE ("barcode" IS NOT NULL);
 
 
@@ -5587,6 +6127,10 @@ CREATE UNIQUE INDEX "products_org_internal_code_uq" ON "public"."products" USING
 
 
 CREATE INDEX "sale_payments_org_id_idx" ON "public"."sale_payments" USING "btree" ("org_id");
+
+
+
+CREATE INDEX "sale_payments_payment_device_id_idx" ON "public"."sale_payments" USING "btree" ("payment_device_id");
 
 
 
@@ -5704,6 +6248,10 @@ CREATE OR REPLACE TRIGGER "set_suppliers_updated_at" BEFORE UPDATE ON "public"."
 
 
 
+CREATE OR REPLACE TRIGGER "trg_branches_seed_pos_payment_devices" AFTER INSERT ON "public"."branches" FOR EACH ROW EXECUTE FUNCTION "public"."trg_seed_pos_payment_devices_for_branch"();
+
+
+
 CREATE OR REPLACE TRIGGER "trg_supplier_orders_sync_payable" AFTER INSERT OR UPDATE OF "status", "supplier_id", "branch_id", "received_at", "reconciled_at" ON "public"."supplier_orders" FOR EACH ROW EXECUTE FUNCTION "public"."trg_sync_supplier_payable_from_order"();
 
 
@@ -5775,6 +6323,11 @@ ALTER TABLE ONLY "public"."cash_session_movements"
 
 ALTER TABLE ONLY "public"."cash_session_movements"
     ADD CONSTRAINT "cash_session_movements_session_id_fkey" FOREIGN KEY ("session_id") REFERENCES "public"."cash_sessions"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."cash_session_movements"
+    ADD CONSTRAINT "cash_session_movements_supplier_payment_id_fkey" FOREIGN KEY ("supplier_payment_id") REFERENCES "public"."supplier_payments"("id") ON DELETE SET NULL;
 
 
 
@@ -5913,6 +6466,26 @@ ALTER TABLE ONLY "public"."platform_admins"
 
 
 
+ALTER TABLE ONLY "public"."pos_payment_devices"
+    ADD CONSTRAINT "pos_payment_devices_branch_id_fkey" FOREIGN KEY ("branch_id") REFERENCES "public"."branches"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."pos_payment_devices"
+    ADD CONSTRAINT "pos_payment_devices_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."pos_payment_devices"
+    ADD CONSTRAINT "pos_payment_devices_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."pos_payment_devices"
+    ADD CONSTRAINT "pos_payment_devices_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
 ALTER TABLE ONLY "public"."products"
     ADD CONSTRAINT "products_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
 
@@ -5935,6 +6508,11 @@ ALTER TABLE ONLY "public"."sale_items"
 
 ALTER TABLE ONLY "public"."sale_payments"
     ADD CONSTRAINT "sale_payments_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."sale_payments"
+    ADD CONSTRAINT "sale_payments_payment_device_id_fkey" FOREIGN KEY ("payment_device_id") REFERENCES "public"."pos_payment_devices"("id") ON DELETE SET NULL;
 
 
 
@@ -6366,6 +6944,21 @@ CREATE POLICY "platform_admins_write" ON "public"."platform_admins" FOR INSERT W
 
 
 
+ALTER TABLE "public"."pos_payment_devices" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "pos_payment_devices_select" ON "public"."pos_payment_devices" FOR SELECT USING ("public"."is_org_member"("org_id"));
+
+
+
+CREATE POLICY "pos_payment_devices_update" ON "public"."pos_payment_devices" FOR UPDATE USING ("public"."is_org_member"("org_id"));
+
+
+
+CREATE POLICY "pos_payment_devices_write" ON "public"."pos_payment_devices" FOR INSERT WITH CHECK ("public"."is_org_member"("org_id"));
+
+
+
 ALTER TABLE "public"."products" ENABLE ROW LEVEL SECURITY;
 
 
@@ -6648,15 +7241,21 @@ GRANT ALL ON FUNCTION "public"."rpc_close_cash_session"("p_org_id" "uuid", "p_se
 
 
 
+GRANT ALL ON FUNCTION "public"."rpc_correct_sale_payment_method"("p_org_id" "uuid", "p_sale_payment_id" "uuid", "p_payment_method" "public"."payment_method", "p_payment_device_id" "uuid", "p_reason" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_correct_sale_payment_method"("p_org_id" "uuid", "p_sale_payment_id" "uuid", "p_payment_method" "public"."payment_method", "p_payment_device_id" "uuid", "p_reason" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_correct_sale_payment_method"("p_org_id" "uuid", "p_sale_payment_id" "uuid", "p_payment_method" "public"."payment_method", "p_payment_device_id" "uuid", "p_reason" "text") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_expires_on" "date", "p_quantity" numeric, "p_source_ref_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_expires_on" "date", "p_quantity" numeric, "p_source_ref_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_expires_on" "date", "p_quantity" numeric, "p_source_ref_id" "uuid") TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean, "p_apply_cash_discount" boolean, "p_cash_discount_pct" numeric, "p_payments" "jsonb") TO "anon";
-GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean, "p_apply_cash_discount" boolean, "p_cash_discount_pct" numeric, "p_payments" "jsonb") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean, "p_apply_cash_discount" boolean, "p_cash_discount_pct" numeric, "p_payments" "jsonb") TO "service_role";
+GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean, "p_apply_cash_discount" boolean, "p_cash_discount_pct" numeric, "p_payments" "jsonb", "p_payment_device_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean, "p_apply_cash_discount" boolean, "p_cash_discount_pct" numeric, "p_payments" "jsonb", "p_payment_device_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid", "p_close_special_order" boolean, "p_apply_cash_discount" boolean, "p_cash_discount_pct" numeric, "p_payments" "jsonb", "p_payment_device_id" "uuid") TO "service_role";
 
 
 
@@ -6675,6 +7274,12 @@ GRANT ALL ON FUNCTION "public"."rpc_create_supplier_order"("p_org_id" "uuid", "p
 GRANT ALL ON FUNCTION "public"."rpc_get_active_org_id"() TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_get_active_org_id"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_get_active_org_id"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_get_cash_session_payment_breakdown"("p_org_id" "uuid", "p_session_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_get_cash_session_payment_breakdown"("p_org_id" "uuid", "p_session_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_get_cash_session_payment_breakdown"("p_org_id" "uuid", "p_session_id" "uuid") TO "service_role";
 
 
 
@@ -6864,9 +7469,9 @@ GRANT ALL ON FUNCTION "public"."rpc_update_expiration_batch_date"("p_org_id" "uu
 
 
 
-GRANT ALL ON FUNCTION "public"."rpc_update_supplier_payable"("p_org_id" "uuid", "p_payable_id" "uuid", "p_invoice_amount" numeric, "p_due_on" "date", "p_invoice_photo_url" "text", "p_invoice_note" "text", "p_selected_payment_method" "public"."payment_method") TO "anon";
-GRANT ALL ON FUNCTION "public"."rpc_update_supplier_payable"("p_org_id" "uuid", "p_payable_id" "uuid", "p_invoice_amount" numeric, "p_due_on" "date", "p_invoice_photo_url" "text", "p_invoice_note" "text", "p_selected_payment_method" "public"."payment_method") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."rpc_update_supplier_payable"("p_org_id" "uuid", "p_payable_id" "uuid", "p_invoice_amount" numeric, "p_due_on" "date", "p_invoice_photo_url" "text", "p_invoice_note" "text", "p_selected_payment_method" "public"."payment_method") TO "service_role";
+GRANT ALL ON FUNCTION "public"."rpc_update_supplier_payable"("p_org_id" "uuid", "p_payable_id" "uuid", "p_invoice_amount" numeric, "p_due_on" "date", "p_invoice_reference" "text", "p_invoice_photo_url" "text", "p_invoice_note" "text", "p_selected_payment_method" "public"."payment_method") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_update_supplier_payable"("p_org_id" "uuid", "p_payable_id" "uuid", "p_invoice_amount" numeric, "p_due_on" "date", "p_invoice_reference" "text", "p_invoice_photo_url" "text", "p_invoice_note" "text", "p_selected_payment_method" "public"."payment_method") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_update_supplier_payable"("p_org_id" "uuid", "p_payable_id" "uuid", "p_invoice_amount" numeric, "p_due_on" "date", "p_invoice_reference" "text", "p_invoice_photo_url" "text", "p_invoice_note" "text", "p_selected_payment_method" "public"."payment_method") TO "service_role";
 
 
 
@@ -6945,6 +7550,12 @@ GRANT ALL ON FUNCTION "public"."rpc_upsert_supplier_product"("p_org_id" "uuid", 
 GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "anon";
 GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."trg_seed_pos_payment_devices_for_branch"() TO "anon";
+GRANT ALL ON FUNCTION "public"."trg_seed_pos_payment_devices_for_branch"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."trg_seed_pos_payment_devices_for_branch"() TO "service_role";
 
 
 
@@ -7041,6 +7652,12 @@ GRANT ALL ON TABLE "public"."orgs" TO "service_role";
 GRANT ALL ON TABLE "public"."platform_admins" TO "anon";
 GRANT ALL ON TABLE "public"."platform_admins" TO "authenticated";
 GRANT ALL ON TABLE "public"."platform_admins" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."pos_payment_devices" TO "anon";
+GRANT ALL ON TABLE "public"."pos_payment_devices" TO "authenticated";
+GRANT ALL ON TABLE "public"."pos_payment_devices" TO "service_role";
 
 
 
@@ -7215,6 +7832,18 @@ GRANT ALL ON TABLE "public"."v_products_admin" TO "service_role";
 GRANT ALL ON TABLE "public"."v_products_typeahead_admin" TO "anon";
 GRANT ALL ON TABLE "public"."v_products_typeahead_admin" TO "authenticated";
 GRANT ALL ON TABLE "public"."v_products_typeahead_admin" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."v_sale_detail_admin" TO "anon";
+GRANT ALL ON TABLE "public"."v_sale_detail_admin" TO "authenticated";
+GRANT ALL ON TABLE "public"."v_sale_detail_admin" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."v_sales_admin" TO "anon";
+GRANT ALL ON TABLE "public"."v_sales_admin" TO "authenticated";
+GRANT ALL ON TABLE "public"."v_sales_admin" TO "service_role";
 
 
 

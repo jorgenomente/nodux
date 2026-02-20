@@ -507,7 +507,8 @@ export default async function OrderDetailPage({
               p_invoice_amount: targetInvoiceAmount,
               p_due_on: (payableRowAny?.due_on as string | null) ?? undefined,
               p_invoice_reference:
-                (payableRowAny?.invoice_reference as string | null) ?? null,
+                (payableRowAny?.invoice_reference as string | null) ??
+                undefined,
               p_invoice_photo_url:
                 (payableRowAny?.invoice_photo_url as string | null) ??
                 undefined,
@@ -536,7 +537,7 @@ export default async function OrderDetailPage({
               ),
             p_due_on: (payableRowAny?.due_on as string | null) ?? undefined,
             p_invoice_reference:
-              (payableRowAny?.invoice_reference as string | null) ?? null,
+              (payableRowAny?.invoice_reference as string | null) ?? undefined,
             p_invoice_photo_url:
               (payableRowAny?.invoice_photo_url as string | null) ?? undefined,
             p_invoice_note:
@@ -662,7 +663,7 @@ export default async function OrderDetailPage({
       p_payable_id: payableId,
       p_invoice_amount: invoiceAmount ?? undefined,
       p_due_on: dueOnRaw || undefined,
-      p_invoice_reference: invoiceReference || null,
+      p_invoice_reference: invoiceReference || undefined,
       p_invoice_photo_url:
         uploadedInvoicePhotoPath || invoicePhotoUrl || undefined,
       p_invoice_note: invoiceNote || undefined,

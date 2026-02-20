@@ -43,6 +43,7 @@ Estado actual:
 - Se elimina sobrecarga legacy de `rpc_update_supplier_payable` en `supabase/migrations/20260218151000_043_drop_legacy_rpc_update_supplier_payable_overload.sql` para evitar ambiguedad en PostgREST.
 - POS agrega dispositivos de cobro por sucursal, método `card` unificado y `mercadopago` en `supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`.
 - Caja integra egreso automático por pago proveedor en efectivo y resumen de cobros no-efectivo por sesión en `supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`.
+- Historial/detalle de ventas y conciliación por dispositivo en caja en `supabase/migrations/20260220113000_045_sales_history_cashbox_reconciliation.sql` (`v_sales_admin`, `v_sale_detail_admin`, `rpc_get_cash_session_payment_breakdown`, `rpc_correct_sale_payment_method`).
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 
@@ -692,9 +693,11 @@ Ver contratos en `docs/docs-schema-model.md`:
 
 - Views de lectura por pantalla (dashboard, products, suppliers, orders, expirations, settings)
 - View de caja operativa: `v_cashbox_session_current`
+- Views de ventas: `v_sales_admin`, `v_sale_detail_admin`
 - Views de superadmin global: `v_superadmin_orgs`, `v_superadmin_org_detail`
 - RPCs para escrituras (POS, stock, orders, permissions, clients)
 - RPCs de caja: `rpc_open_cash_session(...)`, `rpc_add_cash_session_movement(...)`, `rpc_get_cash_session_summary(...)`, `rpc_close_cash_session(...)`
+- RPCs de conciliación/corrección ventas: `rpc_get_cash_session_payment_breakdown(...)`, `rpc_correct_sale_payment_method(...)`
 - RPC de fechas estimadas de pedidos proveedor: `rpc_set_supplier_order_expected_receive_on(...)`
 - RPC de auditoria append-only: `rpc_log_audit_event(...)`
 - RPCs de superadmin: `rpc_bootstrap_platform_admin(...)`, `rpc_superadmin_create_org(...)`, `rpc_superadmin_upsert_branch(...)`, `rpc_superadmin_set_active_org(...)`, `rpc_get_active_org_id(...)`

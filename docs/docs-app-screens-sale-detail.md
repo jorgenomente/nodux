@@ -1,0 +1,89 @@
+# Screen Contract — Sale Detail (Org Admin)
+
+## Ruta
+
+- `/sales/[saleId]`
+
+## Rol / Acceso
+
+- Org Admin (OA)
+- Superadmin (SA) dentro de org activa
+- Staff: NO
+
+## Propósito
+
+Auditar una venta puntual y corregir método de pago cuando hubo error operativo.
+
+## UI
+
+### Header
+
+- Breadcrumb: Ventas → detalle
+- Sucursal + fecha/hora
+- Acceso rápido a `/cashbox`
+
+### Resumen
+
+- Subtotal
+- Descuento (%)
+- Total
+- Método resumen de la venta
+
+### Bloque ítems
+
+- producto
+- cantidad
+- precio
+- subtotal
+
+### Bloque pagos
+
+- lista de componentes de pago (`sale_payments`)
+- cada fila permite corrección de método/dispositivo con motivo obligatorio
+
+## Data Contract
+
+### Lectura principal
+
+View: `v_sale_detail_admin`
+
+Salida mínima:
+
+- `sale_id`, `org_id`, `branch_id`, `branch_name`
+- `created_at`, `created_by`, `created_by_name`
+- `payment_method_summary`
+- `subtotal_amount`, `discount_amount`, `discount_pct`, `total_amount`
+- `items` (jsonb array)
+- `payments` (jsonb array)
+
+### Escritura
+
+RPC: `rpc_correct_sale_payment_method(...)`
+
+- `p_org_id`
+- `p_sale_payment_id`
+- `p_payment_method`
+- `p_payment_device_id` (nullable)
+- `p_reason` (obligatorio)
+
+Reglas críticas:
+
+- Solo OA/SA.
+- No permite `mixed`.
+- Si método es `card` o `mercadopago`, exige dispositivo válido de la sucursal.
+- Si la venta pertenece a una sesión de caja ya cerrada, bloquea corrección.
+- Actualiza `sales.payment_method` en base al conjunto actual de `sale_payments`.
+- Audita evento `sale_payment_method_corrected`.
+
+## Seguridad (RLS)
+
+- Scope por `org_id`.
+- OA/SA lectura/escritura por RPC en org activa.
+- ST sin acceso.
+
+## Smoke tests
+
+1. Abrir detalle de una venta con 1 método.
+2. Corregir método y motivo válido.
+3. Ver cambio reflejado en detalle y listado `/sales`.
+4. Ver evento en `/settings/audit-log`.

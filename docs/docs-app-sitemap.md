@@ -65,6 +65,7 @@ Navegación fija:
 
 - Dashboard → `/dashboard`
 - Ventas → `/pos`
+- Historial de ventas → `/sales`
 - Caja → `/cashbox`
 - Productos / Stock → `/products`
 - Vencimientos → `/expirations`
@@ -89,6 +90,7 @@ Navegación fija:
 
 - Proveedor (detalle) → `/suppliers/[supplierId]`
 - Pedido (detalle) → `/orders/[orderId]`
+- Venta (detalle) → `/sales/[saleId]`
 - Calendario de proveedores → `/orders/calendar`
 
 ---
@@ -164,6 +166,7 @@ Acceso:
 - `/dashboard`
 - `/pos`
 - `/cashbox`
+- `/sales`
 - `/products`
 - `/products/lookup`
 - `/expirations`
@@ -172,6 +175,7 @@ Acceso:
 - `/orders`
 - `/payments`
 - `/orders/[orderId]`
+- `/sales/[saleId]`
 - `/orders/calendar`
 - `/clients`
 - `/settings`

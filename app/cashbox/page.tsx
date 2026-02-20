@@ -100,6 +100,22 @@ type ClosedSessionRow = {
   closed_at: string | null;
 };
 
+type SessionPaymentBreakdownRow = {
+  payment_method:
+    | 'cash'
+    | 'card'
+    | 'mercadopago'
+    | 'debit'
+    | 'credit'
+    | 'transfer'
+    | 'other';
+  payment_device_id: string | null;
+  payment_device_name: string | null;
+  payment_device_provider: string | null;
+  total_amount: number;
+  payments_count: number;
+};
+
 const DEFAULT_CASH_DENOMINATIONS = [20000, 10000, 2000, 1000, 500, 200, 100];
 
 const normalizeDenominations = (raw: unknown): number[] => {
@@ -147,6 +163,27 @@ const formatMovementCategory = (categoryKey: string) => {
     return 'Pago proveedor (efectivo)';
   }
   return categoryKey;
+};
+
+const formatPaymentMethod = (method: string) => {
+  switch (method) {
+    case 'cash':
+      return 'Efectivo';
+    case 'card':
+      return 'Tarjeta';
+    case 'mercadopago':
+      return 'MercadoPago';
+    case 'debit':
+      return 'Débito';
+    case 'credit':
+      return 'Crédito';
+    case 'transfer':
+      return 'Transferencia';
+    case 'other':
+      return 'Otro';
+    default:
+      return method;
+  }
 };
 
 const buildResultUrl = (branchId: string, result: string) => {
@@ -287,6 +324,19 @@ export default async function CashboxPage({
     : { data: [] };
 
   const movements = (movementsData ?? []) as MovementRow[];
+
+  const { data: paymentBreakdownData } = openSessionId
+    ? await supabase.rpc(
+        'rpc_get_cash_session_payment_breakdown' as never,
+        {
+          p_org_id: orgId,
+          p_session_id: openSessionId,
+        } as never,
+      )
+    : { data: [] };
+  const paymentBreakdown = (paymentBreakdownData ?? []) as
+    | SessionPaymentBreakdownRow[]
+    | [];
 
   const { data: closedSessionsData } = await supabase
     .from('v_cashbox_session_current')
@@ -599,7 +649,9 @@ export default async function CashboxPage({
                   Ventas MercadoPago
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-zinc-900">
-                  {formatCurrency(Number(summary.mercadopago_sales_amount ?? 0))}
+                  {formatCurrency(
+                    Number(summary.mercadopago_sales_amount ?? 0),
+                  )}
                 </p>
                 <p className="mt-2 text-xs text-zinc-500">
                   Método: MercadoPago
@@ -769,6 +821,55 @@ export default async function CashboxPage({
                   </button>
                 </form>
               </article>
+            </section>
+
+            <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+              <h2 className="text-lg font-semibold text-zinc-900">
+                Conciliación por medio y dispositivo
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Compara los totales del sistema por método y por posnet contra
+                tus comprobantes del turno.
+              </p>
+              {paymentBreakdown.length === 0 ? (
+                <p className="mt-3 text-sm text-zinc-500">
+                  Sin cobros registrados en la sesión.
+                </p>
+              ) : (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="bg-zinc-50 text-xs text-zinc-500 uppercase">
+                      <tr>
+                        <th className="px-3 py-2">Método</th>
+                        <th className="px-3 py-2">Dispositivo</th>
+                        <th className="px-3 py-2">Operaciones</th>
+                        <th className="px-3 py-2">Monto sistema</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paymentBreakdown.map((row) => (
+                        <tr
+                          key={`${row.payment_method}-${row.payment_device_id ?? 'none'}`}
+                          className="border-t border-zinc-100"
+                        >
+                          <td className="px-3 py-2">
+                            {formatPaymentMethod(row.payment_method)}
+                          </td>
+                          <td className="px-3 py-2">
+                            {row.payment_device_name ?? 'Sin dispositivo'}
+                          </td>
+                          <td className="px-3 py-2">
+                            {Number(row.payments_count ?? 0)}
+                          </td>
+                          <td className="px-3 py-2 font-semibold text-zinc-900">
+                            {formatCurrency(Number(row.total_amount ?? 0))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
 
             <section className="rounded-2xl border border-zinc-200 bg-white p-5">

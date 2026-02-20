@@ -18,6 +18,75 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-20 10:39 -03 — Ventas auditables + conciliación caja por dispositivo
+
+**Tipo:** db
+**Lote:** sales-history-detail-cashbox-device-reconciliation
+**Alcance:** db, frontend, docs, tests
+
+**Resumen**
+Se agregó contrato completo de historial y detalle de ventas con filtros operativos y corrección auditada del método de pago. Además, `Caja` incorpora conciliación por método/dispositivo (posnet/MP/efectivo) para comparar comprobantes del turno contra monto sistema.
+
+**Archivos**
+
+- supabase/migrations/20260220113000_045_sales_history_cashbox_reconciliation.sql
+- app/sales/page.tsx
+- app/sales/[saleId]/page.tsx
+- app/cashbox/page.tsx
+- app/components/TopBar.tsx
+- app/orders/[orderId]/page.tsx
+- app/payments/page.tsx
+- docs/docs-app-screens-sales.md
+- docs/docs-app-screens-sale-detail.md
+- docs/docs-app-screens-cashbox.md
+- docs/docs-app-screens-index.md
+- docs/docs-app-sitemap.md
+- docs/docs-modules-cashbox.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/schema.sql
+- types/supabase.ts
+
+**Tests:**
+
+- npm run lint OK (2026-02-20)
+- npm run build OK (2026-02-20)
+- npm run db:reset OK (2026-02-20)
+- Verificación DB objetos: `v_sales_admin`, `v_sale_detail_admin`, `rpc_get_cash_session_payment_breakdown`, `rpc_correct_sale_payment_method` OK
+- Verificación RLS mínima:
+  - ALLOW: org_admin puede leer `v_sales_admin` (query ejecuta sin error)
+  - DENY: staff recibe `not authorized` en `rpc_correct_sale_payment_method`
+- npm run db:rls:smoke FAIL (baseline preexistente: `staff puede leer products de su org`)
+
+**Commit:** N/A
+
+## 2026-02-20 11:07 -03 — Ventas: default en sucursal activa del POS
+
+**Tipo:** ui
+**Lote:** sales-default-pos-branch
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se alinea `/sales` con el flujo operativo real: POS persiste la sucursal activa en cookie (`nodux_active_branch_id`) y `/sales` la usa por defecto cuando no hay filtros manuales. Así, al cobrar en POS y luego abrir ventas, la lista se centra en la misma sucursal automáticamente.
+
+**Archivos**
+
+- app/pos/PosClient.tsx
+- app/sales/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-20)
+- npm run build OK (2026-02-20)
+
+**Commit:** N/A
+
 ## 2026-02-18 14:42 -03 — Orders detail: fila de acciones inline para recepción + pago efectivo
 
 **Tipo:** ui

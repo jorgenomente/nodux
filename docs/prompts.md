@@ -12,6 +12,28 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-20 10:39 -03 — Ventas: historial/detalle + conciliación de caja por dispositivo
+
+**Lote:** sales-history-detail-cashbox-device-reconciliation
+**Objetivo:** Incorporar pantalla de ventas auditable y reforzar caja con desglose por método/dispositivo para control rápido de cierre.
+
+**Prompt**
+hay una parte clave del programa que olvidamos crear que es la parte donde puedo ver cada orden realizada en particular, donde pueda ver su informacion, los items, la hora, el monto, el metodo de pago, y donde pueda modificar por ejemplo el metodo de pago seleccionado en caso de que haya sido un error para que quede bien el control de caja. aqui seria util poder ver y organizar esa informacion de acuerdo a lo que yo necesite por ejemplo buscar resultados por monto, o por metodo de pago o por hora o por items, debo poder hacer esto muy facil porque es un punto de dolor a la hora de hacer caja el poder ubicar informacion rapidamente. que piensas? como hacemos esto sin romper nada
+
+Exacto, esta informacion sobre cuanto ingreso a traves de los diferentes medios de pago va a ser util para mostrarla en caja y el que cierra caja va a tener que comparar esa info para determinar que entonces todo esta bien. coloca los montos que indican cada posnet y el efectivo y todo eso y ahi si es una resta todo deberia dar 0. esta informacion debe guardarse como resumen debe ser visible facil de leer y enviable, pero me estoy adelantando solo queria que tuvieras en mente que esta es la manera en que se me ocurre que deberia funcionar la caja
+
+## 2026-02-20 11:07 -03 — Ventas: default por sucursal activa de POS
+
+**Lote:** sales-default-pos-branch
+**Objetivo:** Alinear flujo natural POS→Ventas para que `/sales` abra por defecto en la sucursal activa del POS.
+
+**Prompt**
+acabo de registrar unas ventas y no veo nada en /sales esto tiene que ser mas sencillo. Me tiene que salir una lista con las ventas del dia directamente y los filtros esten ocultos para cuando los necesite
+
+ok pero no entiendo por que no veo las ventas que acabo de procesar en el pos en /ventas. es como que si no estuviera leyendo los datos o esta mal configurado o hace falta hacer algo para que aparezcan
+
+lo estoy haciendo. estoy yendo a pos estoy procesando compras y luego voy a /sales y ver ventas de hoy pero me dice No hay ventas para los filtros seleccionados. vamos a establecer que por defecto en los filtros se seleccione la sucursal que esta en el pos porque ese es el flujo natural estar en una misma sucursal a menos que rara vez se quiera ver cosas en otra sucursal
+
 ## 2026-02-18 14:42 -03 — Orders detail cash: botón junto al bloque y monto visible bloqueado hasta check
 
 **Lote:** orders-detail-cash-row-inline-button-and-disabled-amount

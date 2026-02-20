@@ -474,7 +474,7 @@ export default async function PaymentsPage({
         p_payable_id: payableId,
         p_invoice_amount: invoiceAmount ?? undefined,
         p_due_on: dueOnRaw || undefined,
-        p_invoice_reference: invoiceReference || null,
+        p_invoice_reference: invoiceReference || undefined,
         p_invoice_photo_url:
           uploadedInvoicePhotoPath || invoicePhotoUrl || undefined,
         p_invoice_note: invoiceNote || undefined,
@@ -651,7 +651,7 @@ export default async function PaymentsPage({
             p_payable_id: payable.id,
             p_invoice_amount: targetInvoiceAmount,
             p_due_on: payable.due_on || undefined,
-            p_invoice_reference: payable.invoice_reference ?? null,
+            p_invoice_reference: payable.invoice_reference ?? undefined,
             p_invoice_photo_url: payable.invoice_photo_url || undefined,
             p_invoice_note: payable.invoice_note || undefined,
             p_selected_payment_method:

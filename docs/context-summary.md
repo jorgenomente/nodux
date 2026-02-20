@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-02-18 12:00
+Ultima actualizacion: 2026-02-20 10:39
 
 ## Estado general
 
@@ -69,6 +69,9 @@ Ultima actualizacion: 2026-02-18 12:00
 - Caja ahora opera con conteo por denominaciones en apertura y cierre para caja + reserva.
 - Pagos a proveedor en efectivo ahora generan egreso automático en caja (movimiento `supplier_payment_cash`) si hay sesión abierta en la sucursal.
 - `/cashbox` muestra resumen adicional de cobros por `card` y `mercadopago` para conciliación diaria por dispositivo.
+- `/cashbox` incorpora desglose por método/dispositivo de la sesión para conciliación operativa contra comprobantes.
+- Nuevo módulo de historial de ventas en `/sales` y detalle en `/sales/[saleId]` con filtros por monto, método, hora e ítems.
+- Corrección de método de pago en detalle de venta vía RPC auditada (`sale_payment_method_corrected`) y bloqueada para ventas de sesiones de caja ya cerradas.
 - Las denominaciones son configurables por organización desde preferencias.
 - Pagos a proveedor por sucursal agregados: `supplier_payables` por pedido y `supplier_payments` como movimientos.
 - `/payments` ahora incluye pedidos `sent` (pendiente por recibir) ademas de `received/reconciled` (controlado), con backfill para historicos.

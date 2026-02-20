@@ -120,6 +120,8 @@ const formatSellUnitType = (value: ProductCatalogItem['sell_unit_type']) => {
 const methodRequiresDevice = (method: PaymentMethod) =>
   method === 'card' || method === 'mercadopago';
 
+const ACTIVE_BRANCH_COOKIE = 'nodux_active_branch_id';
+
 export default function PosClient({
   orgId,
   role,
@@ -175,9 +177,8 @@ export default function PosClient({
       mercadopagoChannel: 'qr',
     },
   ]);
-  const [mercadoPagoChannel, setMercadoPagoChannel] = useState<
-    SplitPaymentEntry['mercadopagoChannel']
-  >('qr');
+  const [mercadoPagoChannel, setMercadoPagoChannel] =
+    useState<SplitPaymentEntry['mercadopagoChannel']>('qr');
   const [applyCashDiscount, setApplyCashDiscount] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -271,8 +272,9 @@ export default function PosClient({
                 ? getMercadoPagoDevicesByChannel(payment.mercadopagoChannel)
                     .length > 1
                   ? payment.paymentDeviceId.trim().length > 0
-                  : getFallbackMercadoPagoDeviceId(payment.mercadopagoChannel) !==
-                    ''
+                  : getFallbackMercadoPagoDeviceId(
+                      payment.mercadopagoChannel,
+                    ) !== ''
                 : getFallbackMercadoPagoDeviceId(payment.mercadopagoChannel) !==
                   ''
               : true,
@@ -281,7 +283,11 @@ export default function PosClient({
           Number.isFinite(Number(payment.amountInput)) &&
           Number(payment.amountInput) > 0,
       })),
-    [getFallbackMercadoPagoDeviceId, getMercadoPagoDevicesByChannel, splitPayments],
+    [
+      getFallbackMercadoPagoDeviceId,
+      getMercadoPagoDevicesByChannel,
+      splitPayments,
+    ],
   );
   const splitPaymentsTotal = useMemo(
     () =>
@@ -339,7 +345,7 @@ export default function PosClient({
                   paymentMethod === 'mercadopago' &&
                   singleMercadoPagoResolvedDeviceId === ''
                 ? 'No hay dispositivos MercadoPago activos en esta sucursal.'
-            : '';
+                : '';
 
   const normalizeText = useCallback((value: string) => {
     return normalizeForMatch(value);
@@ -509,6 +515,11 @@ export default function PosClient({
     }
   };
 
+  useEffect(() => {
+    if (!activeBranchId) return;
+    document.cookie = `${ACTIVE_BRANCH_COOKIE}=${encodeURIComponent(activeBranchId)}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
+  }, [activeBranchId]);
+
   const updateQuantityInput = (productId: string, input: string) => {
     setCart((prev) =>
       prev.map((item) => {
@@ -603,7 +614,9 @@ export default function PosClient({
       paymentMethod === 'mercadopago' &&
       singleMercadoPagoResolvedDeviceId === ''
     ) {
-      setErrorMessage('No hay dispositivos MercadoPago activos en esta sucursal.');
+      setErrorMessage(
+        'No hay dispositivos MercadoPago activos en esta sucursal.',
+      );
       return;
     }
 
@@ -657,15 +670,15 @@ export default function PosClient({
         ? 'Stock insuficiente para completar la venta.'
         : error.message.includes('pos module disabled')
           ? 'El módulo POS está deshabilitado.'
-            : error.message.includes('payments total must equal sale total')
-              ? 'La suma de pagos debe coincidir con el total.'
+          : error.message.includes('payments total must equal sale total')
+            ? 'La suma de pagos debe coincidir con el total.'
             : error.message.includes('payments must be an array')
               ? 'Formato de pagos inválido.'
               : error.message.includes('payment_device_id required')
                 ? 'Debes seleccionar un dispositivo para tarjeta o MercadoPago.'
                 : error.message.includes('invalid payment device')
                   ? 'El dispositivo seleccionado no es válido para esta sucursal.'
-              : 'No pudimos registrar la venta.';
+                  : 'No pudimos registrar la venta.';
       setErrorMessage(message);
       setDebugMessage(
         process.env.NODE_ENV !== 'production'
@@ -684,9 +697,9 @@ export default function PosClient({
       return;
     }
 
-    const sale = (Array.isArray(data) ? data[0] : data) as
-      | { total?: number | null }
-      | null;
+    const sale = (Array.isArray(data) ? data[0] : data) as {
+      total?: number | null;
+    } | null;
     const totalAmount = Number(sale?.total ?? total);
 
     setSuccessMessage(
@@ -1103,8 +1116,9 @@ export default function PosClient({
                       </>
                     ) : (
                       <p className="text-xs text-zinc-600">
-                        Cobro por {mercadoPagoChannel === 'qr' ? 'QR' : 'alias MP'}:
-                        no requiere seleccionar dispositivo.
+                        Cobro por{' '}
+                        {mercadoPagoChannel === 'qr' ? 'QR' : 'alias MP'}: no
+                        requiere seleccionar dispositivo.
                       </p>
                     )}
                   </div>
@@ -1162,7 +1176,10 @@ export default function PosClient({
                               setSplitPayments((prev) =>
                                 prev.map((row, rowIndex) =>
                                   rowIndex === index
-                                    ? { ...row, amountInput: event.target.value }
+                                    ? {
+                                        ...row,
+                                        amountInput: event.target.value,
+                                      }
                                     : row,
                                 ),
                               )
@@ -1260,29 +1277,31 @@ export default function PosClient({
                               getRowPaymentDevices(payment).length > 1) ? (
                               <>
                                 <div className="grid gap-2 sm:grid-cols-2">
-                                  {getRowPaymentDevices(payment).map((device) => (
-                                    <button
-                                      key={device.id}
-                                      type="button"
-                                      onClick={() =>
-                                        setSplitPayments((prev) =>
-                                          prev.map((row, rowIndex) =>
-                                            rowIndex === index
-                                              ? {
-                                                  ...row,
-                                                  paymentDeviceId: device.id,
-                                                }
-                                              : row,
-                                          ),
-                                        )
-                                      }
-                                      className={optionButtonClass(
-                                        payment.paymentDeviceId === device.id,
-                                      )}
-                                    >
-                                      {device.device_name}
-                                    </button>
-                                  ))}
+                                  {getRowPaymentDevices(payment).map(
+                                    (device) => (
+                                      <button
+                                        key={device.id}
+                                        type="button"
+                                        onClick={() =>
+                                          setSplitPayments((prev) =>
+                                            prev.map((row, rowIndex) =>
+                                              rowIndex === index
+                                                ? {
+                                                    ...row,
+                                                    paymentDeviceId: device.id,
+                                                  }
+                                                : row,
+                                            ),
+                                          )
+                                        }
+                                        className={optionButtonClass(
+                                          payment.paymentDeviceId === device.id,
+                                        )}
+                                      >
+                                        {device.device_name}
+                                      </button>
+                                    ),
+                                  )}
                                 </div>
                                 {getRowPaymentDevices(payment).length === 0 ? (
                                   <p className="mt-2 text-xs text-amber-700">

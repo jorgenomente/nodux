@@ -35,6 +35,7 @@ Permitir cierre operativo de caja por sucursal de forma rápida y auditable.
   - `rpc_open_cash_session`
   - `rpc_add_cash_session_movement`
   - `rpc_get_cash_session_summary`
+  - `rpc_get_cash_session_payment_breakdown`
   - `rpc_close_cash_session`
 
 ## Seguridad / RLS

@@ -24,6 +24,7 @@ Estado actual:
 - Limpieza de RPCs: se elimina overload legacy de `rpc_update_supplier_payable` en `supabase/migrations/20260218151000_043_drop_legacy_rpc_update_supplier_payable_overload.sql` para evitar resolución ambigua de firma en PostgREST (sin cambios de policies).
 - POS agrega `pos_payment_devices` y trazabilidad por dispositivo en `sale_payments` (`supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`).
 - `rpc_register_supplier_payment` registra automáticamente egreso en `cash_session_movements` cuando el pago a proveedor es en efectivo y hay sesión abierta de caja (`supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`).
+- Historial/detalle de ventas + conciliación por dispositivo en caja agregados en `supabase/migrations/20260220113000_045_sales_history_cashbox_reconciliation.sql` (`v_sales_admin`, `v_sale_detail_admin`, `rpc_get_cash_session_payment_breakdown`, `rpc_correct_sale_payment_method`).
 - Bucket de facturas proveedor agregado en `supabase/migrations/20260217221500_040_supplier_invoice_storage_bucket.sql` (`storage.buckets: supplier-invoices` + policies en `storage.objects` por `org_id` en path).
 - Smoke RLS automatizado agregado en `scripts/rls-smoke-tests.mjs` (ejecución: `npm run db:rls:smoke`).
 - CI hardening agrega ejecución automática de smoke RLS + smoke Playwright en `.github/workflows/ci-hardening.yml`.
@@ -93,6 +94,8 @@ Estado actual:
 
 - `rpc_create_sale` -> requiere modulo `pos` habilitado, permite pagos divididos (`payments`) y solo permite descuento cuando el cobro es 100% cash.
   - para `card` y `mercadopago` exige `payment_device_id` válido en la sucursal.
+- `rpc_correct_sale_payment_method` -> solo OA/SA; requiere motivo; bloquea cambios si la venta pertenece a una sesión de caja cerrada; audita `sale_payment_method_corrected`.
+- `rpc_get_cash_session_payment_breakdown` -> OA/SA y ST con módulo `cashbox` habilitado; devuelve conciliación por método/dispositivo dentro de la sesión.
 - `rpc_open_cash_session` -> requiere modulo `cashbox` habilitado para ST y valida sucursal asignada.
   - requiere `opening_drawer_count_lines` y `opening_reserve_count_lines`.
 - `rpc_add_cash_session_movement` -> requiere modulo `cashbox` habilitado para ST y sesión abierta de la sucursal.

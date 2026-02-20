@@ -383,6 +383,7 @@ export type Database = {
           note: string | null;
           org_id: string;
           session_id: string;
+          supplier_payment_id: string | null;
         };
         Insert: {
           amount: number;
@@ -396,6 +397,7 @@ export type Database = {
           note?: string | null;
           org_id: string;
           session_id: string;
+          supplier_payment_id?: string | null;
         };
         Update: {
           amount?: number;
@@ -409,6 +411,7 @@ export type Database = {
           note?: string | null;
           org_id?: string;
           session_id?: string;
+          supplier_payment_id?: string | null;
         };
         Relationships: [
           {
@@ -480,6 +483,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'v_cashbox_session_current';
             referencedColumns: ['session_id'];
+          },
+          {
+            foreignKeyName: 'cash_session_movements_supplier_payment_id_fkey';
+            columns: ['supplier_payment_id'];
+            isOneToOne: false;
+            referencedRelation: 'supplier_payments';
+            referencedColumns: ['id'];
           },
         ];
       };
@@ -1374,6 +1384,102 @@ export type Database = {
         };
         Relationships: [];
       };
+      pos_payment_devices: {
+        Row: {
+          branch_id: string;
+          created_at: string;
+          created_by: string | null;
+          device_name: string;
+          id: string;
+          is_active: boolean;
+          org_id: string;
+          provider: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          branch_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          device_name: string;
+          id?: string;
+          is_active?: boolean;
+          org_id: string;
+          provider?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          branch_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          device_name?: string;
+          id?: string;
+          is_active?: boolean;
+          org_id?: string;
+          provider?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'pos_payment_devices_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'pos_payment_devices_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_branches_admin';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'pos_payment_devices_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'pos_payment_devices_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'pos_payment_devices_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_product_suggestions';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'pos_payment_devices_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'pos_payment_devices_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'pos_payment_devices_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
+        ];
+      };
       products: {
         Row: {
           barcode: string | null;
@@ -1529,6 +1635,20 @@ export type Database = {
             referencedRelation: 'sales';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'sale_items_sale_id_fkey';
+            columns: ['sale_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_sale_detail_admin';
+            referencedColumns: ['sale_id'];
+          },
+          {
+            foreignKeyName: 'sale_items_sale_id_fkey';
+            columns: ['sale_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_sales_admin';
+            referencedColumns: ['sale_id'];
+          },
         ];
       };
       sale_payments: {
@@ -1537,6 +1657,7 @@ export type Database = {
           created_at: string;
           id: string;
           org_id: string;
+          payment_device_id: string | null;
           payment_method: Database['public']['Enums']['payment_method'];
           sale_id: string;
         };
@@ -1545,6 +1666,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           org_id: string;
+          payment_device_id?: string | null;
           payment_method: Database['public']['Enums']['payment_method'];
           sale_id: string;
         };
@@ -1553,6 +1675,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           org_id?: string;
+          payment_device_id?: string | null;
           payment_method?: Database['public']['Enums']['payment_method'];
           sale_id?: string;
         };
@@ -1579,11 +1702,32 @@ export type Database = {
             referencedColumns: ['org_id'];
           },
           {
+            foreignKeyName: 'sale_payments_payment_device_id_fkey';
+            columns: ['payment_device_id'];
+            isOneToOne: false;
+            referencedRelation: 'pos_payment_devices';
+            referencedColumns: ['id'];
+          },
+          {
             foreignKeyName: 'sale_payments_sale_id_fkey';
             columns: ['sale_id'];
             isOneToOne: false;
             referencedRelation: 'sales';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sale_payments_sale_id_fkey';
+            columns: ['sale_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_sale_detail_admin';
+            referencedColumns: ['sale_id'];
+          },
+          {
+            foreignKeyName: 'sale_payments_sale_id_fkey';
+            columns: ['sale_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_sales_admin';
+            referencedColumns: ['sale_id'];
           },
         ];
       };
@@ -2262,6 +2406,7 @@ export type Database = {
           invoice_amount: number | null;
           invoice_note: string | null;
           invoice_photo_url: string | null;
+          invoice_reference: string | null;
           order_id: string;
           org_id: string;
           outstanding_amount: number;
@@ -2289,6 +2434,7 @@ export type Database = {
           invoice_amount?: number | null;
           invoice_note?: string | null;
           invoice_photo_url?: string | null;
+          invoice_reference?: string | null;
           order_id: string;
           org_id: string;
           outstanding_amount?: number;
@@ -2316,6 +2462,7 @@ export type Database = {
           invoice_amount?: number | null;
           invoice_note?: string | null;
           invoice_photo_url?: string | null;
+          invoice_reference?: string | null;
           order_id?: string;
           org_id?: string;
           outstanding_amount?: number;
@@ -3058,6 +3205,7 @@ export type Database = {
       v_cashbox_session_current: {
         Row: {
           branch_id: string | null;
+          card_sales_amount: number | null;
           cash_sales_amount: number | null;
           close_confirmed: boolean | null;
           close_note: string | null;
@@ -3072,6 +3220,7 @@ export type Database = {
           expected_cash_amount: number | null;
           manual_expense_amount: number | null;
           manual_income_amount: number | null;
+          mercadopago_sales_amount: number | null;
           movements_count: number | null;
           opened_at: string | null;
           opened_by: string | null;
@@ -3996,6 +4145,169 @@ export type Database = {
           },
         ];
       };
+      v_sale_detail_admin: {
+        Row: {
+          branch_id: string | null;
+          branch_name: string | null;
+          created_at: string | null;
+          created_by: string | null;
+          created_by_name: string | null;
+          discount_amount: number | null;
+          discount_pct: number | null;
+          items: Json | null;
+          org_id: string | null;
+          payment_method_summary:
+            | Database['public']['Enums']['payment_method']
+            | null;
+          payments: Json | null;
+          sale_id: string | null;
+          subtotal_amount: number | null;
+          total_amount: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'sales_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sales_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_branches_admin';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'sales_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'sales_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'sales_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_product_suggestions';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'sales_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sales_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'sales_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
+        ];
+      };
+      v_sales_admin: {
+        Row: {
+          branch_id: string | null;
+          branch_name: string | null;
+          card_amount: number | null;
+          cash_amount: number | null;
+          created_at: string | null;
+          created_by: string | null;
+          created_by_name: string | null;
+          discount_amount: number | null;
+          discount_pct: number | null;
+          item_names_search: string | null;
+          item_names_summary: string | null;
+          items_count: number | null;
+          items_qty_total: number | null;
+          mercadopago_amount: number | null;
+          org_id: string | null;
+          other_amount: number | null;
+          payment_method_summary:
+            | Database['public']['Enums']['payment_method']
+            | null;
+          payment_methods: string[] | null;
+          sale_id: string | null;
+          subtotal_amount: number | null;
+          total_amount: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'sales_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'branches';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sales_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_branches_admin';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'sales_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_pos_product_catalog';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'sales_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'sales_branch_id_fkey';
+            columns: ['branch_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_supplier_product_suggestions';
+            referencedColumns: ['branch_id'];
+          },
+          {
+            foreignKeyName: 'sales_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'orgs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sales_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_org_detail';
+            referencedColumns: ['org_id'];
+          },
+          {
+            foreignKeyName: 'sales_org_id_fkey';
+            columns: ['org_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_superadmin_orgs';
+            referencedColumns: ['org_id'];
+          },
+        ];
+      };
       v_settings_users_admin: {
         Row: {
           branch_ids: string[] | null;
@@ -4444,6 +4756,7 @@ export type Database = {
           invoice_amount: number | null;
           invoice_note: string | null;
           invoice_photo_url: string | null;
+          invoice_reference: string | null;
           is_overdue: boolean | null;
           order_id: string | null;
           order_status:
@@ -4780,6 +5093,21 @@ export type Database = {
           session_id: string;
         }[];
       };
+      rpc_correct_sale_payment_method: {
+        Args: {
+          p_org_id: string;
+          p_payment_device_id?: string;
+          p_payment_method: Database['public']['Enums']['payment_method'];
+          p_reason?: string;
+          p_sale_payment_id: string;
+        };
+        Returns: {
+          payment_method: Database['public']['Enums']['payment_method'];
+          previous_payment_method: Database['public']['Enums']['payment_method'];
+          sale_id: string;
+          sale_payment_id: string;
+        }[];
+      };
       rpc_create_expiration_batch_manual: {
         Args: {
           p_branch_id: string;
@@ -4801,6 +5129,7 @@ export type Database = {
           p_close_special_order?: boolean;
           p_items: Json;
           p_org_id: string;
+          p_payment_device_id?: string;
           p_payment_method: Database['public']['Enums']['payment_method'];
           p_payments?: Json;
           p_special_order_id?: string;
@@ -4835,10 +5164,22 @@ export type Database = {
         }[];
       };
       rpc_get_active_org_id: { Args: never; Returns: string };
+      rpc_get_cash_session_payment_breakdown: {
+        Args: { p_org_id: string; p_session_id: string };
+        Returns: {
+          payment_device_id: string;
+          payment_device_name: string;
+          payment_device_provider: string;
+          payment_method: Database['public']['Enums']['payment_method'];
+          payments_count: number;
+          total_amount: number;
+        }[];
+      };
       rpc_get_cash_session_summary: {
         Args: { p_org_id: string; p_session_id: string };
         Returns: {
           branch_id: string;
+          card_sales_amount: number;
           cash_sales_amount: number;
           close_confirmed: boolean;
           close_note: string;
@@ -4852,6 +5193,7 @@ export type Database = {
           expected_cash_amount: number;
           manual_expense_amount: number;
           manual_income_amount: number;
+          mercadopago_sales_amount: number;
           movements_count: number;
           opened_at: string;
           opened_by: string;
@@ -5165,6 +5507,7 @@ export type Database = {
           p_invoice_amount?: number;
           p_invoice_note?: string;
           p_invoice_photo_url?: string;
+          p_invoice_reference?: string;
           p_org_id: string;
           p_payable_id: string;
           p_selected_payment_method?: Database['public']['Enums']['payment_method'];
@@ -5365,7 +5708,9 @@ export type Database = {
         | 'credit'
         | 'transfer'
         | 'other'
-        | 'mixed';
+        | 'mixed'
+        | 'card'
+        | 'mercadopago';
       sell_unit_type: 'unit' | 'weight' | 'bulk';
       special_order_status:
         | 'pending'
@@ -5517,7 +5862,16 @@ export const Constants = {
   public: {
     Enums: {
       order_frequency: ['weekly', 'biweekly', 'every_3_weeks', 'monthly'],
-      payment_method: ['cash', 'debit', 'credit', 'transfer', 'other', 'mixed'],
+      payment_method: [
+        'cash',
+        'debit',
+        'credit',
+        'transfer',
+        'other',
+        'mixed',
+        'card',
+        'mercadopago',
+      ],
       sell_unit_type: ['unit', 'weight', 'bulk'],
       special_order_status: [
         'pending',

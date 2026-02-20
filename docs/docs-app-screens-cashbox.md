@@ -34,6 +34,7 @@ Operar caja por sucursal con flujo simple:
 - La pantalla muestra resumen adicional de cobros no-efectivo de la sesión:
   - tarjeta (`card`, incluyendo histórico `debit/credit`)
   - `mercadopago`
+- La pantalla muestra tabla de conciliación por método/dispositivo (ej. posnet) con cantidad de operaciones y monto sistema.
 - Al cerrar:
   - se guarda cierre en caja
   - se guarda cierre en reserva
@@ -64,6 +65,7 @@ Operar caja por sucursal con flujo simple:
 - `rpc_open_cash_session(...)`
 - `rpc_add_cash_session_movement(...)`
 - `rpc_get_cash_session_summary(...)`
+- `rpc_get_cash_session_payment_breakdown(...)`
 - `rpc_close_cash_session(...)`
   - requiere `closed_controlled_by_name`
   - requiere `close_confirmed=true`
