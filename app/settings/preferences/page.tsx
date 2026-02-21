@@ -220,14 +220,12 @@ export default async function SettingsPreferencesPage({
         .update({ is_active: true } as never)
         .eq('id', existingAccount.id);
     } else {
-      await auth.supabase.from('employee_accounts' as never).insert(
-        {
-          org_id: auth.orgId,
-          branch_id: branchId,
-          name,
-          is_active: true,
-        } as never,
-      );
+      await auth.supabase.from('employee_accounts' as never).insert({
+        org_id: auth.orgId,
+        branch_id: branchId,
+        name,
+        is_active: true,
+      } as never);
     }
 
     await auth.supabase.rpc('rpc_log_audit_event', {
@@ -276,7 +274,10 @@ export default async function SettingsPreferencesPage({
       .eq('org_id', auth.orgId)
       .select('id, name')
       .maybeSingle();
-    const updatedAccount = (updated ?? null) as { id: string; name: string } | null;
+    const updatedAccount = (updated ?? null) as {
+      id: string;
+      name: string;
+    } | null;
 
     await auth.supabase.rpc('rpc_log_audit_event', {
       p_org_id: auth.orgId,
@@ -327,8 +328,7 @@ export default async function SettingsPreferencesPage({
     employee_discount_combinable_with_cash_discount: false,
     cash_denominations: DEFAULT_CASH_DENOMINATIONS,
   };
-  const employeeAccounts =
-    (employeeAccountsData ?? []) as EmployeeAccountRow[];
+  const employeeAccounts = (employeeAccountsData ?? []) as EmployeeAccountRow[];
 
   const cashDenominationsInput = Array.isArray(preferences.cash_denominations)
     ? preferences.cash_denominations.join(', ')
@@ -462,7 +462,7 @@ export default async function SettingsPreferencesPage({
                   required
                 />
               </div>
-              <label className="md:col-span-2 flex items-center gap-2 text-sm text-zinc-700">
+              <label className="flex items-center gap-2 text-sm text-zinc-700 md:col-span-2">
                 <input
                   type="checkbox"
                   name="employee_discount_combinable_with_cash_discount"
@@ -549,7 +549,10 @@ export default async function SettingsPreferencesPage({
             </button>
           </form>
 
-          <form action={addEmployeeAccount} className="mt-4 flex flex-wrap gap-3">
+          <form
+            action={addEmployeeAccount}
+            className="mt-4 flex flex-wrap gap-3"
+          >
             <input
               type="hidden"
               name="employee_branch_id"
@@ -581,10 +584,7 @@ export default async function SettingsPreferencesPage({
               <tbody>
                 {employeeAccounts.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={3}
-                      className="px-3 py-3 text-sm text-zinc-500"
-                    >
+                    <td colSpan={3} className="px-3 py-3 text-sm text-zinc-500">
                       No hay cuentas de empleado para esta sucursal.
                     </td>
                   </tr>

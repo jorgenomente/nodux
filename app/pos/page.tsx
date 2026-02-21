@@ -252,7 +252,9 @@ export default async function PosPage({
           })),
         }}
         cashDiscount={cashDiscount}
-        initialEmployeeAccounts={(initialEmployeeAccounts ?? []) as EmployeeAccount[]}
+        initialEmployeeAccounts={
+          (initialEmployeeAccounts ?? []) as EmployeeAccount[]
+        }
       />
     </PageShell>
   );

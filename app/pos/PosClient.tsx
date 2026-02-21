@@ -363,20 +363,20 @@ export default function PosClient({
           ? 'Completa pagos divididos y valida que sumen el total.'
           : missingEmployeeSelection
             ? 'Selecciona el empleado para aplicar descuento.'
-          : !isSplitPayment &&
-              paymentMethod === 'card' &&
-              paymentDeviceId.trim().length === 0
-            ? 'Selecciona el dispositivo de cobro.'
             : !isSplitPayment &&
-                paymentMethod === 'mercadopago' &&
-                singleMercadoPagoNeedsManualDevice &&
+                paymentMethod === 'card' &&
                 paymentDeviceId.trim().length === 0
               ? 'Selecciona el dispositivo de cobro.'
               : !isSplitPayment &&
                   paymentMethod === 'mercadopago' &&
-                  singleMercadoPagoResolvedDeviceId === ''
-                ? 'No hay dispositivos MercadoPago activos en esta sucursal.'
-                : '';
+                  singleMercadoPagoNeedsManualDevice &&
+                  paymentDeviceId.trim().length === 0
+                ? 'Selecciona el dispositivo de cobro.'
+                : !isSplitPayment &&
+                    paymentMethod === 'mercadopago' &&
+                    singleMercadoPagoResolvedDeviceId === ''
+                  ? 'No hay dispositivos MercadoPago activos en esta sucursal.'
+                  : '';
 
   const normalizeText = useCallback((value: string) => {
     return normalizeForMatch(value);
@@ -755,19 +755,19 @@ export default function PosClient({
               ? 'Formato de pagos inválido.'
               : error.message.includes('payment_device_id required')
                 ? 'Debes seleccionar un dispositivo para tarjeta o MercadoPago.'
-              : error.message.includes('invalid payment device')
-                ? 'El dispositivo seleccionado no es válido para esta sucursal.'
-                : error.message.includes('employee account required')
-                  ? 'Debes seleccionar un empleado.'
-                  : error.message.includes('invalid employee account')
-                    ? 'La cuenta de empleado no es válida para esta sucursal.'
-                    : error.message.includes('employee discount disabled')
-                      ? 'El descuento de empleado está deshabilitado.'
-                      : error.message.includes(
-                            'employee discount cannot be combined with cash discount',
-                          )
-                        ? 'No se permite combinar descuento efectivo con descuento de empleado.'
-                  : 'No pudimos registrar la venta.';
+                : error.message.includes('invalid payment device')
+                  ? 'El dispositivo seleccionado no es válido para esta sucursal.'
+                  : error.message.includes('employee account required')
+                    ? 'Debes seleccionar un empleado.'
+                    : error.message.includes('invalid employee account')
+                      ? 'La cuenta de empleado no es válida para esta sucursal.'
+                      : error.message.includes('employee discount disabled')
+                        ? 'El descuento de empleado está deshabilitado.'
+                        : error.message.includes(
+                              'employee discount cannot be combined with cash discount',
+                            )
+                          ? 'No se permite combinar descuento efectivo con descuento de empleado.'
+                          : 'No pudimos registrar la venta.';
       setErrorMessage(message);
       setDebugMessage(
         process.env.NODE_ENV !== 'production'
