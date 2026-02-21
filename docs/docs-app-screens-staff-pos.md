@@ -119,6 +119,10 @@ Una venta es un registro con:
   - `MP Alias` para transferencia a alias/cuenta MP
 - Si el método es `cash`, se puede activar toggle `Aplicar descuento efectivo`.
 - El porcentaje no se edita en POS: se toma fijo desde `settings/preferences`.
+- Si `employee_discount_enabled=true`, se muestra toggle `Aplicar descuento empleado`.
+  - Al activarlo, la UI exige seleccionar un nombre de empleado activo en la sucursal.
+  - El porcentaje también se toma fijo desde `settings/preferences`.
+  - Puede o no combinarse con descuento efectivo según configuración org.
 
 ### A6) Cobrar (confirmar venta)
 
@@ -256,10 +260,14 @@ Una venta es un registro con:
   - close_special_order (opcional)
   - apply_cash_discount (opcional, solo si payment_method=`cash`)
   - cash_discount_pct (opcional, solo informativo/override; en MVP UI usa valor fijo de preferencias)
+  - apply_employee_discount (opcional)
+  - employee_discount_pct (opcional; en MVP UI usa valor fijo de preferencias)
+  - employee_account_id (opcional; requerido si `apply_employee_discount=true`)
   - payments (opcional): [{ payment_method, amount, payment_device_id? }]
 - Regla crítica:
   - si `payments` existe, la suma de montos debe coincidir exactamente con el total.
   - descuento efectivo solo aplica para pago 100% cash (no split).
+  - descuento empleado puede usar cualquier método, pero exige cuenta de empleado válida de la sucursal.
 - Output:
   - sale_id
   - total

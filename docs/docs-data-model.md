@@ -44,6 +44,7 @@ Estado actual:
 - POS agrega dispositivos de cobro por sucursal, método `card` unificado y `mercadopago` en `supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`.
 - Caja integra egreso automático por pago proveedor en efectivo y resumen de cobros no-efectivo por sesión en `supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`.
 - Historial/detalle de ventas y conciliación por dispositivo en caja en `supabase/migrations/20260220113000_045_sales_history_cashbox_reconciliation.sql` (`v_sales_admin`, `v_sale_detail_admin`, `rpc_get_cash_session_payment_breakdown`, `rpc_correct_sale_payment_method`).
+- Descuento empleado en POS + cuentas de empleado por sucursal en `supabase/migrations/20260221223000_052_employee_discount_accounts.sql` (`employee_accounts`, preferencias de combinación, extensión de `rpc_create_sale`, vistas de ventas y dashboard).
 - Conciliación operativa en caja con inputs por fila y agregado MercadoPago total en `supabase/migrations/20260220153000_047_cashbox_reconciliation_inputs.sql` (`cash_session_reconciliation_inputs`, `rpc_get_cash_session_reconciliation_rows`, `rpc_upsert_cash_session_reconciliation_inputs`).
 - Conciliación de caja ajustada para incluir fila de `Efectivo esperado total (caja + reserva)` en `supabase/migrations/20260220170000_048_cashbox_reconciliation_include_cash_expected.sql`.
 - Conciliación de caja ajustada para clasificar `MercadoPago (total)` solo por método `mercadopago` en `supabase/migrations/20260220182000_049_cashbox_reconciliation_mp_by_method_only.sql`.
@@ -207,8 +208,30 @@ Estado actual:
 - `allow_negative_stock` (boolean)
 - `cash_discount_enabled` (boolean)
 - `cash_discount_default_pct` (numeric 0..100)
+- `employee_discount_enabled` (boolean)
+- `employee_discount_default_pct` (numeric 0..100)
+- `employee_discount_combinable_with_cash_discount` (boolean)
 - `cash_denominations` (jsonb array de valores, configurable por org)
 - `created_at`, `updated_at`
+
+---
+
+### employee_accounts
+
+**Proposito**: cuentas operativas de empleado por sucursal (independientes de usuarios auth).
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `branch_id` (uuid, FK)
+- `name` (text)
+- `is_active` (boolean)
+- `created_at`, `updated_at`
+
+**Constraints**:
+
+- unique (`org_id`, `branch_id`, `name`)
 
 ---
 
@@ -309,6 +332,13 @@ Estado actual:
 - `subtotal_amount` (numeric)
 - `discount_amount` (numeric)
 - `discount_pct` (numeric 0..100)
+- `cash_discount_amount` (numeric)
+- `cash_discount_pct` (numeric 0..100)
+- `employee_discount_applied` (boolean)
+- `employee_discount_amount` (numeric)
+- `employee_discount_pct` (numeric 0..100)
+- `employee_account_id` (uuid, nullable FK -> employee_accounts.id)
+- `employee_name_snapshot` (text, nullable)
 - `total_amount` (numeric)
 - `created_at`
 
@@ -340,9 +370,10 @@ Estado actual:
 - `org_id` (uuid, FK)
 - `branch_id` (uuid, FK)
 - `opened_by` (uuid, FK auth.users)
+- `opened_controlled_by_name` (text, nullable)
 - `closed_by` (uuid, nullable FK auth.users)
 - `period_type` (`shift` | `day`)
-- `session_label` (text, nullable)
+- `session_label` (text, nullable; para `shift` se usa `AM`/`PM`)
 - `status` (`open` | `closed`)
 - `opening_cash_amount` (numeric >= 0)
 - `opening_reserve_amount` (numeric >= 0)

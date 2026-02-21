@@ -39,7 +39,15 @@ cash_discount_enabled (default true)
 
 cash_discount_default_pct (default 10)
 
+employee_discount_enabled (default true)
+
+employee_discount_default_pct (default 10)
+
+employee_discount_combinable_with_cash_discount (default false)
+
 cash_denominations (default ARS: 100, 200, 500, 1000, 2000, 10000, 20000)
+
+employee accounts por sucursal (alta/baja de nombres operativos)
 
 UI
 
@@ -52,6 +60,14 @@ input número: warning_days
 toggle: cash_discount_enabled
 
 input número: cash_discount_default_pct (0..100)
+
+toggle: employee_discount_enabled
+
+input número: employee_discount_default_pct (0..100)
+
+toggle: employee_discount_combinable_with_cash_discount
+
+selector de sucursal + lista de cuentas de empleado (activar/desactivar)
 
 input texto: cash_denominations (lista separada por coma)
 
@@ -73,6 +89,12 @@ cash_discount_enabled
 
 cash_discount_default_pct
 
+employee_discount_enabled
+
+employee_discount_default_pct
+
+employee_discount_combinable_with_cash_discount
+
 cash_denominations
 
 (opcional) staff_nav_order[]
@@ -91,6 +113,12 @@ cash_discount_enabled
 
 cash_discount_default_pct
 
+employee_discount_enabled
+
+employee_discount_default_pct
+
+employee_discount_combinable_with_cash_discount
+
 cash_denominations
 
 Validaciones (DB / RPC)
@@ -100,6 +128,8 @@ critical_days >= 0
 warning_days >= critical_days
 
 cash_discount_default_pct >= 0 y <= 100
+
+employee_discount_default_pct >= 0 y <= 100
 
 cash_denominations debe ser array/lista de números positivos
 

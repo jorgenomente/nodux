@@ -157,7 +157,8 @@ const asAdmin = createClient(url, anonKey, {
         p_org_id: ORG_ID,
         p_branch_id: BRANCH_A,
         p_period_type: 'shift',
-        p_session_label: 'Seed caja hoy',
+        p_session_label: 'AM',
+        p_opened_controlled_by_name: 'Seed Admin',
         p_opening_drawer_count_lines: [
           { denomination_value: 20000, quantity: 2 },
           { denomination_value: 10000, quantity: 2 },

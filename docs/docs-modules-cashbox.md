@@ -7,6 +7,8 @@ Permitir cierre operativo de caja por sucursal de forma rápida y auditable.
 ## Alcance
 
 - Apertura por conteo de denominaciones en caja y reserva.
+- Apertura con tipo operativo (`day` o `shift`) y, para turno, etiqueta fija `AM`/`PM`.
+- Responsable de apertura obligatorio (`opened_controlled_by_name`).
 - Movimientos manuales de caja:
   - gastos (delivery, librería, limpieza, servicios, otros)
   - ingresos
@@ -20,6 +22,11 @@ Permitir cierre operativo de caja por sucursal de forma rápida y auditable.
 - Conciliación operativa por fila (`dispositivo/método`) con monto sistema vs comprobante.
 - MercadoPago conciliado en una fila agregada (`MercadoPago total`) sin separar por método.
 - Desglose explicativo del `efectivo en sistema` con fórmula y lista de movimientos (incluye pagos proveedor cash y egresos/ingresos manuales).
+- Reporte exportable de caja:
+  - Solo para sesiones cerradas.
+  - CSV descargable para auditoría y análisis del cierre.
+  - Vista imprimible para compartir como PDF del cierre.
+  - Acciones por cierre histórico desde la tabla de últimos cierres.
 
 ## Fuentes de datos
 

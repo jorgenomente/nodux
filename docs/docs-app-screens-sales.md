@@ -31,7 +31,7 @@ Auditar ventas de forma rápida para control operativo de caja.
 - Método de pago
 - Monto mínimo/máximo
 - Rango fecha/hora (desde/hasta)
-- Búsqueda por ítems/sucursal/usuario
+- Búsqueda por ítems/sucursal/usuario/empleado
 
 ### Resumen superior
 
@@ -46,6 +46,7 @@ Cada fila muestra:
 
 - fecha/hora
 - sucursal y usuario
+- empleado (si aplica descuento empleado)
 - cantidad de ítems + resumen
 - métodos usados
 - total
@@ -61,8 +62,9 @@ Salida mínima:
 
 - `sale_id`, `org_id`, `branch_id`, `branch_name`
 - `created_at`, `created_by`, `created_by_name`
+- `employee_account_id`, `employee_name_snapshot`
 - `payment_method_summary`
-- `subtotal_amount`, `discount_amount`, `discount_pct`, `total_amount`
+- `subtotal_amount`, `discount_amount`, `discount_pct`, `cash_discount_amount`, `cash_discount_pct`, `employee_discount_applied`, `employee_discount_amount`, `employee_discount_pct`, `total_amount`
 - `items_count`, `items_qty_total`
 - `item_names_summary`, `item_names_search`
 - `payment_methods[]`

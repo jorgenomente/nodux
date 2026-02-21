@@ -33,10 +33,17 @@ type SaleRow = {
   created_at: string;
   created_by: string;
   created_by_name: string;
+  employee_account_id: string | null;
+  employee_name_snapshot: string | null;
   payment_method_summary: string;
   subtotal_amount: number;
   discount_amount: number;
   discount_pct: number;
+  cash_discount_amount: number;
+  cash_discount_pct: number;
+  employee_discount_applied: boolean;
+  employee_discount_amount: number;
+  employee_discount_pct: number;
   total_amount: number;
   items_count: number;
   items_qty_total: number;
@@ -223,7 +230,7 @@ export default async function SalesPage({
   }
   if (searchRaw.trim().length >= 2) {
     query = query.or(
-      `item_names_search.ilike.%${searchRaw.trim()}%,created_by_name.ilike.%${searchRaw.trim()}%,branch_name.ilike.%${searchRaw.trim()}%`,
+      `item_names_search.ilike.%${searchRaw.trim()}%,created_by_name.ilike.%${searchRaw.trim()}%,employee_name_snapshot.ilike.%${searchRaw.trim()}%,branch_name.ilike.%${searchRaw.trim()}%`,
     );
   }
 
@@ -476,6 +483,11 @@ export default async function SalesPage({
                         <div className="text-xs text-zinc-500">
                           {sale.created_by_name}
                         </div>
+                        {sale.employee_name_snapshot ? (
+                          <div className="text-xs text-amber-700">
+                            Empleado: {sale.employee_name_snapshot}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="px-3 py-2">
                         <div>{sale.items_count} productos</div>

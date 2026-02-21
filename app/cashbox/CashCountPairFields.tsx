@@ -8,6 +8,7 @@ type CashCountPairFieldsProps = {
   reservePrefix: string;
   drawerTitle: string;
   reserveTitle: string;
+  formId?: string;
 };
 
 const formatCurrency = (value: number) =>
@@ -29,6 +30,7 @@ export default function CashCountPairFields({
   reservePrefix,
   drawerTitle,
   reserveTitle,
+  formId,
 }: CashCountPairFieldsProps) {
   const [drawerCounts, setDrawerCounts] = useState<string[]>(
     denominations.map(() => '0'),
@@ -89,6 +91,7 @@ export default function CashCountPairFields({
                 <span>{formatCurrency(denominationValue)}</span>
                 <input
                   name={`${drawerPrefix}_qty_${index}`}
+                  form={formId}
                   type="number"
                   min={0}
                   step={1}
@@ -132,6 +135,7 @@ export default function CashCountPairFields({
                 <span>{formatCurrency(denominationValue)}</span>
                 <input
                   name={`${reservePrefix}_qty_${index}`}
+                  form={formId}
                   type="number"
                   min={0}
                   step={1}

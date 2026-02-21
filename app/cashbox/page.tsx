@@ -6,6 +6,8 @@ import AmountInputAR from '@/app/components/AmountInputAR';
 import PageShell from '@/app/components/PageShell';
 import CashCountPairFields from '@/app/cashbox/CashCountPairFields';
 import CashboxReconciliationSection from '@/app/cashbox/CashboxReconciliationSection';
+import OpenCashSessionMetaFields from '@/app/cashbox/OpenCashSessionMetaFields';
+import SystemDateTimeBadge from '@/app/cashbox/SystemDateTimeBadge';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 
 const STAFF_MODULE_ORDER = [
@@ -73,6 +75,7 @@ type SessionSummary = {
   difference_amount: number | null;
   movements_count: number;
   opened_by: string;
+  opened_controlled_by_name: string | null;
   closed_by: string | null;
   opened_at: string;
   closed_at: string | null;
@@ -129,6 +132,7 @@ type SessionReconciliationRow = {
 };
 
 const DEFAULT_CASH_DENOMINATIONS = [20000, 10000, 2000, 1000, 500, 200, 100];
+const CLOSE_CASH_FORM_ID = 'cashbox-close-session-form';
 
 const normalizeDenominations = (raw: unknown): number[] => {
   if (!Array.isArray(raw)) return DEFAULT_CASH_DENOMINATIONS;
@@ -418,7 +422,17 @@ export default async function CashboxPage({
 
     const branchId = String(formData.get('branch_id') ?? '').trim();
     const periodType = String(formData.get('period_type') ?? 'shift').trim();
-    const sessionLabel = String(formData.get('session_label') ?? '').trim();
+    const shiftLabel = String(formData.get('shift_label') ?? '').trim();
+    const sessionLabelRaw = String(formData.get('session_label') ?? '').trim();
+    const openedControlledByName = String(
+      formData.get('opened_controlled_by_name') ?? '',
+    ).trim();
+    const sessionLabel =
+      periodType === 'shift'
+        ? shiftLabel === 'PM'
+          ? 'PM'
+          : 'AM'
+        : sessionLabelRaw;
     const openingDrawerCountLines = buildCountLines(
       formData,
       'open_drawer',
@@ -437,6 +451,7 @@ export default async function CashboxPage({
         p_branch_id: branchId,
         p_period_type: periodType,
         p_session_label: sessionLabel || undefined,
+        p_opened_controlled_by_name: openedControlledByName || undefined,
         p_opening_drawer_count_lines: openingDrawerCountLines,
         p_opening_reserve_count_lines: openingReserveCountLines,
       },
@@ -596,6 +611,15 @@ export default async function CashboxPage({
     typeof resolvedSearchParams.result === 'string'
       ? resolvedSearchParams.result
       : '';
+  const latestClosedSessionId = closedSessions[0]?.session_id ?? null;
+  const buildReportPdfHref = (sessionId: string) =>
+    `/cashbox/report?branch_id=${encodeURIComponent(
+      selectedBranchId,
+    )}&session_id=${encodeURIComponent(sessionId)}`;
+  const buildReportCsvHref = (sessionId: string) =>
+    `/cashbox/report/export?branch_id=${encodeURIComponent(
+      selectedBranchId,
+    )}&session_id=${encodeURIComponent(sessionId)}`;
 
   return (
     <PageShell>
@@ -607,12 +631,34 @@ export default async function CashboxPage({
               Apertura, movimientos y cierre por sucursal.
             </p>
           </div>
-          <Link
-            href="/settings/audit-log"
-            className="rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
-          >
-            Ver auditoria
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {latestClosedSessionId ? (
+              <>
+                <a
+                  href={buildReportCsvHref(latestClosedSessionId)}
+                  className="rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                >
+                  Exportar CSV (último cierre)
+                </a>
+                <Link
+                  href={buildReportPdfHref(latestClosedSessionId)}
+                  className="rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                >
+                  Reporte PDF (último cierre)
+                </Link>
+              </>
+            ) : (
+              <span className="rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-400">
+                Reporte disponible al cerrar caja
+              </span>
+            )}
+            <Link
+              href="/settings/audit-log"
+              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+            >
+              Ver auditoria
+            </Link>
+          </div>
         </header>
 
         {result === 'opened' ? (
@@ -679,17 +725,7 @@ export default async function CashboxPage({
 
             <form action={openCashSession} className="mt-5 grid gap-4">
               <input type="hidden" name="branch_id" value={selectedBranchId} />
-              <label className="text-sm text-zinc-700 md:max-w-sm">
-                Tipo
-                <select
-                  name="period_type"
-                  defaultValue="shift"
-                  className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                >
-                  <option value="shift">Turno</option>
-                  <option value="day">Dia</option>
-                </select>
-              </label>
+              <OpenCashSessionMetaFields />
               <CashCountPairFields
                 denominations={denominations}
                 drawerPrefix="open_drawer"
@@ -697,21 +733,14 @@ export default async function CashboxPage({
                 drawerTitle="Billetes iniciales en caja"
                 reserveTitle="Billetes iniciales en reserva"
               />
-              <label className="text-sm text-zinc-700">
-                Etiqueta (opcional)
-                <input
-                  name="session_label"
-                  placeholder="Ej: Turno mañana"
-                  className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                />
-              </label>
-              <div>
+              <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="submit"
                   className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
                 >
                   Abrir caja
                 </button>
+                <SystemDateTimeBadge />
               </div>
             </form>
           </section>
@@ -861,12 +890,6 @@ export default async function CashboxPage({
               </article>
             </section>
 
-            <CashboxReconciliationSection
-              branchId={selectedBranchId}
-              sessionId={summary.session_id}
-              rows={reconciliationRows}
-              onSave={saveReconciliationInputs}
-            />
             <section className="rounded-2xl border border-zinc-200 bg-white p-5">
               <h2 className="text-lg font-semibold text-zinc-900">
                 Desglose del efectivo en sistema
@@ -1068,11 +1091,11 @@ export default async function CashboxPage({
 
             <section className="rounded-2xl border border-zinc-200 bg-white p-5">
               <h2 className="text-lg font-semibold text-zinc-900">
-                Cerrar caja
+                Conteo de efectivo
               </h2>
               <p className="mt-1 text-sm text-zinc-500">
-                Al cerrar se cuentan billetes en caja y en reserva; el sistema
-                calcula el total y la diferencia automáticamente.
+                Cuenta billetes en caja y en reserva para validar en vivo el
+                total contra el esperado.
               </p>
 
               <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700">
@@ -1081,6 +1104,10 @@ export default async function CashboxPage({
                   {summary.session_label ? ` · ${summary.session_label}` : ''}
                 </p>
                 <p>Tipo: {summary.period_type === 'day' ? 'Dia' : 'Turno'}</p>
+                <p>
+                  Responsable apertura:{' '}
+                  {summary.opened_controlled_by_name?.trim() || '—'}
+                </p>
                 <p>
                   Esperado actual:{' '}
                   {formatCurrency(Number(summary.expected_cash_amount ?? 0))}
@@ -1132,7 +1159,39 @@ export default async function CashboxPage({
                 </p>
               </div>
 
-              <form action={closeCashSession} className="mt-4 grid gap-3">
+              <div className="mt-4">
+                <CashCountPairFields
+                  denominations={denominations}
+                  drawerPrefix="close_drawer"
+                  reservePrefix="close_reserve"
+                  drawerTitle="Billetes al cierre en caja"
+                  reserveTitle="Billetes al cierre en reserva"
+                  formId={CLOSE_CASH_FORM_ID}
+                />
+              </div>
+            </section>
+
+            <CashboxReconciliationSection
+              branchId={selectedBranchId}
+              sessionId={summary.session_id}
+              rows={reconciliationRows}
+              onSave={saveReconciliationInputs}
+            />
+
+            <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+              <h2 className="text-lg font-semibold text-zinc-900">
+                Confirmar cierre de caja
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Completa la firma operativa y confirma el cierre cuando la
+                conciliación esté validada.
+              </p>
+
+              <form
+                id={CLOSE_CASH_FORM_ID}
+                action={closeCashSession}
+                className="mt-4 grid gap-3"
+              >
                 <input
                   type="hidden"
                   name="branch_id"
@@ -1144,13 +1203,6 @@ export default async function CashboxPage({
                   value={summary.session_id}
                 />
 
-                <CashCountPairFields
-                  denominations={denominations}
-                  drawerPrefix="close_drawer"
-                  reservePrefix="close_reserve"
-                  drawerTitle="Billetes al cierre en caja"
-                  reserveTitle="Billetes al cierre en reserva"
-                />
                 <label className="text-sm text-zinc-700">
                   Controlado por (firma operativa)
                   <input
@@ -1208,6 +1260,7 @@ export default async function CashboxPage({
                     <th className="px-3 py-2">Reserva</th>
                     <th className="px-3 py-2">Total</th>
                     <th className="px-3 py-2">Diferencia</th>
+                    <th className="px-3 py-2">Reporte</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1255,6 +1308,22 @@ export default async function CashboxPage({
                         {formatCurrency(
                           Number(closedSession.difference_amount ?? 0),
                         )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-2">
+                          <a
+                            href={buildReportCsvHref(closedSession.session_id)}
+                            className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-700"
+                          >
+                            CSV
+                          </a>
+                          <Link
+                            href={buildReportPdfHref(closedSession.session_id)}
+                            className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-700"
+                          >
+                            PDF
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))}

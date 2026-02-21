@@ -46,6 +46,11 @@ type PaymentDevice = {
   provider: 'posnet' | 'mercadopago' | 'other';
 };
 
+type EmployeeAccount = {
+  id: string;
+  name: string;
+};
+
 type Props = {
   orgId: string;
   role: 'org_admin' | 'staff';
@@ -68,7 +73,11 @@ type Props = {
   cashDiscount: {
     cash_discount_enabled: boolean;
     cash_discount_default_pct: number;
+    employee_discount_enabled: boolean;
+    employee_discount_default_pct: number;
+    employee_discount_combinable_with_cash_discount: boolean;
   };
+  initialEmployeeAccounts: EmployeeAccount[];
 };
 
 const formatCurrency = (value: number) =>
@@ -112,6 +121,7 @@ export default function PosClient({
   initialPaymentDevices,
   specialOrder,
   cashDiscount,
+  initialEmployeeAccounts,
 }: Props) {
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const [activeBranchId, setActiveBranchId] = useState<string | ''>(
@@ -161,6 +171,11 @@ export default function PosClient({
   const [mercadoPagoChannel, setMercadoPagoChannel] =
     useState<MercadoPagoChannel>('qr');
   const [applyCashDiscount, setApplyCashDiscount] = useState(false);
+  const [applyEmployeeDiscount, setApplyEmployeeDiscount] = useState(false);
+  const [employeeAccounts, setEmployeeAccounts] = useState<EmployeeAccount[]>(
+    initialEmployeeAccounts,
+  );
+  const [employeeAccountId, setEmployeeAccountId] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -180,6 +195,11 @@ export default function PosClient({
     [cart],
   );
   const cashDiscountPct = Number(cashDiscount.cash_discount_default_pct ?? 0);
+  const employeeDiscountPct = Number(
+    cashDiscount.employee_discount_default_pct ?? 0,
+  );
+  const employeeDiscountCombinable =
+    cashDiscount.employee_discount_combinable_with_cash_discount;
   const cashDiscountAmount = useMemo(() => {
     if (
       !cashDiscount.cash_discount_enabled ||
@@ -196,9 +216,31 @@ export default function PosClient({
     paymentMethod,
     subtotal,
   ]);
+  const employeeDiscountAmount = useMemo(() => {
+    if (
+      !cashDiscount.employee_discount_enabled ||
+      !applyEmployeeDiscount ||
+      employeeAccountId.trim() === ''
+    ) {
+      return 0;
+    }
+    const baseAmount =
+      employeeDiscountCombinable && cashDiscountAmount > 0
+        ? subtotal - cashDiscountAmount
+        : subtotal;
+    return Math.round(((baseAmount * employeeDiscountPct) / 100) * 100) / 100;
+  }, [
+    applyEmployeeDiscount,
+    cashDiscount.employee_discount_enabled,
+    cashDiscountAmount,
+    employeeAccountId,
+    employeeDiscountCombinable,
+    employeeDiscountPct,
+    subtotal,
+  ]);
   const total = useMemo(
-    () => Math.max(subtotal - cashDiscountAmount, 0),
-    [cashDiscountAmount, subtotal],
+    () => Math.max(subtotal - cashDiscountAmount - employeeDiscountAmount, 0),
+    [cashDiscountAmount, employeeDiscountAmount, subtotal],
   );
   const mercadopagoDevices = useMemo(
     () => paymentDevices.filter((device) => device.provider === 'mercadopago'),
@@ -295,10 +337,16 @@ export default function PosClient({
       ) ||
       Math.abs(splitRemaining) > 0.009);
 
+  const missingEmployeeSelection =
+    cashDiscount.employee_discount_enabled &&
+    applyEmployeeDiscount &&
+    employeeAccountId.trim() === '';
+
   const isCheckoutDisabled =
     cart.length === 0 ||
     hasInvalidQty ||
     hasInvalidSplit ||
+    missingEmployeeSelection ||
     (!isSplitPayment &&
       ((paymentMethod === 'card' && paymentDeviceId.trim().length === 0) ||
         (paymentMethod === 'mercadopago' &&
@@ -313,6 +361,8 @@ export default function PosClient({
         ? 'Corrige las cantidades para cobrar.'
         : hasInvalidSplit
           ? 'Completa pagos divididos y valida que sumen el total.'
+          : missingEmployeeSelection
+            ? 'Selecciona el empleado para aplicar descuento.'
           : !isSplitPayment &&
               paymentMethod === 'card' &&
               paymentDeviceId.trim().length === 0
@@ -431,6 +481,37 @@ export default function PosClient({
     [orgId, supabase],
   );
 
+  const loadEmployeeAccounts = useCallback(
+    async (branchId: string) => {
+      if (!branchId) {
+        setEmployeeAccounts([]);
+        setEmployeeAccountId('');
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('employee_accounts' as never)
+        .select('id, name')
+        .eq('org_id', orgId)
+        .eq('branch_id', branchId)
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) {
+        setEmployeeAccounts([]);
+        setEmployeeAccountId('');
+        return;
+      }
+
+      const rows = (data ?? []) as EmployeeAccount[];
+      setEmployeeAccounts(rows);
+      setEmployeeAccountId((prev) =>
+        rows.some((row) => row.id === prev) ? prev : '',
+      );
+    },
+    [orgId, supabase],
+  );
+
   const addToCart = useCallback((product: ProductCatalogItem) => {
     setSuccessMessage(null);
     setErrorMessage(null);
@@ -488,11 +569,14 @@ export default function PosClient({
       await Promise.all([
         loadProducts(nextBranchId, searchTerm),
         loadPaymentDevices(nextBranchId),
+        loadEmployeeAccounts(nextBranchId),
       ]);
     } else {
       setResults([]);
       setPaymentDevices([]);
       setPaymentDeviceId('');
+      setEmployeeAccounts([]);
+      setEmployeeAccountId('');
     }
   };
 
@@ -539,6 +623,8 @@ export default function PosClient({
     setPaymentDeviceId('');
     setMercadoPagoChannel('qr');
     setApplyCashDiscount(false);
+    setApplyEmployeeDiscount(false);
+    setEmployeeAccountId('');
     setSuccessMessage(null);
     setErrorMessage(null);
     setDebugMessage(null);
@@ -576,6 +662,11 @@ export default function PosClient({
       setErrorMessage(
         'Completa los pagos divididos con montos válidos y asegúrate de que la suma sea exacta.',
       );
+      return;
+    }
+
+    if (missingEmployeeSelection) {
+      setErrorMessage('Selecciona el empleado para aplicar descuento.');
       return;
     }
 
@@ -643,6 +734,13 @@ export default function PosClient({
         p_cash_discount_pct:
           !isSplitPayment && applyCashDiscount ? cashDiscountPct : undefined,
         p_payments: paymentsPayload,
+        p_apply_employee_discount: applyEmployeeDiscount,
+        p_employee_discount_pct: applyEmployeeDiscount
+          ? employeeDiscountPct
+          : undefined,
+        p_employee_account_id: applyEmployeeDiscount
+          ? employeeAccountId
+          : undefined,
       } as never,
     );
 
@@ -657,8 +755,18 @@ export default function PosClient({
               ? 'Formato de pagos inválido.'
               : error.message.includes('payment_device_id required')
                 ? 'Debes seleccionar un dispositivo para tarjeta o MercadoPago.'
-                : error.message.includes('invalid payment device')
-                  ? 'El dispositivo seleccionado no es válido para esta sucursal.'
+              : error.message.includes('invalid payment device')
+                ? 'El dispositivo seleccionado no es válido para esta sucursal.'
+                : error.message.includes('employee account required')
+                  ? 'Debes seleccionar un empleado.'
+                  : error.message.includes('invalid employee account')
+                    ? 'La cuenta de empleado no es válida para esta sucursal.'
+                    : error.message.includes('employee discount disabled')
+                      ? 'El descuento de empleado está deshabilitado.'
+                      : error.message.includes(
+                            'employee discount cannot be combined with cash discount',
+                          )
+                        ? 'No se permite combinar descuento efectivo con descuento de empleado.'
                   : 'No pudimos registrar la venta.';
       setErrorMessage(message);
       setDebugMessage(
@@ -705,6 +813,8 @@ export default function PosClient({
     setPaymentDeviceId('');
     setMercadoPagoChannel('qr');
     setApplyCashDiscount(false);
+    setApplyEmployeeDiscount(false);
+    setEmployeeAccountId('');
     setSpecialOrderId(null);
     setSpecialOrderClientName(null);
     if (activeBranchId) {
@@ -1331,18 +1441,93 @@ export default function PosClient({
                   <input
                     type="checkbox"
                     checked={applyCashDiscount}
-                    onChange={(event) =>
-                      setApplyCashDiscount(event.target.checked)
-                    }
+                    onChange={(event) => {
+                      const nextChecked = event.target.checked;
+                      setApplyCashDiscount(nextChecked);
+                      if (
+                        nextChecked &&
+                        applyEmployeeDiscount &&
+                        !employeeDiscountCombinable
+                      ) {
+                        setApplyEmployeeDiscount(false);
+                        setEmployeeAccountId('');
+                      }
+                    }}
                   />
                   Aplicar descuento efectivo ({cashDiscountPct}%)
                 </label>
               ) : null}
 
+              {cashDiscount.employee_discount_enabled ? (
+                <div className="mt-3 rounded-xl border border-zinc-200 p-3">
+                  <label className="flex items-center gap-2 text-sm text-zinc-700">
+                    <input
+                      type="checkbox"
+                      checked={applyEmployeeDiscount}
+                      onChange={(event) => {
+                        const nextChecked = event.target.checked;
+                        setApplyEmployeeDiscount(nextChecked);
+                        if (!nextChecked) {
+                          setEmployeeAccountId('');
+                          return;
+                        }
+                        if (
+                          nextChecked &&
+                          applyCashDiscount &&
+                          !employeeDiscountCombinable
+                        ) {
+                          setApplyCashDiscount(false);
+                        }
+                      }}
+                    />
+                    Aplicar descuento empleado ({employeeDiscountPct}%)
+                  </label>
+                  {applyEmployeeDiscount ? (
+                    <div className="mt-2 grid gap-1">
+                      <label
+                        htmlFor="employee_account_id"
+                        className="text-xs font-semibold text-zinc-600"
+                      >
+                        Nombre de empleado
+                      </label>
+                      <select
+                        id="employee_account_id"
+                        value={employeeAccountId}
+                        onChange={(event) =>
+                          setEmployeeAccountId(event.target.value)
+                        }
+                        className="rounded border border-zinc-200 px-3 py-2 text-sm"
+                      >
+                        <option value="">Seleccionar empleado</option>
+                        {employeeAccounts.map((employee) => (
+                          <option key={employee.id} value={employee.id}>
+                            {employee.name}
+                          </option>
+                        ))}
+                      </select>
+                      {employeeAccounts.length === 0 ? (
+                        <p className="text-xs text-amber-700">
+                          No hay cuentas de empleado activas para esta sucursal.
+                        </p>
+                      ) : null}
+                      {!employeeDiscountCombinable ? (
+                        <p className="text-xs text-zinc-500">
+                          No se combina con descuento en efectivo.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-zinc-500">
+                          Puede combinarse con descuento en efectivo.
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
               <div className="mt-3 flex items-center justify-between text-sm">
                 <span className="text-zinc-500">Descuento</span>
                 <span className="font-semibold text-zinc-900">
-                  {formatCurrency(cashDiscountAmount)}
+                  {formatCurrency(cashDiscountAmount + employeeDiscountAmount)}
                 </span>
               </div>
               <div className="mt-1 flex items-center justify-between text-sm">

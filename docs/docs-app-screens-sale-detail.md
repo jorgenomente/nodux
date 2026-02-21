@@ -25,9 +25,10 @@ Auditar una venta puntual y corregir método de pago cuando hubo error operativo
 ### Resumen
 
 - Subtotal
-- Descuento (%)
+- Descuento total (%) + desglose (`cash` / `empleado`)
 - Total
 - Método resumen de la venta
+- Empleado asociado (si aplica)
 
 ### Bloque ítems
 
@@ -55,8 +56,9 @@ Salida mínima:
 
 - `sale_id`, `org_id`, `branch_id`, `branch_name`
 - `created_at`, `created_by`, `created_by_name`
+- `employee_account_id`, `employee_name_snapshot`
 - `payment_method_summary`
-- `subtotal_amount`, `discount_amount`, `discount_pct`, `total_amount`
+- `subtotal_amount`, `discount_amount`, `discount_pct`, `cash_discount_amount`, `cash_discount_pct`, `employee_discount_applied`, `employee_discount_amount`, `employee_discount_pct`, `total_amount`
 - `items` (jsonb array)
 - `payments` (jsonb array)
 

@@ -72,6 +72,7 @@ Navegación fija:
 - Proveedores → `/suppliers`
 - Pedidos → `/orders`
 - Pagos → `/payments`
+- Onboarding datos → `/onboarding`
 - Calendario proveedores → `/orders/calendar`
 - Clientes → `/clients`
 - Configuración → `/settings`
@@ -174,6 +175,7 @@ Acceso:
 - `/suppliers/[supplierId]`
 - `/orders`
 - `/payments`
+- `/onboarding`
 - `/orders/[orderId]`
 - `/sales/[saleId]`
 - `/orders/calendar`

@@ -12,6 +12,66 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-21 20:10 -03 — Modulo nuevo: onboarding de datos maestros para productos/proveedores
+
+**Lote:** data-onboarding-master-data-docs-foundation
+**Objetivo:** Definir en docs el nuevo modulo `/onboarding` para importacion CSV, pendientes de completitud y exportes maestros, alineado a arquitectura DB-first/RLS-first del MVP.
+
+**Prompt**
+hay algo que me gustaria implementar que estotalmente nuevo pero me gustaria conversarlo primero. Sabemos que para que todo funcione de la mejor manera es necesario que tengamos todos los datos que queremos medir, como que todos los productos tengan su proveedor princial, que tengan sus dias de fecha de vencimiento aproximada, que los proveedores tengan todos los datos que si los plazos de pago, si son en efectivo o transferencia etc. Todos los datos que hacen que todo funcione correctamente. Se me ocurre que podemos hacer un modulo de onboarding donde nosotros podamos facilitar esto. Desde aqui por ejemplo seria el sitio donde podriamos incertar un archivo csv, pdf o xlsx, lo mas probable es que sea csv, de otras tiendas que tengan otros sistemas pero tengan al menos esta informacion que describe sus productos. Entonces necesitamos lo basico de esos productos para que el programa funcione sin problemas, y con el tiempo poco a poco entrar en esta pagina para completar los datos que tengamos pendientes, como asignar proveedores a articulos o crear los proveedores en tal caso, aqui podriamos hacer un second entry point sobre crear proveedor para hacerlo mas rapido y sencillo, tambien asignar las fecha de vencimiento aproximado el codigo de barras si aplica del item etc. La idea es que yo desde aqui pueda entender que tengo tareas pendientes por realizar en cuanto a finalizar la configuracion de productos y proveedores y todo lo que se necesite. Que sea un proceso sencillo donde se puedean ir llenando esos datos e ir completando nuestra base de datos que permite que todo este bien. entonces piensa en todos los datos que necesitamos, revisa bien la app y sus docs, piensa cual es la mejor manera de organizar esto y de completar la informacion y que todo este debidamente organizado y que sea facil de usar. Considera tambien quizas crear archivos csv o xlsx maestros que contengan esta info como respaldo para poder descargarlos en cualquier momento y si lo quisiera o quisiera importarlos en otra sucursal. Dime tus pensamientos
+
+perfecto. adelante. despues vemos que mas podemos incorporar
+
+## 2026-02-21 19:30 -03 — Caja: apertura con turno AM/PM, responsable y fecha/hora visible
+
+**Lote:** cashbox-open-session-shift-am-pm-responsible-datetime
+**Objetivo:** Reestructurar apertura de caja para usar selector de turno AM/PM, requerir responsable y mostrar fecha/hora del sistema junto al botón de apertura.
+
+**Prompt**
+despues en /cashbox en la seccion de abrir caja en el formulario me pregunta tipo: dia turno me gustaria que al seleccionar turno entonces se me active la opcion de AM o PM asi defino cual es el turno asi quitamos lo de la etiqueta. y ademas agreguemos un input donde se coloca el nombre del resposnsable
+
+tambien necesito que por defecto me tome la hora y fecha del sistema y aparezca en algun lugar de ese formulario puede ser justo al lado del boton de abrir caja
+
+## 2026-02-21 19:22 -03 — Caja: exportes solo para cierres + acciones por cierre histórico
+
+**Lote:** cashbox-reports-closed-sessions-only-and-history-actions
+**Objetivo:** Aclarar y ajustar la UX de reportes para que se exporten sobre cierres confirmados y habilitar descarga por cada cierre histórico.
+
+**Prompt**
+hay algo que tenemos que clarificar y es que tenemos los botones de Exportar CSV
+Reporte PDF pero no esta claro cual es el documento que se exportara, por ejemplo ahora mismo veo esos botones y la caja esta cerrada, entonces se supone que con cada nueva caja es que se activa el reporte o como seria? deberian solo habilitarse luego de cerrar caja y que haya sucedido correctamente recien ahi deberia invitarme a descargar el reporte. que pasa si despues quiero obtener el reporte de una caja anterior o de hace dos dias? quizas podriamos agregr un boton de accion en la seccion de ultimos cierres que diga descargar pdf asi puedo descargarlo por si lo quiero ver. que te parece?
+
+## 2026-02-21 19:13 -03 — Caja: fix error SQL "session_id is ambiguous" al cerrar
+
+**Lote:** cashbox-close-rpc-ambiguous-session-id-fix
+**Objetivo:** Corregir error en cierre de caja por referencia ambigua de `session_id` en `rpc_close_cash_session`.
+
+**Prompt**
+intente cerrar caja y me dice Error: column reference "session_id" is ambiguous. podemos chequear que pasa?
+
+## 2026-02-21 19:08 -03 — Caja: separar CTA de cierre del bloque de conteo
+
+**Lote:** cashbox-close-cta-separated-from-count
+**Objetivo:** Separar la acción final de cierre (firma/confirmación/botón) del bloque de conteo de efectivo y ubicarla al final, después de conciliación.
+
+**Prompt**
+creo que lo que en realidad quiero hacer es separar el CTA de cerrar caja todo lo que dice Controlado por (firma operativa)
+Nombre y apellido
+Observación (opcional)
+Motivo de diferencia, observaciones, etc.
+Confirmo el cierre de caja para esta sucursal.
+mas el boton me gustaria separarlo de esa seccion de conteo de efectivo, que en vez de cerrar caja deberia llamarse asi porque eso es lo que se hace en ese punto, y colocarlo al final despues de la conciliacion porque en teoria alli es cuando se que todo esta bien. puede ser en una seccion aparte alli de bajo, se entiede?
+
+## 2026-02-21 19:01 -03 — Caja: reporte exportable para compartir (CSV + PDF imprimible)
+
+**Lote:** cashbox-export-report-csv-pdf
+**Objetivo:** Implementar reporte de caja ordenado para compartir con dueño/administración, con salida CSV y vista imprimible en PDF.
+
+**Prompt**
+necesito poder crear un archivo pdf o csv o xlsx, no estoy seguro de cual es el mejor formato, me ayudas a definirlo? La idea es crear un reporte de esta caja que se le pueda enviar al dueno o al que corresponda, que tenga todos estos datos importantes de manera ordenada que sea facil de entender. que piensas?
+
+adelante
+
 ## 2026-02-21 18:48 -03 — Caja: mover sección de cierre al final
 
 **Lote:** cashbox-close-section-reorder
@@ -1937,3 +1997,13 @@ ok hazlo
 
 **Prompt**
 ok adelante
+
+## 2026-02-21 19:50 -03 — POS: descuento empleado + cuentas por sucursal
+
+**Lote:** pos-employee-discount-branch-accounts
+**Objetivo:** Implementar descuento de empleado en POS con selección obligatoria de nombre, cuentas por sucursal y configuración de porcentaje/regla de combinación desde Settings.
+
+**Prompt**
+me gustaria agregar una funcion que sea compras empleado. Este es un boton similar al de descuento en efectivo que se puede llamar descuento de empleado y cuando lo selecciono me pide que indique el nombre de empleado, y una vez indicado entonces aplica el descuento. Esto debe ser configurable en configuracion, es decir alli yo debo poder agregar o quitar nombres de empleado, estos deben servir como una cuenta de empleado donde voy registrando sus compras asi puedo ver lo que compraron y cuanto gastaron y con que pagaron y todo eso, esto debe ser distinto a los usuarios porque ahora que lo pienso cualquier staff puede usar la pc logeado con otro dispositivo y no va a ser exacto siempre, es mejor indicar quien eso la compra en esa instancia. que piensas?
+
+el % lo debo definir yo tambien desde configuracion, tambien desde configuracion debo poder decidir si se convina o no con otros descuentos va a dependeer de lo que yo decida pero normalmente no se puede. puede pagar con cualquier metodo de pago, la cuenta de empleado es por sucursal, asi evitamos que se mezclen nombres.

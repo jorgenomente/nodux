@@ -7,6 +7,14 @@ import { getOrgMemberSession } from '@/lib/auth/org-session';
 type PosDiscountPreferences = {
   cash_discount_enabled: boolean;
   cash_discount_default_pct: number;
+  employee_discount_enabled: boolean;
+  employee_discount_default_pct: number;
+  employee_discount_combinable_with_cash_discount: boolean;
+};
+
+type EmployeeAccount = {
+  id: string;
+  name: string;
 };
 
 const STAFF_MODULE_ORDER = [
@@ -180,14 +188,29 @@ export default async function PosPage({
 
   const { data: preferencesRow } = await supabase
     .from('org_preferences')
-    .select('cash_discount_enabled, cash_discount_default_pct')
+    .select(
+      'cash_discount_enabled, cash_discount_default_pct, employee_discount_enabled, employee_discount_default_pct, employee_discount_combinable_with_cash_discount',
+    )
     .eq('org_id', orgId)
     .maybeSingle();
 
   const cashDiscount = (preferencesRow as PosDiscountPreferences | null) ?? {
     cash_discount_enabled: true,
     cash_discount_default_pct: 10,
+    employee_discount_enabled: true,
+    employee_discount_default_pct: 10,
+    employee_discount_combinable_with_cash_discount: false,
   };
+
+  const { data: initialEmployeeAccounts } = defaultBranchId
+    ? await supabase
+        .from('employee_accounts' as never)
+        .select('id, name')
+        .eq('org_id', orgId)
+        .eq('branch_id', defaultBranchId)
+        .eq('is_active', true)
+        .order('name')
+    : { data: [] };
 
   return (
     <PageShell>
@@ -229,6 +252,7 @@ export default async function PosPage({
           })),
         }}
         cashDiscount={cashDiscount}
+        initialEmployeeAccounts={(initialEmployeeAccounts ?? []) as EmployeeAccount[]}
       />
     </PageShell>
   );

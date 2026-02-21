@@ -17,10 +17,17 @@ type SaleDetailRow = {
   created_at: string;
   created_by: string;
   created_by_name: string;
+  employee_account_id: string | null;
+  employee_name_snapshot: string | null;
   payment_method_summary: string;
   subtotal_amount: number;
   discount_amount: number;
   discount_pct: number;
+  cash_discount_amount: number;
+  cash_discount_pct: number;
+  employee_discount_applied: boolean;
+  employee_discount_amount: number;
+  employee_discount_pct: number;
   total_amount: number;
   items: unknown;
   payments: unknown;
@@ -289,6 +296,11 @@ export default async function SaleDetailPage({
             <p className="mt-1 text-xs text-zinc-500">
               {Number(sale.discount_pct ?? 0)}%
             </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              Efectivo: {formatCurrency(Number(sale.cash_discount_amount ?? 0))}
+              {' · '}Empleado:{' '}
+              {formatCurrency(Number(sale.employee_discount_amount ?? 0))}
+            </p>
           </article>
           <article className="rounded-xl border border-zinc-200 bg-white p-4">
             <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
@@ -306,6 +318,11 @@ export default async function SaleDetailPage({
               {formatPaymentMethod(sale.payment_method_summary)}
             </p>
             <p className="mt-1 text-xs text-zinc-500">{sale.created_by_name}</p>
+            {sale.employee_name_snapshot ? (
+              <p className="mt-1 text-xs text-amber-700">
+                Empleado: {sale.employee_name_snapshot}
+              </p>
+            ) : null}
           </article>
         </section>
 

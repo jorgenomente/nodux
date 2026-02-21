@@ -58,11 +58,14 @@ Ultima actualizacion: 2026-02-20 12:35
 - Smoke RLS automatizado disponible en `npm run db:rls:smoke` para validar allow/deny por rol (staff, org_admin, superadmin).
 - Workflow CI de hardening agregado en `.github/workflows/ci-hardening.yml` con Supabase local, seed y smoke E2E.
 - POS soporta descuento por efectivo con toggle operativo; el porcentaje no es editable en caja y se toma fijo desde `settings/preferences`.
+- POS agrega descuento de empleado con cuenta operativa por sucursal (`employee_accounts`), configurable desde `settings/preferences`.
+- El descuento de empleado permite cualquier método de pago y puede combinarse o no con descuento efectivo según preferencia org.
 - POS soporta pagos divididos (`cash/debit/credit/transfer/other`) con validación de suma exacta en DB.
 - POS evoluciona a métodos operativos `cash`, `card` (débito/crédito unificado) y `mercadopago`, con selección de dispositivo de cobro por sucursal para trazabilidad.
 - `rpc_create_sale` valida en DB que el descuento solo aplica cuando `payment_method='cash'`.
 - Dashboard incorpora métricas de efectivo y descuento (`cash_sales_today_total`, `cash_discount_today_total`, etc.).
 - Cambios de preferencias (incluyendo descuento efectivo) quedan auditados con `org_preferences_updated`.
+- Gestión de cuentas de empleado (alta/reactivación/inactivación) queda auditada en `audit_log`.
 - Módulo Caja (`/cashbox`) operativo por sucursal: apertura por turno/día, registro de gastos/ingresos manuales, cierre con conteo y diferencia.
 - Caja audita actor y metadata operativa en `audit_log` (`cash_session_opened`, `cash_movement_added`, `cash_session_closed`).
 - Cierre de caja ahora requiere firma operativa (`controlled_by_name`), confirmación explícita y soporta conteo por denominaciones.
@@ -73,6 +76,12 @@ Ultima actualizacion: 2026-02-20 12:35
 - `/cashbox` permite cargar monto de comprobante por fila y calcula diferencia contra sistema.
 - En conciliación de caja, MercadoPago se agrupa en una fila total (`MercadoPago (total)`) aunque existan distintos métodos registrados.
 - `/cashbox` muestra un bloque de desglose del `Efectivo en sistema` con fórmula + detalle de movimientos (aperturas, ventas cash, ingresos, pagos proveedor cash y otros egresos) para trazabilidad operativa.
+- `/cashbox` permite exportar reporte de sesión actual en CSV y abrir vista imprimible para compartir como PDF.
+- En `/cashbox`, el cierre se presenta en dos pasos: conteo de efectivo y confirmación final al final de la pantalla, después de conciliación.
+- Exportes de caja ahora están ligados a sesiones cerradas: CTA principal sobre último cierre y acciones CSV/PDF por cada fila en `Últimos cierres` para histórico.
+- Apertura de caja en `/cashbox` ahora exige responsable, y cuando el tipo es `turno` usa selector `AM/PM` (sin etiqueta libre).
+- En formulario de apertura se muestra fecha/hora del sistema en vivo junto al botón `Abrir caja`.
+- Se define nueva fase de producto para onboarding de datos maestros (`/onboarding`) con foco en importacion CSV, bandeja de pendientes de completitud y exportes maestros; implementacion aun pendiente.
 - Nuevo módulo de historial de ventas en `/sales` y detalle en `/sales/[saleId]` con filtros por monto, método, hora e ítems.
 - Corrección de método de pago en detalle de venta vía RPC auditada (`sale_payment_method_corrected`) y bloqueada para ventas de sesiones de caja ya cerradas.
 - Las denominaciones son configurables por organización desde preferencias.

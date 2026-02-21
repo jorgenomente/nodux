@@ -225,6 +225,22 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 
 ---
 
+## Fase 7 — Onboarding de datos maestros
+
+**Objetivo**: acelerar carga inicial y completitud de productos/proveedores para operacion estable.
+
+**Incluye**:
+
+- `/onboarding` con contrato de pantalla dedicado
+- importacion CSV con validacion por fila y aplicacion idempotente
+- bandeja de pendientes de completitud de datos maestros
+- acciones rapidas para completar proveedor primario, shelf_life_days y datos de pago
+- exportes maestros CSV para respaldo y portabilidad
+
+**Estado**: PLANIFICADA (docs cerrados, implementacion pendiente)
+
+---
+
 ## Notas de avance
 
 - 2026-02-08: Se crea este roadmap vivo como fuente de orden operativo.
@@ -251,3 +267,4 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-02-20: POS unifica tarjeta en método `card`, agrega `mercadopago` y trazabilidad por dispositivo (`pos_payment_devices` + `sale_payments.payment_device_id`); Caja integra egreso automático por pago proveedor en efectivo y resumen de cobros no-efectivo (`card`/`mercadopago`).
 - 2026-02-20: se agrega módulo de historial/detalle de ventas (`/sales`, `/sales/[saleId]`) con filtros operativos y corrección auditada de método de pago; Caja suma conciliación por método/dispositivo en sesión (`rpc_get_cash_session_payment_breakdown`).
 - 2026-02-20: `/cashbox` agrega conciliación operativa con carga manual de comprobantes por fila y diferencia automática; MercadoPago se agrupa en una fila total (`rpc_get_cash_session_reconciliation_rows`, `rpc_upsert_cash_session_reconciliation_inputs`).
+- 2026-02-21: POS incorpora descuento de empleado con cuenta por sucursal (`employee_accounts`), configurable desde `/settings/preferences` (porcentaje y regla de combinación con descuento efectivo), con trazabilidad en ventas (`employee_name_snapshot`) y validación DB en `rpc_create_sale`.

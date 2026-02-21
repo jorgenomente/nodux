@@ -32,6 +32,7 @@ El MVP debe ser usable en producción real por una tienda.
 - Ventas (POS táctil)
 - Caja operativa por sucursal (apertura/cierre simple)
 - Productos y stock por sucursal
+- Onboarding de datos maestros (importacion CSV + completitud)
 - Vencimientos (manual y automático)
 - Proveedores
 - Pedidos a proveedor

@@ -24,6 +24,10 @@ Operar caja por sucursal con flujo simple:
 
 - Caja es **por sucursal** (`branch_id` obligatorio).
 - Solo puede existir **una sesión abierta por sucursal**.
+- En apertura:
+  - si `period_type='shift'`, el operador debe elegir `AM` o `PM` (se guarda en `session_label`).
+  - se requiere responsable de apertura (`opened_controlled_by_name`).
+  - se muestra fecha/hora del sistema en el formulario de apertura (referencia operativa previa al submit).
 - El esperado se calcula con:
   - apertura en caja
   - apertura en reserva
@@ -48,6 +52,9 @@ Operar caja por sucursal con flujo simple:
   - ingresos manuales
   - egresos por pago proveedor en efectivo (con detalle de nota/pedido si aplica)
   - otros egresos manuales
+- El flujo operativo de cierre se presenta en 2 secciones:
+  - `Conteo de efectivo` (solo conteo de billetes caja/reserva + total en vivo).
+  - `Confirmar cierre de caja` (firma operativa, observación, confirmación y botón final) al final, después de conciliación.
 - Al cerrar:
   - se guarda cierre en caja
   - se guarda cierre en reserva
@@ -56,6 +63,11 @@ Operar caja por sucursal con flujo simple:
   - se registra conteo por denominaciones (billetes/monedas)
   - se calcula diferencia
   - se registra auditoría con actor y detalle
+- Exportación de reporte:
+  - Solo aplica a sesiones cerradas.
+  - `Exportar CSV` genera archivo con resumen, desglose, conciliación y movimientos del cierre elegido.
+  - `Reporte PDF` abre vista imprimible para compartir (usar imprimir/guardar como PDF) del cierre elegido.
+  - En `Últimos cierres` cada fila incluye acciones directas `CSV` y `PDF` para descargar históricos.
 
 ## Data Contract (One Screen = One Data Contract)
 
@@ -65,6 +77,7 @@ Operar caja por sucursal con flujo simple:
 - Campos mínimos:
   - `session_id`, `org_id`, `branch_id`, `status`
   - `period_type`, `session_label`
+  - `opened_controlled_by_name`
   - `opening_cash_amount`, `opening_reserve_amount`
   - `closing_drawer_amount`, `closing_reserve_amount`
   - `cash_sales_amount`
@@ -76,6 +89,8 @@ Operar caja por sucursal con flujo simple:
 ### Escrituras (RPC)
 
 - `rpc_open_cash_session(...)`
+  - para `shift`, `session_label` operativo `AM`/`PM`
+  - requiere `opened_controlled_by_name`
 - `rpc_add_cash_session_movement(...)`
 - `rpc_get_cash_session_summary(...)`
 - `rpc_get_cash_session_reconciliation_rows(...)`

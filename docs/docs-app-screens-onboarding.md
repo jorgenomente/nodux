@@ -1,0 +1,165 @@
+# Screen Contract — Onboarding de Datos Maestros
+
+## Ruta
+
+- `/onboarding`
+
+## Rol / Acceso
+
+- Org Admin (OA)
+- Superadmin (SA) dentro de org activa
+- Staff: NO
+
+## Proposito
+
+Centralizar importacion y completitud de datos maestros para que la operacion
+diaria tenga base consistente en productos y proveedores.
+
+---
+
+## Layout (alto nivel)
+
+### Header
+
+- Titulo: "Onboarding de datos"
+- Subtitulo: "Importa catalogo y completa pendientes operativos"
+
+### Seccion A — Importar archivo
+
+- upload CSV
+- selector de plantilla:
+  - productos
+  - proveedores
+  - productos + proveedores (combinado)
+- boton "Validar archivo"
+- preview de columnas detectadas + mapeo
+
+### Seccion B — Resultado de validacion
+
+- filas validas
+- filas con error
+- lista de errores por fila/columna
+- boton "Aplicar importacion"
+
+### Seccion C — Pendientes de completitud
+
+Cards de tareas:
+
+- productos sin proveedor primario
+- productos sin shelf_life_days
+- productos sin identificador (barcode/internal_code)
+- proveedores sin terminos de pago
+- proveedores sin metodo de pago preferido
+
+Cada card tiene CTA:
+
+- "Resolver ahora"
+- "Ver detalle"
+
+### Seccion D — Acciones rapidas
+
+- crear proveedor rapido
+- asignar proveedor a producto
+- completar shelf life / barcode / codigo interno
+- completar datos de pago proveedor
+
+### Seccion E — Exportes maestros
+
+- descargar `productos_master.csv`
+- descargar `proveedores_master.csv`
+- descargar `producto_proveedor_master.csv`
+
+---
+
+## Acciones del usuario (MVP)
+
+### A1) Descargar plantilla CSV
+
+El usuario descarga plantilla estandar antes de importar.
+
+### A2) Subir y validar CSV
+
+El sistema crea job de importacion y ejecuta validaciones sintacticas +
+semanticas.
+
+### A3) Aplicar importacion
+
+Se aplican filas validas por upsert idempotente y se deja auditoria de job.
+
+### A4) Resolver pendientes
+
+Desde la bandeja, el usuario completa datos faltantes con formularios rapidos
+sin salir del flujo.
+
+### A5) Exportar maestros
+
+El usuario descarga un snapshot actual para respaldo o migracion a otra
+sucursal.
+
+---
+
+## Estados UI
+
+- Loading: skeleton de cards y tabla de validacion
+- Empty: sin pendientes + CTA "Importar archivo"
+- Error: banner con causa y reintento
+- Success: resumen con filas aplicadas, omitidas y pendientes restantes
+
+---
+
+## Data Contract (One Screen = One Data Contract)
+
+### Lectura principal
+
+View: `v_data_onboarding_tasks`
+
+Salida minima:
+
+- `task_key`
+- `task_label`
+- `pending_count`
+- `sample_records` (jsonb, opcional)
+- `last_calculated_at`
+
+### Escrituras
+
+RPC 1: `rpc_create_data_import_job(input)`
+
+- `org_id`
+- `template_key`
+- `file_name`
+- `file_storage_path`
+
+RPC 2: `rpc_validate_data_import_job(input)`
+
+- `org_id`
+- `job_id`
+
+RPC 3: `rpc_apply_data_import_job(input)`
+
+- `org_id`
+- `job_id`
+- `apply_mode` (`valid_only` recomendado)
+
+RPC 4..N (reuso existentes):
+
+- `rpc_upsert_product(...)`
+- `rpc_upsert_supplier(...)`
+- `rpc_upsert_supplier_product(...)`
+
+---
+
+## Seguridad (RLS)
+
+- OA/SA: lectura/escritura solo de su org activa
+- ST: sin acceso
+- jobs y rows de importacion siempre filtrados por `org_id`
+
+---
+
+## Smoke tests (manual)
+
+- ONB-01: validar CSV con errores y revisar reporte por fila
+- ONB-02: aplicar importacion parcial y verificar upserts en productos/proveedores
+- ONB-03: resolver pendiente de proveedor primario desde CTA rapido
+- ONB-04: exportar maestros y abrir archivo con columnas esperadas

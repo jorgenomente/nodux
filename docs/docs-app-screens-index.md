@@ -157,23 +157,29 @@ Regla base:
     - Módulo: Configuración
     - Propósito: acceso a settings del sistema
 
+19. `/onboarding`
+    - Roles: OA
+    - Tipo: Primary
+    - Módulo: Onboarding de datos maestros
+    - Propósito: importar catalogo y resolver pendientes de completitud en productos y proveedores
+
 ---
 
 ## 4) Detalles / Subrutas (Org Admin)
 
-19. `/suppliers/[supplierId]`
+20. `/suppliers/[supplierId]`
     - Roles: OA
     - Tipo: Secondary
     - Módulo: Proveedores
     - Propósito: detalle del proveedor + productos asociados
 
-20. `/orders/[orderId]`
+21. `/orders/[orderId]`
     - Roles: OA
     - Tipo: Secondary
     - Módulo: Pedidos a proveedor
     - Propósito: gestionar pedido (draft → sent → received → reconciled)
 
-21. `/sales/[saleId]`
+22. `/sales/[saleId]`
     - Roles: OA
     - Tipo: Secondary
     - Módulo: Ventas
@@ -183,31 +189,31 @@ Regla base:
 
 ## 5) Settings (Org Admin / Superadmin)
 
-22. `/settings/staff-permissions`
+23. `/settings/staff-permissions`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Permisos Staff
     - Propósito: habilitar/deshabilitar módulos para Staff
 
-23. `/settings/users`
+24. `/settings/users`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Usuarios
     - Propósito: invitar y gestionar usuarios
 
-24. `/settings/branches`
+25. `/settings/branches`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Sucursales
     - Propósito: crear y gestionar sucursales
 
-25. `/settings/preferences`
+26. `/settings/preferences`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Preferencias
     - Propósito: parámetros simples (alertas, UX)
 
-26. `/settings/audit-log`
+27. `/settings/audit-log`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Auditoría
@@ -217,13 +223,13 @@ Regla base:
 
 ## 6) Pagos y Superadmin (Primary)
 
-27. `/payments`
+28. `/payments`
     - Roles: OA
     - Tipo: Primary
     - Módulo: Pagos a proveedor
     - Propósito: gestionar cuentas por pagar y registrar pagos por sucursal
 
-28. `/superadmin`
+29. `/superadmin`
     - Roles: SA
     - Tipo: Primary
     - Módulo: SaaS Admin
@@ -248,6 +254,7 @@ Regla base:
 - `/suppliers/[supplierId]`
 - `/orders`
 - `/payments`
+- `/onboarding`
 - `/orders/calendar`
 - `/orders/[orderId]`
 - `/sales/[saleId]`

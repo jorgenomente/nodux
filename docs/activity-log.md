@@ -18,6 +18,171 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-21 20:10 -03 — Docs: definicion de modulo Onboarding de datos maestros
+
+**Tipo:** docs
+**Lote:** data-onboarding-master-data-docs-foundation
+**Alcance:** docs
+
+**Resumen**
+Se documento un nuevo modulo MVP para onboarding de datos maestros con ruta `/onboarding`, contrato de pantalla, reglas de completitud y lineamientos de importacion CSV + exportes maestros. Tambien se actualizo sitemap, indice de pantallas, scope MVP y roadmap para mantener trazabilidad operativa.
+
+**Archivos**
+
+- docs/docs-modules-data-onboarding.md
+- docs/docs-app-screens-onboarding.md
+- docs/docs-app-sitemap.md
+- docs/docs-app-screens-index.md
+- docs/docs-scope-mvp.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- No aplica (lote docs-only).
+
+**Commit:** N/A
+
+## 2026-02-21 19:30 -03 — Caja: apertura con AM/PM, responsable obligatorio y reloj del sistema
+
+**Tipo:** db
+**Lote:** cashbox-open-session-shift-am-pm-responsible-datetime
+**Alcance:** db, frontend, docs, tests
+
+**Resumen**
+Se actualizó la apertura de caja para operar por turno `AM/PM` cuando `period_type='shift'`, eliminar etiqueta libre y exigir responsable de apertura. Se agregó columna `opened_controlled_by_name` en `cash_sessions`, ajuste de RPC de apertura/resumen y visualización de fecha/hora del sistema junto al botón `Abrir caja`.
+
+**Archivos**
+
+- supabase/migrations/20260221194000_051_cashbox_open_shift_and_responsible.sql
+- app/cashbox/OpenCashSessionMetaFields.tsx
+- app/cashbox/SystemDateTimeBadge.tsx
+- app/cashbox/page.tsx
+- lib/cashbox/report.ts
+- scripts/seed-cashbox-today.js
+- docs/docs-data-model.md
+- docs/docs-app-screens-cashbox.md
+- docs/docs-modules-cashbox.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:reset` OK (2026-02-21)
+- `npm run db:seed:all` OK (2026-02-21)
+- `npm run format:check` OK (2026-02-21)
+- `npm run lint` OK (2026-02-21)
+- `npm run build` OK (2026-02-21)
+
+**Commit:** N/A
+
+## 2026-02-21 19:22 -03 — Caja: reportes ligados a cierres + descarga histórica por fila
+
+**Tipo:** ui
+**Lote:** cashbox-reports-closed-sessions-only-and-history-actions
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se aclaró y ajustó la UX de reportes en `/cashbox`: ahora la exportación principal apunta al último cierre y, si no hay cierres, se muestra estado informativo en lugar de CTA activo. Además, en `Últimos cierres` cada fila incluye acciones `CSV`/`PDF` para descargar reportes de cajas anteriores.
+
+**Archivos**
+
+- app/cashbox/page.tsx
+- lib/cashbox/report.ts
+- docs/docs-app-screens-cashbox.md
+- docs/docs-modules-cashbox.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run format:check` OK (2026-02-21)
+- `npm run lint` OK (2026-02-21)
+- `npm run build` OK (2026-02-21)
+
+**Commit:** N/A
+
+## 2026-02-21 19:13 -03 — DB fix: cierre de caja sin ambigüedad de `session_id`
+
+**Tipo:** db
+**Lote:** cashbox-close-rpc-ambiguous-session-id-fix
+**Alcance:** db, docs, tests
+
+**Resumen**
+Se corrigió `rpc_close_cash_session` para eliminar ambigüedad entre la columna `session_id` y la variable de salida homónima de la función. El `delete` de líneas de conteo ahora referencia explícitamente alias de tabla (`ccl.session_id`), evitando el error `column reference "session_id" is ambiguous`.
+
+**Archivos**
+
+- supabase/migrations/20260221191000_050_fix_close_cash_session_ambiguous_session_id.sql
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:reset` OK (2026-02-21)
+- `npm run db:seed:all` OK (2026-02-21)
+- Verificación RPC cierre (admin autenticado) OK:
+  - `rpc_close_cash_session` devuelve `session_id`, `expected_cash_amount`, `counted_cash_amount`, `difference_amount`, `closed_at` sin error.
+
+**Commit:** N/A
+
+## 2026-02-21 19:08 -03 — Caja: CTA final de cierre separado del conteo
+
+**Tipo:** ui
+**Lote:** cashbox-close-cta-separated-from-count
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se separó el bloque de cierre en dos etapas visibles: `Conteo de efectivo` (conteo y total) y `Confirmar cierre de caja` (firma + observación + checkbox + botón). La confirmación final quedó ubicada después de conciliación para respetar el flujo operativo de validación.
+
+**Archivos**
+
+- app/cashbox/page.tsx
+- app/cashbox/CashCountPairFields.tsx
+- docs/docs-app-screens-cashbox.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run format:check` OK (2026-02-21)
+- `npm run lint` OK (2026-02-21)
+- `npm run build` OK (2026-02-21)
+
+**Commit:** N/A
+
+## 2026-02-21 19:01 -03 — Caja: reporte exportable CSV + vista PDF imprimible
+
+**Tipo:** ui
+**Lote:** cashbox-export-report-csv-pdf
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se implementó un reporte de caja compartible desde `/cashbox` con dos salidas: descarga CSV y vista imprimible para guardar como PDF. El reporte incluye resumen de sesión, desglose de efectivo, conciliación por medio/dispositivo y movimientos.
+
+**Archivos**
+
+- app/cashbox/page.tsx
+- app/cashbox/report/page.tsx
+- app/cashbox/report/PrintReportButton.tsx
+- app/cashbox/report/export/route.ts
+- lib/cashbox/report.ts
+- docs/docs-app-screens-cashbox.md
+- docs/docs-modules-cashbox.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-21)
+- `npm run build` OK (2026-02-21)
+
+**Commit:** N/A
+
 ## 2026-02-21 18:48 -03 — Caja: reorden de cierre al final de la pantalla
 
 **Tipo:** ui
@@ -5314,5 +5479,41 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 
 - npm run lint OK (2026-02-20)
 - npm run build OK (2026-02-20)
+
+**Commit:** N/A
+
+## 2026-02-21 19:56 -03 — POS: descuento empleado + cuentas por sucursal
+
+**Tipo:** schema/ui/docs
+**Lote:** pos-employee-discount-branch-accounts
+**Descripción:** Se implementó descuento de empleado en POS con cuenta operativa por sucursal, separado de `auth.users`. La configuración se extiende en `/settings/preferences` para definir porcentaje de descuento de empleado y política de combinación con descuento en efectivo. Se agregó gestión de cuentas de empleado por sucursal (alta/reactivación/inactivación), validación en DB vía `rpc_create_sale` y trazabilidad en ventas (`employee_name_snapshot`, desglose de descuentos cash/empleado) para auditoría en `/sales` y `/sales/[saleId]`.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260221223000_052_employee_discount_accounts.sql
+- app/pos/page.tsx
+- app/pos/PosClient.tsx
+- app/settings/preferences/page.tsx
+- app/sales/page.tsx
+- app/sales/[saleId]/page.tsx
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-app-screens-settings-preferences.md
+- docs/docs-app-screens-sales.md
+- docs/docs-app-screens-sale-detail.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-21)
+- npm run build OK (2026-02-21)
+- npm run db:reset OK (2026-02-21)
+- Verificación DB objetos OK: `employee_accounts`, `v_sales_admin`, `v_sale_detail_admin`, `rpc_create_sale`.
+- Verificación RLS mínima (manual): ALLOW `staff` select en `employee_accounts` (scope org), DENY `staff` insert en `employee_accounts`.
+- npm run db:rls:smoke FAIL (baseline preexistente): `staff puede leer products de su org`.
 
 **Commit:** N/A
