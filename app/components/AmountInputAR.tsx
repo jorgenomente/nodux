@@ -12,27 +12,46 @@ type Props = {
   onValueChange?: (value: number | null) => void;
 };
 
+const NON_DIGIT_REGEX = /\D/g;
+
 const splitRawNumber = (raw: string) => {
   const trimmed = raw.trim();
   if (!trimmed) return { intPart: '', fracPart: '' };
 
-  const lastComma = trimmed.lastIndexOf(',');
-  const lastDot = trimmed.lastIndexOf('.');
-  const sepIndex = Math.max(lastComma, lastDot);
-
-  if (sepIndex < 0) {
-    return {
-      intPart: trimmed.replace(/\D/g, ''),
-      fracPart: '',
-    };
+  const commaIndex = trimmed.lastIndexOf(',');
+  if (commaIndex >= 0) {
+    const left = trimmed.slice(0, commaIndex).replace(NON_DIGIT_REGEX, '');
+    const right = trimmed
+      .slice(commaIndex + 1)
+      .replace(NON_DIGIT_REGEX, '')
+      .slice(0, 2);
+    return { intPart: left, fracPart: right };
   }
 
-  const left = trimmed.slice(0, sepIndex).replace(/\D/g, '');
-  const right = trimmed
-    .slice(sepIndex + 1)
-    .replace(/\D/g, '')
-    .slice(0, 2);
-  return { intPart: left, fracPart: right };
+  const dotMatches = trimmed.match(/\./g) ?? [];
+  if (dotMatches.length === 1) {
+    const dotIndex = trimmed.lastIndexOf('.');
+    const leftRaw = trimmed.slice(0, dotIndex);
+    const rightRaw = trimmed.slice(dotIndex + 1);
+    const leftDigits = leftRaw.replace(NON_DIGIT_REGEX, '');
+    const rightDigits = rightRaw.replace(NON_DIGIT_REGEX, '');
+    const isLikelyDotDecimal =
+      leftDigits.length > 3 &&
+      rightDigits.length > 0 &&
+      rightDigits.length <= 2;
+
+    if (isLikelyDotDecimal) {
+      return {
+        intPart: leftDigits,
+        fracPart: rightDigits.slice(0, 2),
+      };
+    }
+  }
+
+  return {
+    intPart: trimmed.replace(NON_DIGIT_REGEX, ''),
+    fracPart: '',
+  };
 };
 
 const formatDisplay = (intPart: string, fracPart: string) => {
@@ -46,7 +65,7 @@ const formatDisplay = (intPart: string, fracPart: string) => {
 };
 
 const toHiddenValue = (intPart: string, fracPart: string) => {
-  if (!intPart) return '';
+  if (!intPart) return fracPart ? `0.${fracPart}` : '';
   return fracPart ? `${intPart}.${fracPart}` : intPart;
 };
 

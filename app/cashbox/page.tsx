@@ -174,6 +174,11 @@ const formatMovementCategory = (categoryKey: string) => {
   if (categoryKey === 'supplier_payment_cash') {
     return 'Pago proveedor (efectivo)';
   }
+  if (categoryKey === 'delivery') return 'Delivery';
+  if (categoryKey === 'libreria') return 'Libreria';
+  if (categoryKey === 'limpieza') return 'Limpieza';
+  if (categoryKey === 'servicios') return 'Servicios';
+  if (categoryKey === 'otros') return 'Otros';
   return categoryKey;
 };
 
@@ -357,6 +362,25 @@ export default async function CashboxPage({
     movementBreakdown.length > 0
       ? allExpenseFromBreakdown
       : Number(summary?.manual_expense_amount ?? 0);
+  const supplierPaymentMovements = movements.filter(
+    (movement) =>
+      movement.movement_type === 'expense' &&
+      movement.category_key === 'supplier_payment_cash',
+  );
+  const otherExpenseMovements = movements.filter(
+    (movement) =>
+      movement.movement_type === 'expense' &&
+      movement.category_key !== 'supplier_payment_cash',
+  );
+  const manualIncomeMovements = movements.filter(
+    (movement) => movement.movement_type === 'income',
+  );
+  const expectedSystemComposedAmount =
+    Number(summary?.opening_cash_amount ?? 0) +
+    Number(summary?.opening_reserve_amount ?? 0) +
+    Number(summary?.cash_sales_amount ?? 0) +
+    manualIncomeForBreakdown -
+    manualExpenseForBreakdown;
 
   const { data: reconciliationRowsData } = openSessionId
     ? await supabase.rpc(
@@ -759,7 +783,7 @@ export default async function CashboxPage({
               </article>
             </section>
 
-            <section className="grid gap-6 lg:grid-cols-2">
+            <section>
               <article className="rounded-2xl border border-zinc-200 bg-white p-5">
                 <h2 className="text-lg font-semibold text-zinc-900">
                   Registrar movimiento
@@ -835,124 +859,6 @@ export default async function CashboxPage({
                   </button>
                 </form>
               </article>
-
-              <article className="rounded-2xl border border-zinc-200 bg-white p-5">
-                <h2 className="text-lg font-semibold text-zinc-900">
-                  Cerrar caja
-                </h2>
-                <p className="mt-1 text-sm text-zinc-500">
-                  Al cerrar se cuentan billetes en caja y en reserva; el sistema
-                  calcula el total y la diferencia automáticamente.
-                </p>
-
-                <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700">
-                  <p>
-                    Apertura: {formatDateTime(summary.opened_at)}
-                    {summary.session_label ? ` · ${summary.session_label}` : ''}
-                  </p>
-                  <p>Tipo: {summary.period_type === 'day' ? 'Dia' : 'Turno'}</p>
-                  <p>
-                    Esperado actual:{' '}
-                    {formatCurrency(Number(summary.expected_cash_amount ?? 0))}
-                  </p>
-                </div>
-                <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-3 text-sm text-zinc-700">
-                  <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-                    Desglose del esperado en efectivo
-                  </p>
-                  <p className="mt-2">
-                    Apertura caja:{' '}
-                    <strong>
-                      {formatCurrency(Number(summary.opening_cash_amount ?? 0))}
-                    </strong>
-                  </p>
-                  <p>
-                    Apertura reserva:{' '}
-                    <strong>
-                      {formatCurrency(
-                        Number(summary.opening_reserve_amount ?? 0),
-                      )}
-                    </strong>
-                  </p>
-                  <p>
-                    Ventas en efectivo:{' '}
-                    <strong>
-                      {formatCurrency(Number(summary.cash_sales_amount ?? 0))}
-                    </strong>
-                  </p>
-                  <p>
-                    Ingresos manuales:{' '}
-                    <strong>{formatCurrency(manualIncomeForBreakdown)}</strong>
-                  </p>
-                  <p>
-                    Egresos por pago proveedor (efectivo):{' '}
-                    <strong>
-                      {formatCurrency(Number(supplierPaymentCashExpense ?? 0))}
-                    </strong>
-                  </p>
-                  <p>
-                    Otros egresos manuales:{' '}
-                    <strong>
-                      {formatCurrency(Number(otherManualExpense ?? 0))}
-                    </strong>
-                  </p>
-                  <p>
-                    Total egresos manuales:{' '}
-                    <strong>{formatCurrency(manualExpenseForBreakdown)}</strong>
-                  </p>
-                </div>
-
-                <form action={closeCashSession} className="mt-4 grid gap-3">
-                  <input
-                    type="hidden"
-                    name="branch_id"
-                    value={selectedBranchId}
-                  />
-                  <input
-                    type="hidden"
-                    name="session_id"
-                    value={summary.session_id}
-                  />
-
-                  <CashCountPairFields
-                    denominations={denominations}
-                    drawerPrefix="close_drawer"
-                    reservePrefix="close_reserve"
-                    drawerTitle="Billetes al cierre en caja"
-                    reserveTitle="Billetes al cierre en reserva"
-                  />
-                  <label className="text-sm text-zinc-700">
-                    Controlado por (firma operativa)
-                    <input
-                      name="closed_controlled_by_name"
-                      placeholder="Nombre y apellido"
-                      className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                      required
-                    />
-                  </label>
-
-                  <label className="text-sm text-zinc-700">
-                    Observación (opcional)
-                    <textarea
-                      name="close_note"
-                      rows={3}
-                      placeholder="Motivo de diferencia, observaciones, etc."
-                      className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                    />
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-zinc-700">
-                    <input type="checkbox" name="close_confirmed" required />
-                    Confirmo el cierre de caja para esta sucursal.
-                  </label>
-
-                  <button
-                    type="submit"
-                    className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
-                  >
-                    Cerrar caja
-                  </button>
-                </form>
-              </article>
             </section>
 
             <CashboxReconciliationSection
@@ -961,6 +867,152 @@ export default async function CashboxPage({
               rows={reconciliationRows}
               onSave={saveReconciliationInputs}
             />
+            <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+              <h2 className="text-lg font-semibold text-zinc-900">
+                Desglose del efectivo en sistema
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Este detalle explica de qué se compone el monto de efectivo que
+                ves en conciliación.
+              </p>
+              <div className="mt-4 grid gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700">
+                <p>
+                  Apertura caja:{' '}
+                  <strong>
+                    {formatCurrency(Number(summary.opening_cash_amount ?? 0))}
+                  </strong>
+                </p>
+                <p>
+                  + Apertura reserva:{' '}
+                  <strong>
+                    {formatCurrency(
+                      Number(summary.opening_reserve_amount ?? 0),
+                    )}
+                  </strong>
+                </p>
+                <p>
+                  + Ventas en efectivo:{' '}
+                  <strong>
+                    {formatCurrency(Number(summary.cash_sales_amount ?? 0))}
+                  </strong>
+                </p>
+                <p>
+                  + Ingresos manuales:{' '}
+                  <strong>{formatCurrency(manualIncomeForBreakdown)}</strong>
+                </p>
+                <p>
+                  - Egresos totales:{' '}
+                  <strong>{formatCurrency(manualExpenseForBreakdown)}</strong>
+                </p>
+                <p className="border-t border-zinc-200 pt-2 text-base font-semibold text-zinc-900">
+                  = Efectivo en sistema:{' '}
+                  {formatCurrency(expectedSystemComposedAmount)}
+                </p>
+                {Math.abs(
+                  expectedSystemComposedAmount -
+                    Number(summary.expected_cash_amount ?? 0),
+                ) > 0.009 ? (
+                  <p className="text-xs text-amber-700">
+                    Nota: el cálculo visual no coincide con el total de sistema.
+                    Verifica movimientos y redondeos.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                <article className="rounded-lg border border-zinc-200 p-3">
+                  <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                    Pagos proveedor en efectivo
+                  </p>
+                  {supplierPaymentMovements.length === 0 ? (
+                    <p className="mt-2 text-sm text-zinc-500">
+                      Sin pagos a proveedor en efectivo.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 space-y-2 text-sm">
+                      {supplierPaymentMovements.map((movement) => (
+                        <li
+                          key={movement.id}
+                          className="rounded bg-zinc-50 p-2"
+                        >
+                          <p className="font-medium text-zinc-800">
+                            {formatCurrency(Number(movement.amount ?? 0))}
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            {formatDateTime(movement.movement_at)}
+                          </p>
+                          <p className="text-xs text-zinc-600">
+                            {movement.note?.trim() || 'Pago sin detalle'}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </article>
+
+                <article className="rounded-lg border border-zinc-200 p-3">
+                  <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                    Otros egresos manuales
+                  </p>
+                  {otherExpenseMovements.length === 0 ? (
+                    <p className="mt-2 text-sm text-zinc-500">
+                      Sin egresos manuales.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 space-y-2 text-sm">
+                      {otherExpenseMovements.map((movement) => (
+                        <li
+                          key={movement.id}
+                          className="rounded bg-zinc-50 p-2"
+                        >
+                          <p className="font-medium text-zinc-800">
+                            {formatCurrency(Number(movement.amount ?? 0))}
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            {formatMovementCategory(movement.category_key)} ·{' '}
+                            {formatDateTime(movement.movement_at)}
+                          </p>
+                          <p className="text-xs text-zinc-600">
+                            {movement.note?.trim() || 'Sin nota'}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </article>
+
+                <article className="rounded-lg border border-zinc-200 p-3">
+                  <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                    Ingresos manuales
+                  </p>
+                  {manualIncomeMovements.length === 0 ? (
+                    <p className="mt-2 text-sm text-zinc-500">
+                      Sin ingresos manuales.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 space-y-2 text-sm">
+                      {manualIncomeMovements.map((movement) => (
+                        <li
+                          key={movement.id}
+                          className="rounded bg-zinc-50 p-2"
+                        >
+                          <p className="font-medium text-zinc-800">
+                            {formatCurrency(Number(movement.amount ?? 0))}
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            {formatMovementCategory(movement.category_key)} ·{' '}
+                            {formatDateTime(movement.movement_at)}
+                          </p>
+                          <p className="text-xs text-zinc-600">
+                            {movement.note?.trim() || 'Sin nota'}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </article>
+              </div>
+            </section>
 
             <section className="rounded-2xl border border-zinc-200 bg-white p-5">
               <h2 className="text-lg font-semibold text-zinc-900">
@@ -1012,6 +1064,124 @@ export default async function CashboxPage({
                   </table>
                 </div>
               )}
+            </section>
+
+            <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+              <h2 className="text-lg font-semibold text-zinc-900">
+                Cerrar caja
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Al cerrar se cuentan billetes en caja y en reserva; el sistema
+                calcula el total y la diferencia automáticamente.
+              </p>
+
+              <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700">
+                <p>
+                  Apertura: {formatDateTime(summary.opened_at)}
+                  {summary.session_label ? ` · ${summary.session_label}` : ''}
+                </p>
+                <p>Tipo: {summary.period_type === 'day' ? 'Dia' : 'Turno'}</p>
+                <p>
+                  Esperado actual:{' '}
+                  {formatCurrency(Number(summary.expected_cash_amount ?? 0))}
+                </p>
+              </div>
+              <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-3 text-sm text-zinc-700">
+                <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                  Desglose del esperado en efectivo
+                </p>
+                <p className="mt-2">
+                  Apertura caja:{' '}
+                  <strong>
+                    {formatCurrency(Number(summary.opening_cash_amount ?? 0))}
+                  </strong>
+                </p>
+                <p>
+                  Apertura reserva:{' '}
+                  <strong>
+                    {formatCurrency(
+                      Number(summary.opening_reserve_amount ?? 0),
+                    )}
+                  </strong>
+                </p>
+                <p>
+                  Ventas en efectivo:{' '}
+                  <strong>
+                    {formatCurrency(Number(summary.cash_sales_amount ?? 0))}
+                  </strong>
+                </p>
+                <p>
+                  Ingresos manuales:{' '}
+                  <strong>{formatCurrency(manualIncomeForBreakdown)}</strong>
+                </p>
+                <p>
+                  Egresos por pago proveedor (efectivo):{' '}
+                  <strong>
+                    {formatCurrency(Number(supplierPaymentCashExpense ?? 0))}
+                  </strong>
+                </p>
+                <p>
+                  Otros egresos manuales:{' '}
+                  <strong>
+                    {formatCurrency(Number(otherManualExpense ?? 0))}
+                  </strong>
+                </p>
+                <p>
+                  Total egresos manuales:{' '}
+                  <strong>{formatCurrency(manualExpenseForBreakdown)}</strong>
+                </p>
+              </div>
+
+              <form action={closeCashSession} className="mt-4 grid gap-3">
+                <input
+                  type="hidden"
+                  name="branch_id"
+                  value={selectedBranchId}
+                />
+                <input
+                  type="hidden"
+                  name="session_id"
+                  value={summary.session_id}
+                />
+
+                <CashCountPairFields
+                  denominations={denominations}
+                  drawerPrefix="close_drawer"
+                  reservePrefix="close_reserve"
+                  drawerTitle="Billetes al cierre en caja"
+                  reserveTitle="Billetes al cierre en reserva"
+                />
+                <label className="text-sm text-zinc-700">
+                  Controlado por (firma operativa)
+                  <input
+                    name="closed_controlled_by_name"
+                    placeholder="Nombre y apellido"
+                    className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                    required
+                  />
+                </label>
+
+                <label className="text-sm text-zinc-700">
+                  Observación (opcional)
+                  <textarea
+                    name="close_note"
+                    rows={3}
+                    placeholder="Motivo de diferencia, observaciones, etc."
+                    className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-sm text-zinc-700">
+                  <input type="checkbox" name="close_confirmed" required />
+                  Confirmo el cierre de caja para esta sucursal.
+                </label>
+
+                <button
+                  type="submit"
+                  className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
+                >
+                  Cerrar caja
+                </button>
+              </form>
             </section>
           </>
         )}

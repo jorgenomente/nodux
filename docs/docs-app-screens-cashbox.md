@@ -42,6 +42,12 @@ Operar caja por sucursal con flujo simple:
   - cobros con `payment_method='card'` siempre quedan en tarjeta, aunque el dispositivo sea de proveedor MercadoPago
   - input manual por fila para registrar monto de comprobante
   - diferencia (`comprobante - sistema`) por fila
+- La pantalla incluye bloque de `Desglose del efectivo en sistema` con fórmula operativa y detalle por movimiento:
+  - apertura caja / apertura reserva
+  - ventas en efectivo
+  - ingresos manuales
+  - egresos por pago proveedor en efectivo (con detalle de nota/pedido si aplica)
+  - otros egresos manuales
 - Al cerrar:
   - se guarda cierre en caja
   - se guarda cierre en reserva

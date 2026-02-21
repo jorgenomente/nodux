@@ -72,6 +72,7 @@ Ultima actualizacion: 2026-02-20 12:35
 - `/cashbox` incorpora desglose por método/dispositivo de la sesión para conciliación operativa contra comprobantes.
 - `/cashbox` permite cargar monto de comprobante por fila y calcula diferencia contra sistema.
 - En conciliación de caja, MercadoPago se agrupa en una fila total (`MercadoPago (total)`) aunque existan distintos métodos registrados.
+- `/cashbox` muestra un bloque de desglose del `Efectivo en sistema` con fórmula + detalle de movimientos (aperturas, ventas cash, ingresos, pagos proveedor cash y otros egresos) para trazabilidad operativa.
 - Nuevo módulo de historial de ventas en `/sales` y detalle en `/sales/[saleId]` con filtros por monto, método, hora e ítems.
 - Corrección de método de pago en detalle de venta vía RPC auditada (`sale_payment_method_corrected`) y bloqueada para ventas de sesiones de caja ya cerradas.
 - Las denominaciones son configurables por organización desde preferencias.

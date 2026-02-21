@@ -19,6 +19,7 @@ Permitir cierre operativo de caja por sucursal de forma rápida y auditable.
 - Resumen operativo de cobros no-efectivo por sesión (`card` y `mercadopago`).
 - Conciliación operativa por fila (`dispositivo/método`) con monto sistema vs comprobante.
 - MercadoPago conciliado en una fila agregada (`MercadoPago total`) sin separar por método.
+- Desglose explicativo del `efectivo en sistema` con fórmula y lista de movimientos (incluye pagos proveedor cash y egresos/ingresos manuales).
 
 ## Fuentes de datos
 

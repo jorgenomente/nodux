@@ -18,6 +18,97 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-21 18:48 -03 — Caja: reorden de cierre al final de la pantalla
+
+**Tipo:** ui
+**Lote:** cashbox-close-section-reorder
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se movió la sección `Cerrar caja` dentro de `/cashbox` para que aparezca después de `Movimientos de la sesión`, respetando el flujo operativo solicitado: primero registrar y revisar movimientos, luego cerrar.
+
+**Archivos**
+
+- app/cashbox/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-21)
+- `npm run build` OK (2026-02-21)
+
+**Commit:** N/A
+
+## 2026-02-21 18:45 -03 — Caja: desglose auditable del efectivo en sistema
+
+**Tipo:** ui
+**Lote:** cashbox-cash-system-amount-breakdown-detail
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se agregó en `/cashbox` una sección dedicada para explicar el `Efectivo en sistema` que aparece en conciliación. El bloque muestra fórmula operativa y detalle por movimientos reales de la sesión: aperturas, ventas en efectivo, ingresos manuales, pagos a proveedor en efectivo (con nota/pedido) y otros egresos manuales.
+
+**Archivos**
+
+- app/cashbox/page.tsx
+- docs/docs-app-screens-cashbox.md
+- docs/docs-modules-cashbox.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-21)
+- `npm run build` OK (2026-02-21)
+
+**Commit:** N/A
+
+## 2026-02-20 15:25 -03 — UX montos: fix parser AR para montos largos
+
+**Tipo:** fix
+**Lote:** amount-inputs-ar-parser-fix
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se corrigió el parser de `AmountInputAR` para evitar que el separador de miles (`.`) se interprete como decimal al seguir escribiendo, que era la causa por la que el input parecía bloquearse al superar 3 dígitos. Ahora permite cargar montos largos (`100000` -> `100.000`) de forma continua y mantiene normalización server-side.
+
+**Archivos**
+
+- app/components/AmountInputAR.tsx
+- app/cashbox/CashboxReconciliationSection.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-20)
+- `npm run build` OK (2026-02-20)
+
+**Commit:** N/A
+
+## 2026-02-21 18:37 -03 — UX montos: fix backspace en miles AR
+
+**Tipo:** fix
+**Lote:** amount-inputs-ar-delete-backspace-fix
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se ajustó el parser de `AmountInputAR` para que, durante edición, no convierta automáticamente a decimal cuando el usuario borra desde un valor con separador de miles (ej. `1.000` -> backspace). Antes, al quedar temporalmente `1.00`, se renderizaba como `1,00`; ahora se mantiene el flujo de miles y se puede seguir editando sin limpiar todo el campo.
+
+**Archivos**
+
+- app/components/AmountInputAR.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-21)
+- `npm run build` OK (2026-02-21)
+
+**Commit:** N/A
+
 ## 2026-02-20 12:35 -03 — Caja: conciliación con comprobante por fila + MercadoPago total
 
 **Tipo:** db

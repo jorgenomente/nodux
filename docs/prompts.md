@@ -12,6 +12,38 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-21 18:48 -03 — Caja: mover sección de cierre al final
+
+**Lote:** cashbox-close-section-reorder
+**Objetivo:** Reordenar `/cashbox` para ubicar “Cerrar caja” después de “Movimientos de la sesión”.
+
+**Prompt**
+ok me gustaria mover la seccion de cerrar caja hacia el final, despues de la seccion de movimientos de la sesion
+
+## 2026-02-21 18:45 -03 — Caja: desglose visible del efectivo en sistema en conciliación
+
+**Lote:** cashbox-cash-system-amount-breakdown-detail
+**Objetivo:** Mostrar en `/cashbox` un desglose claro de cómo se compone el monto de efectivo en sistema (aperturas, ventas cash, ingresos, egresos proveedor y egresos manuales con detalle).
+
+**Prompt**
+me gustaria ver en esta pagina un desglose de los montos del efectivo. dice monto en sistema y dice una cantidad de efectivo pero me gustaria que hubiera una seccion de desglose de lo que eso implica y los montos por ejemplo en reserva esto en caja esto, esto de este pedido que se pago en efectivo esto de este gasto y esto de este egreso, como entender que es lo que compone ese monto. me explico?
+
+## 2026-02-20 15:25 -03 — UX montos: corregir bloqueo > 3 dígitos en formato AR
+
+**Lote:** amount-inputs-ar-parser-fix
+**Objetivo:** Permitir escribir montos largos con separador de miles AR en todos los inputs de monto que usan `AmountInputAR`, sin bloqueo al superar 3 dígitos.
+
+**Prompt**
+creo que no me explique bien. la idea es poder diferenciar cuando quuiero escribir una cantidad como 100mil que yo pueda ver como hay una separacion cada 3 digitos para facil lectura, de acuerdo a la configuracion actual no puedo escribir mas de 3 digitos por alguna razon, asi que vamos a trabajar sobre eso y corregirlo en todos los lugares donde haga falta
+
+## 2026-02-21 18:37 -03 — UX montos: fix de borrado que forzaba coma decimal
+
+**Lote:** amount-inputs-ar-delete-backspace-fix
+**Objetivo:** Evitar que al borrar dígitos en montos con miles (ej. `1.000`) el input se convierta en decimal (`1,00`) y complique la edición.
+
+**Prompt**
+estoy teniendo otro problema es que cuando tengo una suma de mas de 3 digitos y le doy al boton delete para borrar un digito, entonces aparece una , que complica todo porque ahora es como todo con decimales y tengo que borrar todos para seguir es raro, puedes chequear eso?
+
 ## 2026-02-20 12:35 -03 — Caja: conciliación con input manual por fila y agregado MercadoPago
 
 **Lote:** cashbox-reconciliation-inputs-mercadopago-total

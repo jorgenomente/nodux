@@ -202,7 +202,7 @@ export default function CashboxReconciliationSection({
                               ? ''
                               : Number(row.reported_amount)
                           }
-                          placeholder="0.00"
+                          placeholder="0,00"
                           className="w-36 rounded border border-zinc-200 px-2 py-1 text-sm"
                         />
                       )}
