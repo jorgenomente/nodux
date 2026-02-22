@@ -43,6 +43,7 @@ type SupplierRow = {
   payment_terms_days: number | null;
   preferred_payment_method: 'cash' | 'transfer' | null;
   payment_note: string | null;
+  default_markup_pct: number | null;
   payment_accounts_count?: number | null;
   products_count?: number | null;
 };
@@ -81,6 +82,7 @@ export default async function SuppliersPage({
   }
 
   const { data: suppliers } = await supplierQuery;
+  const supplierRows = (suppliers ?? []) as unknown as SupplierRow[];
   const shouldOpenNewSupplier = !suppliers || suppliers.length === 0;
 
   const createSupplier = async (formData: FormData) => {
@@ -105,12 +107,16 @@ export default async function SuppliersPage({
       formData.get('preferred_payment_method') ?? '',
     ).trim();
     const paymentNote = String(formData.get('payment_note') ?? '').trim();
+    const defaultMarkupPctRaw = String(
+      formData.get('default_markup_pct') ?? '40',
+    ).trim();
     const acceptsCash = preferredPaymentMethod !== 'transfer';
     const acceptsTransfer = preferredPaymentMethod !== 'cash';
     const paymentTermsDays =
       paymentTermsDaysRaw === ''
         ? null
         : Number.parseInt(paymentTermsDaysRaw, 10);
+    const defaultMarkupPct = Number(defaultMarkupPctRaw);
 
     if (!name) return;
     if (
@@ -119,8 +125,19 @@ export default async function SuppliersPage({
     ) {
       return;
     }
+    if (
+      Number.isNaN(defaultMarkupPct) ||
+      defaultMarkupPct < 0 ||
+      defaultMarkupPct > 1000
+    ) {
+      return;
+    }
 
-    await supabaseServer.rpc('rpc_upsert_supplier', {
+    await (
+      supabaseServer as unknown as {
+        rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown>;
+      }
+    ).rpc('rpc_upsert_supplier', {
       p_supplier_id: randomUUID(),
       p_org_id: orgId,
       p_name: name,
@@ -141,6 +158,7 @@ export default async function SuppliersPage({
       p_accepts_cash: acceptsCash,
       p_accepts_transfer: acceptsTransfer,
       p_payment_note: paymentNote || undefined,
+      p_default_markup_pct: defaultMarkupPct,
     });
 
     revalidatePath('/suppliers');
@@ -170,12 +188,16 @@ export default async function SuppliersPage({
       formData.get('preferred_payment_method') ?? '',
     ).trim();
     const paymentNote = String(formData.get('payment_note') ?? '').trim();
+    const defaultMarkupPctRaw = String(
+      formData.get('default_markup_pct') ?? '40',
+    ).trim();
     const acceptsCash = preferredPaymentMethod !== 'transfer';
     const acceptsTransfer = preferredPaymentMethod !== 'cash';
     const paymentTermsDays =
       paymentTermsDaysRaw === ''
         ? null
         : Number.parseInt(paymentTermsDaysRaw, 10);
+    const defaultMarkupPct = Number(defaultMarkupPctRaw);
 
     if (!supplierId || !name) return;
     if (
@@ -184,8 +206,19 @@ export default async function SuppliersPage({
     ) {
       return;
     }
+    if (
+      Number.isNaN(defaultMarkupPct) ||
+      defaultMarkupPct < 0 ||
+      defaultMarkupPct > 1000
+    ) {
+      return;
+    }
 
-    await supabaseServer.rpc('rpc_upsert_supplier', {
+    await (
+      supabaseServer as unknown as {
+        rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown>;
+      }
+    ).rpc('rpc_upsert_supplier', {
       p_supplier_id: supplierId,
       p_org_id: orgId,
       p_name: name,
@@ -206,6 +239,7 @@ export default async function SuppliersPage({
       p_accepts_cash: acceptsCash,
       p_accepts_transfer: acceptsTransfer,
       p_payment_note: paymentNote || undefined,
+      p_default_markup_pct: defaultMarkupPct,
     });
 
     revalidatePath('/suppliers');
@@ -332,6 +366,17 @@ export default async function SuppliersPage({
               />
             </label>
             <label className="text-sm text-zinc-600">
+              % ganancia sugerida
+              <input
+                name="default_markup_pct"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue="40"
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="text-sm text-zinc-600">
               Método de pago preferido
               <select
                 name="preferred_payment_method"
@@ -371,8 +416,8 @@ export default async function SuppliersPage({
             </div>
           </div>
           <div className="mt-4 space-y-4">
-            {suppliers && suppliers.length > 0 ? (
-              (suppliers as SupplierRow[]).map((supplier) => (
+            {supplierRows.length > 0 ? (
+              supplierRows.map((supplier) => (
                 <div
                   key={supplier.supplier_id}
                   className="rounded-lg border border-zinc-200 p-4"
@@ -433,7 +478,9 @@ export default async function SuppliersPage({
                         {supplier.payment_terms_days == null
                           ? 'Sin plazo'
                           : `${supplier.payment_terms_days} días`}
-                        {' · '}Cuentas: {supplier.payment_accounts_count ?? 0}
+                        {' · '}Ganancia sugerida:{' '}
+                        {Number(supplier.default_markup_pct ?? 40)}%{' · '}
+                        Cuentas: {supplier.payment_accounts_count ?? 0}
                       </p>
                       {supplier.payment_note ? (
                         <p className="mt-1 text-xs text-zinc-500">
@@ -470,6 +517,7 @@ export default async function SuppliersPage({
                           supplier.preferred_payment_method
                         }
                         paymentNote={supplier.payment_note}
+                        defaultMarkupPct={supplier.default_markup_pct}
                         orderFrequencyOptions={orderFrequencyOptions}
                         weekdayOptions={weekdayOptions}
                         onSubmit={updateSupplier}

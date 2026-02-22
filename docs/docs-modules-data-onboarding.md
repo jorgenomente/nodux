@@ -79,9 +79,10 @@ Desde la bandeja de pendientes se permite:
 
 Implementacion MVP actual:
 
-- tarea `products_without_primary_supplier` se resuelve inline en `/onboarding`
-  con formulario por fila (producto + proveedor + confirmacion `OK`).
-- las tareas restantes mantienen salida rapida a `/products` o `/suppliers`.
+- tarea de productos incompletos se resuelve inline en `/onboarding` con
+  formulario rapido por fila para completar los campos operativos del producto
+  (incluyendo proveedor primario/secundario y datos base de catalogo).
+- las tareas de proveedores mantienen salida rapida a `/suppliers`.
 
 ### R5) Sin romper contratos actuales
 
@@ -97,7 +98,7 @@ Funciona como capa de aceleracion y control de calidad.
   - `/products`
   - `/suppliers`
   - `/settings/preferences` (si se requiere ajuste global)
-- resolvedor rapido inline en `/onboarding` para proveedor primario de producto
+- resolvedor rapido inline en `/onboarding` para productos con informacion incompleta
 
 ---
 

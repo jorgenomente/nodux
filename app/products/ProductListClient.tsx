@@ -19,16 +19,21 @@ type SupplierOption = {
   id: string;
   name: string;
   is_active: boolean;
+  default_markup_pct: number | null;
 };
 
 type SupplierByProductEntry = {
-  primary?: SupplierOption;
+  primary?: SupplierOption & {
+    supplier_sku?: string | null;
+    supplier_product_name?: string | null;
+  };
   secondary?: SupplierOption;
 };
 
 type ProductRow = {
   product_id: string | null;
   name: string | null;
+  brand?: string | null;
   internal_code: string | null;
   barcode: string | null;
   sell_unit_type: 'unit' | 'weight' | 'bulk' | null;
@@ -43,6 +48,7 @@ type ProductRow = {
 type Props = {
   products: ProductRow[];
   suppliers: SupplierOption[];
+  brandSuggestions: string[];
   supplierByProduct: Record<string, SupplierByProductEntry>;
   safetyStockGlobalByProduct: Record<string, number | null>;
   safetyStockByProduct: Record<string, SafetyStockByBranchItem[] | undefined>;
@@ -94,6 +100,7 @@ const tokenize = (value: string) =>
 export default function ProductListClient({
   products,
   suppliers,
+  brandSuggestions,
   supplierByProduct,
   safetyStockGlobalByProduct,
   safetyStockByProduct,
@@ -111,6 +118,7 @@ export default function ProductListClient({
     return products.filter((product) => {
       const haystack = normalizeText(
         [product.name ?? '', product.internal_code ?? '', product.barcode ?? '']
+          .concat(product.brand ?? '')
           .filter(Boolean)
           .join(' '),
       );
@@ -169,6 +177,9 @@ export default function ProductListClient({
                       SKU: {product.internal_code || 'Sin SKU'} · Barcode:{' '}
                       {product.barcode || 'Sin barcode'}
                     </p>
+                    <p className="text-xs text-zinc-500">
+                      Marca: {product.brand || 'Sin marca'}
+                    </p>
                   </div>
                   <div className="text-xs text-zinc-500">
                     Vencimiento aprox:{' '}
@@ -193,6 +204,7 @@ export default function ProductListClient({
                     <ProductActions
                       productId={String(product.product_id)}
                       name={product.name ?? ''}
+                      brand={product.brand ?? ''}
                       internalCode={product.internal_code ?? null}
                       barcode={product.barcode ?? null}
                       sellUnitType={
@@ -222,7 +234,16 @@ export default function ProductListClient({
                         supplierByProduct[String(product.product_id)]?.secondary
                           ?.id ?? ''
                       }
+                      primarySupplierSku={
+                        supplierByProduct[String(product.product_id)]?.primary
+                          ?.supplier_sku ?? ''
+                      }
+                      primarySupplierProductName={
+                        supplierByProduct[String(product.product_id)]?.primary
+                          ?.supplier_product_name ?? ''
+                      }
                       suppliers={suppliers}
+                      brandSuggestions={brandSuggestions}
                       onSubmit={onUpdate}
                     />
                   ) : null}

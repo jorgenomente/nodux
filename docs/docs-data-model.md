@@ -46,6 +46,7 @@ Estado actual:
 - Historial/detalle de ventas y conciliación por dispositivo en caja en `supabase/migrations/20260220113000_045_sales_history_cashbox_reconciliation.sql` (`v_sales_admin`, `v_sale_detail_admin`, `rpc_get_cash_session_payment_breakdown`, `rpc_correct_sale_payment_method`).
 - Descuento empleado en POS + cuentas de empleado por sucursal en `supabase/migrations/20260221223000_052_employee_discount_accounts.sql` (`employee_accounts`, preferencias de combinación, extensión de `rpc_create_sale`, vistas de ventas y dashboard).
 - Onboarding de datos maestros (jobs/rows de importación + vista de pendientes + RPCs de importación) en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks`, `rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
+- Marca en productos + vista admin actualizada en `supabase/migrations/20260222110000_055_products_brand.sql` (`products.brand`, `v_products_admin.brand`).
 - Conciliación operativa en caja con inputs por fila y agregado MercadoPago total en `supabase/migrations/20260220153000_047_cashbox_reconciliation_inputs.sql` (`cash_session_reconciliation_inputs`, `rpc_get_cash_session_reconciliation_rows`, `rpc_upsert_cash_session_reconciliation_inputs`).
 - Conciliación de caja ajustada para incluir fila de `Efectivo esperado total (caja + reserva)` en `supabase/migrations/20260220170000_048_cashbox_reconciliation_include_cash_expected.sql`.
 - Conciliación de caja ajustada para clasificar `MercadoPago (total)` solo por método `mercadopago` en `supabase/migrations/20260220182000_049_cashbox_reconciliation_mp_by_method_only.sql`.
@@ -305,6 +306,7 @@ Estado actual:
 - `id` (uuid, PK)
 - `org_id` (uuid, FK)
 - `name` (text)
+- `brand` (text, nullable)
 - `internal_code` (text, nullable)
 - `barcode` (text, nullable)
 - `sell_unit_type` (sell_unit_type)
@@ -585,6 +587,7 @@ Estado actual:
 - `accepts_cash` (boolean)
 - `accepts_transfer` (boolean)
 - `payment_note` (text, nullable)
+- `default_markup_pct` (numeric(6,2), default `40`, check `0..1000`)
 - `created_at`, `updated_at`
 
 ---

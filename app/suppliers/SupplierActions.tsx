@@ -15,6 +15,7 @@ type Props = {
   orderDay: string | null;
   receiveDay: string | null;
   paymentTermsDays: number | null;
+  defaultMarkupPct: number | null;
   preferredPaymentMethod: string | null;
   paymentNote: string | null;
   orderFrequencyOptions: ReadonlyArray<{ value: string; label: string }>;
@@ -34,6 +35,7 @@ export default function SupplierActions({
   orderDay,
   receiveDay,
   paymentTermsDays,
+  defaultMarkupPct,
   preferredPaymentMethod,
   paymentNote,
   orderFrequencyOptions,
@@ -78,6 +80,11 @@ export default function SupplierActions({
           type="hidden"
           name="payment_terms_days"
           value={paymentTermsDays ?? ''}
+        />
+        <input
+          type="hidden"
+          name="default_markup_pct"
+          value={defaultMarkupPct ?? 40}
         />
         <input
           type="hidden"
@@ -213,6 +220,17 @@ export default function SupplierActions({
               type="number"
               min={0}
               defaultValue={paymentTermsDays ?? ''}
+              className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+            />
+          </label>
+          <label className="text-xs text-zinc-600">
+            % ganancia sugerida
+            <input
+              name="default_markup_pct"
+              type="number"
+              min={0}
+              step="0.01"
+              defaultValue={defaultMarkupPct ?? 40}
               className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
             />
           </label>

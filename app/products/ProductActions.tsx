@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 
-import AmountInputAR from '@/app/components/AmountInputAR';
+import ProductFormFieldsShared from '@/app/products/ProductFormFieldsShared';
 
 type Notice = { tone: 'success' | 'error'; message: string } | null;
 
 type EditPayload = {
   productId: string;
   name: string;
+  brand: string;
   internalCode: string;
   barcode: string;
   sellUnitType: 'unit' | 'weight' | 'bulk';
@@ -17,6 +18,8 @@ type EditPayload = {
   isActive: boolean;
   primarySupplierId: string;
   secondarySupplierId: string;
+  primarySupplierSku: string;
+  primarySupplierProductName: string;
   shelfLifeDays: string;
   safetyStock: string;
 };
@@ -25,11 +28,13 @@ type SupplierOption = {
   id: string;
   name: string;
   is_active: boolean;
+  default_markup_pct: number | null;
 };
 
 type Props = {
   productId: string;
   name: string;
+  brand: string | null;
   internalCode: string | null;
   barcode: string | null;
   sellUnitType: 'unit' | 'weight' | 'bulk';
@@ -40,13 +45,17 @@ type Props = {
   safetyStockValue: number | null;
   primarySupplierId: string;
   secondarySupplierId: string;
+  primarySupplierSku: string;
+  primarySupplierProductName: string;
   suppliers: SupplierOption[];
+  brandSuggestions: string[];
   onSubmit: (formData: FormData) => void;
 };
 
 export default function ProductActions({
   productId,
   name,
+  brand,
   internalCode,
   barcode,
   sellUnitType,
@@ -57,7 +66,10 @@ export default function ProductActions({
   safetyStockValue,
   primarySupplierId,
   secondarySupplierId,
+  primarySupplierSku,
+  primarySupplierProductName,
   suppliers,
+  brandSuggestions,
   onSubmit,
 }: Props) {
   const [notice, setNotice] = useState<Notice>(null);
@@ -72,29 +84,16 @@ export default function ProductActions({
             id: primarySupplierId,
             name: 'Proveedor actual',
             is_active: true,
+            default_markup_pct: 40,
           },
           ...suppliers,
         ]
       : suppliers;
-  const secondaryOptions = suppliers.some(
-    (supplier) => supplier.id === secondarySupplierId,
-  )
-    ? suppliers
-    : secondarySupplierId
-      ? [
-          {
-            id: secondarySupplierId,
-            name: 'Proveedor actual',
-            is_active: true,
-          },
-          ...suppliers,
-        ]
-      : suppliers;
-
   const buildFormData = (payload: EditPayload) => {
     const formData = new FormData();
     formData.append('product_id', payload.productId);
     formData.append('edit_name', payload.name);
+    formData.append('edit_brand', payload.brand);
     formData.append('edit_internal_code', payload.internalCode);
     formData.append('edit_barcode', payload.barcode);
     formData.append('edit_sell_unit_type', payload.sellUnitType);
@@ -103,6 +102,11 @@ export default function ProductActions({
     formData.append('is_active', String(payload.isActive));
     formData.append('primary_supplier_id', payload.primarySupplierId);
     formData.append('secondary_supplier_id', payload.secondarySupplierId);
+    formData.append('primary_supplier_sku', payload.primarySupplierSku);
+    formData.append(
+      'primary_supplier_product_name',
+      payload.primarySupplierProductName,
+    );
     formData.append('edit_shelf_life_days', payload.shelfLifeDays);
     formData.append('edit_safety_stock', payload.safetyStock);
     return formData;
@@ -124,6 +128,7 @@ export default function ProductActions({
     const formData = buildFormData({
       productId,
       name,
+      brand: brand ?? '',
       internalCode: internalCode ?? '',
       barcode: barcode ?? '',
       sellUnitType,
@@ -132,6 +137,8 @@ export default function ProductActions({
       isActive: !isActive,
       primarySupplierId,
       secondarySupplierId,
+      primarySupplierSku,
+      primarySupplierProductName,
       shelfLifeDays: shelfLifeDays == null ? '' : String(shelfLifeDays),
       safetyStock: safetyStockValue == null ? '' : String(safetyStockValue),
     });
@@ -163,120 +170,42 @@ export default function ProductActions({
         >
           <input type="hidden" name="product_id" value={productId} />
           <input type="hidden" name="is_active" value={String(isActive)} />
-          <label className="flex flex-col gap-1">
-            Nombre
-            <input
-              name="edit_name"
-              defaultValue={name}
-              className="rounded border border-zinc-200 px-2 py-1"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            SKU
-            <input
-              name="edit_internal_code"
-              defaultValue={internalCode ?? ''}
-              className="rounded border border-zinc-200 px-2 py-1"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            Barcode
-            <input
-              name="edit_barcode"
-              defaultValue={barcode ?? ''}
-              className="rounded border border-zinc-200 px-2 py-1"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            Unidad
-            <select
-              name="edit_sell_unit_type"
-              defaultValue={sellUnitType}
-              className="rounded border border-zinc-200 px-2 py-1"
-            >
-              <option value="unit">Unidad</option>
-              <option value="weight">Peso</option>
-              <option value="bulk">Granel</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            Unidad de medida
-            <input
-              name="edit_uom"
-              defaultValue={uom}
-              className="rounded border border-zinc-200 px-2 py-1"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            Precio
-            <AmountInputAR
-              name="edit_unit_price"
-              defaultValue={unitPrice ?? 0}
-              className="rounded border border-zinc-200 px-2 py-1"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            Vencimiento aprox (días)
-            <input
-              name="edit_shelf_life_days"
-              type="number"
-              step="1"
-              min="0"
-              defaultValue={shelfLifeDays ?? ''}
-              className="rounded border border-zinc-200 px-2 py-1"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            Stock minimo (global)
-            <input
-              name="edit_safety_stock"
-              type="number"
-              step="0.001"
-              min="0"
-              defaultValue={safetyStockValue ?? ''}
-              className="rounded border border-zinc-200 px-2 py-1"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            Proveedor primario
-            <select
-              name="primary_supplier_id"
-              defaultValue={primarySupplierId}
-              className="rounded border border-zinc-200 px-2 py-1"
-            >
-              <option value="">Sin proveedor</option>
-              {primaryOptions.map((supplier) => (
-                <option
-                  key={supplier.id}
-                  value={supplier.id}
-                  disabled={!supplier.is_active}
-                >
-                  {supplier.name}
-                  {supplier.is_active ? '' : ' (Inactivo)'}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            Proveedor secundario
-            <select
-              name="secondary_supplier_id"
-              defaultValue={secondarySupplierId}
-              className="rounded border border-zinc-200 px-2 py-1"
-            >
-              <option value="">Sin proveedor</option>
-              {secondaryOptions.map((supplier) => (
-                <option
-                  key={supplier.id}
-                  value={supplier.id}
-                  disabled={!supplier.is_active}
-                >
-                  {supplier.name}
-                  {supplier.is_active ? '' : ' (Inactivo)'}
-                </option>
-              ))}
-            </select>
-          </label>
+          <ProductFormFieldsShared
+            suppliers={primaryOptions}
+            brandSuggestions={brandSuggestions}
+            compact
+            fields={{
+              name: 'edit_name',
+              brand: 'edit_brand',
+              internalCode: 'edit_internal_code',
+              barcode: 'edit_barcode',
+              sellUnitType: 'edit_sell_unit_type',
+              uom: 'edit_uom',
+              primarySupplierId: 'primary_supplier_id',
+              supplierPrice: 'edit_supplier_price',
+              unitPrice: 'edit_unit_price',
+              shelfLifeDays: 'edit_shelf_life_days',
+              primarySupplierProductName: 'primary_supplier_product_name',
+              primarySupplierSku: 'primary_supplier_sku',
+              secondarySupplierId: 'secondary_supplier_id',
+              safetyStock: 'edit_safety_stock',
+            }}
+            defaults={{
+              name,
+              brand: brand ?? '',
+              internalCode: internalCode ?? '',
+              barcode: barcode ?? '',
+              sellUnitType,
+              uom,
+              primarySupplierId,
+              unitPrice,
+              shelfLifeDays: shelfLifeDays ?? '',
+              primarySupplierProductName,
+              primarySupplierSku,
+              secondarySupplierId,
+              safetyStock: safetyStockValue ?? '',
+            }}
+          />
           <div className="flex flex-wrap items-center gap-2 md:col-span-3">
             <button
               type="submit"

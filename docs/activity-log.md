@@ -18,6 +18,112 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-22 10:39 -03 — UI: onboarding agrega input precio proveedor en productos incompletos
+
+**Tipo:** ui
+**Lote:** onboarding-incomplete-products-add-supplier-price-input
+**Alcance:** frontend, tests, docs
+
+**Resumen**
+Se agregó el input `Precio proveedor` en el formulario rápido de productos incompletos dentro de `/onboarding`, antes de `Precio unitario`, con validación básica de número no negativo en la acción server.
+
+**Archivos**
+
+- app/onboarding/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-22)
+- `npm run build` OK (2026-02-22)
+
+**Commit:** N/A
+
+## 2026-02-22 10:36 -03 — UI: onboarding con resolvedor rápido de productos incompletos
+
+**Tipo:** ui
+**Lote:** onboarding-products-incomplete-fast-resolver
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se reemplazó la tarea puntual de proveedor primario por un resolvedor unificado de `productos con informacion incompleta` en `/onboarding`. El panel rápido ahora permite completar por fila los campos operativos del producto equivalentes al flujo de edición de `/products` (datos base, precios, shelf life, proveedores, SKU/nombre proveedor y stock mínimo global).
+
+**Archivos**
+
+- app/onboarding/page.tsx
+- docs/docs-app-screens-onboarding.md
+- docs/docs-modules-data-onboarding.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-22)
+- `npm run build` OK (2026-02-22)
+
+**Commit:** N/A
+
+## 2026-02-22 10:26 -03 — Tests: recarga de datos de prueba local
+
+**Tipo:** tests
+**Lote:** seed-reload-local-demo-data
+**Alcance:** db, tests
+
+**Resumen**
+Se ejecutó recarga de datos de prueba local para continuar iteración funcional sobre módulos operativos y onboarding.
+
+**Archivos**
+
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:seed:all` OK (2026-02-22)
+  - Demo data seeded (suppliers/products/clients/sales/orders)
+  - Cashbox today seed listo con sesión y pedido de control
+
+**Commit:** N/A
+
+## 2026-02-22 10:05 -03 — DB/UI: % ganancia sugerida por proveedor + sugerencia de precio en productos
+
+**Tipo:** ui
+**Lote:** supplier-markup-and-product-price-suggestion
+**Alcance:** db, frontend, docs, tests
+
+**Resumen**
+Se agregó `% ganancia sugerida` en proveedores (`default_markup_pct`, default 40) y se integró en `/products` como base de sugerencia para `precio unitario` a partir de `precio proveedor`. El input de precio proveedor no fuerza el precio unitario final: solo muestra recomendación dinámica por proveedor seleccionado.
+
+**Archivos**
+
+- supabase/migrations/20260222013000_054_supplier_default_markup_pct.sql
+- app/products/NewProductForm.tsx
+- app/products/page.tsx
+- app/suppliers/page.tsx
+- app/suppliers/SupplierActions.tsx
+- app/suppliers/[supplierId]/page.tsx
+- docs/docs-data-model.md
+- docs/docs-app-screens-products.md
+- docs/docs-app-screens-suppliers.md
+- docs/docs-modules-suppliers.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:reset` OK (2026-02-22)
+- Verificación DB:
+  - columna `suppliers.default_markup_pct` OK
+  - select `v_suppliers_admin` con `default_markup_pct` OK
+- `npm run db:rls:smoke` FAIL (baseline preexistente): `staff puede leer products de su org`
+- `npm run lint` OK (2026-02-22)
+- `npm run build` OK (2026-02-22)
+
+**Commit:** N/A
+
 ## 2026-02-21 21:19 -03 — Fix: /onboarding compatible con searchParams async (Next 16)
 
 **Tipo:** fix
@@ -5625,5 +5731,85 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - Verificación DB objetos OK: `employee_accounts`, `v_sales_admin`, `v_sale_detail_admin`, `rpc_create_sale`.
 - Verificación RLS mínima (manual): ALLOW `staff` select en `employee_accounts` (scope org), DENY `staff` insert en `employee_accounts`.
 - npm run db:rls:smoke FAIL (baseline preexistente): `staff puede leer products de su org`.
+
+**Commit:** N/A
+
+## 2026-02-22 10:48 -03 — Onboarding/Productos: formulario compartido y sugerencia por margen
+
+**Tipo:** ui/docs
+**Lote:** onboarding-products-shared-form
+**Descripción:** Se unificaron los campos de producto en un componente compartido reutilizado por alta (`/products`), edición (`/products`) y resolución rápida en onboarding (`/onboarding?resolver=products_incomplete_info`). Se agregó explícitamente `Precio proveedor` en onboarding y se mantuvo la sugerencia de `Precio unitario` usando `default_markup_pct` del proveedor (fallback 40%).
+
+**Archivos afectados:**
+
+- app/products/ProductFormFieldsShared.tsx
+- app/products/NewProductForm.tsx
+- app/products/ProductActions.tsx
+- app/products/ProductListClient.tsx
+- app/products/page.tsx
+- app/onboarding/page.tsx
+- docs/docs-app-screens-products.md
+- docs/docs-app-screens-onboarding.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-22)
+- npm run build OK (2026-02-22)
+
+**Commit:** N/A
+
+## 2026-02-22 11:04 -03 — Productos: campo marca en formulario compartido (nuevo/editar/onboarding)
+
+**Tipo:** schema/ui/docs
+**Lote:** products-brand-shared-field
+**Descripción:** Se agregó `brand` en `products` y se expuso en `v_products_admin`. El bloque compartido de formulario ahora incluye campo `Marca`, reutilizado en alta de producto, edición inline y resolución rápida en onboarding. La persistencia se aplica en los tres entry points manteniendo la lógica existente de sugerencia de precio por margen.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260222110000_055_products_brand.sql
+- app/products/ProductFormFieldsShared.tsx
+- app/products/NewProductForm.tsx
+- app/products/ProductActions.tsx
+- app/products/ProductListClient.tsx
+- app/products/page.tsx
+- app/onboarding/page.tsx
+- docs/docs-app-screens-products.md
+- docs/docs-app-screens-onboarding.md
+- docs/docs-modules-products-stock.md
+- docs/docs-data-model.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-02-22)
+- npm run lint OK (2026-02-22)
+- npm run build OK (2026-02-22)
+
+**Commit:** N/A
+
+## 2026-02-22 11:13 -03 — Productos/Onboarding: autocompletado de marca por historial
+
+**Tipo:** ui/docs
+**Lote:** products-brand-autocomplete-shared
+**Descripción:** El input `Marca` del formulario compartido ahora muestra sugerencias con marcas existentes (catálogo actual), permitiendo autocompletar al escribir. Se aplica automáticamente en alta de producto, edición y resolvedor rápido de onboarding para mantener consistencia entre entry points.
+
+**Archivos afectados:**
+
+- app/products/ProductFormFieldsShared.tsx
+- app/products/NewProductForm.tsx
+- app/products/ProductActions.tsx
+- app/products/ProductListClient.tsx
+- app/products/page.tsx
+- app/onboarding/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-22)
+- npm run build OK (2026-02-22)
 
 **Commit:** N/A

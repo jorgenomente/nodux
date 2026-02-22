@@ -74,18 +74,28 @@ Si crece, Post-MVP o siguiente lote: `/products/[productId]`.
 Campos mínimos:
 
 - name (requerido)
+- brand (opcional)
 - internal_code (opcional, recomendado)
 - barcode (opcional)
 - sell_unit_type: unit | weight | bulk
 - uom (ej: kg)
 - unit_price (>= 0)
+- supplier_price (opcional, base para sugerencia)
 - is_active (default true)
 - vencimiento_aproximado_dias (opcional)
 - proveedor_primario (opcional pero recomendado)
+- precio_proveedor (opcional)
 - nombre_articulo_en_proveedor (opcional, si hay proveedor primario)
 - sku_en_proveedor (opcional, si hay proveedor primario)
 - proveedor_secundario (opcional)
 - stock_minimo (opcional, se aplica a todas las sucursales activas)
+
+Comportamiento de sugerencia de precio:
+
+- `precio_proveedor` no fuerza `unit_price`.
+- UI muestra sugerencia de `unit_price` usando `% ganancia sugerida` del proveedor
+  primario.
+- fallback: si proveedor no tiene `%` definido, se usa `40%`.
 
 ### A2) Editar producto
 
@@ -138,6 +148,7 @@ Salida mínima por fila:
 
 - product_id
 - name
+- brand
 - internal_code
 - barcode
 - sell_unit_type

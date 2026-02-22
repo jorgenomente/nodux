@@ -33,6 +33,7 @@ Campos clave:
 - id
 - org_id
 - name
+- brand (opcional)
 - internal_code (SKU interno)
 - barcode (opcional)
 - sell_unit_type: unit | weight | bulk

@@ -72,6 +72,7 @@ Campos:
 - order_day (weekday)
 - receive_day (weekday)
 - payment_terms_days (opcional)
+- default_markup_pct (opcional, default `40`)
 - preferred_payment_method (`cash` | `transfer`, opcional)
 - payment_note (opcional, label UI: “Datos de pago y notas del proveedor”)
 
@@ -164,6 +165,7 @@ RPC 1: `rpc_upsert_supplier(input)`
 - supplier_id nullable
 - name, contact_name, phone, email, notes, is_active
 - payment_terms_days, preferred_payment_method, payment_note
+- default_markup_pct (numeric, fallback 40)
 
 RPC 2: `rpc_upsert_supplier_product(input)`
 

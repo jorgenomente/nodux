@@ -21,6 +21,7 @@ type SupplierDetailRow = {
   payment_terms_days: number | null;
   preferred_payment_method: 'cash' | 'transfer' | null;
   payment_note: string | null;
+  default_markup_pct: number | null;
   product_id: string | null;
   product_name: string | null;
   product_is_active: boolean | null;
@@ -89,7 +90,7 @@ export default async function SupplierDetailPage({
     redirect('/suppliers');
   }
 
-  const supplier = detailRows[0] as SupplierDetailRow;
+  const supplier = detailRows[0] as unknown as SupplierDetailRow;
   const { data: paymentAccountsData } = await supabase
     .from('supplier_payment_accounts')
     .select(
@@ -100,7 +101,7 @@ export default async function SupplierDetailPage({
     .order('created_at', { ascending: false });
   const paymentAccounts =
     (paymentAccountsData as SupplierPaymentAccountRow[] | null) ?? [];
-  const products = (detailRows as SupplierDetailRow[])
+  const products = (detailRows as unknown as SupplierDetailRow[])
     .filter((row) => row.product_id)
     .map((row) => ({
       product_id: row.product_id as string,
@@ -140,6 +141,9 @@ export default async function SupplierDetailPage({
       formData.get('preferred_payment_method') ?? '',
     ).trim();
     const paymentNote = String(formData.get('payment_note') ?? '').trim();
+    const defaultMarkupPctRaw = String(
+      formData.get('default_markup_pct') ?? '40',
+    ).trim();
     const { acceptsCash, acceptsTransfer } =
       preferredPaymentMethod === 'cash' || preferredPaymentMethod === 'transfer'
         ? deriveAccepts(preferredPaymentMethod)
@@ -148,6 +152,7 @@ export default async function SupplierDetailPage({
       paymentTermsDaysRaw === ''
         ? null
         : Number.parseInt(paymentTermsDaysRaw, 10);
+    const defaultMarkupPct = Number(defaultMarkupPctRaw);
 
     if (
       paymentTermsDays !== null &&
@@ -155,8 +160,19 @@ export default async function SupplierDetailPage({
     ) {
       return;
     }
+    if (
+      Number.isNaN(defaultMarkupPct) ||
+      defaultMarkupPct < 0 ||
+      defaultMarkupPct > 1000
+    ) {
+      return;
+    }
 
-    await supabaseServer.rpc('rpc_upsert_supplier', {
+    await (
+      supabaseServer as unknown as {
+        rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown>;
+      }
+    ).rpc('rpc_upsert_supplier', {
       p_supplier_id: supplierId,
       p_org_id: orgId,
       p_name: name,
@@ -177,6 +193,7 @@ export default async function SupplierDetailPage({
       p_accepts_cash: acceptsCash,
       p_accepts_transfer: acceptsTransfer,
       p_payment_note: paymentNote || undefined,
+      p_default_markup_pct: defaultMarkupPct,
     });
 
     revalidatePath(`/suppliers/${supplierId}`);
@@ -519,6 +536,17 @@ export default async function SupplierDetailPage({
                 type="number"
                 min={0}
                 defaultValue={supplier.payment_terms_days ?? ''}
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="text-sm text-zinc-600">
+              % ganancia sugerida
+              <input
+                name="default_markup_pct"
+                type="number"
+                min={0}
+                step="0.01"
+                defaultValue={supplier.default_markup_pct ?? 40}
                 className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
               />
             </label>

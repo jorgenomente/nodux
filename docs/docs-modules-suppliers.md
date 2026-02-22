@@ -42,6 +42,7 @@ Campos clave (conceptual):
 - order_day (weekday, optional)
 - receive_day (weekday, optional)
 - payment_terms_days (integer, optional)
+- default_markup_pct (numeric, default 40)
 - preferred_payment_method (`cash` | `transfer`, optional)
 - payment_note (text, optional; en UI se muestra como “Datos de pago y notas del proveedor”)
 - created_at
@@ -108,6 +109,7 @@ Constraints:
 
 - Crear/editar datos básicos
 - Definir frecuencia de pedido y días de pedido/recepción
+- Definir `% ganancia sugerida` para pricing de productos (default 40)
 - Definir método de pago preferido (efectivo/transferencia)
 - Activar/desactivar
 

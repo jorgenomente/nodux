@@ -2,28 +2,32 @@ import { randomUUID } from 'crypto';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
-import AmountInputAR from '@/app/components/AmountInputAR';
+import NewProductForm from '@/app/products/NewProductForm';
 import ProductListClient from '@/app/products/ProductListClient';
 import PageShell from '@/app/components/PageShell';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
-
-const sellUnitOptions = ['unit', 'weight', 'bulk'] as const;
 
 type SupplierOption = {
   id: string;
   name: string;
   is_active: boolean;
+  default_markup_pct: number | null;
 };
 
 type SupplierProductRow = {
   product_id: string;
   supplier_id: string;
   relation_type: 'primary' | 'secondary';
+  supplier_sku: string | null;
+  supplier_product_name: string | null;
   suppliers?: { name: string | null } | null;
 };
 
 type SupplierByProduct = {
-  primary?: SupplierOption;
+  primary?: SupplierOption & {
+    supplier_sku?: string | null;
+    supplier_product_name?: string | null;
+  };
   secondary?: SupplierOption;
 };
 
@@ -64,13 +68,15 @@ export default async function ProductsPage() {
       .eq('is_active', true)
       .order('name'),
     supabase
-      .from('suppliers')
-      .select('id, name, is_active')
+      .from('suppliers' as never)
+      .select('id, name, is_active, default_markup_pct')
       .eq('org_id', orgId)
       .order('name'),
     supabase
       .from('supplier_products')
-      .select('product_id, supplier_id, relation_type, suppliers(name)')
+      .select(
+        'product_id, supplier_id, relation_type, supplier_sku, supplier_product_name, suppliers(name)',
+      )
       .eq('org_id', orgId),
     supabase
       .from('stock_items')
@@ -81,9 +87,18 @@ export default async function ProductsPage() {
 
   const products = productsResult.data ?? [];
   const branches = branchesResult.data ?? [];
-  const suppliers = (suppliersResult.data ?? []).filter(
+  const suppliers = ((suppliersResult.data ?? []) as SupplierOption[]).filter(
     (supplier) => supplier.id && supplier.name,
-  ) as SupplierOption[];
+  );
+  const brandSuggestions = Array.from(
+    new Set(
+      products
+        .map((product) =>
+          String((product as { brand?: string | null }).brand ?? '').trim(),
+        )
+        .filter(Boolean),
+    ),
+  ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
 
   const supplierLookup = new Map<string, SupplierOption>(
     suppliers.map((supplier) => [supplier.id, supplier]),
@@ -99,9 +114,14 @@ export default async function ProductsPage() {
         id: row.supplier_id,
         name: lookup?.name ?? row.suppliers?.name ?? 'Proveedor',
         is_active: lookup?.is_active ?? true,
+        default_markup_pct: lookup?.default_markup_pct ?? 40,
       };
       if (row.relation_type === 'primary') {
-        current.primary = supplierOption;
+        current.primary = {
+          ...supplierOption,
+          supplier_sku: row.supplier_sku,
+          supplier_product_name: row.supplier_product_name,
+        };
       } else {
         current.secondary = supplierOption;
       }
@@ -157,6 +177,7 @@ export default async function ProductsPage() {
     if (!actionSession?.orgId) return;
     const supabaseServer = actionSession.supabase;
     const name = String(formData.get('name') ?? '').trim();
+    const brand = String(formData.get('brand') ?? '').trim();
     const internalCode = String(formData.get('internal_code') ?? '').trim();
     const barcode = String(formData.get('barcode') ?? '').trim();
     const sellUnitType = String(formData.get('sell_unit_type') ?? 'unit') as
@@ -165,6 +186,9 @@ export default async function ProductsPage() {
       | 'bulk';
     const uom = String(formData.get('uom') ?? '').trim();
     const unitPriceRaw = String(formData.get('unit_price') ?? '0').trim();
+    const supplierPriceRaw = String(
+      formData.get('supplier_price') ?? '',
+    ).trim();
     const shelfLifeRaw = String(formData.get('shelf_life_days') ?? '').trim();
     const primarySupplierId = String(
       formData.get('primary_supplier_id') ?? '',
@@ -184,6 +208,10 @@ export default async function ProductsPage() {
 
     const unitPrice = Number(unitPriceRaw);
     if (Number.isNaN(unitPrice) || unitPrice < 0) return;
+    if (supplierPriceRaw !== '') {
+      const supplierPrice = Number(supplierPriceRaw);
+      if (Number.isNaN(supplierPrice) || supplierPrice < 0) return;
+    }
     const shelfLifeDays =
       shelfLifeRaw === '' ? null : Number.parseInt(shelfLifeRaw, 10);
     if (
@@ -209,6 +237,11 @@ export default async function ProductsPage() {
       p_is_active: true,
       p_shelf_life_days: shelfLifeDays,
     });
+    await supabaseServer
+      .from('products' as never)
+      .update({ brand: brand || null } as never)
+      .eq('org_id', orgId)
+      .eq('id', productId);
 
     if (primarySupplierId) {
       await supabaseServer.rpc('rpc_upsert_supplier_product', {
@@ -266,6 +299,7 @@ export default async function ProductsPage() {
     const orgId = actionSession.orgId;
     const productId = String(formData.get('product_id') ?? '').trim();
     const name = String(formData.get('edit_name') ?? '').trim();
+    const brand = String(formData.get('edit_brand') ?? '').trim();
     const internalCode = String(
       formData.get('edit_internal_code') ?? '',
     ).trim();
@@ -275,6 +309,9 @@ export default async function ProductsPage() {
     ) as 'unit' | 'weight' | 'bulk';
     const uom = String(formData.get('edit_uom') ?? '').trim();
     const unitPriceRaw = String(formData.get('edit_unit_price') ?? '0').trim();
+    const supplierPriceRaw = String(
+      formData.get('edit_supplier_price') ?? '',
+    ).trim();
     const shelfLifeRaw = String(
       formData.get('edit_shelf_life_days') ?? '',
     ).trim();
@@ -288,11 +325,21 @@ export default async function ProductsPage() {
     const secondarySupplierIdRaw = String(
       formData.get('secondary_supplier_id') ?? '',
     ).trim();
+    const primarySupplierSku = String(
+      formData.get('primary_supplier_sku') ?? '',
+    ).trim();
+    const primarySupplierProductName = String(
+      formData.get('primary_supplier_product_name') ?? '',
+    ).trim();
 
     if (!productId || !name) return;
 
     const unitPrice = Number(unitPriceRaw);
     if (Number.isNaN(unitPrice) || unitPrice < 0) return;
+    if (supplierPriceRaw !== '') {
+      const supplierPrice = Number(supplierPriceRaw);
+      if (Number.isNaN(supplierPrice) || supplierPrice < 0) return;
+    }
     const shelfLifeDays =
       shelfLifeRaw === '' ? null : Number.parseInt(shelfLifeRaw, 10);
     if (
@@ -314,6 +361,11 @@ export default async function ProductsPage() {
       p_is_active: isActive,
       p_shelf_life_days: shelfLifeDays,
     });
+    await supabaseServer
+      .from('products' as never)
+      .update({ brand: brand || null } as never)
+      .eq('org_id', orgId)
+      .eq('id', productId);
 
     if (safetyStockRaw !== '') {
       const safetyStock = Number(safetyStockRaw);
@@ -347,8 +399,8 @@ export default async function ProductsPage() {
         p_org_id: orgId,
         p_supplier_id: primarySupplierId,
         p_product_id: productId,
-        p_supplier_sku: '',
-        p_supplier_product_name: '',
+        p_supplier_sku: primarySupplierSku,
+        p_supplier_product_name: primarySupplierProductName,
         p_relation_type: 'primary',
       });
     } else {
@@ -425,152 +477,11 @@ export default async function ProductsPage() {
                 ▾
               </span>
             </summary>
-            <form
-              action={createProduct}
-              className="mt-6 grid gap-4 md:grid-cols-2"
-            >
-              <label className="text-sm font-medium text-zinc-700">
-                Nombre de articulo en la tienda
-                <input
-                  name="name"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  required
-                />
-              </label>
-              <label className="text-sm font-medium text-zinc-700">
-                Codigo interno
-                <input
-                  name="internal_code"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                />
-              </label>
-              <label className="text-sm font-medium text-zinc-700">
-                Codigo de barras
-                <input
-                  name="barcode"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                />
-              </label>
-              <label className="text-sm font-medium text-zinc-700">
-                Unidad de venta
-                <select
-                  name="sell_unit_type"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  defaultValue="unit"
-                >
-                  {sellUnitOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option === 'unit'
-                        ? 'Unidad'
-                        : option === 'weight'
-                          ? 'Peso'
-                          : 'Granel'}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm font-medium text-zinc-700">
-                Unidad de medida
-                <input
-                  name="uom"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  defaultValue="unit"
-                />
-              </label>
-              <label className="text-sm font-medium text-zinc-700">
-                Precio unitario
-                <AmountInputAR
-                  name="unit_price"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  defaultValue="0"
-                />
-              </label>
-              <label className="text-sm font-medium text-zinc-700">
-                Vencimiento aproximado (días)
-                <input
-                  name="shelf_life_days"
-                  type="number"
-                  step="1"
-                  min="0"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  placeholder="Ej: 30"
-                />
-              </label>
-              <label className="text-sm font-medium text-zinc-700">
-                Proveedor primario
-                <select
-                  name="primary_supplier_id"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                >
-                  <option value="">Sin proveedor</option>
-                  {suppliers.map((supplier) => (
-                    <option
-                      key={supplier.id}
-                      value={supplier.id}
-                      disabled={!supplier.is_active}
-                    >
-                      {supplier.name}
-                      {supplier.is_active ? '' : ' (Inactivo)'}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm font-medium text-zinc-700">
-                Nombre de articulo en proveedor (opcional)
-                <input
-                  name="primary_supplier_product_name"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                />
-              </label>
-              <label className="text-sm font-medium text-zinc-700">
-                SKU en proveedor (opcional)
-                <input
-                  name="primary_supplier_sku"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                />
-              </label>
-              <label className="text-sm font-medium text-zinc-700">
-                Proveedor secundario
-                <select
-                  name="secondary_supplier_id"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                >
-                  <option value="">Sin proveedor</option>
-                  {suppliers.map((supplier) => (
-                    <option
-                      key={supplier.id}
-                      value={supplier.id}
-                      disabled={!supplier.is_active}
-                    >
-                      {supplier.name}
-                      {supplier.is_active ? '' : ' (Inactivo)'}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm font-medium text-zinc-700">
-                Stock minimo
-                <input
-                  name="safety_stock"
-                  type="number"
-                  step="0.001"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  placeholder="0"
-                />
-                <span className="mt-2 block text-xs text-zinc-400">
-                  Cantidad minima sugerida para evitar quiebres. Se aplica a
-                  todas las sucursales y se usa en sugerencias de compra.
-                </span>
-              </label>
-              <div className="md:col-span-2">
-                <button
-                  type="submit"
-                  className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
-                >
-                  Guardar producto
-                </button>
-              </div>
-            </form>
+            <NewProductForm
+              suppliers={suppliers}
+              brandSuggestions={brandSuggestions}
+              onSubmit={createProduct}
+            />
           </details>
         </section>
 
@@ -654,6 +565,7 @@ export default async function ProductsPage() {
         <ProductListClient
           products={products}
           suppliers={suppliers}
+          brandSuggestions={brandSuggestions}
           supplierByProduct={supplierByProductRecord}
           safetyStockGlobalByProduct={safetyStockGlobalRecord}
           safetyStockByProduct={safetyStockByProductRecord}

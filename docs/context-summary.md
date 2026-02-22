@@ -85,6 +85,7 @@ Ultima actualizacion: 2026-02-22 00:35
 - Onboarding de datos maestros inicia base DB con jobs/rows de importación, vista de pendientes (`v_data_onboarding_tasks`) y RPCs de creación, validación y aplicación (`rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
 - `/onboarding` implementado en frontend para OA/SA: upload CSV (productos/proveedores/combinado), validación + aplicación opcional, bandeja de pendientes y tabla de importaciones recientes.
 - `/onboarding/export` agrega exportes maestros CSV para `products`, `suppliers` y `product_supplier`.
+- Proveedores ahora tienen `% ganancia sugerida` por defecto (`40%`) para pricing y `/products` muestra sugerencia de `precio unitario` desde `precio proveedor` + `%` del proveedor primario.
 - Nuevo módulo de historial de ventas en `/sales` y detalle en `/sales/[saleId]` con filtros por monto, método, hora e ítems.
 - Corrección de método de pago en detalle de venta vía RPC auditada (`sale_payment_method_corrected`) y bloqueada para ventas de sesiones de caja ya cerradas.
 - Las denominaciones son configurables por organización desde preferencias.

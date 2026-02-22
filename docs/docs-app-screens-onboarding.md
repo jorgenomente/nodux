@@ -45,9 +45,7 @@ diaria tenga base consistente en productos y proveedores.
 
 Cards de tareas:
 
-- productos sin proveedor primario
-- productos sin shelf_life_days
-- productos sin identificador (barcode/internal_code)
+- productos con informacion incompleta
 - proveedores sin terminos de pago
 - proveedores sin metodo de pago preferido
 
@@ -58,9 +56,10 @@ Cada card tiene CTA:
 
 Comportamiento MVP actual:
 
-- `productos sin proveedor primario`: abre resolvedor rapido inline en la misma
-  pantalla con lista de productos pendientes, selector de proveedor y guardado
-  por fila (`OK`).
+- `productos con informacion incompleta`: abre resolvedor rapido inline en la
+  misma pantalla con formulario por fila para completar campos operativos de
+  producto (nombre, marca, codigos, unidad, precio, shelf life, proveedor
+  primario/secundario, SKU/nombre proveedor y stock minimo global).
 - resto de tareas: mantiene salida rapida a pantalla fuente (`/products` o
   `/suppliers`).
 
@@ -73,8 +72,8 @@ Comportamiento MVP actual:
 
 Accion implementada en MVP:
 
-- asignacion de proveedor primario por producto desde `/onboarding` sin salir de
-  la pantalla (modo rapido por filas).
+- completitud rapida de producto desde `/onboarding` sin salir de la pantalla
+  (modo rapido por filas).
 
 ### Seccion E — Exportes maestros
 

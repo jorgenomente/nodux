@@ -12,6 +12,30 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-22 10:39 -03 — Onboarding: agregar input de precio proveedor en resolver de productos incompletos
+
+**Lote:** onboarding-incomplete-products-add-supplier-price-input
+**Objetivo:** Incluir `precio proveedor` en el formulario rápido de `/onboarding` para productos con información incompleta.
+
+**Prompt**
+falto el input de precio de proveedor en /onboarding en informacion faltante
+
+## 2026-02-22 10:36 -03 — Onboarding: resolver rápido de productos con información incompleta
+
+**Lote:** onboarding-products-incomplete-fast-resolver
+**Objetivo:** Reemplazar tarea de proveedor primario por una tarea unificada de productos incompletos con edición rápida de campos operativos del producto en `/onboarding`.
+
+**Prompt**
+ok todo se ve bien ahora, en /products hay un formulario para agregar nuevo producto, ese formulario en teoria es lo que me indica todos los datos que necesito por producto, estos son los datos que me deben salir para rellenar rapidamente en cada producto desde /onboarding resolver productos rapido. Que en vez de decirme productos sin proveedor primario que me diga productos con informacion incompleta y al darle click alli me sale una lista igual a la que veo ahora pero que me permite agregar mas datos, el resto de los datos que se piden en el formulario que son los mismos que veo cuando le doy a editar, solo que en /onboarding es una manera mas rapida de hacerlo. adaptada para llenar esos datos rapidamente. me explico?
+
+## 2026-02-22 10:05 -03 — Pricing: precio proveedor + % ganancia sugerida por proveedor
+
+**Lote:** supplier-markup-and-product-price-suggestion
+**Objetivo:** Agregar `% ganancia sugerida` configurable en proveedores (default 40) y usarlo en `/products` para sugerir `precio unitario` desde `precio proveedor`.
+
+**Prompt**
+ahora necesito que en el formulario de nuevo producto haya un input antes del input precio unitario que diga precio de proveedor, este precio de proveedor es el que sirve de base para establecer el precio unitaro final. Si bien el precio de proveedor es la base, no forza a fijar el precio unitario sino debajo del input que me muestre un tootltip que me sugiera el precio unitario que es el 40% segun el proveedor seleccionado. Este porcentaje de ganancia debe ser un input adicional que colocamos al agregar un nuevo proveedor en /suppliers, tambien lo puedo editar al darle editar a los proveedores existentes. Si no esta definido se usa 40% por defecto pero si esta definido me debe indicar como sugerencia el % asignado desde proveedor. Mejor dicho todos los proveedores tener esto por defecto en el input y su base de datos y cuando voy a crear un nuevo proveedor ya me venga el 40% marcado pero editable, y si quiero modificarlo entonces me voy al proveedor deseado y lo edito me explico?
+
 ## 2026-02-21 21:19 -03 — Fix /onboarding: searchParams async en Next 16
 
 **Lote:** onboarding-searchparams-promise-fix
@@ -2041,3 +2065,29 @@ ok adelante
 me gustaria agregar una funcion que sea compras empleado. Este es un boton similar al de descuento en efectivo que se puede llamar descuento de empleado y cuando lo selecciono me pide que indique el nombre de empleado, y una vez indicado entonces aplica el descuento. Esto debe ser configurable en configuracion, es decir alli yo debo poder agregar o quitar nombres de empleado, estos deben servir como una cuenta de empleado donde voy registrando sus compras asi puedo ver lo que compraron y cuanto gastaron y con que pagaron y todo eso, esto debe ser distinto a los usuarios porque ahora que lo pienso cualquier staff puede usar la pc logeado con otro dispositivo y no va a ser exacto siempre, es mejor indicar quien eso la compra en esa instancia. que piensas?
 
 el % lo debo definir yo tambien desde configuracion, tambien desde configuracion debo poder decidir si se convina o no con otros descuentos va a dependeer de lo que yo decida pero normalmente no se puede. puede pagar con cualquier metodo de pago, la cuenta de empleado es por sucursal, asi evitamos que se mezclen nombres.
+
+## 2026-02-22 10:48 -03 — Onboarding: resolver productos incompletos con formulario compartido
+
+**Lote:** onboarding-products-shared-form
+**Objetivo:** Unificar los entry points de alta/edición/onboarding de productos para reutilizar los mismos campos y mantener la lógica de sugerencia de precio unitario según margen del proveedor.
+
+**Prompt**
+pero debe mantener la misma logica, la informacion debe ser la misma, debe tener la sugerencia segun margen de ganancia tal como lo habiamos dicho en /products hay alguna manera de que sea exactamente el mismo formulario el de nuevo producto, el de editar producto cuando le doy a editar y el de onboarding? como que sean el mismo componente compartido? o en este momento funcionan diferente como entry points distintos? no se si sea conveniente lo digo es por si modifico algo en algun lugar no tengo que manualmente irlo cambiando en el resto de los entry points
+
+falto el input de precio de proveedor en /onboarding en informacion faltante
+
+## 2026-02-22 11:04 -03 — Productos: agregar campo marca en formulario compartido
+
+**Lote:** products-brand-shared-field
+**Objetivo:** Incorporar campo `marca` en productos y reflejarlo de forma consistente en nuevo producto, editar producto y resolvedor rápido de onboarding usando el mismo bloque reutilizado.
+
+**Prompt**
+ok ahora me doy cuenta de que en el formulario de nuevo producto tambien hace falta un campo de marca donde indico la marca del producto. Vamos a agregarlo y obviamente esto tambien se tiene que agregar en editar producto y en la lista del /onboarding pero como ahora es el mismo bloque reutilizado creo que no hay problema, no?
+
+## 2026-02-22 11:13 -03 — Productos: sugerencias de marca reutilizando catálogo existente
+
+**Lote:** products-brand-autocomplete-shared
+**Objetivo:** Agregar autocompletado de marca en el input `Marca` tomando como sugerencias las marcas ya registradas en productos, manteniendo comportamiento unificado en nuevo/editar/onboarding.
+
+**Prompt**
+excelente ahora me gustaria que el input de marca me de sugeridos de acuerdo a las marcas que ya han sido registradas en algun prodcuto, por ejemplo si en un articulo puse marca Arcor entonces en el siguiente articulo yo al marcar la A me deberia sugerir debajo arcor o cualquier otra marca que empiece por la A. tiene sentido?
