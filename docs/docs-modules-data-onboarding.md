@@ -77,6 +77,12 @@ Desde la bandeja de pendientes se permite:
 - completar barcode/internal_code
 - completar terminos y metodo de pago de proveedor
 
+Implementacion MVP actual:
+
+- tarea `products_without_primary_supplier` se resuelve inline en `/onboarding`
+  con formulario por fila (producto + proveedor + confirmacion `OK`).
+- las tareas restantes mantienen salida rapida a `/products` o `/suppliers`.
+
 ### R5) Sin romper contratos actuales
 
 El modulo no reemplaza `/products` ni `/suppliers`.
@@ -91,6 +97,7 @@ Funciona como capa de aceleracion y control de calidad.
   - `/products`
   - `/suppliers`
   - `/settings/preferences` (si se requiere ajuste global)
+- resolvedor rapido inline en `/onboarding` para proveedor primario de producto
 
 ---
 
@@ -99,6 +106,7 @@ Funciona como capa de aceleracion y control de calidad.
 - View principal: `v_data_onboarding_tasks`
 - RPCs recomendadas:
   - `rpc_create_data_import_job(...)`
+  - `rpc_upsert_data_import_row(...)`
   - `rpc_validate_data_import_job(...)`
   - `rpc_apply_data_import_job(...)`
   - `rpc_upsert_product(...)` (reuso)

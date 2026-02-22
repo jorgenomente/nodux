@@ -18,6 +18,116 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-21 21:19 -03 — Fix: /onboarding compatible con searchParams async (Next 16)
+
+**Tipo:** fix
+**Lote:** onboarding-searchparams-promise-fix
+**Alcance:** frontend, tests, docs
+
+**Resumen**
+Se corrigio el error server en `/onboarding` donde `searchParams` se estaba usando como objeto sync. En Next.js 16 llega como Promise en este contexto, por lo que ahora se resuelve con `await` y se consume como `resolvedSearchParams`.
+
+**Archivos**
+
+- app/onboarding/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-21)
+
+**Commit:** N/A
+
+## 2026-02-21 21:16 -03 — UI: resolvedor rapido inline en /onboarding para proveedor primario
+
+**Tipo:** ui
+**Lote:** onboarding-inline-primary-supplier-resolver
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se reemplazo la salida directa a `/products` para la tarea "Productos sin proveedor primario" por un resolvedor rapido inline en `/onboarding`. El flujo permite seleccionar proveedor, completar SKU/nombre opcional del proveedor y confirmar por fila con `OK`, sin abandonar la pantalla.
+
+**Archivos**
+
+- app/onboarding/page.tsx
+- docs/docs-app-screens-onboarding.md
+- docs/docs-modules-data-onboarding.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-21)
+- `npm run build` OK (2026-02-21)
+
+**Commit:** N/A
+
+## 2026-02-22 00:35 -03 — UI: /onboarding operativo (import CSV + pendientes + exportes)
+
+**Tipo:** ui
+**Lote:** onboarding-ui-mvp-import-export
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se implementó la pantalla `/onboarding` para OA/SA con flujo operativo de importación CSV conectado a DB: creación de job, carga de filas, validación y aplicación opcional de filas válidas. La pantalla muestra pendientes de completitud desde `v_data_onboarding_tasks`, historial de jobs recientes y exportes maestros CSV (`products`, `suppliers`, `product_supplier`).
+
+**Archivos**
+
+- app/onboarding/page.tsx
+- app/onboarding/export/route.ts
+- app/components/TopBar.tsx
+- docs/prompts.md
+- docs/activity-log.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-22)
+- `npm run build` OK (2026-02-22)
+
+**Commit:** N/A
+
+## 2026-02-22 00:20 -03 — DB: base onboarding de datos maestros (import jobs + tasks + RPCs)
+
+**Tipo:** db
+**Lote:** onboarding-db-foundation-053
+**Alcance:** db, rls, docs, tests
+
+**Resumen**
+Se implementó la base DB de `/onboarding` con flujo completo de importación: jobs, filas, validación y aplicación idempotente sobre productos/proveedores/relaciones. También se agregó la vista de pendientes operativos (`v_data_onboarding_tasks`) para medir completitud de datos maestros y se definieron policies RLS para limitar el módulo a OA/SA.
+
+**Archivos**
+
+- supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/docs-modules-data-onboarding.md
+- docs/docs-app-screens-onboarding.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:reset` OK (2026-02-22)
+- Verificación objetos/flujo onboarding (admin):
+  - `rpc_create_data_import_job` OK
+  - `rpc_upsert_data_import_row` OK
+  - `rpc_validate_data_import_job` OK (`total_rows=1`, `valid_rows=1`, `invalid_rows=0`)
+  - `rpc_apply_data_import_job` OK (`applied_rows=1`, `skipped_rows=0`)
+- Verificación view principal:
+  - select de `v_data_onboarding_tasks` OK (retorna tasks para org demo)
+- Verificación RLS mínima:
+  - ALLOW: `org_admin` insert en `data_import_jobs` vía RPC/tabla
+  - DENY: `staff` insert en `data_import_jobs` (`new row violates row-level security policy`)
+- `npm run lint` OK (2026-02-22)
+- `npm run build` OK (2026-02-22)
+
+**Commit:** N/A
+
 ## 2026-02-21 20:10 -03 — Docs: definicion de modulo Onboarding de datos maestros
 
 **Tipo:** docs

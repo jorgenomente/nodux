@@ -26,6 +26,7 @@ Estado actual:
 - `rpc_register_supplier_payment` registra automáticamente egreso en `cash_session_movements` cuando el pago a proveedor es en efectivo y hay sesión abierta de caja (`supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`).
 - Historial/detalle de ventas + conciliación por dispositivo en caja agregados en `supabase/migrations/20260220113000_045_sales_history_cashbox_reconciliation.sql` (`v_sales_admin`, `v_sale_detail_admin`, `rpc_get_cash_session_payment_breakdown`, `rpc_correct_sale_payment_method`).
 - Descuento de empleado + cuentas de empleado por sucursal agregados en `supabase/migrations/20260221223000_052_employee_discount_accounts.sql` (`employee_accounts`, extensión de `org_preferences`, `sales` y `rpc_create_sale`).
+- Onboarding de datos maestros agregado en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks` y RPCs de importación/validación/aplicación).
 - Conciliación operativa de caja con captura de comprobantes por fila y agregado MercadoPago total en `supabase/migrations/20260220153000_047_cashbox_reconciliation_inputs.sql` (`cash_session_reconciliation_inputs`, `rpc_get_cash_session_reconciliation_rows`, `rpc_upsert_cash_session_reconciliation_inputs`).
 - Ajuste de conciliación para incluir fila `Efectivo esperado total (caja + reserva)` en `supabase/migrations/20260220170000_048_cashbox_reconciliation_include_cash_expected.sql`.
 - Ajuste de conciliación para clasificar `MercadoPago (total)` solo por método de pago (no por proveedor de dispositivo) en `supabase/migrations/20260220182000_049_cashbox_reconciliation_mp_by_method_only.sql`.
@@ -55,6 +56,8 @@ Estado actual:
 | `staff_module_access`                | read/insert/update | read/insert/update | no                            | ST usa view efectiva                                      |
 | `org_preferences`                    | read/insert/update | read/insert/update | read (propia org)             | ST solo lectura si se expone                              |
 | `employee_accounts`                  | read/insert/update | read/insert/update | read (sucursal asignada)      | OA/SA gestionan nombres; ST solo selección en POS         |
+| `data_import_jobs`                   | read/insert/update | read/insert/update | no                            | Jobs de importación onboarding solo OA/SA                 |
+| `data_import_rows`                   | read/insert/update | read/insert/update | no                            | Filas por job con errores/validación solo OA/SA           |
 | `audit_log`                          | read               | read               | no                            | Append-only, solo lectura OA/SA                           |
 | `products`                           | read/insert/update | read/insert/update | read (lookup)                 | ST sin escritura                                          |
 | `stock_items`                        | read/insert/update | read/insert/update | read (lookup)                 | ST sin ajustes                                            |
@@ -117,6 +120,10 @@ Estado actual:
 - `rpc_update_supplier_payable` y `rpc_register_supplier_payment` -> solo OA/SA en org activa.
   - `rpc_register_supplier_payment` con método `cash` agrega egreso automático en sesión abierta de caja.
 - `rpc_create_special_order` -> OA o ST con modulo `clients` habilitado.
+- `rpc_create_data_import_job` -> solo OA/SA en org activa; crea job de onboarding.
+- `rpc_upsert_data_import_row` -> solo OA/SA en org activa; registra o corrige filas de job.
+- `rpc_validate_data_import_job` -> solo OA/SA en org activa; valida filas y calcula conteos.
+- `rpc_apply_data_import_job` -> solo OA/SA en org activa; aplica filas válidas con upsert idempotente.
 - `rpc_superadmin_create_org` -> solo SA global.
 - `rpc_superadmin_upsert_branch` -> solo SA global.
 - `rpc_superadmin_set_active_org` -> solo SA global.

@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: '/suppliers', label: 'Proveedores' },
   { href: '/orders', label: 'Pedidos' },
   { href: '/payments', label: 'Pagos' },
+  { href: '/onboarding', label: 'Onboarding' },
   { href: '/orders/calendar', label: 'Calendario' },
   { href: '/clients', label: 'Clientes' },
   { href: '/settings', label: 'Configuracion' },

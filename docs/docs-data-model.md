@@ -45,6 +45,7 @@ Estado actual:
 - Caja integra egreso automático por pago proveedor en efectivo y resumen de cobros no-efectivo por sesión en `supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`.
 - Historial/detalle de ventas y conciliación por dispositivo en caja en `supabase/migrations/20260220113000_045_sales_history_cashbox_reconciliation.sql` (`v_sales_admin`, `v_sale_detail_admin`, `rpc_get_cash_session_payment_breakdown`, `rpc_correct_sale_payment_method`).
 - Descuento empleado en POS + cuentas de empleado por sucursal en `supabase/migrations/20260221223000_052_employee_discount_accounts.sql` (`employee_accounts`, preferencias de combinación, extensión de `rpc_create_sale`, vistas de ventas y dashboard).
+- Onboarding de datos maestros (jobs/rows de importación + vista de pendientes + RPCs de importación) en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks`, `rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
 - Conciliación operativa en caja con inputs por fila y agregado MercadoPago total en `supabase/migrations/20260220153000_047_cashbox_reconciliation_inputs.sql` (`cash_session_reconciliation_inputs`, `rpc_get_cash_session_reconciliation_rows`, `rpc_upsert_cash_session_reconciliation_inputs`).
 - Conciliación de caja ajustada para incluir fila de `Efectivo esperado total (caja + reserva)` en `supabase/migrations/20260220170000_048_cashbox_reconciliation_include_cash_expected.sql`.
 - Conciliación de caja ajustada para clasificar `MercadoPago (total)` solo por método `mercadopago` en `supabase/migrations/20260220182000_049_cashbox_reconciliation_mp_by_method_only.sql`.
@@ -232,6 +233,48 @@ Estado actual:
 **Constraints**:
 
 - unique (`org_id`, `branch_id`, `name`)
+
+---
+
+### data_import_jobs
+
+**Proposito**: cabecera de cada importacion de onboarding de datos maestros.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `created_by` (uuid, FK -> auth.users.id)
+- `template_key` (`products` | `suppliers` | `products_suppliers`)
+- `source_file_name` (text)
+- `source_file_path` (text, nullable)
+- `status` (`uploaded` | `validated` | `applied` | `failed`)
+- `total_rows`, `valid_rows`, `invalid_rows`, `applied_rows` (int)
+- `errors_summary` (jsonb, nullable)
+- `created_at`, `updated_at`
+
+---
+
+### data_import_rows
+
+**Proposito**: filas de importacion por job con payload, validacion y estado de aplicación.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `job_id` (uuid, FK -> data_import_jobs.id)
+- `row_number` (int)
+- `raw_payload` (jsonb)
+- `normalized_payload` (jsonb, nullable)
+- `validation_errors` (jsonb, nullable)
+- `is_valid` (boolean)
+- `applied_at` (timestamptz, nullable)
+- `created_at`, `updated_at`
+
+**Constraints**:
+
+- unique (`job_id`, `row_number`)
 
 ---
 

@@ -12,6 +12,40 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-21 21:19 -03 — Fix /onboarding: searchParams async en Next 16
+
+**Lote:** onboarding-searchparams-promise-fix
+**Objetivo:** Corregir error server de `/onboarding` por uso sync de `searchParams` (ahora Promise) en Next.js 16.
+
+**Prompt**
+no pasa nada la consola dice esto [HMR] connected
+...
+Server Error: Route "/onboarding" used `searchParams.result`. `searchParams` is a Promise and must be unwrapped with `await` or `React.use()` before accessing its properties.
+
+## 2026-02-21 21:16 -03 — Onboarding: resolvedor rapido inline para proveedor primario
+
+**Lote:** onboarding-inline-primary-supplier-resolver
+**Objetivo:** Evitar salida a `/products` desde onboarding para la tarea de productos sin proveedor primario, habilitando resolucion rapida por fila en la misma pantalla.
+
+**Prompt**
+vamos a trabajar sobre /onboarding. la idea que me imagino para hacer esto mas rapido es que por ejemplo en Productos sin proveedor primario al darle resolver ahora no me lleve a http://localhost:3000/products sino que me permita ver los articulos y llenar rapidamente la informacion faltante, puede ser como a modo de tabla o tarjeta pero que sea rapido que yo pueda llenarlo darle ok y seguir rapidamente, se entiende?
+
+## 2026-02-22 00:20 -03 — Onboarding DB-first: jobs de importación, validación, aplicación y pendientes
+
+**Lote:** onboarding-db-foundation-053
+**Objetivo:** Implementar base de datos para `/onboarding` con tablas de importación, vista de pendientes y RPCs de flujo (crear job, cargar filas, validar y aplicar), con RLS OA/SA y verificación mínima allow/deny.
+
+**Prompt**
+ok adelante
+
+## 2026-02-22 00:35 -03 — Onboarding UI: pantalla operativa de importación CSV y exportes maestros
+
+**Lote:** onboarding-ui-mvp-import-export
+**Objetivo:** Implementar `/onboarding` conectada a RPCs nuevas para importar CSV, validar/aplicar, ver pendientes y descargar CSV maestros.
+
+**Prompt**
+ok adelante
+
 ## 2026-02-21 20:10 -03 — Modulo nuevo: onboarding de datos maestros para productos/proveedores
 
 **Lote:** data-onboarding-master-data-docs-foundation

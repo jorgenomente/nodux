@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-02-20 12:35
+Ultima actualizacion: 2026-02-22 00:35
 
 ## Estado general
 
@@ -82,6 +82,9 @@ Ultima actualizacion: 2026-02-20 12:35
 - Apertura de caja en `/cashbox` ahora exige responsable, y cuando el tipo es `turno` usa selector `AM/PM` (sin etiqueta libre).
 - En formulario de apertura se muestra fecha/hora del sistema en vivo junto al botón `Abrir caja`.
 - Se define nueva fase de producto para onboarding de datos maestros (`/onboarding`) con foco en importacion CSV, bandeja de pendientes de completitud y exportes maestros; implementacion aun pendiente.
+- Onboarding de datos maestros inicia base DB con jobs/rows de importación, vista de pendientes (`v_data_onboarding_tasks`) y RPCs de creación, validación y aplicación (`rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
+- `/onboarding` implementado en frontend para OA/SA: upload CSV (productos/proveedores/combinado), validación + aplicación opcional, bandeja de pendientes y tabla de importaciones recientes.
+- `/onboarding/export` agrega exportes maestros CSV para `products`, `suppliers` y `product_supplier`.
 - Nuevo módulo de historial de ventas en `/sales` y detalle en `/sales/[saleId]` con filtros por monto, método, hora e ítems.
 - Corrección de método de pago en detalle de venta vía RPC auditada (`sale_payment_method_corrected`) y bloqueada para ventas de sesiones de caja ya cerradas.
 - Las denominaciones son configurables por organización desde preferencias.

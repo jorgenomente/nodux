@@ -237,7 +237,7 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - acciones rapidas para completar proveedor primario, shelf_life_days y datos de pago
 - exportes maestros CSV para respaldo y portabilidad
 
-**Estado**: PLANIFICADA (docs cerrados, implementacion pendiente)
+**Estado**: EN PROGRESO (base DB + UI implementadas, hardening pendiente)
 
 ---
 
@@ -268,3 +268,5 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-02-20: se agrega módulo de historial/detalle de ventas (`/sales`, `/sales/[saleId]`) con filtros operativos y corrección auditada de método de pago; Caja suma conciliación por método/dispositivo en sesión (`rpc_get_cash_session_payment_breakdown`).
 - 2026-02-20: `/cashbox` agrega conciliación operativa con carga manual de comprobantes por fila y diferencia automática; MercadoPago se agrupa en una fila total (`rpc_get_cash_session_reconciliation_rows`, `rpc_upsert_cash_session_reconciliation_inputs`).
 - 2026-02-21: POS incorpora descuento de empleado con cuenta por sucursal (`employee_accounts`), configurable desde `/settings/preferences` (porcentaje y regla de combinación con descuento efectivo), con trazabilidad en ventas (`employee_name_snapshot`) y validación DB en `rpc_create_sale`.
+- 2026-02-22: Onboarding datos maestros inicia base DB: `data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks` y RPCs `rpc_create_data_import_job`/`rpc_upsert_data_import_row`/`rpc_validate_data_import_job`/`rpc_apply_data_import_job`.
+- 2026-02-22: Onboarding datos maestros implementa UI `/onboarding` con importación CSV operativa, resumen de jobs, pendientes por tarea y exportes maestros (`/onboarding/export`).

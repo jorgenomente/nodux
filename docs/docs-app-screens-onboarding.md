@@ -56,12 +56,25 @@ Cada card tiene CTA:
 - "Resolver ahora"
 - "Ver detalle"
 
+Comportamiento MVP actual:
+
+- `productos sin proveedor primario`: abre resolvedor rapido inline en la misma
+  pantalla con lista de productos pendientes, selector de proveedor y guardado
+  por fila (`OK`).
+- resto de tareas: mantiene salida rapida a pantalla fuente (`/products` o
+  `/suppliers`).
+
 ### Seccion D — Acciones rapidas
 
 - crear proveedor rapido
 - asignar proveedor a producto
 - completar shelf life / barcode / codigo interno
 - completar datos de pago proveedor
+
+Accion implementada en MVP:
+
+- asignacion de proveedor primario por producto desde `/onboarding` sin salir de
+  la pantalla (modo rapido por filas).
 
 ### Seccion E — Exportes maestros
 
@@ -135,13 +148,21 @@ RPC 2: `rpc_validate_data_import_job(input)`
 - `org_id`
 - `job_id`
 
-RPC 3: `rpc_apply_data_import_job(input)`
+RPC 3: `rpc_upsert_data_import_row(input)`
+
+- `org_id`
+- `job_id`
+- `row_number`
+- `raw_payload`
+- `normalized_payload` (opcional)
+
+RPC 4: `rpc_apply_data_import_job(input)`
 
 - `org_id`
 - `job_id`
 - `apply_mode` (`valid_only` recomendado)
 
-RPC 4..N (reuso existentes):
+RPC 5..N (reuso existentes):
 
 - `rpc_upsert_product(...)`
 - `rpc_upsert_supplier(...)`
