@@ -7,7 +7,7 @@ Productos, Proveedores, Pedidos, Pagos y Vencimientos funcionen sin friccion.
 
 El modulo combina:
 
-- importacion inicial de catalogo (CSV)
+- importacion inicial de catalogo (CSV/XLSX)
 - validacion y normalizacion de datos
 - bandeja de pendientes de completitud
 - acciones rapidas para completar informacion faltante
@@ -43,10 +43,11 @@ reprocesos idempotentes.
 
 ## Reglas de negocio
 
-### R1) CSV-first
+### R1) Formatos de importacion MVP
 
-- Primera version soporta importacion de `csv`.
-- XLSX y PDF quedan fuera del primer corte tecnico del modulo.
+- La version actual soporta importacion de `csv` y `xlsx`.
+- PDF queda fuera del alcance MVP.
+- Limite operativo por archivo: hasta 70.000 filas.
 
 ### R2) Idempotencia
 
@@ -54,6 +55,17 @@ reprocesos idempotentes.
 - Claves de matching recomendadas:
   - producto: `barcode` o `internal_code`, fallback por nombre normalizado
   - proveedor: nombre normalizado + org
+- En el preprocesamiento de importación, filas repetidas se consolidan antes de
+  persistir en `data_import_rows`:
+  - `products`: por `barcode` > `internal_code` > nombre normalizado.
+  - `suppliers`: por nombre de proveedor normalizado.
+  - `products_suppliers`: por producto + proveedor + `relation_type`.
+- Si un producto consolidado trae precios distintos en filas duplicadas, se
+  prioriza el `unit_price` de la fila con fecha más reciente (`source_date` o
+  columnas de fecha equivalentes mapeadas/detectadas).
+- Cuando el archivo trae ventas con `cantidad` y `subtotal` (sin precio
+  unitario explícito), onboarding deriva `unit_price = subtotal / cantidad`
+  antes de validar/aplicar.
 
 ### R3) Completitud operativa
 
@@ -83,6 +95,8 @@ Implementacion MVP actual:
   formulario rapido por fila para completar los campos operativos del producto
   (incluyendo proveedor primario/secundario y datos base de catalogo).
 - las tareas de proveedores mantienen salida rapida a `/suppliers`.
+- la importacion incorpora paso de deteccion y mapeo de columnas para alinear
+  nombres del archivo con los campos reales del modelo de datos NODUX.
 
 ### R5) Sin romper contratos actuales
 
@@ -143,7 +157,7 @@ Objetivo:
 
 ## Smoke tests (cuando se implemente)
 
-- importar CSV de productos/proveedores y verificar upsert sin duplicados
+- importar CSV/XLSX de productos/proveedores y verificar upsert sin duplicados
 - validar bandeja de pendientes con conteos correctos
 - completar pendientes con acciones rapidas y verificar descenso de tareas
 - exportar maestros y reimportar en entorno limpio

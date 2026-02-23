@@ -26,11 +26,13 @@ diaria tenga base consistente en productos y proveedores.
 
 ### Seccion A — Importar archivo
 
-- upload CSV
+- upload CSV/XLSX
 - selector de plantilla:
   - productos
   - proveedores
   - productos + proveedores (combinado)
+- accion "Detectar columnas"
+- configurador de mapeo columna-origen -> campo NODUX (opcional por campo)
 - boton "Validar archivo"
 - preview de columnas detectadas + mapeo
 
@@ -39,6 +41,7 @@ diaria tenga base consistente en productos y proveedores.
 - filas validas
 - filas con error
 - lista de errores por fila/columna
+- filas consolidadas por duplicados (preprocesamiento)
 - boton "Aplicar importacion"
 
 ### Seccion C — Pendientes de completitud
@@ -89,10 +92,13 @@ Accion implementada en MVP:
 
 El usuario descarga plantilla estandar antes de importar.
 
-### A2) Subir y validar CSV
+### A2) Subir y validar archivo (CSV/XLSX)
 
 El sistema crea job de importacion y ejecuta validaciones sintacticas +
 semanticas.
+
+Incluye paso previo de deteccion de columnas para permitir mapeo manual por
+plantilla antes de validar/importar.
 
 ### A3) Aplicar importacion
 
@@ -179,7 +185,7 @@ RPC 5..N (reuso existentes):
 
 ## Smoke tests (manual)
 
-- ONB-01: validar CSV con errores y revisar reporte por fila
+- ONB-01: validar CSV/XLSX con errores y revisar reporte por fila
 - ONB-02: aplicar importacion parcial y verificar upserts en productos/proveedores
 - ONB-03: resolver pendiente de proveedor primario desde CTA rapido
 - ONB-04: exportar maestros y abrir archivo con columnas esperadas

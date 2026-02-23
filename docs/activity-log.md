@@ -5813,3 +5813,204 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run build OK (2026-02-22)
 
 **Commit:** N/A
+
+## 2026-02-22 11:31 -03 — Ventas: pantalla de estadísticas por período/sucursal
+
+**Tipo:** schema/ui/docs
+**Lote:** sales-statistics-screen
+**Descripción:** Se agregó botón “Ver estadísticas” en `/sales` y nueva pantalla `/sales/statistics` con filtros por sucursal/período (presets + rango manual), resumen de KPIs y rankings operativos: productos top/bottom por unidades e ingresos, proveedores más relevantes/menor movimiento y tendencias con top días/semanas/meses. Se creó contrato de datos único `v_sales_statistics_items` para centralizar lectura analítica.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260222123000_056_sales_statistics_view.sql
+- app/sales/page.tsx
+- app/sales/statistics/page.tsx
+- docs/docs-app-screens-sales-statistics.md
+- docs/docs-app-screens-sales.md
+- docs/docs-app-sitemap.md
+- docs/docs-app-screens-index.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-02-22)
+- npm run lint OK (2026-02-22)
+- npm run build OK (2026-02-22)
+
+**Commit:** N/A
+
+## 2026-02-22 11:38 -03 — Ventas: comparativo por día de semana + estabilización de TopBar
+
+**Tipo:** ui/docs
+**Lote:** sales-statistics-weekday-hydration-fix
+**Descripción:** Se agregó bloque de análisis “Ventas por día de la semana” en `/sales/statistics` para comparar rendimiento entre lunes..domingo (incluye martes/miércoles/sábado como pediste). Además se simplificó `TopBar` para render determinista en SSR/CSR y reducir riesgo de hydration mismatch en navegación.
+
+**Archivos afectados:**
+
+- app/sales/statistics/page.tsx
+- app/components/TopBar.tsx
+- docs/docs-app-screens-sales-statistics.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-22)
+- npm run build OK (2026-02-22)
+
+**Commit:** N/A
+
+## 2026-02-23 11:29 -03 — Products Lookup: búsqueda móvil rápida con precio + stock
+
+**Tipo:** ui/docs
+**Lote:** products-lookup-mobile-search
+**Descripción:** `/products/lookup` deja de ser placeholder y pasa a flujo operativo para Staff/OA. Se implementó búsqueda mobile-first con debounce, filtro por nombre por tokens (orden independiente), selector de sucursal, visualización de precio y stock por resultado, y límite de 30 filas para evitar render masivo. También se agregó validación de acceso para Staff según módulo `products_lookup` habilitado.
+
+**Archivos afectados:**
+
+- app/products/lookup/page.tsx
+- app/products/lookup/ProductsLookupClient.tsx
+- docs/docs-app-screens-products-lookup.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-23)
+- npm run build OK (2026-02-23)
+
+**Commit:** N/A
+
+## 2026-02-23 11:44 -03 — Onboarding: body limit de Server Actions + soporte XLSX
+
+**Tipo:** ui/docs/infra
+**Lote:** onboarding-import-xlsx-body-limit
+**Descripción:** Se resolvió el error `Body exceeded 1 MB limit` elevando el límite de Server Actions a `10mb` en Next config. Además, `/onboarding` ahora acepta archivos `.csv` y `.xlsx` en el mismo flujo de importación. Para `.xlsx`, se agregó parsing server-side de la primera hoja (ZIP/XML), reutilizando el mismo pipeline de validación/aplicación por RPCs. También se actualizaron textos de UI y documentación del módulo/pantalla.
+
+**Archivos afectados:**
+
+- next.config.ts
+- app/onboarding/page.tsx
+- docs/docs-app-screens-onboarding.md
+- docs/docs-modules-data-onboarding.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-23)
+- npm run build OK (2026-02-23)
+
+**Commit:** N/A
+
+## 2026-02-23 12:21 -03 — Onboarding: detección/mapeo de columnas + límite 20k filas
+
+**Tipo:** ui/docs
+**Lote:** onboarding-column-mapping-and-row-limit
+**Descripción:** Se mejoró el flujo de importación en `/onboarding` para detectar columnas del archivo y permitir mapeo manual campo a campo (archivo -> modelo NODUX) antes de validar/importar. Se agregó acción `Detectar columnas`, autopropuesta de mapeo por aliases y aplicación de `normalized_payload` por fila en RPC. Además, el límite operativo de filas por archivo sube de 5.000 a 20.000 para evitar rechazos tempranos por `too_many_rows` en cargas grandes.
+
+**Archivos afectados:**
+
+- app/onboarding/page.tsx
+- docs/docs-app-screens-onboarding.md
+- docs/docs-modules-data-onboarding.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-23)
+- npm run build OK (2026-02-23)
+
+**Commit:** N/A
+
+## 2026-02-23 12:32 -03 — Onboarding: consolidación de duplicados por claves de negocio
+
+**Tipo:** ui/docs
+**Lote:** onboarding-master-dedup-consolidation
+**Descripción:** Se agregó deduplicación y consolidación de filas antes de persistir `data_import_rows`, para construir maestro limpio desde archivos con transacciones repetidas y formatos heterogéneos. Reglas: `products` por `barcode > internal_code > nombre`, `suppliers` por nombre de proveedor normalizado, y `products_suppliers` por combinación producto+proveedor+relación. La UI de resumen ahora reporta filas consolidadas por duplicado.
+
+**Archivos afectados:**
+
+- app/onboarding/page.tsx
+- docs/docs-modules-data-onboarding.md
+- docs/docs-app-screens-onboarding.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-23)
+- npm run build OK (2026-02-23)
+
+**Commit:** N/A
+
+## 2026-02-23 13:31 -03 — Onboarding: conflicto de precio resuelto por última fecha
+
+**Tipo:** ui/docs
+**Lote:** onboarding-price-latest-by-date
+**Descripción:** Se ajustó la consolidación de duplicados para `products` y `products_suppliers`: cuando existen múltiples filas del mismo artículo con `unit_price` distinto, se conserva el precio de la fila con fecha más reciente. Se agregó campo de mapeo opcional `source_date` y parsing flexible de fechas para aplicar la regla de “última venta”.
+
+**Archivos afectados:**
+
+- app/onboarding/page.tsx
+- docs/docs-modules-data-onboarding.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-23)
+- npm run build OK (2026-02-23)
+
+**Commit:** N/A
+
+## 2026-02-23 13:34 -03 — Onboarding: límite de importación ampliado a 70.000 filas
+
+**Tipo:** ui/docs
+**Lote:** onboarding-row-limit-70k
+**Descripción:** Se actualizó el límite máximo de filas por archivo en onboarding de 20.000 a 70.000 para permitir cargas más extensas sin bloquear por `too_many_rows`. Se alinearon mensajes de UI y documentación viva del módulo/contexto.
+
+**Archivos afectados:**
+
+- app/onboarding/page.tsx
+- docs/docs-modules-data-onboarding.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-23)
+- npm run build OK (2026-02-23)
+
+**Commit:** N/A
+
+## 2026-02-23 13:58 -03 — Onboarding: precio unitario derivado desde cantidad/subtotal
+
+**Tipo:** ui/docs
+**Lote:** onboarding-unit-price-from-subtotal-qty
+**Descripción:** Se agregó lógica de preprocesamiento para imports `products` y `products_suppliers`: si no existe `unit_price` explícito y el archivo trae `cantidad` + `subtotal`, se calcula `unit_price = subtotal / cantidad` antes de validar/aplicar. Se incorporaron campos de mapeo `source_quantity` y `source_subtotal` con aliases comunes para archivos de ventas.
+
+**Archivos afectados:**
+
+- app/onboarding/page.tsx
+- docs/docs-modules-data-onboarding.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-23)
+- npm run build OK (2026-02-23)
+
+**Commit:** N/A

@@ -1,11 +1,10 @@
 import Link from 'next/link';
 
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/pos', label: 'POS' },
   { href: '/sales', label: 'Ventas' },
+  { href: '/sales/statistics', label: 'Estadisticas' },
   { href: '/cashbox', label: 'Caja' },
   { href: '/products', label: 'Productos' },
   { href: '/products/lookup', label: 'Lookup' },
@@ -18,39 +17,15 @@ const NAV_LINKS = [
   { href: '/clients', label: 'Clientes' },
   { href: '/settings', label: 'Configuracion' },
   { href: '/settings/audit-log', label: 'Auditoria' },
+  { href: '/superadmin', label: 'Superadmin' },
 ];
 
-const canViewSuperadmin = async () => {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return false;
-
-  const { data: isPlatformAdmin } = await supabase.rpc('is_platform_admin');
-  if (isPlatformAdmin) return true;
-
-  const { data: membership } = await supabase
-    .from('org_users')
-    .select('role')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  return membership?.role === 'superadmin';
-};
-
-export default async function TopBar() {
-  const showSuperadmin = await canViewSuperadmin();
-  const links = showSuperadmin
-    ? [...NAV_LINKS, { href: '/superadmin', label: 'Superadmin' }]
-    : NAV_LINKS;
-
+export default function TopBar() {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-6 py-3">
       <div className="text-sm font-semibold text-zinc-900">NODUX</div>
       <nav className="flex flex-wrap items-center gap-2 text-xs text-zinc-600">
-        {links.map((link) => (
+        {NAV_LINKS.map((link) => (
           <Link
             key={link.href}
             href={link.href}

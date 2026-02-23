@@ -271,12 +271,20 @@ export default async function SalesPage({
               Historial de ventas para auditoría operativa y control de caja.
             </p>
           </div>
-          <Link
-            href="/cashbox"
-            className="rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
-          >
-            Ir a caja
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/sales/statistics"
+              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+            >
+              Ver estadísticas
+            </Link>
+            <Link
+              href="/cashbox"
+              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+            >
+              Ir a caja
+            </Link>
+          </div>
         </header>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-4">

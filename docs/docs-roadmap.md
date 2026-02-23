@@ -271,3 +271,4 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-02-22: Onboarding datos maestros inicia base DB: `data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks` y RPCs `rpc_create_data_import_job`/`rpc_upsert_data_import_row`/`rpc_validate_data_import_job`/`rpc_apply_data_import_job`.
 - 2026-02-22: Onboarding datos maestros implementa UI `/onboarding` con importación CSV operativa, resumen de jobs, pendientes por tarea y exportes maestros (`/onboarding/export`).
 - 2026-02-22: Proveedores agregan `% ganancia sugerida` (`default_markup_pct`, default 40) y `/products` incorpora `precio proveedor` con sugerencia dinámica de `precio unitario` por proveedor seleccionado.
+- 2026-02-22: Ventas incorpora entry point `/sales/statistics` con filtros por período/sucursal y ranking de productos/proveedores + tendencias por día/semana/mes basado en `v_sales_statistics_items`.

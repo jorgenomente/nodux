@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { inflateRawSync } from 'node:zlib';
 
 import PageShell from '@/app/components/PageShell';
 import ProductFormFieldsShared from '@/app/products/ProductFormFieldsShared';
@@ -16,6 +17,10 @@ type SearchParams = {
   applied_rows?: string;
   skipped_rows?: string;
   resolver?: string;
+  mapping_template?: string;
+  detected_cols?: string;
+  proposed_map?: string;
+  deduped_rows?: string;
 };
 
 type SupplierTaskKey =
@@ -85,6 +90,8 @@ type ProductRelationByType = {
   };
 };
 
+type TemplateKey = 'products' | 'suppliers' | 'products_suppliers';
+
 const TASK_META: Array<{
   key: TaskCardKey;
   label: string;
@@ -107,6 +114,178 @@ const TASK_META: Array<{
   },
 ];
 
+const IMPORT_MAX_ROWS = 70000;
+
+const TEMPLATE_FIELDS: Record<
+  TemplateKey,
+  Array<{ target: string; label: string; required?: boolean }>
+> = {
+  products: [
+    { target: 'product_name', label: 'Nombre producto', required: true },
+    { target: 'internal_code', label: 'Codigo interno' },
+    { target: 'barcode', label: 'Codigo de barras' },
+    { target: 'sell_unit_type', label: 'Tipo de venta (unit/weight/bulk)' },
+    { target: 'uom', label: 'Unidad base (uom)' },
+    { target: 'unit_price', label: 'Precio de venta' },
+    { target: 'source_quantity', label: 'Cantidad (para calcular unitario)' },
+    {
+      target: 'source_subtotal',
+      label: 'Subtotal/total linea (para calcular unitario)',
+    },
+    { target: 'source_date', label: 'Fecha de referencia (venta/precio)' },
+    { target: 'shelf_life_days', label: 'Vencimiento aproximado (dias)' },
+    { target: 'is_active', label: 'Activo (true/false)' },
+  ],
+  suppliers: [
+    { target: 'supplier_name', label: 'Nombre proveedor', required: true },
+    { target: 'contact_name', label: 'Contacto' },
+    { target: 'phone', label: 'Telefono' },
+    { target: 'email', label: 'Email' },
+    { target: 'notes', label: 'Notas' },
+    { target: 'payment_terms_days', label: 'Plazo de pago (dias)' },
+    {
+      target: 'preferred_payment_method',
+      label: 'Metodo pago preferido (cash/transfer)',
+    },
+    { target: 'accepts_cash', label: 'Acepta efectivo (true/false)' },
+    {
+      target: 'accepts_transfer',
+      label: 'Acepta transferencia (true/false)',
+    },
+    {
+      target: 'order_frequency',
+      label: 'Frecuencia pedido (weekly/biweekly/every_3_weeks/monthly)',
+    },
+    { target: 'order_day', label: 'Dia pedido (mon..sun)' },
+    { target: 'receive_day', label: 'Dia recepcion (mon..sun)' },
+    { target: 'payment_note', label: 'Nota de pago' },
+  ],
+  products_suppliers: [
+    { target: 'product_name', label: 'Nombre producto', required: true },
+    { target: 'internal_code', label: 'Codigo interno' },
+    { target: 'barcode', label: 'Codigo de barras' },
+    { target: 'sell_unit_type', label: 'Tipo de venta (unit/weight/bulk)' },
+    { target: 'uom', label: 'Unidad base (uom)' },
+    { target: 'unit_price', label: 'Precio de venta' },
+    { target: 'source_quantity', label: 'Cantidad (para calcular unitario)' },
+    {
+      target: 'source_subtotal',
+      label: 'Subtotal/total linea (para calcular unitario)',
+    },
+    { target: 'source_date', label: 'Fecha de referencia (venta/precio)' },
+    { target: 'shelf_life_days', label: 'Vencimiento aproximado (dias)' },
+    { target: 'is_active', label: 'Activo (true/false)' },
+    { target: 'supplier_name', label: 'Nombre proveedor', required: true },
+    { target: 'contact_name', label: 'Contacto proveedor' },
+    { target: 'phone', label: 'Telefono proveedor' },
+    { target: 'email', label: 'Email proveedor' },
+    { target: 'notes', label: 'Notas proveedor' },
+    { target: 'payment_terms_days', label: 'Plazo pago proveedor (dias)' },
+    {
+      target: 'preferred_payment_method',
+      label: 'Metodo pago proveedor (cash/transfer)',
+    },
+    { target: 'accepts_cash', label: 'Proveedor acepta efectivo' },
+    {
+      target: 'accepts_transfer',
+      label: 'Proveedor acepta transferencia',
+    },
+    { target: 'order_frequency', label: 'Frecuencia pedido proveedor' },
+    { target: 'order_day', label: 'Dia pedido proveedor (mon..sun)' },
+    { target: 'receive_day', label: 'Dia recepcion proveedor (mon..sun)' },
+    { target: 'payment_note', label: 'Nota pago proveedor' },
+    { target: 'relation_type', label: 'Relacion (primary/secondary)' },
+    { target: 'supplier_sku', label: 'SKU proveedor' },
+    { target: 'supplier_product_name', label: 'Nombre producto proveedor' },
+  ],
+};
+
+const COLUMN_ALIASES: Record<string, string[]> = {
+  product_name: [
+    'product_name',
+    'name',
+    'nombre',
+    'nombre_articulo',
+    'articulo',
+  ],
+  internal_code: ['internal_code', 'codigo_interno', 'sku_interno', 'codigo'],
+  barcode: ['barcode', 'ean', 'codigo_barras', 'codigo_de_barras'],
+  sell_unit_type: ['sell_unit_type', 'tipo_venta', 'tipo_unidad'],
+  uom: ['uom', 'unidad', 'unidad_base'],
+  unit_price: ['unit_price', 'price', 'precio', 'precio_venta'],
+  source_quantity: [
+    'source_quantity',
+    'quantity',
+    'qty',
+    'cantidad',
+    'unidades',
+  ],
+  source_subtotal: [
+    'source_subtotal',
+    'subtotal',
+    'line_total',
+    'total_linea',
+    'importe',
+    'amount',
+    'total',
+    'precio_total',
+  ],
+  source_date: [
+    'source_date',
+    'date',
+    'fecha',
+    'fecha_venta',
+    'sale_date',
+    'transaction_date',
+    'last_sale_date',
+    'last_update',
+    'updated_at',
+  ],
+  shelf_life_days: [
+    'shelf_life_days',
+    'vencimiento_aproximado_dias',
+    'dias_vencimiento',
+  ],
+  is_active: ['is_active', 'activo'],
+  supplier_name: ['supplier_name', 'supplier', 'proveedor', 'nombre_proveedor'],
+  contact_name: ['contact_name', 'contacto'],
+  phone: ['phone', 'telefono'],
+  email: ['email', 'correo'],
+  notes: ['notes', 'nota', 'observaciones'],
+  payment_terms_days: ['payment_terms_days', 'dias_pago', 'plazo_pago_dias'],
+  preferred_payment_method: [
+    'preferred_payment_method',
+    'metodo_pago_preferido',
+  ],
+  accepts_cash: ['accepts_cash', 'acepta_efectivo'],
+  accepts_transfer: ['accepts_transfer', 'acepta_transferencia'],
+  order_frequency: ['order_frequency', 'frecuencia_pedido'],
+  order_day: ['order_day', 'dia_pedido'],
+  receive_day: ['receive_day', 'dia_recepcion'],
+  payment_note: ['payment_note', 'nota_pago'],
+  relation_type: ['relation_type', 'tipo_relacion'],
+  supplier_sku: ['supplier_sku', 'sku_proveedor'],
+  supplier_product_name: ['supplier_product_name', 'nombre_producto_proveedor'],
+};
+
+const parseTemplateKey = (value: string): TemplateKey | null =>
+  ['products', 'suppliers', 'products_suppliers'].includes(value)
+    ? (value as TemplateKey)
+    : null;
+
+const encodeJsonBase64 = (value: unknown) =>
+  Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
+
+const decodeJsonBase64 = <T,>(value: string | undefined): T | null => {
+  if (!value) return null;
+  try {
+    const raw = Buffer.from(value, 'base64url').toString('utf8');
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+};
+
 const normalizeHeader = (header: string) =>
   header
     .normalize('NFD')
@@ -115,6 +294,15 @@ const normalizeHeader = (header: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
+
+const normalizeForKey = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/[^\w\s.-]/g, '');
 
 const parseCsvRows = (raw: string): string[][] => {
   const rows: string[][] = [];
@@ -167,8 +355,7 @@ const parseCsvRows = (raw: string): string[][] => {
   return rows;
 };
 
-const csvToObjects = (raw: string): Array<Record<string, string>> => {
-  const rows = parseCsvRows(raw);
+const rowsToObjects = (rows: string[][]): Array<Record<string, string>> => {
   if (rows.length < 2) return [];
 
   const rawHeaders = rows[0] ?? [];
@@ -201,6 +388,504 @@ const csvToObjects = (raw: string): Array<Record<string, string>> => {
   }
 
   return objects;
+};
+
+const csvToObjects = (raw: string): Array<Record<string, string>> =>
+  rowsToObjects(parseCsvRows(raw));
+
+const decodeXmlEntities = (value: string) =>
+  value
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, code) =>
+      String.fromCharCode(Number.parseInt(code, 16)),
+    )
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&');
+
+const extractXmlTagText = (input: string, tag: string) => {
+  const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'g');
+  const chunks: string[] = [];
+  let match = regex.exec(input);
+  while (match) {
+    chunks.push(decodeXmlEntities(match[1] ?? ''));
+    match = regex.exec(input);
+  }
+  return chunks.join('');
+};
+
+const columnRefToIndex = (cellRef: string) => {
+  const letters = (cellRef.match(/[A-Z]+/)?.[0] ?? '').toUpperCase();
+  if (!letters) return -1;
+  let index = 0;
+  for (let i = 0; i < letters.length; i += 1) {
+    index = index * 26 + (letters.charCodeAt(i) - 64);
+  }
+  return index - 1;
+};
+
+const readZipEntries = (archive: Buffer) => {
+  const eocdSignature = 0x06054b50;
+  const centralSignature = 0x02014b50;
+  const localSignature = 0x04034b50;
+  let eocdOffset = -1;
+
+  for (let i = archive.length - 22; i >= 0; i -= 1) {
+    if (archive.readUInt32LE(i) === eocdSignature) {
+      eocdOffset = i;
+      break;
+    }
+  }
+
+  if (eocdOffset < 0) {
+    throw new Error('zip_eocd_not_found');
+  }
+
+  const centralDirectorySize = archive.readUInt32LE(eocdOffset + 12);
+  const centralDirectoryOffset = archive.readUInt32LE(eocdOffset + 16);
+  const entries = new Map<string, Buffer>();
+  let cursor = centralDirectoryOffset;
+  const end = centralDirectoryOffset + centralDirectorySize;
+
+  while (cursor < end) {
+    if (archive.readUInt32LE(cursor) !== centralSignature) {
+      throw new Error('zip_central_header_invalid');
+    }
+
+    const compressionMethod = archive.readUInt16LE(cursor + 10);
+    const compressedSize = archive.readUInt32LE(cursor + 20);
+    const fileNameLength = archive.readUInt16LE(cursor + 28);
+    const extraLength = archive.readUInt16LE(cursor + 30);
+    const commentLength = archive.readUInt16LE(cursor + 32);
+    const localHeaderOffset = archive.readUInt32LE(cursor + 42);
+    const fileNameStart = cursor + 46;
+    const fileNameEnd = fileNameStart + fileNameLength;
+    const fileName = archive
+      .toString('utf8', fileNameStart, fileNameEnd)
+      .replace(/\\/g, '/');
+
+    if (archive.readUInt32LE(localHeaderOffset) !== localSignature) {
+      throw new Error('zip_local_header_invalid');
+    }
+
+    const localFileNameLength = archive.readUInt16LE(localHeaderOffset + 26);
+    const localExtraLength = archive.readUInt16LE(localHeaderOffset + 28);
+    const dataStart =
+      localHeaderOffset + 30 + localFileNameLength + localExtraLength;
+    const dataEnd = dataStart + compressedSize;
+    const compressedData = archive.subarray(dataStart, dataEnd);
+
+    let content: Buffer;
+    if (compressionMethod === 0) {
+      content = Buffer.from(compressedData);
+    } else if (compressionMethod === 8) {
+      content = inflateRawSync(compressedData);
+    } else {
+      throw new Error('zip_compression_unsupported');
+    }
+
+    entries.set(fileName, content);
+    cursor += 46 + fileNameLength + extraLength + commentLength;
+  }
+
+  return entries;
+};
+
+const parseSharedStringsXml = (xml: string) => {
+  const values: string[] = [];
+  const siRegex = /<si\b[^>]*>([\s\S]*?)<\/si>/g;
+  let match = siRegex.exec(xml);
+  while (match) {
+    values.push(extractXmlTagText(match[1] ?? '', 't'));
+    match = siRegex.exec(xml);
+  }
+  return values;
+};
+
+const parseSheetRowsXml = (xml: string, sharedStrings: string[]) => {
+  const rows: string[][] = [];
+  const rowRegex = /<row\b[^>]*>([\s\S]*?)<\/row>/g;
+  let rowMatch = rowRegex.exec(xml);
+
+  while (rowMatch) {
+    const rowContent = rowMatch[1] ?? '';
+    const currentRow: string[] = [];
+    const cellRegex = /<c\b([^>]*)>([\s\S]*?)<\/c>/g;
+    let cellMatch = cellRegex.exec(rowContent);
+    let sequentialColumn = 0;
+
+    while (cellMatch) {
+      const attrs = cellMatch[1] ?? '';
+      const cellBody = cellMatch[2] ?? '';
+      const reference = attrs.match(/\br="([^"]+)"/)?.[1] ?? '';
+      const columnIndexFromRef = reference ? columnRefToIndex(reference) : -1;
+      const columnIndex =
+        columnIndexFromRef >= 0 ? columnIndexFromRef : sequentialColumn;
+      const type = attrs.match(/\bt="([^"]+)"/)?.[1] ?? '';
+
+      let value = '';
+      if (type === 's') {
+        const idx = Number.parseInt(extractXmlTagText(cellBody, 'v'), 10);
+        if (!Number.isNaN(idx)) {
+          value = sharedStrings[idx] ?? '';
+        }
+      } else if (type === 'inlineStr') {
+        value = extractXmlTagText(cellBody, 't');
+      } else {
+        value = extractXmlTagText(cellBody, 'v');
+      }
+
+      while (currentRow.length < columnIndex) {
+        currentRow.push('');
+      }
+      currentRow[columnIndex] = value.trim();
+      sequentialColumn = columnIndex + 1;
+      cellMatch = cellRegex.exec(rowContent);
+    }
+
+    if (currentRow.some((cell) => cell !== '')) {
+      rows.push(currentRow);
+    }
+    rowMatch = rowRegex.exec(xml);
+  }
+
+  return rows;
+};
+
+const xlsxToObjects = (input: ArrayBuffer): Array<Record<string, string>> => {
+  const entries = readZipEntries(Buffer.from(input));
+  const workbookXml = entries.get('xl/workbook.xml')?.toString('utf8');
+  const workbookRelsXml = entries
+    .get('xl/_rels/workbook.xml.rels')
+    ?.toString('utf8');
+
+  if (!workbookXml || !workbookRelsXml) {
+    throw new Error('xlsx_workbook_missing');
+  }
+
+  const firstSheetRelId = workbookXml.match(/<sheet\b[^>]*r:id="([^"]+)"/)?.[1];
+  if (!firstSheetRelId) {
+    throw new Error('xlsx_sheet_missing');
+  }
+
+  const relPattern = new RegExp(
+    `<Relationship[^>]*Id="${firstSheetRelId}"[^>]*Target="([^"]+)"`,
+  );
+  const target = workbookRelsXml.match(relPattern)?.[1];
+  if (!target) {
+    throw new Error('xlsx_sheet_target_missing');
+  }
+
+  const normalizedTarget = target.replace(/\\/g, '/').replace(/^\/+/, '');
+  const sheetPath = normalizedTarget.startsWith('xl/')
+    ? normalizedTarget
+    : `xl/${normalizedTarget.replace(/^\.\/+/, '')}`;
+  const sheetXml = entries.get(sheetPath)?.toString('utf8');
+  if (!sheetXml) {
+    throw new Error('xlsx_sheet_xml_missing');
+  }
+
+  const sharedStringsXml = entries
+    .get('xl/sharedStrings.xml')
+    ?.toString('utf8');
+  const sharedStrings = sharedStringsXml
+    ? parseSharedStringsXml(sharedStringsXml)
+    : [];
+  const rows = parseSheetRowsXml(sheetXml, sharedStrings);
+
+  return rowsToObjects(rows);
+};
+
+const readImportRecords = async (importFile: File) => {
+  const lowerName = importFile.name.toLowerCase();
+  const isCsv = lowerName.endsWith('.csv');
+  const isXlsx = lowerName.endsWith('.xlsx');
+  if (!isCsv && !isXlsx) {
+    throw new Error('file_format');
+  }
+
+  if (isCsv) {
+    const content = await importFile.text();
+    return csvToObjects(content);
+  }
+
+  return xlsxToObjects(await importFile.arrayBuffer());
+};
+
+const buildAutoMapping = (
+  detectedColumns: string[],
+  templateKey: TemplateKey,
+) => {
+  const available = new Set(
+    detectedColumns.map((column) => column.toLowerCase()),
+  );
+  const detectedByLower = new Map(
+    detectedColumns.map((column) => [column.toLowerCase(), column]),
+  );
+  const result: Record<string, string> = {};
+
+  for (const field of TEMPLATE_FIELDS[templateKey]) {
+    const candidates = [
+      field.target,
+      ...(COLUMN_ALIASES[field.target] ?? []),
+    ].map((candidate) => candidate.toLowerCase());
+
+    const match = candidates.find((candidate) => available.has(candidate));
+    if (!match) continue;
+
+    const source = detectedByLower.get(match);
+    if (source) {
+      result[field.target] = source;
+    }
+  }
+
+  return result;
+};
+
+const extractFormMapping = (formData: FormData, templateKey: TemplateKey) => {
+  const mapping: Record<string, string> = {};
+  for (const field of TEMPLATE_FIELDS[templateKey]) {
+    const selected = String(formData.get(`map__${field.target}`) ?? '').trim();
+    if (selected) {
+      mapping[field.target] = selected;
+    }
+  }
+  return mapping;
+};
+
+const applyMappingToRow = (
+  row: Record<string, string>,
+  mapping: Record<string, string>,
+) => {
+  const normalized: Record<string, string> = {};
+  Object.entries(mapping).forEach(([target, source]) => {
+    const value = row[source];
+    if (typeof value === 'string') {
+      normalized[target] = value.trim();
+    }
+  });
+  return normalized;
+};
+
+const pickPreferred = (current: string, incoming: string) => {
+  const currentTrimmed = current.trim();
+  const incomingTrimmed = incoming.trim();
+  if (incomingTrimmed === '') return currentTrimmed;
+  if (currentTrimmed === '') return incomingTrimmed;
+  return incomingTrimmed;
+};
+
+const parseNumericValue = (value: string | undefined) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.replace(',', '.');
+  const parsed = Number(normalized);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const parseDateValue = (value: string | undefined) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const isoLike = /^\d{4}-\d{2}-\d{2}(?:[ T].*)?$/;
+  if (isoLike.test(trimmed)) {
+    const isoTimestamp = Date.parse(trimmed.replace(' ', 'T'));
+    if (!Number.isNaN(isoTimestamp)) return isoTimestamp;
+  }
+
+  const dmySlash = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+  const dmyDash = /^(\d{2})-(\d{2})-(\d{4})$/;
+  const slashMatch = trimmed.match(dmySlash);
+  if (slashMatch) {
+    const [, dd, mm, yyyy] = slashMatch;
+    const parsed = Date.parse(`${yyyy}-${mm}-${dd}T00:00:00`);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  const dashMatch = trimmed.match(dmyDash);
+  if (dashMatch) {
+    const [, dd, mm, yyyy] = dashMatch;
+    const parsed = Date.parse(`${yyyy}-${mm}-${dd}T00:00:00`);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+
+  const fallback = Date.parse(trimmed);
+  if (!Number.isNaN(fallback)) return fallback;
+  return null;
+};
+
+const getRowTimestamp = (row: Record<string, string>) => {
+  const candidates = [
+    row.source_date,
+    row.sale_date,
+    row.fecha_venta,
+    row.transaction_date,
+    row.last_sale_date,
+    row.updated_at,
+    row.last_update,
+    row.fecha,
+    row.date,
+  ];
+  for (const candidate of candidates) {
+    const parsed = parseDateValue(candidate);
+    if (parsed != null) return parsed;
+  }
+  return null;
+};
+
+const normalizeComputedUnitPrice = (
+  row: Record<string, string>,
+  templateKey: TemplateKey,
+) => {
+  if (templateKey !== 'products' && templateKey !== 'products_suppliers') {
+    return row;
+  }
+
+  const currentUnitPrice = parseNumericValue(row.unit_price);
+  if (currentUnitPrice != null && currentUnitPrice >= 0) {
+    return row;
+  }
+
+  const quantity = parseNumericValue(
+    row.source_quantity ??
+      row.quantity ??
+      row.qty ??
+      row.cantidad ??
+      row.unidades,
+  );
+  const subtotal = parseNumericValue(
+    row.source_subtotal ??
+      row.subtotal ??
+      row.line_total ??
+      row.total_linea ??
+      row.importe ??
+      row.amount ??
+      row.total,
+  );
+
+  if (quantity == null || subtotal == null || quantity <= 0) {
+    return row;
+  }
+
+  const computed = subtotal / quantity;
+  if (!Number.isFinite(computed) || computed < 0) {
+    return row;
+  }
+
+  const rounded = Math.round(computed * 100) / 100;
+  return {
+    ...row,
+    unit_price: String(rounded),
+  };
+};
+
+const mergeRecords = (
+  base: Record<string, string>,
+  incoming: Record<string, string>,
+) => {
+  const merged: Record<string, string> = { ...base };
+  Object.keys(incoming).forEach((key) => {
+    merged[key] = pickPreferred(merged[key] ?? '', incoming[key] ?? '');
+  });
+  return merged;
+};
+
+const mergeProductLikeRecords = (
+  base: Record<string, string>,
+  incoming: Record<string, string>,
+) => {
+  const merged = mergeRecords(base, incoming);
+  const basePrice = parseNumericValue(base.unit_price);
+  const incomingPrice = parseNumericValue(incoming.unit_price);
+  const baseTimestamp = getRowTimestamp(base);
+  const incomingTimestamp = getRowTimestamp(incoming);
+
+  if (
+    basePrice != null &&
+    incomingPrice != null &&
+    baseTimestamp != null &&
+    incomingTimestamp != null
+  ) {
+    if (incomingTimestamp > baseTimestamp) {
+      merged.unit_price = incoming.unit_price;
+      if (incoming.source_date?.trim()) {
+        merged.source_date = incoming.source_date;
+      }
+    } else if (baseTimestamp > incomingTimestamp) {
+      merged.unit_price = base.unit_price;
+      if (base.source_date?.trim()) {
+        merged.source_date = base.source_date;
+      }
+    }
+  }
+
+  return merged;
+};
+
+const buildProductKey = (row: Record<string, string>) => {
+  const barcode = normalizeForKey(row.barcode ?? '');
+  if (barcode) return `barcode:${barcode}`;
+  const internalCode = normalizeForKey(row.internal_code ?? '');
+  if (internalCode) return `internal_code:${internalCode}`;
+  const productName = normalizeForKey(
+    row.product_name ?? row.name ?? row.nombre_articulo ?? row.articulo ?? '',
+  );
+  if (productName) return `name:${productName}`;
+  return null;
+};
+
+const buildSupplierKey = (row: Record<string, string>) => {
+  const supplierName = normalizeForKey(
+    row.supplier_name ?? row.supplier ?? row.proveedor ?? '',
+  );
+  if (supplierName) return `supplier:${supplierName}`;
+  return null;
+};
+
+const deduplicateRecords = (
+  records: Array<Record<string, string>>,
+  templateKey: TemplateKey,
+) => {
+  const dedupMap = new Map<string, Record<string, string>>();
+
+  const buildKey = (row: Record<string, string>) => {
+    if (templateKey === 'products') {
+      return buildProductKey(row);
+    }
+    if (templateKey === 'suppliers') {
+      return buildSupplierKey(row);
+    }
+
+    const productKey = buildProductKey(row);
+    const supplierKey = buildSupplierKey(row);
+    if (!productKey || !supplierKey) return null;
+    const relationType = normalizeForKey(row.relation_type ?? 'primary');
+    return `${productKey}|${supplierKey}|relation:${relationType || 'primary'}`;
+  };
+
+  records.forEach((row, index) => {
+    const businessKey = buildKey(row);
+    const fallbackKey = businessKey ?? `__row_${index}`;
+    const existing = dedupMap.get(fallbackKey);
+    if (!existing) {
+      dedupMap.set(fallbackKey, row);
+      return;
+    }
+    if (templateKey === 'products' || templateKey === 'products_suppliers') {
+      dedupMap.set(fallbackKey, mergeProductLikeRecords(existing, row));
+      return;
+    }
+    dedupMap.set(fallbackKey, mergeRecords(existing, row));
+  });
+
+  const dedupedRecords = Array.from(dedupMap.values());
+  return {
+    dedupedRecords,
+    dedupedCount: Math.max(records.length - dedupedRecords.length, 0),
+  };
 };
 
 async function callUntypedRpc<T>(
@@ -245,41 +930,59 @@ export default async function OnboardingPage({
 
     const actionOrgId = actionSession.orgId;
     const actionSupabase = actionSession.supabase;
-    const templateKey = String(formData.get('template_key') ?? '').trim();
+    const templateKeyRaw = String(formData.get('template_key') ?? '').trim();
+    const templateKey = parseTemplateKey(templateKeyRaw);
     const applyNow = formData.get('apply_now') === 'on';
-    const csvFile = formData.get('csv_file');
+    const importFile = formData.get('import_file');
 
-    if (
-      !['products', 'suppliers', 'products_suppliers'].includes(templateKey)
-    ) {
+    if (!templateKey) {
       redirect('/onboarding?result=invalid&message=template');
     }
 
-    if (!(csvFile instanceof File) || csvFile.size === 0) {
+    if (!(importFile instanceof File) || importFile.size === 0) {
       redirect('/onboarding?result=invalid&message=file');
     }
 
-    if (csvFile.size > 8 * 1024 * 1024) {
+    if (importFile.size > 8 * 1024 * 1024) {
       redirect('/onboarding?result=invalid&message=file_too_large');
     }
 
-    const content = await csvFile.text();
-    const records = csvToObjects(content);
+    let records: Array<Record<string, string>> = [];
+    try {
+      records = await readImportRecords(importFile);
+    } catch {
+      redirect('/onboarding?result=invalid&message=file_format_or_parse');
+    }
 
     if (records.length === 0) {
       redirect('/onboarding?result=invalid&message=empty');
     }
 
-    if (records.length > 5000) {
+    if (records.length > IMPORT_MAX_ROWS) {
       redirect('/onboarding?result=invalid&message=too_many_rows');
     }
+
+    const detectedColumns = Object.keys(records[0] ?? {});
+    const autoMapping = buildAutoMapping(detectedColumns, templateKey);
+    const selectedMapping = extractFormMapping(formData, templateKey);
+    const finalMapping = { ...autoMapping, ...selectedMapping };
+    const preparedRecords = records.map((row) =>
+      normalizeComputedUnitPrice(
+        mergeRecords(row, applyMappingToRow(row, finalMapping)),
+        templateKey,
+      ),
+    );
+    const { dedupedRecords, dedupedCount } = deduplicateRecords(
+      preparedRecords,
+      templateKey,
+    );
 
     const { data: jobData, error: createJobError } = await callUntypedRpc<
       Array<{ job_id: string }>
     >(actionSupabase, 'rpc_create_data_import_job', {
       p_org_id: actionOrgId,
       p_template_key: templateKey,
-      p_source_file_name: csvFile.name,
+      p_source_file_name: importFile.name,
       p_source_file_path: null as unknown as string,
     });
 
@@ -289,8 +992,9 @@ export default async function OnboardingPage({
 
     const jobId = String(jobData[0].job_id);
 
-    for (let index = 0; index < records.length; index += 1) {
-      const row = records[index];
+    for (let index = 0; index < dedupedRecords.length; index += 1) {
+      const row = dedupedRecords[index];
+      const normalized = applyMappingToRow(row, finalMapping);
       const { error: rowError } = await callUntypedRpc<
         Array<{ row_id: string }>
       >(actionSupabase, 'rpc_upsert_data_import_row', {
@@ -298,7 +1002,10 @@ export default async function OnboardingPage({
         p_job_id: jobId,
         p_row_number: index + 1,
         p_raw_payload: row,
-        p_normalized_payload: null as unknown as Record<string, string>,
+        p_normalized_payload:
+          Object.keys(normalized).length > 0
+            ? normalized
+            : (null as unknown as Record<string, string>),
       });
 
       if (rowError) {
@@ -352,6 +1059,49 @@ export default async function OnboardingPage({
       invalid_rows: String(validation.invalid_rows ?? 0),
       applied_rows: String(appliedRows),
       skipped_rows: String(skippedRows),
+      deduped_rows: String(dedupedCount),
+    });
+
+    redirect(`/onboarding?${params.toString()}`);
+  };
+
+  const detectImportColumns = async (formData: FormData): Promise<void> => {
+    'use server';
+
+    const templateKeyRaw = String(formData.get('template_key') ?? '').trim();
+    const templateKey = parseTemplateKey(templateKeyRaw);
+    const importFile = formData.get('import_file');
+
+    if (!templateKey) {
+      redirect('/onboarding?result=invalid&message=template');
+    }
+
+    if (!(importFile instanceof File) || importFile.size === 0) {
+      redirect('/onboarding?result=invalid&message=file');
+    }
+
+    if (importFile.size > 8 * 1024 * 1024) {
+      redirect('/onboarding?result=invalid&message=file_too_large');
+    }
+
+    let records: Array<Record<string, string>> = [];
+    try {
+      records = await readImportRecords(importFile);
+    } catch {
+      redirect('/onboarding?result=invalid&message=file_format_or_parse');
+    }
+
+    if (records.length === 0) {
+      redirect('/onboarding?result=invalid&message=empty');
+    }
+
+    const detectedColumns = Object.keys(records[0] ?? {});
+    const proposedMap = buildAutoMapping(detectedColumns, templateKey);
+    const params = new URLSearchParams({
+      result: 'mapping_ready',
+      mapping_template: templateKey,
+      detected_cols: encodeJsonBase64(detectedColumns),
+      proposed_map: encodeJsonBase64(proposedMap),
     });
 
     redirect(`/onboarding?${params.toString()}`);
@@ -653,8 +1403,37 @@ export default async function OnboardingPage({
           invalidRows: Number(resolvedSearchParams.invalid_rows ?? 0),
           appliedRows: Number(resolvedSearchParams.applied_rows ?? 0),
           skippedRows: Number(resolvedSearchParams.skipped_rows ?? 0),
+          dedupedRows: Number(resolvedSearchParams.deduped_rows ?? 0),
         }
       : null;
+
+  const mappingTemplate = parseTemplateKey(
+    String(resolvedSearchParams.mapping_template ?? ''),
+  );
+  const detectedColumns =
+    decodeJsonBase64<string[]>(resolvedSearchParams.detected_cols) ?? [];
+  const proposedMap =
+    decodeJsonBase64<Record<string, string>>(
+      resolvedSearchParams.proposed_map,
+    ) ?? {};
+  const mappingFields = mappingTemplate ? TEMPLATE_FIELDS[mappingTemplate] : [];
+  const showMappingConfigurator =
+    Boolean(mappingTemplate) && detectedColumns.length > 0;
+  const defaultTemplate = mappingTemplate ?? 'products_suppliers';
+
+  const invalidMessageMap: Record<string, string> = {
+    template: 'Plantilla inválida.',
+    file: 'Debes seleccionar un archivo.',
+    file_too_large: 'Archivo demasiado grande (máximo 8 MB).',
+    file_format_or_parse:
+      'Formato no soportado o no se pudo leer el archivo (usar CSV o XLSX).',
+    empty: 'El archivo no contiene filas con datos.',
+    too_many_rows: `El archivo supera el máximo permitido (${IMPORT_MAX_ROWS} filas).`,
+  };
+  const invalidDetail =
+    invalidMessageMap[resolvedSearchParams.message ?? ''] ??
+    resolvedSearchParams.message ??
+    '-';
 
   const showError = resolvedSearchParams.result === 'error';
   const showInvalid = resolvedSearchParams.result === 'invalid';
@@ -669,7 +1448,7 @@ export default async function OnboardingPage({
             Onboarding de datos
           </h1>
           <p className="text-sm text-zinc-600">
-            Importa catalogos por CSV y completa datos maestros para una
+            Importa catalogos por CSV/XLSX y completa datos maestros para una
             operacion consistente.
           </p>
         </header>
@@ -683,7 +1462,8 @@ export default async function OnboardingPage({
               Filas: {importSummary.totalRows} total · {importSummary.validRows}{' '}
               validas · {importSummary.invalidRows} invalidas ·{' '}
               {importSummary.appliedRows} aplicadas ·{' '}
-              {importSummary.skippedRows} omitidas
+              {importSummary.skippedRows} omitidas · {importSummary.dedupedRows}{' '}
+              consolidadas por duplicado
             </p>
           </section>
         ) : null}
@@ -700,9 +1480,7 @@ export default async function OnboardingPage({
         {showInvalid ? (
           <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             Datos invalidos para importar. Detalle:{' '}
-            <span className="font-semibold">
-              {resolvedSearchParams.message ?? '-'}
-            </span>
+            <span className="font-semibold">{invalidDetail}</span>
           </section>
         ) : null}
 
@@ -715,17 +1493,17 @@ export default async function OnboardingPage({
         <section className="grid gap-4 md:grid-cols-2">
           <article className="rounded-2xl border border-zinc-200 bg-white p-5">
             <h2 className="text-base font-semibold text-zinc-900">
-              Importar CSV
+              Importar archivo
             </h2>
             <p className="mt-1 text-xs text-zinc-500">
-              Formatos soportados en esta fase: CSV (hasta 5000 filas).
+              Formatos soportados: CSV o XLSX (hasta {IMPORT_MAX_ROWS} filas).
             </p>
             <form action={importCsv} className="mt-4 flex flex-col gap-4">
               <label className="text-sm text-zinc-700">
                 Plantilla
                 <select
                   name="template_key"
-                  defaultValue="products_suppliers"
+                  defaultValue={defaultTemplate}
                   className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
                 >
                   <option value="products_suppliers">
@@ -737,27 +1515,70 @@ export default async function OnboardingPage({
               </label>
 
               <label className="text-sm text-zinc-700">
-                Archivo CSV
+                Archivo
                 <input
                   type="file"
-                  name="csv_file"
-                  accept=".csv,text/csv"
+                  name="import_file"
+                  accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   required
                   className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
                 />
               </label>
+
+              {showMappingConfigurator ? (
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                  <p className="text-sm font-medium text-zinc-900">
+                    Mapeo de columnas detectadas
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-600">
+                    Elegí qué columna del archivo corresponde a cada campo de
+                    NODUX. Dejá vacía una opción para no importarla.
+                  </p>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {mappingFields.map((field) => (
+                      <label
+                        key={field.target}
+                        className="text-xs font-medium text-zinc-700"
+                      >
+                        {field.label}
+                        {field.required ? ' *' : ''}
+                        <select
+                          name={`map__${field.target}`}
+                          defaultValue={proposedMap[field.target] ?? ''}
+                          className="mt-1 w-full rounded-lg border border-zinc-300 px-2 py-2 text-xs"
+                        >
+                          <option value="">No importar</option>
+                          {detectedColumns.map((column) => (
+                            <option key={column} value={column}>
+                              {column}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <label className="flex items-center gap-2 text-sm text-zinc-700">
                 <input type="checkbox" name="apply_now" defaultChecked />
                 Aplicar filas validas automaticamente
               </label>
 
-              <button
-                type="submit"
-                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white"
-              >
-                Validar e importar
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  formAction={detectImportColumns}
+                  className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700"
+                >
+                  Detectar columnas
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white"
+                >
+                  Validar e importar
+                </button>
+              </div>
             </form>
           </article>
 

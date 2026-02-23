@@ -24,6 +24,7 @@ Auditar ventas de forma rápida para control operativo de caja.
 
 - Título: “Ventas”
 - Acceso rápido a `/cashbox`
+- Acceso rápido a `/sales/statistics`
 
 ### Filtros
 

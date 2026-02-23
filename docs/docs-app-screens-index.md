@@ -185,35 +185,41 @@ Regla base:
     - Módulo: Ventas
     - Propósito: auditar una venta y corregir método de cobro (auditado)
 
+23. `/sales/statistics`
+    - Roles: OA
+    - Tipo: Secondary
+    - Módulo: Ventas
+    - Propósito: analizar tendencias y rankings de ventas por período
+
 ---
 
 ## 5) Settings (Org Admin / Superadmin)
 
-23. `/settings/staff-permissions`
+24. `/settings/staff-permissions`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Permisos Staff
     - Propósito: habilitar/deshabilitar módulos para Staff
 
-24. `/settings/users`
+25. `/settings/users`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Usuarios
     - Propósito: invitar y gestionar usuarios
 
-25. `/settings/branches`
+26. `/settings/branches`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Sucursales
     - Propósito: crear y gestionar sucursales
 
-26. `/settings/preferences`
+27. `/settings/preferences`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Preferencias
     - Propósito: parámetros simples (alertas, UX)
 
-27. `/settings/audit-log`
+28. `/settings/audit-log`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Auditoría
@@ -223,13 +229,13 @@ Regla base:
 
 ## 6) Pagos y Superadmin (Primary)
 
-28. `/payments`
+29. `/payments`
     - Roles: OA
     - Tipo: Primary
     - Módulo: Pagos a proveedor
     - Propósito: gestionar cuentas por pagar y registrar pagos por sucursal
 
-29. `/superadmin`
+30. `/superadmin`
     - Roles: SA
     - Tipo: Primary
     - Módulo: SaaS Admin
@@ -258,6 +264,7 @@ Regla base:
 - `/orders/calendar`
 - `/orders/[orderId]`
 - `/sales/[saleId]`
+- `/sales/statistics`
 - `/products`
 - `/clients`
 - `/settings/users`

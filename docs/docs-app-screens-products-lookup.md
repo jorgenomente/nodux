@@ -21,12 +21,29 @@
 
 Consulta rápida de precios y stock (sin edición).
 
-**Estado actual**: placeholder MVP (pantalla informativa).
+**Estado actual**: implementada (lookup operativo mobile-first).
 
-## Data Contract (futuro)
+## Data Contract
 
-- View: `v_pos_product_catalog(branch_id, search)`
+- View: `v_pos_product_catalog`
+- Filtros en UI:
+  - `org_id` obligatorio
+  - `branch_id` obligatorio
+  - `is_active = true`
+  - búsqueda por `name` con tokens `ILIKE` por palabra (orden independiente)
+- Límite de resultados por búsqueda: `30` filas (anti render masivo)
+
+## Estados de pantalla
+
+- `idle`: mensaje para comenzar a escribir
+- `loading`: feedback de búsqueda en curso
+- `empty`: sin coincidencias
+- `error`: fallo de consulta con mensaje de reintento
+- `success`: lista de productos con `name`, `unit_price`, `stock_on_hand`, `internal_code`, `barcode`
 
 ## Smoke tests (manual)
 
-- PL-01: navegar a `/products/lookup` y ver placeholder.
+- PL-01: Staff con módulo `products_lookup` habilitado abre `/products/lookup` y accede.
+- PL-02: buscar por nombre con palabras invertidas (ej. `retornable coca`) y confirmar coincidencia.
+- PL-03: confirmar que cada resultado muestra precio y stock.
+- PL-04: confirmar que la búsqueda no renderiza más de 30 resultados y muestra mensaje de refinado.

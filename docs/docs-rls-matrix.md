@@ -28,6 +28,7 @@ Estado actual:
 - Descuento de empleado + cuentas de empleado por sucursal agregados en `supabase/migrations/20260221223000_052_employee_discount_accounts.sql` (`employee_accounts`, extensión de `org_preferences`, `sales` y `rpc_create_sale`).
 - Onboarding de datos maestros agregado en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks` y RPCs de importación/validación/aplicación).
 - Proveedores incorporan `% ganancia sugerida` en `supabase/migrations/20260222013000_054_supplier_default_markup_pct.sql` (sin cambios de policy; reusa RLS existente sobre `suppliers` y validación en `rpc_upsert_supplier`).
+- Estadísticas de ventas agregadas en `supabase/migrations/20260222123000_056_sales_statistics_view.sql` (`v_sales_statistics_items` con `security_invoker=true`).
 - Conciliación operativa de caja con captura de comprobantes por fila y agregado MercadoPago total en `supabase/migrations/20260220153000_047_cashbox_reconciliation_inputs.sql` (`cash_session_reconciliation_inputs`, `rpc_get_cash_session_reconciliation_rows`, `rpc_upsert_cash_session_reconciliation_inputs`).
 - Ajuste de conciliación para incluir fila `Efectivo esperado total (caja + reserva)` en `supabase/migrations/20260220170000_048_cashbox_reconciliation_include_cash_expected.sql`.
 - Ajuste de conciliación para clasificar `MercadoPago (total)` solo por método de pago (no por proveedor de dispositivo) en `supabase/migrations/20260220182000_049_cashbox_reconciliation_mp_by_method_only.sql`.
@@ -64,6 +65,7 @@ Estado actual:
 | `stock_items`                        | read/insert/update | read/insert/update | read (lookup)                 | ST sin ajustes                                            |
 | `stock_movements`                    | read               | read/insert        | insert (via RPC)              | ST no lectura historica por defecto                       |
 | `sales`                              | read               | read/insert        | insert (via RPC)              | ST crea ventas en su branch                               |
+| `v_sales_statistics_items`           | read               | read               | no                            | View analítica de ventas (OA/SA)                          |
 | `sale_payments`                      | read               | read/insert        | insert (via RPC)              | Desglose de cobro por método                              |
 | `pos_payment_devices`                | read/insert/update | read/insert/update | read/insert/update            | Catálogo de dispositivos de cobro por sucursal            |
 | `cash_sessions`                      | read               | read/insert/update | insert/update (via RPC)       | Caja por sucursal (1 abierta por vez)                     |

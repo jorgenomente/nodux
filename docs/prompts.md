@@ -2091,3 +2091,106 @@ ok ahora me doy cuenta de que en el formulario de nuevo producto tambien hace fa
 
 **Prompt**
 excelente ahora me gustaria que el input de marca me de sugeridos de acuerdo a las marcas que ya han sido registradas en algun prodcuto, por ejemplo si en un articulo puse marca Arcor entonces en el siguiente articulo yo al marcar la A me deberia sugerir debajo arcor o cualquier otra marca que empiece por la A. tiene sentido?
+
+## 2026-02-22 11:31 -03 — Ventas: nueva pantalla de estadísticas operativas
+
+**Lote:** sales-statistics-screen
+**Objetivo:** Crear una página de estadísticas desde `/sales` con filtros por período/sucursal y métricas accionables sobre productos, proveedores y tendencias temporales, basada en contrato de datos único.
+
+**Prompt**
+ok ahora dentro de /ventas vamos a agregar un boton de estadisticas, esta es una nueva pagina que nos va a permitir ver todas las ventas existentes hasta la fecha, o en un periodo seleccionado y poder por ejemplo hacer una lista de productos que mas se vendieron por unidad, productos que mas ingresos generaron, asi como lo contrario, tambien del ano que dias se vendio mas, que semanas se vendio mas, que meses se vendio mas, en general es una pagina para obtener estadisticas que sivan a partir de las ventas, quizas tambien ver sobre los proveedores que proveedores registran mas ventas o son mas importantes o que proveedores son los que menos items tienen, no se igual no se si eso lo podemos obtener con las ventas, pero no se si me entiendes? Me puedes ayudar a elaborar algo que sea facil de usar?
+
+## 2026-02-22 11:38 -03 — Ventas: comparación por día de semana + fix hydration
+
+**Lote:** sales-statistics-weekday-hydration-fix
+**Objetivo:** Extender estadísticas para comparar ventas por día de semana (martes, miércoles, sábado, etc.) y estabilizar render SSR/CSR para evitar hydration mismatch reportado en `/sales/statistics`.
+
+**Prompt**
+cuando digo dias con mas ventas me gustaria tambien tomar en cuenta si se vendio mas los martes, o los miercoles o los sabados. se puede? agreguemos eso tambien tengo este issue
+
+## 2026-02-23 11:29 -03 — Products Lookup: implementar búsqueda móvil rápida con stock/precio
+
+**Lote:** products-lookup-mobile-search
+**Objetivo:** Implementar `/products/lookup` para Staff/OA como lookup operativo mobile-first con búsqueda rápida por nombre (sin importar orden), mostrando precio y stock, y limitando resultados para evitar render masivo.
+
+**Prompt**
+estoy viendo una pagina products/lookup pero no ha sido implementada, puedes chequear en que consiste y si la necesitamos o la desechamos
+
+ok entonces vamos a implementarla, la idea es que el staff pueda buscar precios rapidamente desde su celular si esta asesorando a un cliente en la tienda, entonces debemos hacerlo que sea facil y rapido de usar, que tenga un buscador que permita filtrar todos los articulos por nombre sin importar el orden. Haz lo que tengas que hacer para evitar el render de muchos productos a la vez pero que igual podamos ubicarlos. tambien que me muestre el stock en la busqueda ademas del precio
+
+## 2026-02-23 11:44 -03 — Onboarding import: body limit + soporte XLSX
+
+**Lote:** onboarding-import-xlsx-body-limit
+**Objetivo:** Resolver error de límite de body en Server Actions durante importación y agregar soporte de archivos `.xlsx` además de `.csv` en `/onboarding`.
+
+**Prompt**
+no, estoy probando en onboarding lo de inportar un archivo csv. pero tengo este error ## Error Type
+Runtime Error
+
+## Error Message
+
+Body exceeded 1 MB limit.
+To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit
+
+    at form (<anonymous>:null:null)
+    at OnboardingPage (app/onboarding/page.tsx:723:13)
+
+## Code Frame
+
+721 | Formatos soportados en esta fase: CSV (hasta 5000 filas).
+722 | </p>
+
+> 723 | <form action={importCsv} className="mt-4 flex flex-col gap-4">
+
+      |             ^
+
+724 | <label className="text-sm text-zinc-700">
+725 | Plantilla
+726 | <select
+
+Next.js version: 16.1.6 (Turbopack)
+y tambien me gustaria que .xlsx sea tambien un formato soportado
+
+## 2026-02-23 12:21 -03 — Onboarding: mapeo manual de columnas + límite de filas
+
+**Lote:** onboarding-column-mapping-and-row-limit
+**Objetivo:** Permitir detectar columnas del archivo importado y mapearlas manualmente a campos del modelo NODUX antes de validar/importar, además de ampliar el límite de filas para evitar bloqueos por `too_many_rows`.
+
+**Prompt**
+necisto trabajar en esta seccion del onboarding. estoy importando un archivo pero me da un mensaje que dice Datos invalidos para importar. Detalle: too_many_rows. Tambien me gustaria que al momento de la importacion se identificaran las columnas asi yo puedo decidir cual de ellas quiero importar y a que corresponde segun mi modelo de datos. tiene sentido? por ejemplo si hay una columna de barcode en el archivo importado yo puedo decir que corresponde a mi columna de codigo de barras, o quizas el nombre es name y en nodux representa a nombre de articulo, me explico?
+
+## 2026-02-23 12:32 -03 — Onboarding: consolidación de duplicados para maestro limpio
+
+**Lote:** onboarding-master-dedup-consolidation
+**Objetivo:** Consolidar filas duplicadas/repetidas en importación de onboarding para construir catálogo maestro limpio desde múltiples documentos heterogéneos (ventas/precios), priorizando claves de negocio y preservando solo datos útiles.
+
+**Prompt**
+A ver. hay algo que hay que chequear y es cual es el documento que estamos recibiendo que nos da esa primera fuente de datos para el onboarding. Se me ocurre que puede ser un archivo de ventas, o un archivo de precios, en cualquier caso es posible que hayan columnas repetidas, con muchas transacciones similares, un muchas filas con la misma informacion o por ejemplo muchos articulos con el mismo nombre pero distinto precio... Creo que es importante definir como seria el onboarding, por ejemplo, si recibo un documento de ventas del ultimo ano, que datos en realidad quiero, quiero solo el precio que muestra mas reciente, solo 1 articulo, o voy a importar todas las ventas como para tener toda la data? O deberia ser un fresh start con este nuevo sistema? Estoy un poco confundido aca no se si me puedes ayudar a determinar esto
+
+ok entonces partiendo de esto da igual el archivo que suministre, todo deberia estar organizado para mapear columnas, hacer algun match si existen con las nuestras, descartar las que no queremos, tambien necesitamos no tomar en cuenta duplicados ventas repetidas etc, los datos que no nos sirven, sino conservar lo que podamos para crear nuestro maestro, entendi bien?
+
+ok hagamos eso. La cuestion es esa, yo voy a suministrar varios documentos, la clave es que muy probablemente coincidan los nombres de los articulos o su codigo de articulo entonces de sa manera sabemos que ese dato ya lo tenemos y solo agregar los nuevos o unicos, esto es porque cada sistema es distinto estonces van a haber formatos y nombres de columnas distintas y la idea es que nosotros podamos tomar cualquier doc y tomar sus datos para llenar nuestro propio maestro completo que permita que nodux funcione correctamente. es obvio que hay datos que van a faltar porque no siempre suelen estar disponibles como fecha de vencimiento aproximada en dias, o la marca, el proveedor pero bueno, eso lo haremos poco a poco desde onbarding a partir de ahi
+
+## 2026-02-23 13:31 -03 — Regla de precio: última venta por fecha en deduplicación
+
+**Lote:** onboarding-price-latest-by-date
+**Objetivo:** En consolidación de duplicados de onboarding, resolver conflicto de `unit_price` tomando el precio de la fila con fecha más reciente.
+
+**Prompt**
+claro en ese caso el precio real seria el que indico la ultima venta de acuerdo a la fecha
+
+## 2026-02-23 13:34 -03 — Onboarding: ampliar máximo de filas a 70k
+
+**Lote:** onboarding-row-limit-70k
+**Objetivo:** Elevar el límite de importación por archivo en onboarding a 70.000 filas para soportar documentos extensos.
+
+**Prompt**
+podemos colocar como maximo 70 mil filas? porque sigue siendo muy extenso mi documento
+
+## 2026-02-23 13:58 -03 — Onboarding: calcular precio unitario desde subtotal/cantidad
+
+**Lote:** onboarding-unit-price-from-subtotal-qty
+**Objetivo:** Evitar sobreprecio al importar archivos de ventas con cantidad > 1, derivando `unit_price` como `subtotal / cantidad` cuando no viene precio unitario explícito.
+
+**Prompt**
+esta tomado en cuenta que es posible que el precio haya que dividirlo entre cantidad cuando existe? porque si se vendieron 2 en cantidad me va a salir el subtotal como doble entonces no se si estamos tomando enc uenta eso y se entiende

@@ -47,6 +47,7 @@ Estado actual:
 - Descuento empleado en POS + cuentas de empleado por sucursal en `supabase/migrations/20260221223000_052_employee_discount_accounts.sql` (`employee_accounts`, preferencias de combinación, extensión de `rpc_create_sale`, vistas de ventas y dashboard).
 - Onboarding de datos maestros (jobs/rows de importación + vista de pendientes + RPCs de importación) en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks`, `rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
 - Marca en productos + vista admin actualizada en `supabase/migrations/20260222110000_055_products_brand.sql` (`products.brand`, `v_products_admin.brand`).
+- Base de estadísticas de ventas en `supabase/migrations/20260222123000_056_sales_statistics_view.sql` (`v_sales_statistics_items`).
 - Conciliación operativa en caja con inputs por fila y agregado MercadoPago total en `supabase/migrations/20260220153000_047_cashbox_reconciliation_inputs.sql` (`cash_session_reconciliation_inputs`, `rpc_get_cash_session_reconciliation_rows`, `rpc_upsert_cash_session_reconciliation_inputs`).
 - Conciliación de caja ajustada para incluir fila de `Efectivo esperado total (caja + reserva)` en `supabase/migrations/20260220170000_048_cashbox_reconciliation_include_cash_expected.sql`.
 - Conciliación de caja ajustada para clasificar `MercadoPago (total)` solo por método `mercadopago` en `supabase/migrations/20260220182000_049_cashbox_reconciliation_mp_by_method_only.sql`.
@@ -791,6 +792,7 @@ Ver contratos en `docs/docs-schema-model.md`:
 - Views de lectura por pantalla (dashboard, products, suppliers, orders, expirations, settings)
 - View de caja operativa: `v_cashbox_session_current`
 - Views de ventas: `v_sales_admin`, `v_sale_detail_admin`
+- View de estadísticas de ventas: `v_sales_statistics_items`
 - Views de superadmin global: `v_superadmin_orgs`, `v_superadmin_org_detail`
 - RPCs para escrituras (POS, stock, orders, permissions, clients)
 - RPCs de caja: `rpc_open_cash_session(...)`, `rpc_add_cash_session_movement(...)`, `rpc_get_cash_session_summary(...)`, `rpc_close_cash_session(...)`
