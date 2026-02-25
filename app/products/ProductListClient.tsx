@@ -1,7 +1,5 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-
 import ProductActions from '@/app/products/ProductActions';
 
 type StockByBranchItem = {
@@ -26,6 +24,7 @@ type SupplierByProductEntry = {
   primary?: SupplierOption & {
     supplier_sku?: string | null;
     supplier_product_name?: string | null;
+    supplier_price?: number | null;
   };
   secondary?: SupplierOption;
 };
@@ -85,18 +84,6 @@ const formatSafetyStockByBranch = (
   return parts.length > 0 ? parts.join(' · ') : 'Sin stock minimo.';
 };
 
-const normalizeText = (value: string) =>
-  value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-
-const tokenize = (value: string) =>
-  normalizeText(value)
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter(Boolean);
-
 export default function ProductListClient({
   products,
   suppliers,
@@ -106,28 +93,6 @@ export default function ProductListClient({
   safetyStockByProduct,
   onUpdate,
 }: Props) {
-  const [query, setQuery] = useState('');
-  const queryTrimmed = query.trim();
-  const tokens = useMemo(() => tokenize(queryTrimmed), [queryTrimmed]);
-
-  const filteredProducts = useMemo(() => {
-    if (queryTrimmed.length === 0) return products;
-    if (queryTrimmed.length < 3) return [];
-    if (tokens.length === 0) return products;
-
-    return products.filter((product) => {
-      const haystack = normalizeText(
-        [product.name ?? '', product.internal_code ?? '', product.barcode ?? '']
-          .concat(product.brand ?? '')
-          .filter(Boolean)
-          .join(' '),
-      );
-      return tokens.every((token) => haystack.includes(token));
-    });
-  }, [products, queryTrimmed, tokens]);
-
-  const showHint = queryTrimmed.length > 0 && queryTrimmed.length < 3;
-
   const formatSafetyStockDisplay = (productId: string) => {
     const globalValue = safetyStockGlobalByProduct[productId];
     if (globalValue != null) {
@@ -141,31 +106,13 @@ export default function ProductListClient({
       <div className="border-b border-zinc-100 px-6 py-4">
         <h2 className="text-lg font-semibold text-zinc-900">Listado</h2>
       </div>
-      <div className="border-b border-zinc-100 px-6 py-4">
-        <label className="text-sm text-zinc-600">
-          Buscar productos (min 3 letras)
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-            placeholder="Nombre, SKU o codigo de barras"
-          />
-        </label>
-        {showHint ? (
-          <p className="mt-2 text-xs text-zinc-500">
-            Escribi al menos 3 letras para buscar.
-          </p>
-        ) : null}
-      </div>
       <div className="divide-y divide-zinc-100">
-        {filteredProducts.length === 0 ? (
+        {products.length === 0 ? (
           <div className="px-6 py-8 text-sm text-zinc-500">
-            {queryTrimmed.length === 0
-              ? 'No hay productos cargados.'
-              : 'No hay coincidencias.'}
+            No hay productos para este filtro/página.
           </div>
         ) : (
-          filteredProducts.map((product) => (
+          products.map((product) => (
             <div key={product.product_id ?? product.name} className="px-6 py-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-2">
@@ -215,6 +162,10 @@ export default function ProductListClient({
                       }
                       uom={product.uom ?? 'unit'}
                       unitPrice={Number(product.unit_price ?? 0)}
+                      primarySupplierPrice={
+                        supplierByProduct[String(product.product_id)]?.primary
+                          ?.supplier_price ?? null
+                      }
                       isActive={Boolean(product.is_active)}
                       shelfLifeDays={
                         product.shelf_life_days == null

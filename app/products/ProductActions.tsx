@@ -15,6 +15,7 @@ type EditPayload = {
   sellUnitType: 'unit' | 'weight' | 'bulk';
   uom: string;
   unitPrice: string;
+  supplierPrice: string;
   isActive: boolean;
   primarySupplierId: string;
   secondarySupplierId: string;
@@ -40,6 +41,7 @@ type Props = {
   sellUnitType: 'unit' | 'weight' | 'bulk';
   uom: string;
   unitPrice: number;
+  primarySupplierPrice: number | null;
   isActive: boolean;
   shelfLifeDays: number | null;
   safetyStockValue: number | null;
@@ -61,6 +63,7 @@ export default function ProductActions({
   sellUnitType,
   uom,
   unitPrice,
+  primarySupplierPrice,
   isActive,
   shelfLifeDays,
   safetyStockValue,
@@ -99,6 +102,7 @@ export default function ProductActions({
     formData.append('edit_sell_unit_type', payload.sellUnitType);
     formData.append('edit_uom', payload.uom);
     formData.append('edit_unit_price', payload.unitPrice);
+    formData.append('edit_supplier_price', payload.supplierPrice);
     formData.append('is_active', String(payload.isActive));
     formData.append('primary_supplier_id', payload.primarySupplierId);
     formData.append('secondary_supplier_id', payload.secondarySupplierId);
@@ -134,6 +138,8 @@ export default function ProductActions({
       sellUnitType,
       uom,
       unitPrice: String(unitPrice ?? 0),
+      supplierPrice:
+        primarySupplierPrice == null ? '' : String(primarySupplierPrice),
       isActive: !isActive,
       primarySupplierId,
       secondarySupplierId,
@@ -199,6 +205,8 @@ export default function ProductActions({
               uom,
               primarySupplierId,
               unitPrice,
+              supplierPrice:
+                primarySupplierPrice == null ? '' : primarySupplierPrice,
               shelfLifeDays: shelfLifeDays ?? '',
               primarySupplierProductName,
               primarySupplierSku,

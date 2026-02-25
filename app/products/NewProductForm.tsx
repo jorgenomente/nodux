@@ -13,18 +13,26 @@ type Props = {
   suppliers: SupplierOption[];
   brandSuggestions: string[];
   onSubmit: (formData: FormData) => Promise<void>;
+  defaults?: {
+    primarySupplierId?: string;
+  };
+  lockPrimarySupplier?: boolean;
 };
 
 export default function NewProductForm({
   suppliers,
   brandSuggestions,
   onSubmit,
+  defaults,
+  lockPrimarySupplier = false,
 }: Props) {
   return (
     <form action={onSubmit} className="mt-6 grid gap-4 md:grid-cols-2">
       <ProductFormFieldsShared
         suppliers={suppliers}
         brandSuggestions={brandSuggestions}
+        defaults={defaults}
+        lockPrimarySupplier={lockPrimarySupplier}
         fields={{
           name: 'name',
           brand: 'brand',

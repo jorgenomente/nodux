@@ -30,7 +30,6 @@ diaria tenga base consistente en productos y proveedores.
 - selector de plantilla:
   - productos
   - proveedores
-  - productos + proveedores (combinado)
 - accion "Detectar columnas"
 - configurador de mapeo columna-origen -> campo NODUX (opcional por campo)
 - boton "Validar archivo"
@@ -62,7 +61,9 @@ Comportamiento MVP actual:
 - `productos con informacion incompleta`: abre resolvedor rapido inline en la
   misma pantalla con formulario por fila para completar campos operativos de
   producto (nombre, marca, codigos, unidad, precio, shelf life, proveedor
-  primario/secundario, SKU/nombre proveedor y stock minimo global).
+  primario/secundario, SKU/nombre proveedor y stock minimo global). El
+  resolvedor usa conteo exacto en DB, paginacion (25 por pagina) y buscador
+  server-side por nombre para evitar cargas masivas.
 - resto de tareas: mantiene salida rapida a pantalla fuente (`/products` o
   `/suppliers`).
 
@@ -83,6 +84,11 @@ Accion implementada en MVP:
 - descargar `productos_master.csv`
 - descargar `proveedores_master.csv`
 - descargar `producto_proveedor_master.csv`
+- `productos_master.csv` refleja el contrato del formulario de alta de
+  `/products` (incluye proveedor primario/secundario, SKU/nombre de proveedor y
+  stock minimo consolidado)
+- `proveedores_master.csv` refleja el contrato del formulario de alta de
+  `/suppliers` (incluye `% ganancia sugerida` y perfil de pago)
 
 ---
 
@@ -99,6 +105,11 @@ semanticas.
 
 Incluye paso previo de deteccion de columnas para permitir mapeo manual por
 plantilla antes de validar/importar.
+Luego de detectar columnas, la importacion reutiliza el mismo archivo en
+staging (sin pedir recarga del archivo en el browser).
+
+En plantilla de productos, los campos de mapeo se alinean con el formulario
+compartido de alta/edicion de producto para evitar divergencias de contrato.
 
 ### A3) Aplicar importacion
 
@@ -138,6 +149,24 @@ Salida minima:
 - `pending_count`
 - `sample_records` (jsonb, opcional)
 - `last_calculated_at`
+
+### Lectura complementaria (resolver productos incompletos)
+
+View: `v_products_incomplete_admin`
+
+Salida minima:
+
+- `id`
+- `org_id`
+- `name`
+- `internal_code`
+- `barcode`
+- `unit_price`
+- `shelf_life_days`
+- `has_primary_supplier`
+- `missing_primary_supplier`
+- `missing_shelf_life`
+- `missing_identifier`
 
 ### Escrituras
 

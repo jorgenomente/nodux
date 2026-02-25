@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { inflateRawSync } from 'node:zlib';
 
 import PageShell from '@/app/components/PageShell';
+import OnboardingFormPendingState from '@/app/onboarding/OnboardingFormPendingState';
+import { PRODUCT_FORM_LABELS } from '@/app/products/product-form-contract';
 import ProductFormFieldsShared from '@/app/products/ProductFormFieldsShared';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
 
@@ -21,6 +23,10 @@ type SearchParams = {
   detected_cols?: string;
   proposed_map?: string;
   deduped_rows?: string;
+  staged_job_id?: string;
+  staged_file_name?: string;
+  resolver_page?: string;
+  resolver_q?: string;
 };
 
 type SupplierTaskKey =
@@ -47,6 +53,12 @@ type ImportJobRow = {
   created_at: string;
 };
 
+type StagedJobRow = {
+  id: string;
+  template_key: string;
+  source_file_name: string;
+};
+
 type SupplierOption = {
   id: string;
   name: string;
@@ -66,10 +78,18 @@ type ProductRow = {
   shelf_life_days: number | null;
 };
 
+type IncompleteProductRow = ProductRow & {
+  has_primary_supplier: boolean;
+  missing_primary_supplier: boolean;
+  missing_shelf_life: boolean;
+  missing_identifier: boolean;
+};
+
 type SupplierProductRelationRow = {
   product_id: string | null;
   supplier_id: string | null;
   relation_type: 'primary' | 'secondary';
+  supplier_price: number | null;
   supplier_sku: string | null;
   supplier_product_name: string | null;
 };
@@ -82,6 +102,7 @@ type StockSafetyRow = {
 type ProductRelationByType = {
   primary?: {
     supplier_id: string;
+    supplier_price: number | null;
     supplier_sku: string | null;
     supplier_product_name: string | null;
   };
@@ -90,7 +111,7 @@ type ProductRelationByType = {
   };
 };
 
-type TemplateKey = 'products' | 'suppliers' | 'products_suppliers';
+type TemplateKey = 'products' | 'suppliers';
 
 const TASK_META: Array<{
   key: TaskCardKey;
@@ -114,26 +135,49 @@ const TASK_META: Array<{
   },
 ];
 
-const IMPORT_MAX_ROWS = 70000;
+const IMPORT_MAX_ROWS = 80000;
 
 const TEMPLATE_FIELDS: Record<
   TemplateKey,
   Array<{ target: string; label: string; required?: boolean }>
 > = {
   products: [
-    { target: 'product_name', label: 'Nombre producto', required: true },
-    { target: 'internal_code', label: 'Codigo interno' },
-    { target: 'barcode', label: 'Codigo de barras' },
-    { target: 'sell_unit_type', label: 'Tipo de venta (unit/weight/bulk)' },
-    { target: 'uom', label: 'Unidad base (uom)' },
-    { target: 'unit_price', label: 'Precio de venta' },
+    {
+      target: 'product_name',
+      label: PRODUCT_FORM_LABELS.productName,
+      required: true,
+    },
+    { target: 'brand', label: PRODUCT_FORM_LABELS.brand },
+    { target: 'internal_code', label: PRODUCT_FORM_LABELS.internalCode },
+    { target: 'barcode', label: PRODUCT_FORM_LABELS.barcode },
+    { target: 'sell_unit_type', label: PRODUCT_FORM_LABELS.sellUnitType },
+    { target: 'uom', label: PRODUCT_FORM_LABELS.uom },
+    {
+      target: 'primary_supplier_name',
+      label: PRODUCT_FORM_LABELS.primarySupplier,
+    },
+    { target: 'supplier_price', label: PRODUCT_FORM_LABELS.supplierPrice },
+    {
+      target: 'unit_price',
+      label: `${PRODUCT_FORM_LABELS.unitPrice} de venta`,
+    },
     { target: 'source_quantity', label: 'Cantidad (para calcular unitario)' },
     {
       target: 'source_subtotal',
       label: 'Subtotal/total linea (para calcular unitario)',
     },
     { target: 'source_date', label: 'Fecha de referencia (venta/precio)' },
-    { target: 'shelf_life_days', label: 'Vencimiento aproximado (dias)' },
+    { target: 'shelf_life_days', label: PRODUCT_FORM_LABELS.shelfLifeDays },
+    {
+      target: 'primary_supplier_product_name',
+      label: PRODUCT_FORM_LABELS.supplierProductName,
+    },
+    { target: 'primary_supplier_sku', label: PRODUCT_FORM_LABELS.supplierSku },
+    {
+      target: 'secondary_supplier_name',
+      label: PRODUCT_FORM_LABELS.secondarySupplier,
+    },
+    { target: 'safety_stock', label: PRODUCT_FORM_LABELS.safetyStock },
     { target: 'is_active', label: 'Activo (true/false)' },
   ],
   suppliers: [
@@ -160,44 +204,6 @@ const TEMPLATE_FIELDS: Record<
     { target: 'receive_day', label: 'Dia recepcion (mon..sun)' },
     { target: 'payment_note', label: 'Nota de pago' },
   ],
-  products_suppliers: [
-    { target: 'product_name', label: 'Nombre producto', required: true },
-    { target: 'internal_code', label: 'Codigo interno' },
-    { target: 'barcode', label: 'Codigo de barras' },
-    { target: 'sell_unit_type', label: 'Tipo de venta (unit/weight/bulk)' },
-    { target: 'uom', label: 'Unidad base (uom)' },
-    { target: 'unit_price', label: 'Precio de venta' },
-    { target: 'source_quantity', label: 'Cantidad (para calcular unitario)' },
-    {
-      target: 'source_subtotal',
-      label: 'Subtotal/total linea (para calcular unitario)',
-    },
-    { target: 'source_date', label: 'Fecha de referencia (venta/precio)' },
-    { target: 'shelf_life_days', label: 'Vencimiento aproximado (dias)' },
-    { target: 'is_active', label: 'Activo (true/false)' },
-    { target: 'supplier_name', label: 'Nombre proveedor', required: true },
-    { target: 'contact_name', label: 'Contacto proveedor' },
-    { target: 'phone', label: 'Telefono proveedor' },
-    { target: 'email', label: 'Email proveedor' },
-    { target: 'notes', label: 'Notas proveedor' },
-    { target: 'payment_terms_days', label: 'Plazo pago proveedor (dias)' },
-    {
-      target: 'preferred_payment_method',
-      label: 'Metodo pago proveedor (cash/transfer)',
-    },
-    { target: 'accepts_cash', label: 'Proveedor acepta efectivo' },
-    {
-      target: 'accepts_transfer',
-      label: 'Proveedor acepta transferencia',
-    },
-    { target: 'order_frequency', label: 'Frecuencia pedido proveedor' },
-    { target: 'order_day', label: 'Dia pedido proveedor (mon..sun)' },
-    { target: 'receive_day', label: 'Dia recepcion proveedor (mon..sun)' },
-    { target: 'payment_note', label: 'Nota pago proveedor' },
-    { target: 'relation_type', label: 'Relacion (primary/secondary)' },
-    { target: 'supplier_sku', label: 'SKU proveedor' },
-    { target: 'supplier_product_name', label: 'Nombre producto proveedor' },
-  ],
 };
 
 const COLUMN_ALIASES: Record<string, string[]> = {
@@ -213,6 +219,15 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   sell_unit_type: ['sell_unit_type', 'tipo_venta', 'tipo_unidad'],
   uom: ['uom', 'unidad', 'unidad_base'],
   unit_price: ['unit_price', 'price', 'precio', 'precio_venta'],
+  brand: ['brand', 'marca'],
+  primary_supplier_name: [
+    'primary_supplier_name',
+    'proveedor_primario',
+    'supplier_name',
+    'supplier',
+    'proveedor',
+  ],
+  supplier_price: ['supplier_price', 'precio_proveedor', 'costo', 'cost'],
   source_quantity: [
     'source_quantity',
     'quantity',
@@ -232,6 +247,7 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   ],
   source_date: [
     'source_date',
+    'hora',
     'date',
     'fecha',
     'fecha_venta',
@@ -247,6 +263,23 @@ const COLUMN_ALIASES: Record<string, string[]> = {
     'dias_vencimiento',
   ],
   is_active: ['is_active', 'activo'],
+  primary_supplier_product_name: [
+    'primary_supplier_product_name',
+    'supplier_product_name',
+    'nombre_articulo_proveedor',
+    'nombre_producto_proveedor',
+  ],
+  primary_supplier_sku: [
+    'primary_supplier_sku',
+    'supplier_sku',
+    'sku_proveedor',
+  ],
+  secondary_supplier_name: [
+    'secondary_supplier_name',
+    'proveedor_secundario',
+    'supplier_secondary',
+  ],
+  safety_stock: ['safety_stock', 'stock_minimo', 'min_stock'],
   supplier_name: ['supplier_name', 'supplier', 'proveedor', 'nombre_proveedor'],
   contact_name: ['contact_name', 'contacto'],
   phone: ['phone', 'telefono'],
@@ -269,9 +302,7 @@ const COLUMN_ALIASES: Record<string, string[]> = {
 };
 
 const parseTemplateKey = (value: string): TemplateKey | null =>
-  ['products', 'suppliers', 'products_suppliers'].includes(value)
-    ? (value as TemplateKey)
-    : null;
+  ['products', 'suppliers'].includes(value) ? (value as TemplateKey) : null;
 
 const encodeJsonBase64 = (value: unknown) =>
   Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
@@ -699,6 +730,7 @@ const parseDateValue = (value: string | undefined) => {
 
   const dmySlash = /^(\d{2})\/(\d{2})\/(\d{4})$/;
   const dmyDash = /^(\d{2})-(\d{2})-(\d{4})$/;
+  const dmyHm = /^(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/;
   const slashMatch = trimmed.match(dmySlash);
   if (slashMatch) {
     const [, dd, mm, yyyy] = slashMatch;
@@ -712,6 +744,30 @@ const parseDateValue = (value: string | undefined) => {
     if (!Number.isNaN(parsed)) return parsed;
   }
 
+  const dmyHmMatch = trimmed.match(dmyHm);
+  if (dmyHmMatch) {
+    const now = new Date();
+    const [, dRaw, mRaw, hRaw, minRaw, secRaw] = dmyHmMatch;
+    const day = Number.parseInt(dRaw, 10);
+    const month = Number.parseInt(mRaw, 10);
+    const hours = Number.parseInt(hRaw, 10);
+    const minutes = Number.parseInt(minRaw, 10);
+    const seconds = Number.parseInt(secRaw ?? '0', 10);
+
+    const candidate = new Date(
+      now.getFullYear(),
+      month - 1,
+      day,
+      hours,
+      minutes,
+      seconds,
+      0,
+    );
+    if (!Number.isNaN(candidate.getTime())) {
+      return candidate.getTime();
+    }
+  }
+
   const fallback = Date.parse(trimmed);
   if (!Number.isNaN(fallback)) return fallback;
   return null;
@@ -720,6 +776,7 @@ const parseDateValue = (value: string | undefined) => {
 const getRowTimestamp = (row: Record<string, string>) => {
   const candidates = [
     row.source_date,
+    row.hora,
     row.sale_date,
     row.fecha_venta,
     row.transaction_date,
@@ -739,15 +796,21 @@ const getRowTimestamp = (row: Record<string, string>) => {
 const normalizeComputedUnitPrice = (
   row: Record<string, string>,
   templateKey: TemplateKey,
+  mapping: Record<string, string>,
 ) => {
-  if (templateKey !== 'products' && templateKey !== 'products_suppliers') {
+  if (templateKey !== 'products') {
     return row;
   }
 
   const currentUnitPrice = parseNumericValue(row.unit_price);
-  if (currentUnitPrice != null && currentUnitPrice >= 0) {
-    return row;
-  }
+  const mappedUnitPriceSource = normalizeForKey(mapping.unit_price ?? '');
+  const unitPriceLooksLikeSubtotalSource =
+    mappedUnitPriceSource.includes('subtotal') ||
+    mappedUnitPriceSource.includes('line_total') ||
+    mappedUnitPriceSource.includes('total_linea') ||
+    mappedUnitPriceSource.includes('importe') ||
+    (mappedUnitPriceSource.includes('total') &&
+      !mappedUnitPriceSource.includes('unit'));
 
   const quantity = parseNumericValue(
     row.source_quantity ??
@@ -765,6 +828,14 @@ const normalizeComputedUnitPrice = (
       row.amount ??
       row.total,
   );
+
+  if (
+    currentUnitPrice != null &&
+    currentUnitPrice >= 0 &&
+    !(unitPriceLooksLikeSubtotalSource && quantity != null && quantity > 0)
+  ) {
+    return row;
+  }
 
   if (quantity == null || subtotal == null || quantity <= 0) {
     return row;
@@ -859,11 +930,7 @@ const deduplicateRecords = (
       return buildSupplierKey(row);
     }
 
-    const productKey = buildProductKey(row);
-    const supplierKey = buildSupplierKey(row);
-    if (!productKey || !supplierKey) return null;
-    const relationType = normalizeForKey(row.relation_type ?? 'primary');
-    return `${productKey}|${supplierKey}|relation:${relationType || 'primary'}`;
+    return null;
   };
 
   records.forEach((row, index) => {
@@ -874,7 +941,7 @@ const deduplicateRecords = (
       dedupMap.set(fallbackKey, row);
       return;
     }
-    if (templateKey === 'products' || templateKey === 'products_suppliers') {
+    if (templateKey === 'products') {
       dedupMap.set(fallbackKey, mergeProductLikeRecords(existing, row));
       return;
     }
@@ -903,6 +970,147 @@ async function callUntypedRpc<T>(
   ).rpc(fnName, params);
 }
 
+async function insertImportRowsInBatches(
+  supabaseClient: unknown,
+  rows: Array<{
+    org_id: string;
+    job_id: string;
+    row_number: number;
+    raw_payload: Record<string, string>;
+    normalized_payload: Record<string, string> | null;
+  }>,
+  batchSize = 500,
+) {
+  for (let start = 0; start < rows.length; start += batchSize) {
+    const chunk = rows.slice(start, start + batchSize);
+    const { error } = await (
+      supabaseClient as {
+        from: (table: string) => {
+          insert: (
+            values: unknown[],
+          ) => Promise<{ error: { message: string } | null }>;
+        };
+      }
+    )
+      .from('data_import_rows')
+      .insert(chunk);
+
+    if (error) {
+      return { error };
+    }
+  }
+
+  return { error: null };
+}
+
+const loadStagedRecords = async (
+  actionSupabase: unknown,
+  actionOrgId: string,
+  stagedJobId: string,
+  expectedTemplate: TemplateKey,
+) => {
+  const { data: stagedJobData } = await (
+    actionSupabase as {
+      from: (table: string) => {
+        select: (columns: string) => {
+          eq: (
+            column: string,
+            value: string,
+          ) => {
+            eq: (
+              column2: string,
+              value2: string,
+            ) => {
+              maybeSingle: () => Promise<{ data: unknown }>;
+            };
+          };
+        };
+      };
+    }
+  )
+    .from('data_import_jobs')
+    .select('id, template_key, source_file_name')
+    .eq('org_id', actionOrgId)
+    .eq('id', stagedJobId)
+    .maybeSingle();
+
+  const stagedJob = (stagedJobData as StagedJobRow | null) ?? null;
+  if (!stagedJob || stagedJob.template_key !== expectedTemplate) {
+    return null;
+  }
+
+  const stagedRows: Array<{
+    row_number: number;
+    raw_payload: Record<string, string> | null;
+  }> = [];
+  const pageSize = 1000;
+  let from = 0;
+
+  for (;;) {
+    const { data: stagedRowsData } = await (
+      actionSupabase as {
+        from: (table: string) => {
+          select: (columns: string) => {
+            eq: (
+              column: string,
+              value: string,
+            ) => {
+              eq: (
+                column2: string,
+                value2: string,
+              ) => {
+                order: (column3: string) => {
+                  range: (
+                    fromRow: number,
+                    toRow: number,
+                  ) => Promise<{ data: unknown }>;
+                };
+              };
+            };
+          };
+        };
+      }
+    )
+      .from('data_import_rows')
+      .select('row_number, raw_payload')
+      .eq('org_id', actionOrgId)
+      .eq('job_id', stagedJobId)
+      .order('row_number')
+      .range(from, from + pageSize - 1);
+
+    const chunk =
+      (stagedRowsData as Array<{
+        row_number: number;
+        raw_payload: Record<string, string> | null;
+      }> | null) ?? [];
+    stagedRows.push(...chunk);
+
+    if (chunk.length < pageSize) {
+      break;
+    }
+    from += pageSize;
+  }
+
+  const records = stagedRows
+    .map((row) =>
+      row.raw_payload &&
+      typeof row.raw_payload === 'object' &&
+      !Array.isArray(row.raw_payload)
+        ? row.raw_payload
+        : null,
+    )
+    .filter((row): row is Record<string, string> => row !== null);
+
+  if (records.length === 0) {
+    return null;
+  }
+
+  return {
+    records,
+    sourceFileName: stagedJob.source_file_name,
+  };
+};
+
 export default async function OnboardingPage({
   searchParams,
 }: {
@@ -927,31 +1135,48 @@ export default async function OnboardingPage({
     if (!actionSession?.orgId) {
       redirect('/no-access');
     }
-
     const actionOrgId = actionSession.orgId;
     const actionSupabase = actionSession.supabase;
     const templateKeyRaw = String(formData.get('template_key') ?? '').trim();
     const templateKey = parseTemplateKey(templateKeyRaw);
     const applyNow = formData.get('apply_now') === 'on';
     const importFile = formData.get('import_file');
+    const stagedJobId = String(formData.get('staged_job_id') ?? '').trim();
 
     if (!templateKey) {
       redirect('/onboarding?result=invalid&message=template');
     }
 
-    if (!(importFile instanceof File) || importFile.size === 0) {
-      redirect('/onboarding?result=invalid&message=file');
-    }
-
-    if (importFile.size > 8 * 1024 * 1024) {
-      redirect('/onboarding?result=invalid&message=file_too_large');
-    }
-
     let records: Array<Record<string, string>> = [];
-    try {
-      records = await readImportRecords(importFile);
-    } catch {
-      redirect('/onboarding?result=invalid&message=file_format_or_parse');
+    let sourceFileName = '';
+
+    if (stagedJobId) {
+      const staged = await loadStagedRecords(
+        actionSupabase,
+        actionOrgId,
+        stagedJobId,
+        templateKey,
+      );
+      if (!staged) {
+        redirect('/onboarding?result=invalid&message=staged_job_missing');
+      }
+      records = staged.records;
+      sourceFileName = staged.sourceFileName;
+    } else {
+      if (!(importFile instanceof File) || importFile.size === 0) {
+        redirect('/onboarding?result=invalid&message=file');
+      }
+
+      if (importFile.size > 8 * 1024 * 1024) {
+        redirect('/onboarding?result=invalid&message=file_too_large');
+      }
+
+      try {
+        records = await readImportRecords(importFile);
+      } catch {
+        redirect('/onboarding?result=invalid&message=file_format_or_parse');
+      }
+      sourceFileName = importFile.name;
     }
 
     if (records.length === 0) {
@@ -970,6 +1195,7 @@ export default async function OnboardingPage({
       normalizeComputedUnitPrice(
         mergeRecords(row, applyMappingToRow(row, finalMapping)),
         templateKey,
+        finalMapping,
       ),
     );
     const { dedupedRecords, dedupedCount } = deduplicateRecords(
@@ -982,7 +1208,7 @@ export default async function OnboardingPage({
     >(actionSupabase, 'rpc_create_data_import_job', {
       p_org_id: actionOrgId,
       p_template_key: templateKey,
-      p_source_file_name: importFile.name,
+      p_source_file_name: sourceFileName || 'staged-import.csv',
       p_source_file_path: null as unknown as string,
     });
 
@@ -992,25 +1218,24 @@ export default async function OnboardingPage({
 
     const jobId = String(jobData[0].job_id);
 
-    for (let index = 0; index < dedupedRecords.length; index += 1) {
-      const row = dedupedRecords[index];
+    const rowsToInsert = dedupedRecords.map((row, index) => {
       const normalized = applyMappingToRow(row, finalMapping);
-      const { error: rowError } = await callUntypedRpc<
-        Array<{ row_id: string }>
-      >(actionSupabase, 'rpc_upsert_data_import_row', {
-        p_org_id: actionOrgId,
-        p_job_id: jobId,
-        p_row_number: index + 1,
-        p_raw_payload: row,
-        p_normalized_payload:
-          Object.keys(normalized).length > 0
-            ? normalized
-            : (null as unknown as Record<string, string>),
-      });
+      return {
+        org_id: actionOrgId,
+        job_id: jobId,
+        row_number: index + 1,
+        raw_payload: row,
+        normalized_payload:
+          Object.keys(normalized).length > 0 ? normalized : null,
+      };
+    });
 
-      if (rowError) {
-        redirect(`/onboarding?result=error&message=row_${index + 1}`);
-      }
+    const { error: batchInsertError } = await insertImportRowsInBatches(
+      actionSupabase,
+      rowsToInsert,
+    );
+    if (batchInsertError) {
+      redirect('/onboarding?result=error&message=rows_batch_insert');
     }
 
     const { data: validateData, error: validateError } = await callUntypedRpc<
@@ -1068,6 +1293,12 @@ export default async function OnboardingPage({
   const detectImportColumns = async (formData: FormData): Promise<void> => {
     'use server';
 
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) {
+      redirect('/no-access');
+    }
+    const actionOrgId = actionSession.orgId;
+
     const templateKeyRaw = String(formData.get('template_key') ?? '').trim();
     const templateKey = parseTemplateKey(templateKeyRaw);
     const importFile = formData.get('import_file');
@@ -1095,6 +1326,39 @@ export default async function OnboardingPage({
       redirect('/onboarding?result=invalid&message=empty');
     }
 
+    if (records.length > IMPORT_MAX_ROWS) {
+      redirect('/onboarding?result=invalid&message=too_many_rows');
+    }
+
+    const { data: stagedJobData, error: stagedJobError } = await callUntypedRpc<
+      Array<{ job_id: string }>
+    >(actionSession.supabase, 'rpc_create_data_import_job', {
+      p_org_id: actionOrgId,
+      p_template_key: templateKey,
+      p_source_file_name: importFile.name,
+      p_source_file_path: null as unknown as string,
+    });
+
+    if (stagedJobError || !stagedJobData?.[0]?.job_id) {
+      redirect('/onboarding?result=error&message=stage_create_job');
+    }
+
+    const stagedJobId = String(stagedJobData[0].job_id);
+    const stagedRows = records.map((row, index) => ({
+      org_id: actionOrgId,
+      job_id: stagedJobId,
+      row_number: index + 1,
+      raw_payload: row,
+      normalized_payload: null,
+    }));
+    const { error: stageRowsError } = await insertImportRowsInBatches(
+      actionSession.supabase,
+      stagedRows,
+    );
+    if (stageRowsError) {
+      redirect('/onboarding?result=error&message=stage_rows');
+    }
+
     const detectedColumns = Object.keys(records[0] ?? {});
     const proposedMap = buildAutoMapping(detectedColumns, templateKey);
     const params = new URLSearchParams({
@@ -1102,6 +1366,8 @@ export default async function OnboardingPage({
       mapping_template: templateKey,
       detected_cols: encodeJsonBase64(detectedColumns),
       proposed_map: encodeJsonBase64(proposedMap),
+      staged_job_id: stagedJobId,
+      staged_file_name: importFile.name,
     });
 
     redirect(`/onboarding?${params.toString()}`);
@@ -1206,6 +1472,8 @@ export default async function OnboardingPage({
         p_supplier_sku: primarySupplierSku,
         p_supplier_product_name: primarySupplierProductName,
         p_relation_type: 'primary',
+        p_supplier_price:
+          supplierPriceRaw === '' ? null : Number(supplierPriceRaw),
       });
     } else {
       await actionSupabase.rpc('rpc_remove_supplier_product_relation', {
@@ -1228,6 +1496,7 @@ export default async function OnboardingPage({
         p_supplier_sku: '',
         p_supplier_product_name: '',
         p_relation_type: 'secondary',
+        p_supplier_price: null,
       });
     } else {
       await actionSupabase.rpc('rpc_remove_supplier_product_relation', {
@@ -1268,48 +1537,69 @@ export default async function OnboardingPage({
     );
   };
 
-  const [tasksResult, jobsResult, suppliersResult, productsResult] =
-    await Promise.all([
-      supabase
-        .from('v_data_onboarding_tasks' as never)
-        .select('task_key, task_label, pending_count')
-        .eq('org_id', orgId),
-      supabase
-        .from('data_import_jobs' as never)
-        .select(
-          'id, template_key, source_file_name, status, total_rows, valid_rows, invalid_rows, applied_rows, created_at',
-        )
-        .eq('org_id', orgId)
-        .order('created_at', { ascending: false })
-        .limit(8),
-      supabase
-        .from('suppliers' as never)
-        .select('id, name, is_active, default_markup_pct')
-        .eq('org_id', orgId)
-        .eq('is_active', true)
-        .order('name'),
-      supabase
-        .from('products' as never)
-        .select(
-          'id, name, brand, internal_code, barcode, sell_unit_type, uom, unit_price, shelf_life_days',
-        )
-        .eq('org_id', orgId)
-        .eq('is_active', true)
-        .order('name'),
-    ]);
+  const resolverPageRaw = Number.parseInt(
+    String(resolvedSearchParams.resolver_page ?? '1'),
+    10,
+  );
+  const resolverPage = Number.isFinite(resolverPageRaw)
+    ? Math.max(1, resolverPageRaw)
+    : 1;
+  const resolverQuery = String(resolvedSearchParams.resolver_q ?? '').trim();
+  const resolverTokens = resolverQuery
+    .split(/\s+/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+  const resolverPageSize = 25;
 
-  const [supplierRelationsResult, safetyStockResult] = await Promise.all([
+  let resolverCountQuery = supabase
+    .from('v_products_incomplete_admin' as never)
+    .select('id', { count: 'exact', head: true })
+    .eq('org_id', orgId);
+  let resolverRowsQuery = supabase
+    .from('v_products_incomplete_admin' as never)
+    .select(
+      'id, name, brand, internal_code, barcode, sell_unit_type, uom, unit_price, shelf_life_days, has_primary_supplier, missing_primary_supplier, missing_shelf_life, missing_identifier',
+    )
+    .eq('org_id', orgId)
+    .order('name')
+    .range(
+      (resolverPage - 1) * resolverPageSize,
+      resolverPage * resolverPageSize - 1,
+    );
+
+  resolverTokens.forEach((token) => {
+    resolverCountQuery = resolverCountQuery.ilike('name', `%${token}%`);
+    resolverRowsQuery = resolverRowsQuery.ilike('name', `%${token}%`);
+  });
+
+  const [
+    tasksResult,
+    jobsResult,
+    suppliersResult,
+    resolverCountResult,
+    resolverRowsResult,
+  ] = await Promise.all([
     supabase
-      .from('supplier_products')
+      .from('v_data_onboarding_tasks' as never)
+      .select('task_key, task_label, pending_count')
+      .eq('org_id', orgId),
+    supabase
+      .from('data_import_jobs' as never)
       .select(
-        'product_id, supplier_id, relation_type, supplier_sku, supplier_product_name',
+        'id, template_key, source_file_name, status, total_rows, valid_rows, invalid_rows, applied_rows, created_at',
       )
       .eq('org_id', orgId)
-      .in('relation_type', ['primary', 'secondary']),
+      .order('created_at', { ascending: false })
+      .limit(8),
     supabase
-      .from('stock_items')
-      .select('product_id, safety_stock')
-      .eq('org_id', orgId),
+      .from('suppliers' as never)
+      .select('id, name, is_active, default_markup_pct')
+      .eq('org_id', orgId)
+      .eq('is_active', true)
+      .order('name'),
+    resolverCountQuery,
+    resolverRowsQuery,
   ]);
 
   const tasks = (tasksResult.data ?? []) as OnboardingTaskRow[];
@@ -1317,24 +1607,51 @@ export default async function OnboardingPage({
   const suppliers = (
     (suppliersResult.data ?? []) as unknown as SupplierOption[]
   ).filter((supplier) => supplier.id && supplier.name);
-  const products = (productsResult.data ?? []) as unknown as ProductRow[];
+  const productsIncompleteCount = Number(resolverCountResult.count ?? 0);
+  const quickResolverProducts =
+    (resolverRowsResult.data as unknown as IncompleteProductRow[]) ?? [];
+  const resolverProductIds = quickResolverProducts.map((product) => product.id);
+
+  const [supplierRelationsResult, safetyStockResult] = await Promise.all([
+    resolverProductIds.length === 0
+      ? Promise.resolve({ data: [] as SupplierProductRelationRow[] })
+      : supabase
+          .from('supplier_products' as never)
+          .select(
+            'product_id, supplier_id, relation_type, supplier_price, supplier_sku, supplier_product_name',
+          )
+          .eq('org_id', orgId)
+          .in('relation_type', ['primary', 'secondary'])
+          .in('product_id', resolverProductIds),
+    resolverProductIds.length === 0
+      ? Promise.resolve({ data: [] as StockSafetyRow[] })
+      : supabase
+          .from('stock_items')
+          .select('product_id, safety_stock')
+          .eq('org_id', orgId)
+          .in('product_id', resolverProductIds),
+  ]);
+
+  const supplierRelationsTyped =
+    (supplierRelationsResult.data as SupplierProductRelationRow[] | null) ?? [];
+  const safetyStockRows =
+    (safetyStockResult.data as StockSafetyRow[] | null) ?? [];
   const brandSuggestions = Array.from(
     new Set(
-      products
+      quickResolverProducts
         .map((product) => String(product.brand ?? '').trim())
         .filter(Boolean),
     ),
   ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
-  const supplierRelations =
-    (supplierRelationsResult.data as SupplierProductRelationRow[] | null) ?? [];
 
   const relationByProduct = new Map<string, ProductRelationByType>();
-  supplierRelations.forEach((relation) => {
+  supplierRelationsTyped.forEach((relation) => {
     if (!relation.product_id || !relation.supplier_id) return;
     const current = relationByProduct.get(relation.product_id) ?? {};
     if (relation.relation_type === 'primary') {
       current.primary = {
         supplier_id: relation.supplier_id,
+        supplier_price: relation.supplier_price,
         supplier_sku: relation.supplier_sku,
         supplier_product_name: relation.supplier_product_name,
       };
@@ -1345,7 +1662,7 @@ export default async function OnboardingPage({
   });
 
   const safetyStockByProduct = new Map<string, number | null>();
-  ((safetyStockResult.data as StockSafetyRow[] | null) ?? []).forEach((row) => {
+  safetyStockRows.forEach((row) => {
     if (!row.product_id) return;
     const value = Number(row.safety_stock ?? 0);
     if (Number.isNaN(value)) return;
@@ -1362,20 +1679,30 @@ export default async function OnboardingPage({
     }
   });
 
-  const incompleteProducts = products.filter((product) => {
-    const relation = relationByProduct.get(product.id);
-    const hasPrimary = Boolean(relation?.primary?.supplier_id);
-    const hasShelfLife = product.shelf_life_days != null;
-    const hasIdentifier = Boolean(
-      (product.barcode ?? '').trim() || (product.internal_code ?? '').trim(),
-    );
-    return !hasPrimary || !hasShelfLife || !hasIdentifier;
-  });
-
-  const quickResolverProducts = incompleteProducts.slice(0, 25);
-  const productsIncompleteCount = incompleteProducts.length;
   const isProductsIncompleteResolverOpen =
     resolvedSearchParams.resolver === 'products_incomplete_info';
+  const resolverTotalPages = Math.max(
+    1,
+    Math.ceil(productsIncompleteCount / resolverPageSize),
+  );
+  const resolverCurrentPage = Math.min(resolverPage, resolverTotalPages);
+  const resolverStartIndex =
+    productsIncompleteCount === 0
+      ? 0
+      : (resolverCurrentPage - 1) * resolverPageSize + 1;
+  const resolverEndIndex = Math.min(
+    resolverCurrentPage * resolverPageSize,
+    productsIncompleteCount,
+  );
+  const buildResolverHref = (page: number) => {
+    const params = new URLSearchParams();
+    params.set('resolver', 'products_incomplete_info');
+    params.set('resolver_page', String(page));
+    if (resolverQuery) {
+      params.set('resolver_q', resolverQuery);
+    }
+    return `/onboarding?${params.toString()}#resolver-products-incomplete-info`;
+  };
 
   const taskMap = new Map<SupplierTaskKey, number>();
   tasks.forEach((task) => {
@@ -1419,7 +1746,11 @@ export default async function OnboardingPage({
   const mappingFields = mappingTemplate ? TEMPLATE_FIELDS[mappingTemplate] : [];
   const showMappingConfigurator =
     Boolean(mappingTemplate) && detectedColumns.length > 0;
-  const defaultTemplate = mappingTemplate ?? 'products_suppliers';
+  const defaultTemplate = mappingTemplate ?? 'products';
+  const stagedJobId = String(resolvedSearchParams.staged_job_id ?? '').trim();
+  const stagedFileName = String(
+    resolvedSearchParams.staged_file_name ?? '',
+  ).trim();
 
   const invalidMessageMap: Record<string, string> = {
     template: 'Plantilla inválida.',
@@ -1429,6 +1760,8 @@ export default async function OnboardingPage({
       'Formato no soportado o no se pudo leer el archivo (usar CSV o XLSX).',
     empty: 'El archivo no contiene filas con datos.',
     too_many_rows: `El archivo supera el máximo permitido (${IMPORT_MAX_ROWS} filas).`,
+    staged_job_missing:
+      'El archivo detectado ya no está disponible. Cárgalo de nuevo y detecta columnas.',
   };
   const invalidDetail =
     invalidMessageMap[resolvedSearchParams.message ?? ''] ??
@@ -1506,9 +1839,6 @@ export default async function OnboardingPage({
                   defaultValue={defaultTemplate}
                   className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
                 >
-                  <option value="products_suppliers">
-                    Productos + proveedores
-                  </option>
                   <option value="products">Solo productos</option>
                   <option value="suppliers">Solo proveedores</option>
                 </select>
@@ -1520,10 +1850,23 @@ export default async function OnboardingPage({
                   type="file"
                   name="import_file"
                   accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                  required
+                  required={!showMappingConfigurator || !stagedJobId}
                   className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
                 />
               </label>
+              {stagedJobId ? (
+                <>
+                  <input
+                    type="hidden"
+                    name="staged_job_id"
+                    value={stagedJobId}
+                  />
+                  <p className="text-xs text-emerald-700">
+                    Archivo listo para importar sin recargar:
+                    {` ${stagedFileName || 'staged file'}`}
+                  </p>
+                </>
+              ) : null}
 
               {showMappingConfigurator ? (
                 <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
@@ -1579,6 +1922,7 @@ export default async function OnboardingPage({
                   Validar e importar
                 </button>
               </div>
+              <OnboardingFormPendingState />
             </form>
           </article>
 
@@ -1663,29 +2007,46 @@ export default async function OnboardingPage({
                   Resolucion rapida: productos con informacion incompleta
                 </h3>
                 <span className="text-xs text-zinc-600">
-                  Mostrando {quickResolverProducts.length} de{' '}
-                  {incompleteProducts.length}
+                  Mostrando {resolverStartIndex}-{resolverEndIndex} de{' '}
+                  {productsIncompleteCount}
                 </span>
               </div>
               <p className="mt-1 text-xs text-zinc-600">
                 Completa los campos del producto y guarda por fila para seguir
                 rapido.
               </p>
+              <form className="mt-3 flex flex-wrap gap-2" method="get">
+                <input
+                  type="hidden"
+                  name="resolver"
+                  value="products_incomplete_info"
+                />
+                <input
+                  type="text"
+                  name="resolver_q"
+                  defaultValue={resolverQuery}
+                  placeholder="Buscar por nombre de articulo"
+                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm md:w-80"
+                />
+                <button
+                  type="submit"
+                  className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700"
+                >
+                  Buscar
+                </button>
+              </form>
 
               {quickResolverProducts.length === 0 ? (
                 <p className="mt-3 text-sm text-emerald-700">
-                  No quedan productos con informacion incompleta.
+                  No hay resultados para esta pagina o filtro.
                 </p>
               ) : (
                 <div className="mt-4 flex flex-col gap-3">
                   {quickResolverProducts.map((product) => {
                     const relation = relationByProduct.get(product.id);
-                    const hasPrimary = Boolean(relation?.primary?.supplier_id);
-                    const hasShelfLife = product.shelf_life_days != null;
-                    const hasIdentifier = Boolean(
-                      (product.barcode ?? '').trim() ||
-                      (product.internal_code ?? '').trim(),
-                    );
+                    const hasPrimary = product.has_primary_supplier;
+                    const hasShelfLife = !product.missing_shelf_life;
+                    const hasIdentifier = !product.missing_identifier;
 
                     return (
                       <article
@@ -1771,6 +2132,8 @@ export default async function OnboardingPage({
                               uom: product.uom ?? 'unit',
                               primarySupplierId:
                                 relation?.primary?.supplier_id ?? '',
+                              supplierPrice:
+                                relation?.primary?.supplier_price ?? '',
                               unitPrice: product.unit_price ?? 0,
                               shelfLifeDays: product.shelf_life_days ?? '',
                               primarySupplierProductName:
@@ -1800,6 +2163,39 @@ export default async function OnboardingPage({
                   })}
                 </div>
               )}
+              {productsIncompleteCount > 0 ? (
+                <div className="mt-4 flex items-center justify-between text-xs text-zinc-600">
+                  <span>
+                    Pagina {resolverCurrentPage} de {resolverTotalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <Link
+                      href={buildResolverHref(
+                        Math.max(1, resolverCurrentPage - 1),
+                      )}
+                      className={`rounded border px-2 py-1 ${
+                        resolverCurrentPage <= 1
+                          ? 'pointer-events-none border-zinc-200 text-zinc-400'
+                          : 'border-zinc-300 text-zinc-700 hover:bg-zinc-100'
+                      }`}
+                    >
+                      Anterior
+                    </Link>
+                    <Link
+                      href={buildResolverHref(
+                        Math.min(resolverTotalPages, resolverCurrentPage + 1),
+                      )}
+                      className={`rounded border px-2 py-1 ${
+                        resolverCurrentPage >= resolverTotalPages
+                          ? 'pointer-events-none border-zinc-200 text-zinc-400'
+                          : 'border-zinc-300 text-zinc-700 hover:bg-zinc-100'
+                      }`}
+                    >
+                      Siguiente
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </section>

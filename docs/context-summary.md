@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-02-22 00:35
+Ultima actualizacion: 2026-02-24 17:10
 
 ## Estado general
 
@@ -84,11 +84,14 @@ Ultima actualizacion: 2026-02-22 00:35
 - En formulario de apertura se muestra fecha/hora del sistema en vivo junto al botón `Abrir caja`.
 - Se define nueva fase de producto para onboarding de datos maestros (`/onboarding`) con foco en importacion CSV, bandeja de pendientes de completitud y exportes maestros; implementacion aun pendiente.
 - Onboarding de datos maestros inicia base DB con jobs/rows de importación, vista de pendientes (`v_data_onboarding_tasks`) y RPCs de creación, validación y aplicación (`rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
-- `/onboarding` implementado en frontend para OA/SA: upload CSV/XLSX (productos/proveedores/combinado), validación + aplicación opcional, bandeja de pendientes y tabla de importaciones recientes.
-- `/onboarding` agrega etapa de detección/mapeo de columnas (archivo -> campos NODUX) y sube límite operativo de importación a 70.000 filas por archivo.
+- `/onboarding` implementado en frontend para OA/SA: upload CSV/XLSX (productos o proveedores por separado), validación + aplicación opcional, bandeja de pendientes y tabla de importaciones recientes.
+- `/onboarding` optimiza `Productos con informacion incompleta` con contrato DB dedicado (`v_products_incomplete_admin`), conteo exacto en servidor, paginación de 25 y buscador por nombre, evitando cargar todo el catálogo en memoria.
+- `/onboarding` agrega etapa de detección/mapeo de columnas (archivo -> campos NODUX) y sube límite operativo de importación a 80.000 filas por archivo.
 - En importación de onboarding se consolidan duplicados por claves de negocio (producto/proveedor/relación) antes de validar y aplicar, para construir maestro limpio desde archivos transaccionales.
+- En `/onboarding`, después de `Detectar columnas`, el archivo queda en staging y `Validar e importar` reutiliza ese mismo archivo sin exigir re-carga en el input.
 - `/onboarding/export` agrega exportes maestros CSV para `products`, `suppliers` y `product_supplier`.
 - Proveedores ahora tienen `% ganancia sugerida` por defecto (`40%`) para pricing y `/products` muestra sugerencia de `precio unitario` desde `precio proveedor` + `%` del proveedor primario.
+- `supplier_price` ahora queda persistido por relación en `supplier_products`; editar producto/proveedor actualiza ese valor y permite trazabilidad del cambio de costo proveedor junto al precio sugerido.
 - Nuevo módulo de historial de ventas en `/sales` y detalle en `/sales/[saleId]` con filtros por monto, método, hora e ítems.
 - `/sales` ahora incluye acceso directo a `/sales/statistics`, con análisis por período/sucursal: top y bottom de productos, relevancia de proveedores y tendencias por día/semana/mes.
 - Corrección de método de pago en detalle de venta vía RPC auditada (`sale_payment_method_corrected`) y bloqueada para ventas de sesiones de caja ya cerradas.

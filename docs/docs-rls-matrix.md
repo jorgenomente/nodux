@@ -27,6 +27,8 @@ Estado actual:
 - Historial/detalle de ventas + conciliación por dispositivo en caja agregados en `supabase/migrations/20260220113000_045_sales_history_cashbox_reconciliation.sql` (`v_sales_admin`, `v_sale_detail_admin`, `rpc_get_cash_session_payment_breakdown`, `rpc_correct_sale_payment_method`).
 - Descuento de empleado + cuentas de empleado por sucursal agregados en `supabase/migrations/20260221223000_052_employee_discount_accounts.sql` (`employee_accounts`, extensión de `org_preferences`, `sales` y `rpc_create_sale`).
 - Onboarding de datos maestros agregado en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks` y RPCs de importación/validación/aplicación).
+- Resolver de productos incompletos para onboarding agregado en `supabase/migrations/20260224201000_057_onboarding_products_incomplete_view.sql` (`v_products_incomplete_admin` con `security_invoker=true`; respeta RLS existente de `products` y `supplier_products`).
+- `supplier_products.supplier_price` agregado en `supabase/migrations/20260225111500_058_supplier_product_price.sql` junto con extensión de `rpc_upsert_supplier_product` y `v_supplier_detail_admin` (sin cambios de policy; reusa RLS existente de `supplier_products`).
 - Proveedores incorporan `% ganancia sugerida` en `supabase/migrations/20260222013000_054_supplier_default_markup_pct.sql` (sin cambios de policy; reusa RLS existente sobre `suppliers` y validación en `rpc_upsert_supplier`).
 - Estadísticas de ventas agregadas en `supabase/migrations/20260222123000_056_sales_statistics_view.sql` (`v_sales_statistics_items` con `security_invoker=true`).
 - Conciliación operativa de caja con captura de comprobantes por fila y agregado MercadoPago total en `supabase/migrations/20260220153000_047_cashbox_reconciliation_inputs.sql` (`cash_session_reconciliation_inputs`, `rpc_get_cash_session_reconciliation_rows`, `rpc_upsert_cash_session_reconciliation_inputs`).
@@ -76,7 +78,7 @@ Estado actual:
 | `expiration_batches`                 | read/insert/update | read/insert/update | read/insert (si modulo)       | ST sin ajustes avanzados                                  |
 | `expiration_waste`                   | read               | read/insert        | read (via view/RPC)           | Registro de desperdicio                                   |
 | `suppliers`                          | read/insert/update | read/insert/update | no                            | ST sin acceso                                             |
-| `supplier_products`                  | read/insert/update | read/insert/update | no                            | ST sin acceso                                             |
+| `supplier_products`                  | read/insert/update | read/insert/update | no                            | ST sin acceso (incluye `supplier_price`)                  |
 | `supplier_orders`                    | read/insert/update | read/insert/update | no                            | ST no en MVP                                              |
 | `supplier_order_items`               | read/insert/update | read/insert/update | no                            | ST no en MVP                                              |
 | `supplier_payment_accounts`          | read/insert/update | read/insert/update | no                            | Cuentas de transferencia por proveedor                    |

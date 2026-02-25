@@ -3,9 +3,10 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
-import AmountInputAR from '@/app/components/AmountInputAR';
 import PageShell from '@/app/components/PageShell';
+import NewProductForm from '@/app/products/NewProductForm';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { fetchAllPages } from '@/lib/supabase/fetch-all-pages';
 
 type SupplierDetailRow = {
   supplier_id: string;
@@ -27,6 +28,7 @@ type SupplierDetailRow = {
   product_is_active: boolean | null;
   barcode: string | null;
   internal_code: string | null;
+  supplier_price: number | null;
   supplier_sku: string | null;
   supplier_product_name: string | null;
   relation_type: 'primary' | 'secondary' | null;
@@ -39,6 +41,13 @@ type SupplierPaymentAccountRow = {
   account_holder_name: string | null;
   account_identifier: string | null;
   is_active: boolean;
+};
+
+type SupplierOption = {
+  id: string;
+  name: string;
+  is_active: boolean;
+  default_markup_pct: number | null;
 };
 
 const orderFrequencyOptions = [
@@ -63,11 +72,6 @@ export default async function SupplierDetailPage({
 }: {
   params: Promise<{ supplierId: string }>;
 }) {
-  const deriveAccepts = (preferredPaymentMethod: string) => ({
-    acceptsCash: preferredPaymentMethod !== 'transfer',
-    acceptsTransfer: preferredPaymentMethod !== 'cash',
-  });
-
   const resolvedParams = await params;
   const session = await getOrgAdminSession();
   if (!session) {
@@ -91,16 +95,48 @@ export default async function SupplierDetailPage({
   }
 
   const supplier = detailRows[0] as unknown as SupplierDetailRow;
-  const { data: paymentAccountsData } = await supabase
-    .from('supplier_payment_accounts')
-    .select(
-      'id, account_label, bank_name, account_holder_name, account_identifier, is_active',
-    )
-    .eq('org_id', orgId)
-    .eq('supplier_id', supplierId)
-    .order('created_at', { ascending: false });
+  const [paymentAccountsResult, suppliersResult, brandsForSuggestions] =
+    await Promise.all([
+      supabase
+        .from('supplier_payment_accounts')
+        .select(
+          'id, account_label, bank_name, account_holder_name, account_identifier, is_active',
+        )
+        .eq('org_id', orgId)
+        .eq('supplier_id', supplierId)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('suppliers' as never)
+        .select('id, name, is_active, default_markup_pct')
+        .eq('org_id', orgId)
+        .order('name'),
+      fetchAllPages(
+        (from, to) =>
+          supabase
+            .from('products' as never)
+            .select('brand')
+            .eq('org_id', orgId)
+            .eq('is_active', true)
+            .not('brand', 'is', null)
+            .range(from, to),
+        { label: 'supplier_detail_page_brands' },
+      ),
+    ]);
+  const paymentAccountsData = paymentAccountsResult.data;
   const paymentAccounts =
     (paymentAccountsData as SupplierPaymentAccountRow[] | null) ?? [];
+  const suppliers = ((suppliersResult.data ?? []) as SupplierOption[]).filter(
+    (row) => row.id && row.name,
+  );
+  const brandSuggestions = Array.from(
+    new Set(
+      brandsForSuggestions
+        .map((product) =>
+          String((product as { brand?: string | null }).brand ?? '').trim(),
+        )
+        .filter(Boolean),
+    ),
+  ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
   const products = (detailRows as unknown as SupplierDetailRow[])
     .filter((row) => row.product_id)
     .map((row) => ({
@@ -109,6 +145,7 @@ export default async function SupplierDetailPage({
       product_is_active: row.product_is_active,
       barcode: row.barcode,
       internal_code: row.internal_code,
+      supplier_price: row.supplier_price,
       supplier_sku: row.supplier_sku,
       supplier_product_name: row.supplier_product_name,
       relation_type: row.relation_type ?? 'primary',
@@ -144,10 +181,8 @@ export default async function SupplierDetailPage({
     const defaultMarkupPctRaw = String(
       formData.get('default_markup_pct') ?? '40',
     ).trim();
-    const { acceptsCash, acceptsTransfer } =
-      preferredPaymentMethod === 'cash' || preferredPaymentMethod === 'transfer'
-        ? deriveAccepts(preferredPaymentMethod)
-        : { acceptsCash: true, acceptsTransfer: true };
+    const acceptsCash = preferredPaymentMethod === 'transfer' ? false : true;
+    const acceptsTransfer = preferredPaymentMethod === 'cash' ? false : true;
     const paymentTermsDays =
       paymentTermsDaysRaw === ''
         ? null
@@ -209,6 +244,9 @@ export default async function SupplierDetailPage({
     const orgId = actionSession.orgId;
     const productId = String(formData.get('product_id') ?? '').trim();
     const supplierSku = String(formData.get('supplier_sku') ?? '').trim();
+    const supplierPriceRaw = String(
+      formData.get('supplier_price') ?? '',
+    ).trim();
     const supplierProductName = String(
       formData.get('supplier_product_name') ?? '',
     ).trim();
@@ -220,6 +258,10 @@ export default async function SupplierDetailPage({
       currentRelationType === 'secondary' ? 'secondary' : 'primary';
 
     if (!productId) return;
+    if (supplierPriceRaw !== '') {
+      const supplierPrice = Number(supplierPriceRaw);
+      if (Number.isNaN(supplierPrice) || supplierPrice < 0) return;
+    }
 
     if (normalizedRelationType !== normalizedCurrentRelationType) {
       await supabaseServer.rpc('rpc_remove_supplier_product_relation', {
@@ -236,6 +278,8 @@ export default async function SupplierDetailPage({
       p_supplier_sku: supplierSku,
       p_supplier_product_name: supplierProductName,
       p_relation_type: normalizedRelationType,
+      p_supplier_price:
+        supplierPriceRaw === '' ? null : Number(supplierPriceRaw),
     });
 
     revalidatePath(`/suppliers/${supplierId}`);
@@ -267,7 +311,8 @@ export default async function SupplierDetailPage({
     if (!actionSession?.orgId) return;
     const supabaseServer = actionSession.supabase;
     const orgId = actionSession.orgId;
-    const name = String(formData.get('product_name') ?? '').trim();
+    const name = String(formData.get('name') ?? '').trim();
+    const brand = String(formData.get('brand') ?? '').trim();
     const internalCode = String(formData.get('internal_code') ?? '').trim();
     const barcode = String(formData.get('barcode') ?? '').trim();
     const sellUnitType = String(formData.get('sell_unit_type') ?? 'unit') as
@@ -276,19 +321,32 @@ export default async function SupplierDetailPage({
       | 'bulk';
     const uom = String(formData.get('uom') ?? '').trim();
     const unitPriceRaw = String(formData.get('unit_price') ?? '0').trim();
+    const supplierPriceRaw = String(
+      formData.get('supplier_price') ?? '',
+    ).trim();
     const shelfLifeRaw = String(formData.get('shelf_life_days') ?? '').trim();
-    const safetyStockAllRaw = String(
-      formData.get('safety_stock_all') ?? '',
+    const primarySupplierId = String(
+      formData.get('primary_supplier_id') ?? supplierId,
     ).trim();
-    const supplierSku = String(formData.get('supplier_sku') ?? '').trim();
-    const supplierProductName = String(
-      formData.get('supplier_product_name') ?? '',
+    const secondarySupplierId = String(
+      formData.get('secondary_supplier_id') ?? '',
     ).trim();
+    const primarySupplierSku = String(
+      formData.get('primary_supplier_sku') ?? '',
+    ).trim();
+    const primarySupplierProductName = String(
+      formData.get('primary_supplier_product_name') ?? '',
+    ).trim();
+    const safetyStockRaw = String(formData.get('safety_stock') ?? '').trim();
 
     if (!name) return;
 
     const unitPrice = Number(unitPriceRaw);
     if (Number.isNaN(unitPrice) || unitPrice < 0) return;
+    if (supplierPriceRaw !== '') {
+      const supplierPrice = Number(supplierPriceRaw);
+      if (Number.isNaN(supplierPrice) || supplierPrice < 0) return;
+    }
     const shelfLifeDays =
       shelfLifeRaw === '' ? null : Number.parseInt(shelfLifeRaw, 10);
     if (
@@ -312,9 +370,39 @@ export default async function SupplierDetailPage({
       p_is_active: true,
       p_shelf_life_days: shelfLifeDays,
     });
+    await supabaseServer
+      .from('products' as never)
+      .update({ brand: brand || null } as never)
+      .eq('org_id', orgId)
+      .eq('id', productId);
 
-    if (safetyStockAllRaw !== '') {
-      const safetyStock = Number(safetyStockAllRaw);
+    if (primarySupplierId) {
+      await supabaseServer.rpc('rpc_upsert_supplier_product', {
+        p_org_id: orgId,
+        p_supplier_id: primarySupplierId,
+        p_product_id: productId,
+        p_supplier_sku: primarySupplierSku,
+        p_supplier_product_name: primarySupplierProductName,
+        p_relation_type: 'primary',
+        p_supplier_price:
+          supplierPriceRaw === '' ? null : Number(supplierPriceRaw),
+      });
+    }
+
+    if (secondarySupplierId && secondarySupplierId !== primarySupplierId) {
+      await supabaseServer.rpc('rpc_upsert_supplier_product', {
+        p_org_id: orgId,
+        p_supplier_id: secondarySupplierId,
+        p_product_id: productId,
+        p_supplier_sku: '',
+        p_supplier_product_name: '',
+        p_relation_type: 'secondary',
+        p_supplier_price: null,
+      });
+    }
+
+    if (safetyStockRaw !== '') {
+      const safetyStock = Number(safetyStockRaw);
       if (!Number.isNaN(safetyStock) && safetyStock >= 0) {
         const { data: activeBranches } = await supabaseServer
           .from('branches')
@@ -335,16 +423,8 @@ export default async function SupplierDetailPage({
       }
     }
 
-    await supabaseServer.rpc('rpc_upsert_supplier_product', {
-      p_org_id: orgId,
-      p_supplier_id: supplierId,
-      p_product_id: productId,
-      p_supplier_sku: supplierSku,
-      p_supplier_product_name: supplierProductName,
-      p_relation_type: 'primary',
-    });
-
     revalidatePath(`/suppliers/${supplierId}`);
+    revalidatePath('/suppliers');
     revalidatePath('/products');
   };
 
@@ -689,111 +769,13 @@ export default async function SupplierDetailPage({
           <h2 className="text-lg font-semibold text-zinc-900">
             Crear producto nuevo
           </h2>
-          <form
-            action={createProductFromSupplier}
-            className="mt-4 grid gap-3 md:grid-cols-2"
-          >
-            <label className="text-sm text-zinc-600">
-              Nombre de articulo en la tienda
-              <input
-                name="product_name"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                required
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              Código interno
-              <input
-                name="internal_code"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              Codigo de barras
-              <input
-                name="barcode"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              Nombre de articulo en proveedor (opcional)
-              <input
-                name="supplier_product_name"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              SKU en proveedor (opcional)
-              <input
-                name="supplier_sku"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              Unidad de venta
-              <select
-                name="sell_unit_type"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                defaultValue="unit"
-              >
-                <option value="unit">Unidad</option>
-                <option value="weight">Peso</option>
-                <option value="bulk">Granel</option>
-              </select>
-            </label>
-            <label className="text-sm text-zinc-600">
-              Unidad de medida
-              <input
-                name="uom"
-                defaultValue="unit"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              Precio unitario
-              <AmountInputAR
-                name="unit_price"
-                defaultValue="0"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              Vencimiento aproximado (días)
-              <input
-                name="shelf_life_days"
-                type="number"
-                step="1"
-                min="0"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                placeholder="Ej: 30"
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              Stock minimo (todas las sucursales)
-              <input
-                name="safety_stock_all"
-                type="number"
-                step="0.001"
-                min="0"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                placeholder="0"
-              />
-              <span
-                className="mt-1 block text-xs text-zinc-400"
-                title="Cantidad minima sugerida para evitar quiebres. Se usa en sugerencias de compra."
-              >
-                ⓘ Se aplica a todas las sucursales activas
-              </span>
-            </label>
-            <div className="md:col-span-2">
-              <button
-                type="submit"
-                className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
-              >
-                Crear y asociar como primario
-              </button>
-            </div>
-          </form>
+          <NewProductForm
+            suppliers={suppliers}
+            brandSuggestions={brandSuggestions}
+            onSubmit={createProductFromSupplier}
+            defaults={{ primarySupplierId: supplierId }}
+            lockPrimarySupplier
+          />
         </section>
 
         <section className="rounded-2xl bg-white p-6 shadow-sm">
@@ -850,6 +832,17 @@ export default async function SupplierDetailPage({
                         name="current_relation_type"
                         value={product.relation_type}
                       />
+                      <label className="text-xs text-zinc-600">
+                        Precio proveedor
+                        <input
+                          name="supplier_price"
+                          defaultValue={product.supplier_price ?? ''}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                        />
+                      </label>
                       <label className="text-xs text-zinc-600">
                         SKU en proveedor
                         <input

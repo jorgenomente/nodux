@@ -58,6 +58,7 @@ Campos clave (conceptual):
 - org_id
 - supplier_id
 - product_id
+- supplier_price (numeric, optional)
 - supplier_sku (text, optional)
 - supplier_product_name (text, optional)
 - default_purchase_uom (text, optional)
@@ -116,7 +117,7 @@ Constraints:
 ### O2) Asociar productos al proveedor
 
 - Buscar producto y asociarlo
-- Opcional: setear supplier_sku y supplier_product_name
+- Opcional: setear supplier_price, supplier_sku y supplier_product_name
 - Definir si la relación es primaria o secundaria
 - Remover asociación (si no hay referencias a pedidos; si hay, marcar inactiva Post-MVP)
 

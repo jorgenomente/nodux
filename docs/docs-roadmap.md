@@ -258,6 +258,7 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-02-16: se agrega descuento en efectivo en POS (porcentaje fijo desde preferencias), validación estricta en DB y métricas de efectivo/descuento en dashboard.
 - 2026-02-16: POS incorpora pagos divididos (split payments) con desglose `sale_payments`, compatibilidad backward en `rpc_create_sale` y métricas de efectivo basadas en cobros reales.
 - 2026-02-16: se agrega módulo Caja (`/cashbox`) por sucursal con sesiones de apertura/cierre, movimientos manuales y auditoría de actor/detalle.
+- 2026-02-25: se persiste `supplier_price` por relación producto-proveedor (`supplier_products`), se extiende `rpc_upsert_supplier_product` y se actualiza `v_supplier_detail_admin` para soportar edición y trazabilidad de cambios de costo proveedor.
 - 2026-02-16: hardening de cierre de Caja con firma operativa obligatoria, confirmación explícita y conteo por denominaciones.
 - 2026-02-16: caja pasa a conteo por denominaciones en apertura/cierre para caja + reserva, con denominaciones configurables por organización.
 - 2026-02-18: se agrega módulo `/payments` por sucursal para cuentas a pagar de proveedores (pendiente/parcial/pagado/vencido), registro de pagos y estado de pago integrado en `/orders`.

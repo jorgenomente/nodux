@@ -12,6 +12,67 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-24 17:10 -03 — Onboarding: resolver de incompletos paginado con buscador y conteo DB
+
+**Lote:** onboarding-incomplete-products-paginated-resolver
+**Objetivo:** Evitar carga masiva en `/onboarding` moviendo el conteo/listado de productos incompletos a contrato DB paginado con búsqueda server-side.
+
+**Prompt**
+exelente hagamos eso
+
+## 2026-02-25 10:24 -03 — Fix `/suppliers/[supplierId]`: server action con función no serializable
+
+**Lote:** suppliers-detail-server-action-serialization-fix
+**Objetivo:** Corregir error de Next.js 16 en detalle de proveedor donde una server action capturaba una función local del componente y rompía la navegación.
+
+**Prompt**
+acabo de descubrir que si yo estoy en /suppliers si yo le doy ver detalle me lleva a suppliers/id pero me salen estos issues:
+Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server".
+Code frame:
+app/suppliers/[supplierId]/page.tsx:121
+const updateSupplier = async (formData: FormData) => { 'use server'; ... }
+Next.js version: 16.1.6 (Turbopack)
+
+## 2026-02-25 10:30 -03 — Reuso de formulario de producto en `/suppliers/[supplierId]`
+
+**Lote:** suppliers-detail-reuse-products-new-form
+**Objetivo:** Reutilizar el mismo componente de alta de producto de `/products` dentro de detalle de proveedor, preseleccionando y bloqueando proveedor primario actual para mantener paridad de campos e inputs.
+
+**Prompt**
+ok y ahi en el formulario de crear pruducto nuevo dentro de /suppliers/id y deberia ser el mismo componente reutilizado de /products, la unica diferencia es que ya debe venir seleccionado el proveedor primario en el cual estamos, pero deberia tener los mismos inputs y el componente reutilizado por si lo modifico se modficia y se muestra igual en todos los entries
+
+## 2026-02-25 11:01 -03 — Onboarding export: maestros alineados a formularios de productos/proveedores
+
+**Lote:** onboarding-export-master-form-contract-sync
+**Objetivo:** Alinear columnas de `productos_master.csv` y `proveedores_master.csv` con los campos operativos de los formularios de alta de `/products` y `/suppliers` para mantener sincronía entre exportes y contrato UI.
+
+**Prompt**
+Exacto hazlo, y el proveedores_master debe tambien tener las columnas del formulario de crear nuevo proveedor asi queda todo sincronizado y la db refleja realmente los datos que necesitamos en el sistema para que todo funcione bien
+
+## 2026-02-25 11:15 -03 — Persistir `supplier_price` en DB y reflejarlo en edición/exportes
+
+**Lote:** supplier-price-persistence-e2e
+**Objetivo:** Persistir `precio proveedor` por relación producto-proveedor para trazabilidad de cambios de costo y reutilizar ese dato en edición de productos/onboarding y en exportes maestros.
+
+**Prompt**
+Si, pienso que este dato es importante porque a la hora de editar productos si el supplier cambio de precios, yo voy a editar ese precio de proveedor, y me gustaria que eso quede persistido asi puedo entender lo que esta cambiando y el nuevo precio de unidad sugerido
+
+## 2026-02-24 18:05 -03 — Products: paginación configurable + buscador server-side + contador visible
+
+**Lote:** products-pagination-search-count
+**Objetivo:** Implementar en `/products` total visible, paginación real y selector por página (20/50/100) con búsqueda por nombre en servidor.
+
+**Prompt**
+falta ahora tambien hacer los cambios en /products en este momento no se cuantos productos aparecen en la pagina pero deberia decirme cuantos hay, cuantos hay por pagina y poder configurarlo para ver 20 o 50 o 100 por pagina y debe tener el buscador, tal como habias propuesto antes
+
+## 2026-02-24 18:20 -03 — Products: mejorar UX con paginación numerada y búsqueda con debounce
+
+**Lote:** products-pagination-search-count
+**Objetivo:** Extender la mejora de `/products` agregando navegación numerada por páginas y actualización automática del buscador sin submit manual.
+
+**Prompt**
+ok adelante
+
 ## 2026-02-22 10:39 -03 — Onboarding: agregar input de precio proveedor en resolver de productos incompletos
 
 **Lote:** onboarding-incomplete-products-add-supplier-price-input
@@ -2194,3 +2255,77 @@ podemos colocar como maximo 70 mil filas? porque sigue siendo muy extenso mi doc
 
 **Prompt**
 esta tomado en cuenta que es posible que el precio haya que dividirlo entre cantidad cuando existe? porque si se vendieron 2 en cantidad me va a salir el subtotal como doble entonces no se si estamos tomando enc uenta eso y se entiende
+
+## 2026-02-23 14:05 -03 — Onboarding: ampliar máximo de filas a 80k
+
+**Lote:** onboarding-row-limit-80k
+**Objetivo:** Elevar el límite de importación por archivo en onboarding a 80.000 filas para soportar documentos aún más extensos.
+
+**Prompt**
+subamos el limite a 80mil filas
+
+## 2026-02-23 14:10 -03 — Onboarding: plantillas separadas (sin combinado)
+
+**Lote:** onboarding-separate-product-supplier-templates
+**Objetivo:** Forzar flujo de importación separado por entidad (solo `products` o `suppliers`), removiendo la opción combinada para evitar mezcla de contratos de datos.
+
+**Prompt**
+en este momento dice plantilla y me dice proveedor mas productos, quiero que sea por separado, una de proveedor y una de productos ya que se maneja informacion distinta
+
+## 2026-02-23 14:17 -03 — Onboarding: contrato de columnas alineado al formulario + parsing de hora
+
+**Lote:** onboarding-product-contract-reuse-and-hour-date-parsing
+**Objetivo:** Alinear columnas de importación de productos con el contrato del formulario compartido de alta/edición, y ampliar parsing de fechas para formatos complejos (ej. `09/08 21:01` en columna `hora`).
+
+**Prompt**
+estas son las columnas que deberia tener nuestro maestro de productos asi que estos deberian ser las columnas a importar. es posible reutilizar el componente desde el formulario de nuevo producto asi cuando se apliquen estos cambios no haga falta modificarlos manualmente? Nombre de articulo en la tienda
+Marca
+Ej: Arcor
+Codigo interno
+Codigo de barras
+Unidad de venta
+Unidad
+Unidad de medida
+unit
+Proveedor primario
+Sin proveedor
+Precio proveedor
+0
+Precio unitario
+0
+Sugerencia: completa "Precio proveedor" para calcular el precio unitario recomendado (40% de ganancia).
+Vencimiento aproximado (días)
+Ej: 30
+Nombre de articulo en proveedor (opcional)
+SKU en proveedor (opcional)
+Proveedor secundario
+Sin proveedor
+Stock minimo
+0
+chequea bien porque hice copiar y pegar y se pego informacion de los inputs de texto pero igual lo puedes chequear con el formulario. aqui lo importante es que automaticamente el sistema entienda que para la columna de precio de venta, yo voy a importar la de subtotal, pero se debe entender que ese subtotal primero se divide entre la cantidad. tambien la columna de fecha en este caso se llama hora, y el formato es bien complejo asi 09/08 21:01 entonces tenemos que tener la capacidad de entender esos formatos y los multiples formatos que se podrian utilizar dependiendo de donde vengan los datos
+
+## 2026-02-23 14:27 -03 — Onboarding: no recargar archivo tras detectar columnas
+
+**Lote:** onboarding-staged-file-after-column-detection
+**Objetivo:** Evitar que el usuario deba subir nuevamente el archivo luego de `Detectar columnas`, reutilizando el mismo archivo en la acción `Validar e importar`.
+
+**Prompt**
+lo otro que me sucede es que si yo cargo un archivo y le doy detectar columnas, si bien me recone las columnas si despues yo le doy a validar e importar me pide que cargue el archivo nuevamente lo que es molesto porque ya lo habia cargado para detectar columnas. podriamos mantener el mismo archivo cargado para despues darle a validar e importar de una vez sin necesidad e cargarlo nuevamente?
+
+## 2026-02-23 14:36 -03 — Onboarding: indicador visual de procesamiento durante import
+
+**Lote:** onboarding-import-pending-feedback
+**Objetivo:** Mostrar estado visual mientras se ejecuta `Validar e importar` o `Detectar columnas`, para evitar sensación de bloqueo en cargas grandes.
+
+**Prompt**
+perfecto lo intente ahora y me dice esto Importacion finalizada (job 5b430112-ecc1-44c7-bef4-08b4c5831d5f)
+
+Filas: 3999 total · 3999 validas · 0 invalidas · 3999 aplicadas · 0 omitidas · 73803 consolidadas por duplicado justo en el momento que le doy validar e importar se toma unos segundos para cargar los datos, pero no sucede nada en la pantalla entoces da la sensacion de que no esta psando nada, podemos agregar alguna animacion que diga procesando el documento o algo asi? mientras se espera para importar los datos
+
+## 2026-02-24 19:35 -03 — Onboarding: mensaje pending diferenciado por acción
+
+**Lote:** onboarding-pending-message-by-intent
+**Objetivo:** Mostrar feedback de carga contextual en onboarding según botón presionado: `Detectar columnas` vs `Validar e importar`.
+
+**Prompt**
+ok hazlo

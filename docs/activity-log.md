@@ -18,6 +18,169 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-25 10:24 -03 — Fix: `/suppliers/[supplierId]` evita closure de función en server action
+
+**Tipo:** fix
+**Lote:** suppliers-detail-server-action-serialization-fix
+**Alcance:** frontend, tests, docs
+
+**Resumen**
+Se corrigió el error runtime de Next.js 16 al abrir detalle de proveedor desde `/suppliers`: la acción server `updateSupplier` capturaba una función local (`deriveAccepts`) definida dentro del componente server, lo que disparaba `Functions cannot be passed directly to Client Components`. Se removió esa captura y el cálculo de `accepts_cash/accepts_transfer` quedó inline dentro de la action.
+
+**Archivos**
+
+- app/suppliers/[supplierId]/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-25)
+- `npm run build` OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 10:30 -03 — UI: `/suppliers/[supplierId]` reutiliza formulario de `/products`
+
+**Tipo:** ui
+**Lote:** suppliers-detail-reuse-products-new-form
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se reemplazó el formulario hardcodeado de “Crear producto nuevo” en `/suppliers/[supplierId]` por el componente reutilizable `NewProductForm` usado en `/products`, para mantener un único contrato de inputs. El proveedor primario ahora llega preseleccionado y bloqueado al proveedor actual, y la acción server de alta en detalle se alineó con los mismos campos que `/products` (marca, precio proveedor, proveedor secundario, stock mínimo, SKU/nombre de proveedor).
+
+**Archivos**
+
+- app/suppliers/[supplierId]/page.tsx
+- app/products/NewProductForm.tsx
+- app/products/ProductFormFieldsShared.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-25)
+- `npm run build` OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 11:01 -03 — UI: exportes maestros de onboarding alineados al contrato de formularios
+
+**Tipo:** ui
+**Lote:** onboarding-export-master-form-contract-sync
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se actualizó `/onboarding/export` para que `productos_master.csv` y `proveedores_master.csv` reflejen los campos operativos de alta/edición en `/products` y `/suppliers`. En productos se agregaron columnas de marca, proveedor primario/secundario, SKU/nombre proveedor y stock mínimo consolidado; en proveedores se agregó `% ganancia sugerida` (`default_markup_pct`) manteniendo perfil de pago completo.
+
+**Archivos**
+
+- app/onboarding/export/route.ts
+- docs/docs-app-screens-onboarding.md
+- docs/docs-modules-data-onboarding.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-25)
+- `npm run build` OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 11:15 -03 — DB/UI: persistencia de `supplier_price` por relación producto-proveedor
+
+**Tipo:** db
+**Lote:** supplier-price-persistence-e2e
+**Alcance:** db, frontend, docs, tests
+
+**Resumen**
+Se agregó persistencia de `supplier_price` en `supplier_products` para registrar cambios de costo proveedor y reutilizar el dato en formularios de edición. La migración agrega columna + check no negativo, extiende `rpc_upsert_supplier_product` (manteniendo compatibilidad por defaults) y actualiza `v_supplier_detail_admin`. En frontend, `/products`, `/suppliers/[supplierId]` y el resolvedor rápido de `/onboarding` ahora leen/escriben `supplier_price`; además los exportes maestros incluyen el valor persistido.
+
+**Archivos**
+
+- supabase/migrations/20260225111500_058_supplier_product_price.sql
+- app/products/ProductFormFieldsShared.tsx
+- app/products/ProductActions.tsx
+- app/products/ProductListClient.tsx
+- app/products/page.tsx
+- app/suppliers/[supplierId]/page.tsx
+- app/onboarding/page.tsx
+- app/onboarding/export/route.ts
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/docs-modules-suppliers.md
+- docs/docs-app-screens-products.md
+- docs/docs-app-screens-supplier-detail.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:reset` OK (2026-02-25)
+- `npm run lint` OK (2026-02-25)
+- `npm run build` OK (2026-02-25)
+- `npm run db:rls:smoke` FAIL (baseline preexistente): `staff puede leer products de su org`
+
+**Commit:** N/A
+
+## 2026-02-24 17:10 -03 — DB/UI: resolver de productos incompletos con paginación y búsqueda server-side
+
+**Tipo:** db
+**Lote:** onboarding-incomplete-products-paginated-resolver
+**Alcance:** db, frontend, docs, tests
+
+**Resumen**
+Se eliminó la carga masiva de productos para la tarea `Productos con informacion incompleta` en `/onboarding`. Se agregó el contrato `v_products_incomplete_admin` (1 fila por producto incompleto con flags) y la UI ahora usa conteo exacto en DB + listado paginado (25 por página) + buscador por nombre en servidor.
+
+**Archivos**
+
+- supabase/migrations/20260224201000_057_onboarding_products_incomplete_view.sql
+- app/onboarding/page.tsx
+- docs/docs-app-screens-onboarding.md
+- docs/docs-modules-data-onboarding.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:reset` OK (2026-02-24)
+- `npm run lint` OK (2026-02-24)
+- `npm run build` OK (2026-02-24)
+
+**Commit:** N/A
+
+## 2026-02-24 18:05 -03 — UI: `/products` con paginación configurable, buscador server-side y contador
+
+**Tipo:** ui
+**Lote:** products-pagination-search-count
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+La pantalla `/products` dejó de cargar/renderizar todo el catálogo en cliente. Ahora usa búsqueda por nombre y paginación server-side con parámetros URL (`q`, `page`, `page_size`), muestra total de productos, rango visible y navegación por página. El tamaño por página se puede configurar en `20/50/100`.
+Además, el buscador se ejecuta con debounce y la paginación incorpora números de página visibles.
+
+**Archivos**
+
+- app/products/page.tsx
+- app/products/ProductListClient.tsx
+- app/products/ProductListFilters.tsx
+- docs/docs-app-screens-products.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-24)
+- `npm run build` OK (2026-02-24)
+
+**Commit:** N/A
+
 ## 2026-02-22 10:39 -03 — UI: onboarding agrega input precio proveedor en productos incompletos
 
 **Tipo:** ui
@@ -6012,5 +6175,132 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 
 - npm run lint OK (2026-02-23)
 - npm run build OK (2026-02-23)
+
+**Commit:** N/A
+
+## 2026-02-23 14:05 -03 — Onboarding: límite de importación ampliado a 80.000 filas
+
+**Tipo:** ui/docs
+**Lote:** onboarding-row-limit-80k
+**Descripción:** Se actualizó el límite máximo de filas por archivo en onboarding de 70.000 a 80.000 para permitir cargas aún más extensas sin bloquear por `too_many_rows`. Se alinearon validación y documentación viva.
+
+**Archivos afectados:**
+
+- app/onboarding/page.tsx
+- docs/docs-modules-data-onboarding.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-23)
+- npm run build OK (2026-02-23)
+
+**Commit:** N/A
+
+## 2026-02-23 14:10 -03 — Onboarding: importación separada por plantilla (productos/proveedores)
+
+**Tipo:** ui/docs
+**Lote:** onboarding-separate-product-supplier-templates
+**Descripción:** Se eliminó del flujo de onboarding la plantilla combinada `products_suppliers`. El selector y la validación de `template_key` ahora aceptan solo `products` o `suppliers`, para mantener contratos de datos separados por entidad y evitar mezcla de campos.
+
+**Archivos afectados:**
+
+- app/onboarding/page.tsx
+- docs/docs-app-screens-onboarding.md
+- docs/docs-modules-data-onboarding.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-23)
+- npm run build OK (2026-02-23)
+
+**Commit:** N/A
+
+## 2026-02-23 14:17 -03 — Onboarding: columnas de productos alineadas a formulario y fecha `hora` soportada
+
+**Tipo:** ui/docs
+**Lote:** onboarding-product-contract-reuse-and-hour-date-parsing
+**Descripción:** Se alineó el contrato de columnas de importación `products` con el formulario compartido de producto (labels y campos maestros). Se agregó módulo compartido `app/products/product-form-contract.ts` para reutilizar etiquetas y reducir drift. Además se extendió el parser de fechas para aceptar formatos sin año como `09/08 21:01` (columna `hora`) y usarlo en la regla de precio más reciente.
+
+**Archivos afectados:**
+
+- app/products/product-form-contract.ts
+- app/products/ProductFormFieldsShared.tsx
+- app/onboarding/page.tsx
+- docs/docs-app-screens-onboarding.md
+- docs/docs-modules-data-onboarding.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-23)
+- npm run build OK (2026-02-23)
+
+**Commit:** N/A
+
+## 2026-02-23 14:27 -03 — Onboarding: staging de archivo entre detección e importación
+
+**Tipo:** ui/docs
+**Lote:** onboarding-staged-file-after-column-detection
+**Descripción:** Se implementó staging del archivo en backend al ejecutar `Detectar columnas`. La acción `Validar e importar` ahora puede reutilizar ese mismo archivo (job de staging) sin requerir nueva carga en el input de archivo. Se agregó hidden `staged_job_id`, mensaje visual de archivo listo y manejo de error si el staging no existe.
+
+**Archivos afectados:**
+
+- app/onboarding/page.tsx
+- docs/docs-app-screens-onboarding.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-23)
+- npm run build OK (2026-02-23)
+
+**Commit:** N/A
+
+## 2026-02-23 14:36 -03 — Onboarding: feedback visual de procesamiento en formulario
+
+**Tipo:** ui/docs
+**Lote:** onboarding-import-pending-feedback
+**Descripción:** Se agregó estado visual `pending` en el formulario de importación de onboarding con spinner y mensaje “Procesando documento...”, visible durante ejecución de acciones del form para evitar sensación de espera sin respuesta.
+
+**Archivos afectados:**
+
+- app/onboarding/OnboardingFormPendingState.tsx
+- app/onboarding/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-23)
+- npm run build OK (2026-02-23)
+
+**Commit:** N/A
+
+## 2026-02-24 19:35 -03 — Onboarding: estado pending contextual por acción
+
+**Tipo:** ui/docs
+**Lote:** onboarding-pending-message-by-intent
+**Descripción:** Se diferenciaron mensajes de espera en el formulario de onboarding según acción enviada (`intent`). Ahora el pending muestra “Detectando columnas del documento...” o “Validando e importando documento...” según el botón presionado.
+
+**Archivos afectados:**
+
+- app/onboarding/OnboardingFormPendingState.tsx
+- app/onboarding/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-24)
+- npm run build OK (2026-02-24)
 
 **Commit:** N/A

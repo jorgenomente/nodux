@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from 'react';
 
 import AmountInputAR from '@/app/components/AmountInputAR';
+import { PRODUCT_FORM_LABELS } from '@/app/products/product-form-contract';
 
 const sellUnitOptions = ['unit', 'weight', 'bulk'] as const;
 
@@ -38,6 +39,7 @@ type DefaultValueMap = {
   sellUnitType?: 'unit' | 'weight' | 'bulk';
   uom?: string;
   primarySupplierId?: string;
+  supplierPrice?: number | string;
   unitPrice?: number | string;
   shelfLifeDays?: number | string;
   primarySupplierProductName?: string;
@@ -53,6 +55,7 @@ type Props = {
   defaults?: DefaultValueMap;
   compact?: boolean;
   includeHelper?: boolean;
+  lockPrimarySupplier?: boolean;
 };
 
 const currencyFormatter = new Intl.NumberFormat('es-AR', {
@@ -67,6 +70,7 @@ export default function ProductFormFieldsShared({
   defaults,
   compact = false,
   includeHelper = true,
+  lockPrimarySupplier = false,
 }: Props) {
   const brandSuggestionsListId = useId();
   const [primarySupplierId, setPrimarySupplierId] = useState(
@@ -100,7 +104,7 @@ export default function ProductFormFieldsShared({
   return (
     <>
       <label className={labelClass}>
-        Nombre de articulo en la tienda
+        {PRODUCT_FORM_LABELS.productName}
         <input
           name={fields.name}
           defaultValue={defaults?.name ?? ''}
@@ -109,7 +113,7 @@ export default function ProductFormFieldsShared({
         />
       </label>
       <label className={labelClass}>
-        Marca
+        {PRODUCT_FORM_LABELS.brand}
         <input
           name={fields.brand}
           defaultValue={defaults?.brand ?? ''}
@@ -126,7 +130,7 @@ export default function ProductFormFieldsShared({
         ) : null}
       </label>
       <label className={labelClass}>
-        Codigo interno
+        {PRODUCT_FORM_LABELS.internalCode}
         <input
           name={fields.internalCode}
           defaultValue={defaults?.internalCode ?? ''}
@@ -134,7 +138,7 @@ export default function ProductFormFieldsShared({
         />
       </label>
       <label className={labelClass}>
-        Codigo de barras
+        {PRODUCT_FORM_LABELS.barcode}
         <input
           name={fields.barcode}
           defaultValue={defaults?.barcode ?? ''}
@@ -142,7 +146,7 @@ export default function ProductFormFieldsShared({
         />
       </label>
       <label className={labelClass}>
-        Unidad de venta
+        {PRODUCT_FORM_LABELS.sellUnitType}
         <select
           name={fields.sellUnitType}
           defaultValue={defaults?.sellUnitType ?? 'unit'}
@@ -160,7 +164,7 @@ export default function ProductFormFieldsShared({
         </select>
       </label>
       <label className={labelClass}>
-        Unidad de medida
+        {PRODUCT_FORM_LABELS.uom}
         <input
           name={fields.uom}
           defaultValue={defaults?.uom ?? 'unit'}
@@ -168,12 +172,13 @@ export default function ProductFormFieldsShared({
         />
       </label>
       <label className={labelClass}>
-        Proveedor primario
+        {PRODUCT_FORM_LABELS.primarySupplier}
         <select
           name={fields.primarySupplierId}
           value={primarySupplierId}
           onChange={(event) => setPrimarySupplierId(event.target.value)}
           className={inputClass}
+          disabled={lockPrimarySupplier}
         >
           <option value="">Sin proveedor</option>
           {suppliers.map((supplier) => (
@@ -187,18 +192,26 @@ export default function ProductFormFieldsShared({
             </option>
           ))}
         </select>
+        {lockPrimarySupplier ? (
+          <input
+            type="hidden"
+            name={fields.primarySupplierId}
+            value={primarySupplierId}
+          />
+        ) : null}
       </label>
       <label className={labelClass}>
-        Precio proveedor
+        {PRODUCT_FORM_LABELS.supplierPrice}
         <AmountInputAR
           name={fields.supplierPrice}
           className={inputClass}
           onValueChange={setSupplierPrice}
+          defaultValue={defaults?.supplierPrice ?? ''}
           placeholder="0"
         />
       </label>
       <label className={labelClass}>
-        Precio unitario
+        {PRODUCT_FORM_LABELS.unitPrice}
         <AmountInputAR
           name={fields.unitPrice}
           className={inputClass}
@@ -211,7 +224,7 @@ export default function ProductFormFieldsShared({
         ) : null}
       </label>
       <label className={labelClass}>
-        Vencimiento aproximado (días)
+        {PRODUCT_FORM_LABELS.shelfLifeDays}
         <input
           name={fields.shelfLifeDays}
           type="number"
@@ -223,7 +236,7 @@ export default function ProductFormFieldsShared({
         />
       </label>
       <label className={labelClass}>
-        Nombre de articulo en proveedor (opcional)
+        {PRODUCT_FORM_LABELS.supplierProductName}
         <input
           name={fields.primarySupplierProductName}
           defaultValue={defaults?.primarySupplierProductName ?? ''}
@@ -231,7 +244,7 @@ export default function ProductFormFieldsShared({
         />
       </label>
       <label className={labelClass}>
-        SKU en proveedor (opcional)
+        {PRODUCT_FORM_LABELS.supplierSku}
         <input
           name={fields.primarySupplierSku}
           defaultValue={defaults?.primarySupplierSku ?? ''}
@@ -239,7 +252,7 @@ export default function ProductFormFieldsShared({
         />
       </label>
       <label className={labelClass}>
-        Proveedor secundario
+        {PRODUCT_FORM_LABELS.secondarySupplier}
         <select
           name={fields.secondarySupplierId}
           defaultValue={defaults?.secondarySupplierId ?? ''}
@@ -259,7 +272,7 @@ export default function ProductFormFieldsShared({
         </select>
       </label>
       <label className={labelClass}>
-        Stock minimo
+        {PRODUCT_FORM_LABELS.safetyStock}
         <input
           name={fields.safetyStock}
           type="number"

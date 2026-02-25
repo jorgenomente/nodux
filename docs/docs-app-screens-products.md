@@ -56,6 +56,14 @@ Cada row:
 - badge activo/inactivo
 - acción: editar / activar-desactivar
 
+Toolbar de lista (MVP actual):
+
+- buscador por nombre (server-side, tokens en cualquier orden)
+- input de búsqueda con debounce (actualiza URL sin submit manual)
+- selector de tamaño de página (`20`, `50`, `100`)
+- contador total + rango visible (`Mostrando X-Y de Z`)
+- paginación (`Anterior` / `Siguiente`) + numeración de páginas
+
 ### Sección B — Acciones rápidas por producto (MVP)
 
 - Editar producto (inline)
@@ -163,6 +171,12 @@ Salida mínima por fila:
 
 Nota: el desglose por sucursal evita el selector en MVP.
 
+Parámetros de lectura operativa en UI:
+
+- `q` (búsqueda por nombre)
+- `page` (paginación)
+- `page_size` (`20` | `50` | `100`)
+
 ### Escrituras
 
 RPC 1: `rpc_upsert_product(input)`
@@ -183,6 +197,7 @@ RPC 3: `rpc_upsert_supplier_product(input)`
 - supplier_id
 - product_id
 - relation_type (primary | secondary)
+- supplier_price optional
 - supplier_sku optional
 - supplier_product_name optional
 

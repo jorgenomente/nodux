@@ -62,7 +62,7 @@ Gestionar un proveedor en profundidad:
 
 ### A3) Editar datos de asociación
 
-- Editar supplier_sku y supplier_product_name inline
+- Editar supplier_price, supplier_sku y supplier_product_name inline
 - Guarda con RPC upsert_supplier_product
 
 ### A4) Remover asociación
@@ -128,6 +128,7 @@ Salida:
   - product_is_active
   - barcode (opcional)
   - internal_code (opcional)
+  - supplier_price (opcional)
   - supplier_sku
   - supplier_product_name
   - relation_type (se usa lista de primarios)
@@ -143,6 +144,7 @@ RPC 2: `rpc_upsert_supplier_product(input)`
 
 - supplier_id
 - product_id
+- supplier_price optional
 - supplier_sku optional
 - supplier_product_name optional
 - relation_type (primary | secondary)
