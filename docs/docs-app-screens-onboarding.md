@@ -79,7 +79,28 @@ Accion implementada en MVP:
 - completitud rapida de producto desde `/onboarding` sin salir de la pantalla
   (modo rapido por filas).
 
-### Seccion E — Exportes maestros
+### Seccion E — Edicion masiva de productos
+
+- buscador server-side por nombre (tokenizado)
+- listado paginado de productos (25/50/100/200 por pagina)
+- seleccion multiple de filas visibles
+- opcion de aplicar a:
+  - seleccionados
+  - todos los resultados filtrados
+- patch masivo de campos operativos:
+  - marca
+  - proveedor primario
+  - proveedor secundario
+  - shelf life days
+  - precio proveedor (relacion primaria)
+  - precio unitario de venta
+- en el row de `proveedor primario` existe CTA `Crear proveedor` que abre modal
+  rápido sin salir de onboarding (nombre requerido + campos completos de
+  proveedor + desplegable opcional para registrar cuenta de transferencia)
+- resultado con conteo de productos tocados y omitidos sin proveedor primario
+  (cuando se aplica precio proveedor sin relacion primaria existente)
+
+### Seccion F — Exportes maestros
 
 - descargar `productos_master.csv`
 - descargar `proveedores_master.csv`
@@ -123,7 +144,12 @@ de identificadores.
 Desde la bandeja, el usuario completa datos faltantes con formularios rapidos
 sin salir del flujo.
 
-### A5) Exportar maestros
+### A5) Editar en masa productos
+
+Desde `/onboarding`, OA/SA puede filtrar productos y aplicar parches masivos
+sobre campos seleccionados, sin abrir formulario por fila.
+
+### A6) Exportar maestros
 
 El usuario descarga un snapshot actual para respaldo o migracion a otra
 sucursal.

@@ -77,6 +77,13 @@ export default function ProductFormFieldsShared({
     defaults?.primarySupplierId ?? '',
   );
   const [supplierPrice, setSupplierPrice] = useState<number | null>(null);
+  const initialShelfLife = String(defaults?.shelfLifeDays ?? '').trim();
+  const [shelfLifeNoApplies, setShelfLifeNoApplies] = useState(
+    initialShelfLife === '0',
+  );
+  const [shelfLifeValue, setShelfLifeValue] = useState(
+    initialShelfLife === '0' ? '' : initialShelfLife,
+  );
 
   const selectedSupplier = useMemo(
     () => suppliers.find((supplier) => supplier.id === primarySupplierId),
@@ -223,18 +230,38 @@ export default function ProductFormFieldsShared({
           </span>
         ) : null}
       </label>
-      <label className={labelClass}>
-        {PRODUCT_FORM_LABELS.shelfLifeDays}
+      <div className={labelClass}>
+        <span>{PRODUCT_FORM_LABELS.shelfLifeDays}</span>
         <input
-          name={fields.shelfLifeDays}
+          name={shelfLifeNoApplies ? undefined : fields.shelfLifeDays}
           type="number"
           step="1"
           min="0"
-          defaultValue={defaults?.shelfLifeDays ?? ''}
+          value={shelfLifeNoApplies ? '' : shelfLifeValue}
+          onChange={(event) => setShelfLifeValue(event.target.value)}
+          disabled={shelfLifeNoApplies}
           className={inputClass}
           placeholder="Ej: 30"
         />
-      </label>
+        {shelfLifeNoApplies ? (
+          <input type="hidden" name={fields.shelfLifeDays} value="0" />
+        ) : null}
+        <label className="mt-2 flex items-center gap-2 text-xs text-zinc-600">
+          <input
+            type="checkbox"
+            checked={shelfLifeNoApplies}
+            onChange={(event) => {
+              const checked = event.target.checked;
+              setShelfLifeNoApplies(checked);
+              if (checked) {
+                setShelfLifeValue('');
+              }
+            }}
+          />
+          No aplica vencimiento (guarda 0; en blanco o 0 no genera lotes
+          automáticos)
+        </label>
+      </div>
       <label className={labelClass}>
         {PRODUCT_FORM_LABELS.supplierProductName}
         <input

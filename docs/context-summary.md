@@ -110,3 +110,6 @@ Ultima actualizacion: 2026-02-24 17:10
 
 - Pagina para movimiento de stock entre sucursales (transferencias masivas).
 - En `/onboarding`, el apply de importación ahora matchea productos existentes solo por `barcode`/`internal_code` (sin fallback por nombre) y la deduplicación previa del archivo sigue la misma regla para evitar merges ambiguos por nombre.
+- `/onboarding` incorpora edición masiva de productos con búsqueda/paginación server-side y aplicación por lote sobre seleccionados o todos los resultados filtrados; soporta patch de marca, proveedor primario/secundario, shelf life, precio proveedor y precio unitario.
+- Formularios de producto (alta/edición/resolvedor) y edición masiva en `/onboarding` incorporan opción `No aplica vencimiento`, que guarda `shelf_life_days=0`; en recepción de pedidos, `0` o valor vacío no generan batches automáticos de vencimiento.
+- En edición masiva de `/onboarding`, el campo de proveedor primario incorpora CTA `Crear proveedor` con modal rápido (nombre obligatorio) que reutiliza contrato de alta de proveedor y permite cargar cuenta de transferencia opcional en el mismo flujo.

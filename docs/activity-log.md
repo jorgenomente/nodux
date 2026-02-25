@@ -6332,3 +6332,214 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - `npm run build` OK (2026-02-25)
 
 **Commit:** N/A
+
+## 2026-02-25 13:22 -03 — Onboarding: edición masiva de productos (selección + filtro)
+
+**Tipo:** ui/docs
+**Lote:** onboarding-bulk-products-patch
+**Descripción:** Se incorporó en `/onboarding` una sección de edición masiva de productos con búsqueda y paginación server-side para escalar a miles de registros. El flujo permite selección múltiple de filas visibles o aplicar sobre todos los resultados filtrados, y patch masivo de marca, proveedor primario/secundario, shelf life, precio proveedor primario y precio unitario.
+
+**Archivos afectados:**
+
+- app/onboarding/page.tsx
+- app/onboarding/BulkProductSelectionActions.tsx
+- docs/docs-app-screens-onboarding.md
+- docs/docs-modules-data-onboarding.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 13:54 -03 — Onboarding: ajuste de layout en edición masiva
+
+**Tipo:** ui/docs
+**Lote:** onboarding-bulk-products-layout-flow
+**Descripción:** Se reordenó el flujo visual de edición masiva en `/onboarding`: ahora la lista de productos aparece inmediatamente debajo del buscador y el formulario de acciones quedó al final (incluyendo los botones `Aplicar a seleccionados` y `Aplicar a filtrados`).
+
+**Archivos afectados:**
+
+- app/onboarding/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run format:check OK (2026-02-25)
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 13:57 -03 — Onboarding: alinear controles de acciones masivas
+
+**Tipo:** ui/docs
+**Lote:** onboarding-bulk-products-form-alignment
+**Descripción:** Se rediseñó el formulario de acciones de edición masiva para mostrar cada acción en una fila clara `checkbox + etiqueta + input`, evitando ambigüedad visual entre checks e inputs.
+
+**Archivos afectados:**
+
+- app/onboarding/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run format:check OK (2026-02-25)
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 14:12 -03 — Productos/Onboarding: opción “No aplica vencimiento”
+
+**Tipo:** ui/docs
+**Lote:** onboarding-products-no-expiration-applicable
+**Descripción:** Se agregó control explícito `No aplica vencimiento` en el formulario compartido de productos (alta, edición y resolvedor rápido), que guarda `shelf_life_days = 0`. En edición masiva de onboarding se agregó opción equivalente para aplicar `0` en lote. Se refuerza regla operativa: `0` o vacío no generan lotes automáticos de vencimiento al recibir pedidos.
+
+**Archivos afectados:**
+
+- app/products/ProductFormFieldsShared.tsx
+- app/onboarding/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+- docs/context-summary.md
+
+**Tests:**
+
+- npm run format:check OK (2026-02-25)
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 14:12 -03 — Onboarding bulk: modal rápido de alta de proveedor
+
+**Tipo:** ui/docs
+**Lote:** onboarding-bulk-create-supplier-modal
+**Descripción:** En edición masiva de onboarding se agregó botón `Crear proveedor` junto al selector de proveedor primario. Abre modal rápido con formulario completo de proveedor (nombre obligatorio) y desplegable opcional para cargar cuenta de transferencia. Al guardar, crea proveedor y (si aplica) cuenta bancaria, refresca onboarding/suppliers/payments y mantiene contexto de filtro/paginación.
+
+**Archivos afectados:**
+
+- app/onboarding/BulkCreateSupplierModal.tsx
+- app/onboarding/page.tsx
+- docs/docs-app-screens-onboarding.md
+- docs/docs-modules-data-onboarding.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run format:check OK (2026-02-25)
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 14:27 -03 — Hotfix UI: evitar form anidado en modal Crear proveedor
+
+**Tipo:** ui/docs
+**Lote:** onboarding-bulk-create-supplier-nested-form-fix
+**Descripción:** Se corrigió error de hidratación en `/onboarding` al abrir el modal `Crear proveedor` dentro de edición masiva. El modal ahora se renderiza vía portal (`document.body`) para evitar `<form>` dentro de `<form>`.
+
+**Archivos afectados:**
+
+- app/onboarding/BulkCreateSupplierModal.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run format:check OK (2026-02-25)
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 14:30 -03 — Onboarding bulk: botón Crear proveedor en fila de secundario
+
+**Tipo:** ui/docs
+**Lote:** onboarding-bulk-create-supplier-secondary-cta
+**Descripción:** Se duplicó el CTA `Crear proveedor` (modal rápido) también en la fila `Aplicar proveedor secundario` dentro de edición masiva de onboarding.
+
+**Archivos afectados:**
+
+- app/onboarding/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run format:check OK (2026-02-25)
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 14:35 -03 — Onboarding bulk: persistencia de selección al crear proveedor
+
+**Tipo:** ui/docs
+**Lote:** onboarding-bulk-preserve-selection-on-create-supplier
+**Descripción:** Se preserva el estado de trabajo en edición masiva al crear proveedor desde modal rápido: selección de `product_ids` y valores/checks del formulario de acciones masivas. El modal captura snapshot del formulario (`bulk_state`) y lo reinyecta en el redirect; la pantalla restaura checkboxes e inputs al recargar.
+
+**Archivos afectados:**
+
+- app/onboarding/BulkCreateSupplierModal.tsx
+- app/onboarding/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run format:check OK (2026-02-25)
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 14:42 -03 — Onboarding bulk: sugerencia de precio unitario por markup de proveedor
+
+**Tipo:** ui/docs
+**Lote:** onboarding-bulk-pricing-suggestion-by-supplier-markup
+**Descripción:** En edición masiva de `/onboarding` se agregó lógica de sugerencia de precio unitario basada en proveedor primario y precio proveedor, alineada con `/products`: usa `%` de ganancia del proveedor (`default_markup_pct`) o `40%` por defecto. El bloque de precios ahora muestra helper dinámico y acción `Usar sugerido`, manteniendo edición manual final del usuario.
+
+**Archivos afectados:**
+
+- app/onboarding/BulkPricingSuggestion.tsx
+- app/onboarding/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run format:check OK (2026-02-25)
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 15:01 -03 — Onboarding import: persistir unit_price calculado desde subtotal/cantidad
+
+**Tipo:** ui/docs
+**Lote:** onboarding-import-computed-unit-price-persistence
+**Descripción:** Se corrigió un caso de importación en `/onboarding` donde el `unit_price` calculado (`subtotal / cantidad`) se perdía si no se mapeaba explícitamente la columna de precio. Ahora, para plantilla `products`, se inyecta `unit_price` calculado en `normalized_payload` como fallback antes de validar/aplicar. Además, se robusteció el parser numérico para tolerar separadores de miles/decimales y símbolos comunes.
+
+**Archivos afectados:**
+
+- app/onboarding/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run format:check OK (2026-02-25)
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A

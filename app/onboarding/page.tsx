@@ -1,13 +1,18 @@
+import { randomUUID } from 'crypto';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { inflateRawSync } from 'node:zlib';
 
+import BulkCreateSupplierModal from '@/app/onboarding/BulkCreateSupplierModal';
+import BulkPricingSuggestion from '@/app/onboarding/BulkPricingSuggestion';
+import BulkProductSelectionActions from '@/app/onboarding/BulkProductSelectionActions';
 import PageShell from '@/app/components/PageShell';
 import OnboardingFormPendingState from '@/app/onboarding/OnboardingFormPendingState';
 import { PRODUCT_FORM_LABELS } from '@/app/products/product-form-contract';
 import ProductFormFieldsShared from '@/app/products/ProductFormFieldsShared';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { fetchAllPages } from '@/lib/supabase/fetch-all-pages';
 
 type SearchParams = {
   result?: string;
@@ -27,6 +32,14 @@ type SearchParams = {
   staged_file_name?: string;
   resolver_page?: string;
   resolver_q?: string;
+  bulk_q?: string;
+  bulk_page?: string;
+  bulk_page_size?: string;
+  bulk_updated?: string;
+  bulk_scope?: string;
+  bulk_skipped?: string;
+  bulk_supplier_created?: string;
+  bulk_state?: string;
 };
 
 type SupplierTaskKey =
@@ -92,6 +105,9 @@ type SupplierProductRelationRow = {
   supplier_price: number | null;
   supplier_sku: string | null;
   supplier_product_name: string | null;
+  suppliers?: {
+    name: string | null;
+  } | null;
 };
 
 type StockSafetyRow = {
@@ -112,6 +128,34 @@ type ProductRelationByType = {
 };
 
 type TemplateKey = 'products' | 'suppliers';
+
+type BulkProductRow = {
+  id: string;
+  name: string | null;
+  brand: string | null;
+  internal_code: string | null;
+  barcode: string | null;
+  unit_price: number | null;
+  shelf_life_days: number | null;
+  is_active: boolean | null;
+};
+
+type BulkDraftState = {
+  selectedProductIds?: string[];
+  applyBrand?: boolean;
+  bulkBrand?: string;
+  applyPrimarySupplier?: boolean;
+  bulkPrimarySupplierId?: string;
+  applySecondarySupplier?: boolean;
+  bulkSecondarySupplierId?: string;
+  applySupplierPrice?: boolean;
+  bulkSupplierPrice?: string;
+  applyShelfLifeDays?: boolean;
+  bulkShelfLifeDays?: string;
+  bulkShelfLifeNoApplies?: boolean;
+  applyUnitPrice?: boolean;
+  bulkUnitPrice?: string;
+};
 
 const TASK_META: Array<{
   key: TaskCardKey;
@@ -136,6 +180,7 @@ const TASK_META: Array<{
 ];
 
 const IMPORT_MAX_ROWS = 80000;
+const BULK_PAGE_SIZE_OPTIONS = [25, 50, 100, 200] as const;
 
 const TEMPLATE_FIELDS: Record<
   TemplateKey,
@@ -712,7 +757,44 @@ const parseNumericValue = (value: string | undefined) => {
   if (!value) return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
-  const normalized = trimmed.replace(',', '.');
+  const cleaned = trimmed.replace(/[^\d,.\-]/g, '');
+  if (!cleaned) return null;
+
+  const hasComma = cleaned.includes(',');
+  const hasDot = cleaned.includes('.');
+  let normalized = cleaned;
+
+  if (hasComma && hasDot) {
+    const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
+    const decimalSeparator = lastComma > lastDot ? ',' : '.';
+    const thousandsSeparator = decimalSeparator === ',' ? '.' : ',';
+    normalized = cleaned.split(thousandsSeparator).join('');
+    if (decimalSeparator === ',') {
+      normalized = normalized.replace(',', '.');
+    }
+  } else if (hasComma) {
+    const parts = cleaned.split(',');
+    if (parts.length > 2) {
+      normalized = parts.join('');
+    } else {
+      const decimalCandidate = parts[1] ?? '';
+      const isDecimal =
+        decimalCandidate.length > 0 && decimalCandidate.length <= 2;
+      normalized = isDecimal ? cleaned.replace(',', '.') : parts.join('');
+    }
+  } else if (hasDot) {
+    const parts = cleaned.split('.');
+    if (parts.length > 2) {
+      normalized = parts.join('');
+    } else {
+      const decimalCandidate = parts[1] ?? '';
+      const isDecimal =
+        decimalCandidate.length > 0 && decimalCandidate.length <= 2;
+      normalized = isDecimal ? cleaned : parts.join('');
+    }
+  }
+
   const parsed = Number(normalized);
   return Number.isNaN(parsed) ? null : parsed;
 };
@@ -949,6 +1031,15 @@ const deduplicateRecords = (
     dedupedRecords,
     dedupedCount: Math.max(records.length - dedupedRecords.length, 0),
   };
+};
+
+const chunkList = <T,>(values: T[], chunkSize: number) => {
+  const size = Math.max(1, chunkSize);
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
 };
 
 async function callUntypedRpc<T>(
@@ -1216,6 +1307,12 @@ export default async function OnboardingPage({
 
     const rowsToInsert = dedupedRecords.map((row, index) => {
       const normalized = applyMappingToRow(row, finalMapping);
+      if (templateKey === 'products' && !normalized.unit_price) {
+        const fallbackUnitPrice = String(row.unit_price ?? '').trim();
+        if (fallbackUnitPrice) {
+          normalized.unit_price = fallbackUnitPrice;
+        }
+      }
       return {
         org_id: actionOrgId,
         job_id: jobId,
@@ -1533,6 +1630,482 @@ export default async function OnboardingPage({
     );
   };
 
+  const applyBulkProductPatch = async (formData: FormData): Promise<void> => {
+    'use server';
+
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) {
+      redirect('/no-access');
+    }
+
+    const actionOrgId = actionSession.orgId;
+    const actionSupabase = actionSession.supabase;
+    const applyTarget = String(
+      formData.get('apply_target') ?? 'selected',
+    ).trim();
+    const bulkQuery = String(formData.get('bulk_q') ?? '').trim();
+    const bulkTokens = bulkQuery
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter(Boolean)
+      .slice(0, 5);
+
+    const selectedProductIds = formData
+      .getAll('product_ids')
+      .map((value) => String(value ?? '').trim())
+      .filter(Boolean);
+
+    const targetIds =
+      applyTarget === 'filtered'
+        ? (
+            await fetchAllPages<{ id: string }>(
+              (from, to) => {
+                let query = actionSupabase
+                  .from('products' as never)
+                  .select('id')
+                  .eq('org_id', actionOrgId)
+                  .order('name')
+                  .range(from, to);
+                bulkTokens.forEach((token) => {
+                  query = query.ilike('name', `%${token}%`);
+                });
+                return query;
+              },
+              { label: 'onboarding_bulk_target_ids', pageSize: 1000 },
+            )
+          ).map((row) => row.id)
+        : selectedProductIds;
+
+    const uniqueTargetIds = Array.from(new Set(targetIds));
+    if (uniqueTargetIds.length === 0) {
+      redirect(
+        '/onboarding?result=invalid&message=bulk_products_required#bulk-products',
+      );
+    }
+
+    const applyBrand = formData.get('apply_brand') === 'on';
+    const applyPrimarySupplier =
+      formData.get('apply_primary_supplier') === 'on';
+    const applySecondarySupplier =
+      formData.get('apply_secondary_supplier') === 'on';
+    const applyShelfLifeDays = formData.get('apply_shelf_life_days') === 'on';
+    const applySupplierPrice = formData.get('apply_supplier_price') === 'on';
+    const applyUnitPrice = formData.get('apply_unit_price') === 'on';
+
+    if (
+      !applyBrand &&
+      !applyPrimarySupplier &&
+      !applySecondarySupplier &&
+      !applyShelfLifeDays &&
+      !applySupplierPrice &&
+      !applyUnitPrice
+    ) {
+      redirect(
+        '/onboarding?result=invalid&message=bulk_fields_required#bulk-products',
+      );
+    }
+
+    const brand = String(formData.get('bulk_brand') ?? '').trim();
+    if (applyBrand && !brand) {
+      redirect(
+        '/onboarding?result=invalid&message=bulk_brand_required#bulk-products',
+      );
+    }
+
+    const primarySupplierId = String(
+      formData.get('bulk_primary_supplier_id') ?? '',
+    ).trim();
+    if (applyPrimarySupplier && !primarySupplierId) {
+      redirect(
+        '/onboarding?result=invalid&message=bulk_primary_supplier_required#bulk-products',
+      );
+    }
+
+    const secondarySupplierId = String(
+      formData.get('bulk_secondary_supplier_id') ?? '',
+    ).trim();
+    if (applySecondarySupplier && !secondarySupplierId) {
+      redirect(
+        '/onboarding?result=invalid&message=bulk_secondary_supplier_required#bulk-products',
+      );
+    }
+    if (
+      applyPrimarySupplier &&
+      applySecondarySupplier &&
+      primarySupplierId &&
+      secondarySupplierId &&
+      primarySupplierId === secondarySupplierId
+    ) {
+      redirect(
+        '/onboarding?result=invalid&message=bulk_suppliers_must_differ#bulk-products',
+      );
+    }
+
+    const shelfLifeDaysRaw = String(
+      formData.get('bulk_shelf_life_days') ?? '',
+    ).trim();
+    const shelfLifeNoApplies =
+      formData.get('bulk_shelf_life_no_applies') === 'on';
+    const shelfLifeDaysParsed = shelfLifeNoApplies
+      ? 0
+      : Number.parseInt(shelfLifeDaysRaw, 10);
+    const shelfLifeDays = applyShelfLifeDays ? shelfLifeDaysParsed : null;
+    if (
+      applyShelfLifeDays &&
+      ((!shelfLifeNoApplies && shelfLifeDaysRaw === '') ||
+        Number.isNaN(shelfLifeDaysParsed) ||
+        shelfLifeDaysParsed < 0)
+    ) {
+      redirect(
+        '/onboarding?result=invalid&message=bulk_shelf_life_invalid#bulk-products',
+      );
+    }
+
+    const supplierPriceRaw = String(
+      formData.get('bulk_supplier_price') ?? '',
+    ).trim();
+    const supplierPriceParsed = Number(supplierPriceRaw);
+    const supplierPrice = applySupplierPrice ? supplierPriceParsed : null;
+    if (
+      applySupplierPrice &&
+      (supplierPriceRaw === '' ||
+        Number.isNaN(supplierPriceParsed) ||
+        supplierPriceParsed < 0)
+    ) {
+      redirect(
+        '/onboarding?result=invalid&message=bulk_supplier_price_invalid#bulk-products',
+      );
+    }
+
+    const unitPriceRaw = String(formData.get('bulk_unit_price') ?? '').trim();
+    const unitPriceParsed = Number(unitPriceRaw);
+    const unitPrice = applyUnitPrice ? unitPriceParsed : null;
+    if (
+      applyUnitPrice &&
+      (unitPriceRaw === '' ||
+        Number.isNaN(unitPriceParsed) ||
+        unitPriceParsed < 0)
+    ) {
+      redirect(
+        '/onboarding?result=invalid&message=bulk_unit_price_invalid#bulk-products',
+      );
+    }
+
+    const productPatch: Record<string, unknown> = {};
+    if (applyBrand) {
+      productPatch.brand = brand;
+    }
+    if (applyShelfLifeDays) {
+      productPatch.shelf_life_days = shelfLifeDays;
+    }
+    if (applyUnitPrice) {
+      productPatch.unit_price = unitPrice;
+    }
+
+    const updatedProducts = new Set<string>();
+    if (Object.keys(productPatch).length > 0) {
+      for (const idsChunk of chunkList(uniqueTargetIds, 200)) {
+        const { error } = await actionSupabase
+          .from('products' as never)
+          .update(productPatch as never)
+          .eq('org_id', actionOrgId)
+          .in('id', idsChunk);
+        if (error) {
+          redirect(
+            '/onboarding?result=error&message=bulk_update_products#bulk-products',
+          );
+        }
+        idsChunk.forEach((id) => updatedProducts.add(id));
+      }
+    }
+
+    const relationByProduct = new Map<string, ProductRelationByType>();
+    if (applyPrimarySupplier || applySecondarySupplier || applySupplierPrice) {
+      for (const idsChunk of chunkList(uniqueTargetIds, 500)) {
+        const { data, error } = await actionSupabase
+          .from('supplier_products' as never)
+          .select(
+            'product_id, supplier_id, relation_type, supplier_price, supplier_sku, supplier_product_name',
+          )
+          .eq('org_id', actionOrgId)
+          .in('relation_type', ['primary', 'secondary'])
+          .in('product_id', idsChunk);
+
+        if (error) {
+          redirect(
+            '/onboarding?result=error&message=bulk_load_relations#bulk-products',
+          );
+        }
+
+        ((data ?? []) as SupplierProductRelationRow[]).forEach((relation) => {
+          if (!relation.product_id || !relation.supplier_id) return;
+          const current = relationByProduct.get(relation.product_id) ?? {};
+          if (relation.relation_type === 'primary') {
+            current.primary = {
+              supplier_id: relation.supplier_id,
+              supplier_price: relation.supplier_price,
+              supplier_sku: relation.supplier_sku,
+              supplier_product_name: relation.supplier_product_name,
+            };
+          } else {
+            current.secondary = { supplier_id: relation.supplier_id };
+          }
+          relationByProduct.set(relation.product_id, current);
+        });
+      }
+    }
+
+    let skippedNoPrimary = 0;
+    for (const idsChunk of chunkList(uniqueTargetIds, 50)) {
+      await Promise.all(
+        idsChunk.map(async (productId) => {
+          const relation = relationByProduct.get(productId);
+
+          if (applyPrimarySupplier && primarySupplierId) {
+            const preservePrimary =
+              relation?.primary?.supplier_id === primarySupplierId
+                ? relation.primary
+                : undefined;
+            const { error } = await actionSupabase.rpc(
+              'rpc_upsert_supplier_product',
+              {
+                p_org_id: actionOrgId,
+                p_supplier_id: primarySupplierId,
+                p_product_id: productId,
+                p_supplier_sku: preservePrimary?.supplier_sku ?? '',
+                p_supplier_product_name:
+                  preservePrimary?.supplier_product_name ?? '',
+                p_relation_type: 'primary',
+                p_supplier_price: applySupplierPrice
+                  ? supplierPrice
+                  : (preservePrimary?.supplier_price ?? null),
+              },
+            );
+            if (error) {
+              throw new Error(error.message);
+            }
+            updatedProducts.add(productId);
+          } else if (applySupplierPrice) {
+            const currentPrimary = relation?.primary;
+            if (!currentPrimary?.supplier_id) {
+              skippedNoPrimary += 1;
+              return;
+            }
+            const { error } = await actionSupabase.rpc(
+              'rpc_upsert_supplier_product',
+              {
+                p_org_id: actionOrgId,
+                p_supplier_id: currentPrimary.supplier_id,
+                p_product_id: productId,
+                p_supplier_sku: currentPrimary.supplier_sku ?? '',
+                p_supplier_product_name:
+                  currentPrimary.supplier_product_name ?? '',
+                p_relation_type: 'primary',
+                p_supplier_price: supplierPrice,
+              },
+            );
+            if (error) {
+              throw new Error(error.message);
+            }
+            updatedProducts.add(productId);
+          }
+
+          if (applySecondarySupplier && secondarySupplierId) {
+            const { error } = await actionSupabase.rpc(
+              'rpc_upsert_supplier_product',
+              {
+                p_org_id: actionOrgId,
+                p_supplier_id: secondarySupplierId,
+                p_product_id: productId,
+                p_supplier_sku: '',
+                p_supplier_product_name: '',
+                p_relation_type: 'secondary',
+                p_supplier_price: null,
+              },
+            );
+            if (error) {
+              throw new Error(error.message);
+            }
+            updatedProducts.add(productId);
+          }
+        }),
+      ).catch(() => {
+        redirect(
+          '/onboarding?result=error&message=bulk_apply_relations#bulk-products',
+        );
+      });
+    }
+
+    revalidatePath('/onboarding');
+    revalidatePath('/products');
+    revalidatePath('/suppliers');
+
+    const params = new URLSearchParams({
+      result: 'bulk_applied',
+      bulk_scope: applyTarget === 'filtered' ? 'filtered' : 'selected',
+      bulk_updated: String(updatedProducts.size),
+      bulk_skipped: String(skippedNoPrimary),
+      bulk_q: bulkQuery,
+    });
+    redirect(`/onboarding?${params.toString()}#bulk-products`);
+  };
+
+  const createBulkSupplier = async (formData: FormData): Promise<void> => {
+    'use server';
+
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) {
+      redirect('/no-access');
+    }
+
+    const actionOrgId = actionSession.orgId;
+    const actionSupabase = actionSession.supabase;
+    const bulkQueryValue = String(formData.get('bulk_q') ?? '').trim();
+    const bulkPageValue = Number.parseInt(
+      String(formData.get('bulk_page') ?? '1'),
+      10,
+    );
+    const bulkPageSizeValue = Number.parseInt(
+      String(formData.get('bulk_page_size') ?? '50'),
+      10,
+    );
+    const bulkStateValue = String(formData.get('bulk_state') ?? '').trim();
+
+    const name = String(formData.get('name') ?? '').trim();
+    const contactName = String(formData.get('contact_name') ?? '').trim();
+    const phone = String(formData.get('phone') ?? '').trim();
+    const email = String(formData.get('email') ?? '').trim();
+    const notes = String(formData.get('notes') ?? '').trim();
+    const orderFrequency = String(formData.get('order_frequency') ?? '').trim();
+    const orderDay = String(formData.get('order_day') ?? '').trim();
+    const receiveDay = String(formData.get('receive_day') ?? '').trim();
+    const paymentTermsDaysRaw = String(
+      formData.get('payment_terms_days') ?? '',
+    ).trim();
+    const preferredPaymentMethod = String(
+      formData.get('preferred_payment_method') ?? '',
+    ).trim();
+    const paymentNote = String(formData.get('payment_note') ?? '').trim();
+    const defaultMarkupPctRaw = String(
+      formData.get('default_markup_pct') ?? '40',
+    ).trim();
+    const paymentTermsDays =
+      paymentTermsDaysRaw === ''
+        ? null
+        : Number.parseInt(paymentTermsDaysRaw, 10);
+    const defaultMarkupPct = Number(defaultMarkupPctRaw);
+    const acceptsCash = preferredPaymentMethod !== 'transfer';
+    const acceptsTransfer = preferredPaymentMethod !== 'cash';
+
+    if (!name) {
+      redirect(
+        '/onboarding?result=invalid&message=bulk_supplier_name_required#bulk-products',
+      );
+    }
+    if (
+      paymentTermsDays !== null &&
+      (Number.isNaN(paymentTermsDays) || paymentTermsDays < 0)
+    ) {
+      redirect(
+        '/onboarding?result=invalid&message=bulk_supplier_payment_terms_invalid#bulk-products',
+      );
+    }
+    if (
+      Number.isNaN(defaultMarkupPct) ||
+      defaultMarkupPct < 0 ||
+      defaultMarkupPct > 1000
+    ) {
+      redirect(
+        '/onboarding?result=invalid&message=bulk_supplier_markup_invalid#bulk-products',
+      );
+    }
+
+    const supplierId = randomUUID();
+    const { error: supplierError } = await actionSupabase.rpc(
+      'rpc_upsert_supplier',
+      {
+        p_supplier_id: supplierId,
+        p_org_id: actionOrgId,
+        p_name: name,
+        p_contact_name: contactName,
+        p_phone: phone,
+        p_email: email,
+        p_notes: notes,
+        p_is_active: true,
+        p_order_frequency: orderFrequency || null,
+        p_order_day: orderDay || null,
+        p_receive_day: receiveDay || null,
+        p_payment_terms_days: paymentTermsDays,
+        p_preferred_payment_method:
+          preferredPaymentMethod === 'cash' ||
+          preferredPaymentMethod === 'transfer'
+            ? preferredPaymentMethod
+            : null,
+        p_accepts_cash: acceptsCash,
+        p_accepts_transfer: acceptsTransfer,
+        p_payment_note: paymentNote,
+        p_default_markup_pct: defaultMarkupPct,
+      },
+    );
+
+    if (supplierError) {
+      redirect(
+        '/onboarding?result=error&message=bulk_create_supplier#bulk-products',
+      );
+    }
+
+    const accountLabel = String(formData.get('account_label') ?? '').trim();
+    const bankName = String(formData.get('bank_name') ?? '').trim();
+    const accountHolderName = String(
+      formData.get('account_holder_name') ?? '',
+    ).trim();
+    const accountIdentifier = String(
+      formData.get('account_identifier') ?? '',
+    ).trim();
+    const accountIsActive = formData.get('account_is_active') === 'on';
+    const hasAccountPayload =
+      accountLabel || bankName || accountHolderName || accountIdentifier;
+
+    if (hasAccountPayload) {
+      const { error: accountError } = await actionSupabase.rpc(
+        'rpc_upsert_supplier_payment_account',
+        {
+          p_org_id: actionOrgId,
+          p_supplier_id: supplierId,
+          p_account_id: undefined,
+          p_account_label: accountLabel || undefined,
+          p_bank_name: bankName || undefined,
+          p_account_holder_name: accountHolderName || undefined,
+          p_account_identifier: accountIdentifier || undefined,
+          p_is_active: accountIsActive,
+        },
+      );
+      if (accountError) {
+        redirect(
+          '/onboarding?result=error&message=bulk_create_supplier_account#bulk-products',
+        );
+      }
+    }
+
+    revalidatePath('/onboarding');
+    revalidatePath('/suppliers');
+    revalidatePath('/payments');
+
+    const params = new URLSearchParams({
+      result: 'bulk_supplier_created',
+      bulk_supplier_created: name,
+      bulk_q: bulkQueryValue,
+      bulk_page: String(Number.isFinite(bulkPageValue) ? bulkPageValue : 1),
+      bulk_page_size: String(
+        Number.isFinite(bulkPageSizeValue) ? bulkPageSizeValue : 50,
+      ),
+    });
+    if (bulkStateValue) {
+      params.set('bulk_state', bulkStateValue);
+    }
+    redirect(`/onboarding?${params.toString()}#bulk-products`);
+  };
+
   const resolverPageRaw = Number.parseInt(
     String(resolvedSearchParams.resolver_page ?? '1'),
     10,
@@ -1547,6 +2120,26 @@ export default async function OnboardingPage({
     .filter(Boolean)
     .slice(0, 5);
   const resolverPageSize = 25;
+  const bulkQuery = String(resolvedSearchParams.bulk_q ?? '').trim();
+  const bulkTokens = bulkQuery
+    .split(/\s+/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+  const bulkPageRaw = Number.parseInt(
+    String(resolvedSearchParams.bulk_page ?? '1'),
+    10,
+  );
+  const bulkPage = Number.isFinite(bulkPageRaw) ? Math.max(1, bulkPageRaw) : 1;
+  const bulkPageSizeRaw = Number.parseInt(
+    String(resolvedSearchParams.bulk_page_size ?? '50'),
+    10,
+  );
+  const bulkPageSize = BULK_PAGE_SIZE_OPTIONS.includes(
+    bulkPageSizeRaw as (typeof BULK_PAGE_SIZE_OPTIONS)[number],
+  )
+    ? bulkPageSizeRaw
+    : 50;
 
   let resolverCountQuery = supabase
     .from('v_products_incomplete_admin' as never)
@@ -1569,12 +2162,33 @@ export default async function OnboardingPage({
     resolverRowsQuery = resolverRowsQuery.ilike('name', `%${token}%`);
   });
 
+  let bulkCountQuery = supabase
+    .from('products' as never)
+    .select('id', { count: 'exact', head: true })
+    .eq('org_id', orgId);
+  let bulkRowsQuery = supabase
+    .from('products' as never)
+    .select(
+      'id, name, brand, internal_code, barcode, unit_price, shelf_life_days, is_active',
+    )
+    .eq('org_id', orgId)
+    .order('name')
+    .range((bulkPage - 1) * bulkPageSize, bulkPage * bulkPageSize - 1);
+
+  bulkTokens.forEach((token) => {
+    bulkCountQuery = bulkCountQuery.ilike('name', `%${token}%`);
+    bulkRowsQuery = bulkRowsQuery.ilike('name', `%${token}%`);
+  });
+
   const [
     tasksResult,
     jobsResult,
     suppliersResult,
     resolverCountResult,
     resolverRowsResult,
+    bulkCountResult,
+    bulkRowsResult,
+    brandsResult,
   ] = await Promise.all([
     supabase
       .from('v_data_onboarding_tasks' as never)
@@ -1596,6 +2210,16 @@ export default async function OnboardingPage({
       .order('name'),
     resolverCountQuery,
     resolverRowsQuery,
+    bulkCountQuery,
+    bulkRowsQuery,
+    supabase
+      .from('products' as never)
+      .select('brand')
+      .eq('org_id', orgId)
+      .eq('is_active', true)
+      .not('brand', 'is', null)
+      .order('brand')
+      .limit(5000),
   ]);
 
   const tasks = (tasksResult.data ?? []) as OnboardingTaskRow[];
@@ -1607,26 +2231,40 @@ export default async function OnboardingPage({
   const quickResolverProducts =
     (resolverRowsResult.data as unknown as IncompleteProductRow[]) ?? [];
   const resolverProductIds = quickResolverProducts.map((product) => product.id);
+  const bulkProducts = (bulkRowsResult.data as BulkProductRow[] | null) ?? [];
+  const bulkProductsCount = Number(bulkCountResult.count ?? 0);
+  const bulkProductIds = bulkProducts.map((product) => product.id);
 
-  const [supplierRelationsResult, safetyStockResult] = await Promise.all([
-    resolverProductIds.length === 0
-      ? Promise.resolve({ data: [] as SupplierProductRelationRow[] })
-      : supabase
-          .from('supplier_products' as never)
-          .select(
-            'product_id, supplier_id, relation_type, supplier_price, supplier_sku, supplier_product_name',
-          )
-          .eq('org_id', orgId)
-          .in('relation_type', ['primary', 'secondary'])
-          .in('product_id', resolverProductIds),
-    resolverProductIds.length === 0
-      ? Promise.resolve({ data: [] as StockSafetyRow[] })
-      : supabase
-          .from('stock_items')
-          .select('product_id, safety_stock')
-          .eq('org_id', orgId)
-          .in('product_id', resolverProductIds),
-  ]);
+  const [supplierRelationsResult, safetyStockResult, bulkRelationsResult] =
+    await Promise.all([
+      resolverProductIds.length === 0
+        ? Promise.resolve({ data: [] as SupplierProductRelationRow[] })
+        : supabase
+            .from('supplier_products' as never)
+            .select(
+              'product_id, supplier_id, relation_type, supplier_price, supplier_sku, supplier_product_name',
+            )
+            .eq('org_id', orgId)
+            .in('relation_type', ['primary', 'secondary'])
+            .in('product_id', resolverProductIds),
+      resolverProductIds.length === 0
+        ? Promise.resolve({ data: [] as StockSafetyRow[] })
+        : supabase
+            .from('stock_items')
+            .select('product_id, safety_stock')
+            .eq('org_id', orgId)
+            .in('product_id', resolverProductIds),
+      bulkProductIds.length === 0
+        ? Promise.resolve({ data: [] as SupplierProductRelationRow[] })
+        : supabase
+            .from('supplier_products' as never)
+            .select(
+              'product_id, supplier_id, relation_type, supplier_price, supplier_sku, supplier_product_name, suppliers(name)',
+            )
+            .eq('org_id', orgId)
+            .in('relation_type', ['primary', 'secondary'])
+            .in('product_id', bulkProductIds),
+    ]);
 
   const supplierRelationsTyped =
     (supplierRelationsResult.data as SupplierProductRelationRow[] | null) ?? [];
@@ -1634,11 +2272,42 @@ export default async function OnboardingPage({
     (safetyStockResult.data as StockSafetyRow[] | null) ?? [];
   const brandSuggestions = Array.from(
     new Set(
-      quickResolverProducts
+      ((brandsResult.data ?? []) as Array<{ brand?: string | null }>)
         .map((product) => String(product.brand ?? '').trim())
         .filter(Boolean),
     ),
   ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+
+  const bulkRelations =
+    (bulkRelationsResult.data as SupplierProductRelationRow[] | null) ?? [];
+  const bulkPrimarySupplierByProduct = new Map<
+    string,
+    {
+      supplier_id: string;
+      supplier_name: string;
+      supplier_price: number | null;
+    }
+  >();
+  const bulkSecondarySupplierByProduct = new Map<
+    string,
+    { supplier_id: string; supplier_name: string }
+  >();
+  bulkRelations.forEach((relation) => {
+    if (!relation.product_id || !relation.supplier_id) return;
+    const supplierName = String(relation.suppliers?.name ?? 'Proveedor').trim();
+    if (relation.relation_type === 'primary') {
+      bulkPrimarySupplierByProduct.set(relation.product_id, {
+        supplier_id: relation.supplier_id,
+        supplier_name: supplierName,
+        supplier_price: relation.supplier_price,
+      });
+      return;
+    }
+    bulkSecondarySupplierByProduct.set(relation.product_id, {
+      supplier_id: relation.supplier_id,
+      supplier_name: supplierName,
+    });
+  });
 
   const relationByProduct = new Map<string, ProductRelationByType>();
   supplierRelationsTyped.forEach((relation) => {
@@ -1699,6 +2368,26 @@ export default async function OnboardingPage({
     }
     return `/onboarding?${params.toString()}#resolver-products-incomplete-info`;
   };
+  const bulkTotalPages = Math.max(
+    1,
+    Math.ceil(bulkProductsCount / bulkPageSize),
+  );
+  const bulkCurrentPage = Math.min(bulkPage, bulkTotalPages);
+  const bulkStartIndex =
+    bulkProductsCount === 0 ? 0 : (bulkCurrentPage - 1) * bulkPageSize + 1;
+  const bulkEndIndex = Math.min(
+    bulkCurrentPage * bulkPageSize,
+    bulkProductsCount,
+  );
+  const buildBulkHref = (page: number, pageSize?: number) => {
+    const params = new URLSearchParams();
+    params.set('bulk_page', String(Math.max(1, page)));
+    params.set('bulk_page_size', String(pageSize ?? bulkPageSize));
+    if (bulkQuery) {
+      params.set('bulk_q', bulkQuery);
+    }
+    return `/onboarding?${params.toString()}#bulk-products`;
+  };
 
   const taskMap = new Map<SupplierTaskKey, number>();
   tasks.forEach((task) => {
@@ -1729,6 +2418,22 @@ export default async function OnboardingPage({
           dedupedRows: Number(resolvedSearchParams.deduped_rows ?? 0),
         }
       : null;
+  const bulkSummary =
+    resolvedSearchParams.result === 'bulk_applied'
+      ? {
+          scope:
+            resolvedSearchParams.bulk_scope === 'filtered'
+              ? 'todos los resultados filtrados'
+              : 'seleccionados',
+          updatedRows: Number(resolvedSearchParams.bulk_updated ?? 0),
+          skippedRows: Number(resolvedSearchParams.bulk_skipped ?? 0),
+          query: String(resolvedSearchParams.bulk_q ?? '').trim(),
+        }
+      : null;
+  const bulkSupplierCreated =
+    resolvedSearchParams.result === 'bulk_supplier_created'
+      ? String(resolvedSearchParams.bulk_supplier_created ?? '').trim()
+      : '';
 
   const mappingTemplate = parseTemplateKey(
     String(resolvedSearchParams.mapping_template ?? ''),
@@ -1747,6 +2452,11 @@ export default async function OnboardingPage({
   const stagedFileName = String(
     resolvedSearchParams.staged_file_name ?? '',
   ).trim();
+  const bulkDraftState =
+    decodeJsonBase64<BulkDraftState>(resolvedSearchParams.bulk_state) ?? null;
+  const selectedBulkProductIds = new Set(
+    bulkDraftState?.selectedProductIds ?? [],
+  );
 
   const invalidMessageMap: Record<string, string> = {
     template: 'Plantilla inválida.',
@@ -1758,6 +2468,27 @@ export default async function OnboardingPage({
     too_many_rows: `El archivo supera el máximo permitido (${IMPORT_MAX_ROWS} filas).`,
     staged_job_missing:
       'El archivo detectado ya no está disponible. Cárgalo de nuevo y detecta columnas.',
+    bulk_products_required:
+      'Debes seleccionar productos o usar "todos los resultados filtrados".',
+    bulk_fields_required: 'Selecciona al menos un campo para aplicar en masa.',
+    bulk_brand_required: 'Marca requerida para aplicar actualización de marca.',
+    bulk_primary_supplier_required:
+      'Selecciona un proveedor primario para aplicar ese cambio.',
+    bulk_secondary_supplier_required:
+      'Selecciona un proveedor secundario para aplicar ese cambio.',
+    bulk_suppliers_must_differ:
+      'Proveedor primario y secundario no pueden ser el mismo.',
+    bulk_shelf_life_invalid:
+      'Vencimiento aproximado inválido. Debe ser entero >= 0 o marcar "No aplica vencimiento".',
+    bulk_supplier_price_invalid:
+      'Precio proveedor inválido. Debe ser numérico y >= 0.',
+    bulk_unit_price_invalid:
+      'Precio unitario inválido. Debe ser numérico y >= 0.',
+    bulk_supplier_name_required: 'Nombre de proveedor requerido.',
+    bulk_supplier_payment_terms_invalid:
+      'Plazo de pago inválido. Debe ser entero >= 0.',
+    bulk_supplier_markup_invalid:
+      '% ganancia sugerida inválido. Debe estar entre 0 y 1000.',
   };
   const invalidDetail =
     invalidMessageMap[resolvedSearchParams.message ?? ''] ??
@@ -1793,6 +2524,33 @@ export default async function OnboardingPage({
               {importSummary.appliedRows} aplicadas ·{' '}
               {importSummary.skippedRows} omitidas · {importSummary.dedupedRows}{' '}
               consolidadas por duplicado
+            </p>
+          </section>
+        ) : null}
+        {bulkSummary ? (
+          <section
+            id="bulk-products"
+            className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
+          >
+            <p className="font-semibold">Actualización masiva completada</p>
+            <p className="mt-1">
+              Alcance: {bulkSummary.scope}. Productos tocados:{' '}
+              {bulkSummary.updatedRows}. Omitidos sin proveedor primario:{' '}
+              {bulkSummary.skippedRows}.
+              {bulkSummary.query
+                ? ` Filtro aplicado: "${bulkSummary.query}".`
+                : ''}
+            </p>
+          </section>
+        ) : null}
+        {bulkSupplierCreated ? (
+          <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+            <p className="font-semibold">
+              Proveedor creado: {bulkSupplierCreated}
+            </p>
+            <p className="mt-1">
+              Ya puedes seleccionarlo como proveedor primario o secundario en la
+              edición masiva.
             </p>
           </section>
         ) : null}
@@ -2194,6 +2952,321 @@ export default async function OnboardingPage({
               ) : null}
             </div>
           ) : null}
+        </section>
+
+        <section
+          id="bulk-products"
+          className="rounded-2xl border border-zinc-200 bg-white p-5"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold text-zinc-900">
+              Edición masiva de productos
+            </h2>
+            <span className="text-xs text-zinc-600">
+              Mostrando {bulkStartIndex}-{bulkEndIndex} de {bulkProductsCount}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-zinc-600">
+            Buscá artículos, seleccioná en lote y aplicá solo los campos que
+            querés completar (marca, proveedores, vencimiento y precios).
+          </p>
+
+          <form method="get" className="mt-3 grid gap-2 md:grid-cols-4">
+            <input
+              type="text"
+              name="bulk_q"
+              defaultValue={bulkQuery}
+              placeholder="Buscar por nombre"
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm md:col-span-2"
+            />
+            <select
+              name="bulk_page_size"
+              defaultValue={String(bulkPageSize)}
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+            >
+              {BULK_PAGE_SIZE_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option} por página
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700"
+            >
+              Buscar
+            </button>
+          </form>
+
+          <form
+            action={applyBulkProductPatch}
+            className="mt-4 flex flex-col gap-4"
+            data-bulk-products-form="true"
+          >
+            <input type="hidden" name="bulk_q" value={bulkQuery} />
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-zinc-600">
+                Seleccioná los artículos en la lista y luego aplicá acciones al
+                final.
+              </p>
+              <BulkProductSelectionActions />
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-zinc-200">
+              <table className="min-w-full text-sm">
+                <thead className="bg-zinc-50 text-left text-xs tracking-wide text-zinc-500 uppercase">
+                  <tr>
+                    <th className="px-2 py-2">Sel</th>
+                    <th className="px-2 py-2">Artículo</th>
+                    <th className="px-2 py-2">Marca</th>
+                    <th className="px-2 py-2">Código</th>
+                    <th className="px-2 py-2">Barcode</th>
+                    <th className="px-2 py-2 text-right">P. venta</th>
+                    <th className="px-2 py-2 text-right">Venc. días</th>
+                    <th className="px-2 py-2">Proveedor primario</th>
+                    <th className="px-2 py-2">Proveedor secundario</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bulkProducts.length === 0 ? (
+                    <tr>
+                      <td className="px-2 py-3 text-zinc-500" colSpan={9}>
+                        No hay productos para este filtro.
+                      </td>
+                    </tr>
+                  ) : (
+                    bulkProducts.map((product) => (
+                      <tr key={product.id} className="border-t border-zinc-100">
+                        <td className="px-2 py-2">
+                          <input
+                            type="checkbox"
+                            name="product_ids"
+                            value={product.id}
+                            defaultChecked={selectedBulkProductIds.has(
+                              product.id,
+                            )}
+                            data-bulk-product-checkbox="true"
+                          />
+                        </td>
+                        <td className="px-2 py-2 text-zinc-700">
+                          {product.name ?? '-'}
+                        </td>
+                        <td className="px-2 py-2 text-zinc-700">
+                          {product.brand ?? '-'}
+                        </td>
+                        <td className="px-2 py-2 text-zinc-700">
+                          {product.internal_code ?? '-'}
+                        </td>
+                        <td className="px-2 py-2 text-zinc-700">
+                          {product.barcode ?? '-'}
+                        </td>
+                        <td className="px-2 py-2 text-right text-zinc-700">
+                          {product.unit_price ?? 0}
+                        </td>
+                        <td className="px-2 py-2 text-right text-zinc-700">
+                          {product.shelf_life_days ?? '-'}
+                        </td>
+                        <td className="px-2 py-2 text-zinc-700">
+                          {bulkPrimarySupplierByProduct.get(product.id)
+                            ?.supplier_name ?? '-'}
+                        </td>
+                        <td className="px-2 py-2 text-zinc-700">
+                          {bulkSecondarySupplierByProduct.get(product.id)
+                            ?.supplier_name ?? '-'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {bulkProductsCount > 0 ? (
+              <div className="mt-2 flex items-center justify-between text-xs text-zinc-600">
+                <span>
+                  Página {bulkCurrentPage} de {bulkTotalPages}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={buildBulkHref(Math.max(1, bulkCurrentPage - 1))}
+                    className={`rounded border px-2 py-1 ${
+                      bulkCurrentPage <= 1
+                        ? 'pointer-events-none border-zinc-200 text-zinc-400'
+                        : 'border-zinc-300 text-zinc-700 hover:bg-zinc-100'
+                    }`}
+                  >
+                    Anterior
+                  </Link>
+                  <Link
+                    href={buildBulkHref(
+                      Math.min(bulkTotalPages, bulkCurrentPage + 1),
+                    )}
+                    className={`rounded border px-2 py-1 ${
+                      bulkCurrentPage >= bulkTotalPages
+                        ? 'pointer-events-none border-zinc-200 text-zinc-400'
+                        : 'border-zinc-300 text-zinc-700 hover:bg-zinc-100'
+                    }`}
+                  >
+                    Siguiente
+                  </Link>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="space-y-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+              <div className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 md:grid-cols-[260px_1fr] md:items-center">
+                <label className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+                  <input
+                    type="checkbox"
+                    name="apply_brand"
+                    defaultChecked={Boolean(bulkDraftState?.applyBrand)}
+                  />
+                  Aplicar marca
+                </label>
+                <input
+                  type="text"
+                  name="bulk_brand"
+                  list="bulk-brand-suggestions"
+                  placeholder="Ej: Arcor"
+                  defaultValue={bulkDraftState?.bulkBrand ?? ''}
+                  className="w-full rounded-lg border border-zinc-300 px-2 py-2 text-sm"
+                />
+              </div>
+              <datalist id="bulk-brand-suggestions">
+                {brandSuggestions.map((brand) => (
+                  <option key={brand} value={brand} />
+                ))}
+              </datalist>
+
+              <div className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 md:grid-cols-[260px_1fr_auto] md:items-center">
+                <label className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+                  <input
+                    type="checkbox"
+                    name="apply_primary_supplier"
+                    defaultChecked={Boolean(
+                      bulkDraftState?.applyPrimarySupplier,
+                    )}
+                  />
+                  Aplicar proveedor primario
+                </label>
+                <select
+                  name="bulk_primary_supplier_id"
+                  defaultValue={bulkDraftState?.bulkPrimarySupplierId ?? ''}
+                  className="w-full rounded-lg border border-zinc-300 px-2 py-2 text-sm"
+                >
+                  <option value="">Seleccionar proveedor</option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
+                <BulkCreateSupplierModal
+                  action={createBulkSupplier}
+                  bulkQuery={bulkQuery}
+                  bulkPage={bulkCurrentPage}
+                  bulkPageSize={bulkPageSize}
+                />
+              </div>
+
+              <div className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 md:grid-cols-[260px_1fr_auto] md:items-center">
+                <label className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+                  <input
+                    type="checkbox"
+                    name="apply_secondary_supplier"
+                    defaultChecked={Boolean(
+                      bulkDraftState?.applySecondarySupplier,
+                    )}
+                  />
+                  Aplicar proveedor secundario
+                </label>
+                <select
+                  name="bulk_secondary_supplier_id"
+                  defaultValue={bulkDraftState?.bulkSecondarySupplierId ?? ''}
+                  className="w-full rounded-lg border border-zinc-300 px-2 py-2 text-sm"
+                >
+                  <option value="">Seleccionar proveedor</option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
+                <BulkCreateSupplierModal
+                  action={createBulkSupplier}
+                  bulkQuery={bulkQuery}
+                  bulkPage={bulkCurrentPage}
+                  bulkPageSize={bulkPageSize}
+                />
+              </div>
+
+              <BulkPricingSuggestion
+                suppliers={suppliers.map((supplier) => ({
+                  id: supplier.id,
+                  name: supplier.name,
+                  default_markup_pct: supplier.default_markup_pct,
+                }))}
+                defaultApplySupplierPrice={Boolean(
+                  bulkDraftState?.applySupplierPrice,
+                )}
+                defaultSupplierPrice={bulkDraftState?.bulkSupplierPrice ?? ''}
+                defaultApplyUnitPrice={Boolean(bulkDraftState?.applyUnitPrice)}
+                defaultUnitPrice={bulkDraftState?.bulkUnitPrice ?? ''}
+              />
+
+              <div className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 md:grid-cols-[260px_1fr] md:items-center">
+                <label className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+                  <input
+                    type="checkbox"
+                    name="apply_shelf_life_days"
+                    defaultChecked={Boolean(bulkDraftState?.applyShelfLifeDays)}
+                  />
+                  Aplicar vencimiento aprox (días)
+                </label>
+                <div className="space-y-2">
+                  <input
+                    type="number"
+                    name="bulk_shelf_life_days"
+                    min="0"
+                    step="1"
+                    placeholder="30"
+                    defaultValue={bulkDraftState?.bulkShelfLifeDays ?? ''}
+                    className="w-full rounded-lg border border-zinc-300 px-2 py-2 text-sm"
+                  />
+                  <label className="flex items-center gap-2 text-xs text-zinc-600">
+                    <input
+                      type="checkbox"
+                      name="bulk_shelf_life_no_applies"
+                      defaultChecked={Boolean(
+                        bulkDraftState?.bulkShelfLifeNoApplies,
+                      )}
+                    />
+                    No aplica vencimiento (usar 0)
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="submit"
+                name="apply_target"
+                value="selected"
+                className="rounded-lg bg-zinc-900 px-3 py-2 text-xs font-medium text-white"
+              >
+                Aplicar a seleccionados
+              </button>
+              <button
+                type="submit"
+                name="apply_target"
+                value="filtered"
+                className="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-700"
+              >
+                Aplicar a todos los filtrados ({bulkProductsCount})
+              </button>
+            </div>
+          </form>
         </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-5">

@@ -2338,3 +2338,85 @@ ok hazlo
 **Prompt**
 no bueno es posible que yo importe un archivo que tiene informacion parecida y cambia en que tiene unos productos adicionales y algunos productos cambiaron de nombre.. en ese caso como seria el flujo?
 ok me gusta hagamos eso solo matchear por barcode/internal_code ya que son codigos que por lo general siempre se van a mantener para identificar productos.
+
+## 2026-02-25 13:22 -03 — Onboarding: edición masiva de productos por filtros y selección
+
+**Lote:** onboarding-bulk-products-patch
+**Objetivo:** Agregar en `/onboarding` una vista de edición masiva para aplicar datos a muchos productos de forma eficiente (seleccionados o todos los filtrados), evitando edición fila por fila.
+
+**Prompt**
+excelente ahora me gustaria agregar una opcion mas que me permita agregar informacion a productos en masa. sin comparamos con el boton de Resolver ahora (rapido) que me habilita una ventana con todos los articulos con todos sus inputs para llenar uno por uno esta debe ser una vista diferente, aqui debo poder seleccionar items en masa a travez de un boton de seleccion multiple y despues a todos esos articulos yo les puedo asignar una marca, bien sea seleccionable porque ya existe esa marca en otros articulos o una marca nueva, tambien puedo decidir si agregarle por ejemplo a todos los seleccionados un proveedor principal, o proveedor secundario, o numero de dias de vencimiento, tal como se requiere en los formularios de crear nuevo producto, otro campo que podria estar aqui es el de agregar precio de venta de proveedor a todos y asignarle un monto o el precio de venta. esto es para ayudarme a agregar informacion a varios articulos a la vez para agilizar, asi quizas por ejemplo puedo usar el buscador para hubicar todos los articulos que tienen tal nombre porque se que son de tal marca, en el buscador busco estos articulos los selecciono y alli despues le aplico la informacion que desee. Seran muchos articulos en este caso 4mil entonces tenemos que buscar la manera de que no se cuelgue todo al reenderizar muchos datos, pero debe ser tambien rapido y eficiente. Que me recomiendas hacer en este caso? Como lo ves? que agregarias ademas para completar la idea?
+bueno adelante
+
+## 2026-02-25 13:54 -03 — Onboarding bulk: reordenar flujo (lista antes de acciones)
+
+**Lote:** onboarding-bulk-products-layout-flow
+**Objetivo:** Mejorar orden de operación en edición masiva dejando la lista inmediatamente debajo del buscador y moviendo el formulario de acciones al final.
+
+**Prompt**
+ok vamos a hacer unas modificaciones adicionales para mejorar el orden y el flujo. en edicion masiva de productos vamos a mover el formulario de acciones debajo de la lista, de esa manera quedaria la lista debajo del buscador y el boton de ejecucion que seria el de aplicar a seleccionados y el de aplicar a filtrados los dejamos dentro del formulario de acciones abajo al final
+
+## 2026-02-25 13:57 -03 — Onboarding bulk: alinear check + input por acción
+
+**Lote:** onboarding-bulk-products-form-alignment
+**Objetivo:** Mejorar legibilidad del formulario de acciones masivas alineando cada checkbox con su input correspondiente en la misma fila.
+
+**Prompt**
+Ahora dentro del formulario veo que hay unas checkmarks y unos campos, esto debe entenderse mejor, porque no me quedan alineados lo el checkmarck y lo que dice con el input que corresponde, no se si me explico tipo el check de proveedor y al lado el input del proveedor, el check de precio y al lado el input de precio. se entiende?
+
+## 2026-02-25 14:12 -03 — Shelf life: no aplica vencimiento
+
+**Lote:** onboarding-products-no-expiration-applicable
+**Objetivo:** Permitir marcar explícitamente productos sin vencimiento aplicable y tratar `0`/en blanco como no generador de vencimientos automáticos.
+
+**Prompt**
+Tengo una pregunta. que pasa en los casos donde la fecha de vencimiento no aplica. Que podemos colocar alli para que en vencimientos no se tomen en cuenta estas fechas al momento de recibir y controlar el producto?
+Si, que sea 0 o en blanco la info como para no tomar en cuenta ese dato en vencimientos, tambien agrega el de no aplica vencimiento y asi queda cerrado
+
+## 2026-02-25 14:12 -03 — Onboarding bulk: modal rápido para crear proveedor
+
+**Lote:** onboarding-bulk-create-supplier-modal
+**Objetivo:** Evitar bloqueo en edición masiva cuando falta proveedor: permitir alta rápida desde onboarding con formulario completo de proveedor y carga opcional de cuenta de transferencia.
+
+**Prompt**
+ok sigamos. Ahora mismo abajo en el formulario de acciones hay uno que dice aplicar proveedor primario y debo seleccionar el proveedor, pero que pasa si no existe el proveedor de todos los que tengo seleccionados? vamos a agregarle un boton que diga crear proveedor que me abra un modal con el formulario de nuevo proveedor que incluya todos los campos que se usan actualmente en ese formulario de crear proveedor incluyendo un desplegable que me ayude a agregarla informacion bancaria de trnasferencia tal como sucede en suppliers y en suppliers/id. que sea un modal rapido, la informacion que necesaria sea el nombre porque es como para salir del paso, esto va a crear un nuevo proveedor y despues desde /suppliers you puedo editar la informacion y de igual manera en onboarding aparece la informacion pendiente importane que debo completar sobre proveedores
+
+## 2026-02-25 14:27 -03 — Hotfix onboarding: nested form en modal de proveedor
+
+**Lote:** onboarding-bulk-create-supplier-nested-form-fix
+**Objetivo:** Corregir error de hidratación por `<form>` anidado al abrir modal `Crear proveedor` dentro de edición masiva.
+
+**Prompt**
+cuando le doy a crear proveedor me aparecen estos issues ... In HTML, <form> cannot be a descendant of <form> ...
+
+## 2026-02-25 14:30 -03 — Onboarding bulk: CTA crear proveedor también en secundario
+
+**Lote:** onboarding-bulk-create-supplier-secondary-cta
+**Objetivo:** Duplicar el CTA `Crear proveedor` en la fila de `Aplicar proveedor secundario` para no bloquear el flujo cuando falta proveedor.
+
+**Prompt**
+perfecto hagamos una copia de ese boton y la pegamos abajo donde dice Aplicar proveedor secundario. como para que se pueda crear un proveedor desde ahi tambien
+
+## 2026-02-25 14:35 -03 — Onboarding bulk: preservar selección al crear proveedor
+
+**Lote:** onboarding-bulk-preserve-selection-on-create-supplier
+**Objetivo:** Evitar pérdida de selección y borrador de acciones masivas cuando se crea un proveedor desde el modal rápido en `/onboarding`.
+
+**Prompt**
+tengo este problema y es que si por ejemplo yo seleccione 15 articulos mas arriba, y luego yo uso el modal de crear proveedor, una vez creado ya la informacion de los articulos que tenia seleccionados se pierde y tengo que volver a buscarlos. hay alguna manera de hacer que permanezca lo que estaba haciendo?
+
+## 2026-02-25 14:42 -03 — Onboarding bulk: sugerencia de precio unitario por markup de proveedor
+
+**Lote:** onboarding-bulk-pricing-suggestion-by-supplier-markup
+**Objetivo:** Replicar en edición masiva la lógica de `/products`: sugerir precio unitario con `supplier_price * (1 + markup%)`, usando 40% por defecto o `%` del proveedor seleccionado.
+
+**Prompt**
+Excelente. ahora en este mismo formulario quiero aplicar la misma logica que veniamos aplicando con respecto al precio de proveedor y el precio estimado para precio unitario segun el porcentaje de ganancia del proveedor, revisa la logica que estamos utilizando en /products al crear un nuevo producto donde me da una sugerencia por defecto con el 40% mas a menos que el proveedor seleccioado tenga establiecido su porcentaje de ganacia por algo distinto y eso me de un precio unitario sugerido y yo decido que colocar al final con base en eso
+
+## 2026-02-25 15:01 -03 — Onboarding import: diagnóstico precio en 0 desde archivo de ventas
+
+**Lote:** onboarding-import-computed-unit-price-persistence
+**Objetivo:** Revisar por qué la importación deja `unit_price = 0` al mapear solo `cantidad + subtotal`, y corregir persistencia del cálculo automático.
+
+**Prompt**
+hay algo mas que me gustaria chequear. al momento de importar los articulos que tengo ahora se supone que el precio se iba a calcular con el subtotal entre la cantidad, porque estoy tomando como referencia un archivo de ventas, pero ahora estoy viendo que todos los articulos tienen precio 0. podriamos chequear que es lo que puede estar pasando? Quizas estoy colocando mal lo de las columnas? A la de precio la deje sin importar y le di las columnas a la de cantidad y subtotal

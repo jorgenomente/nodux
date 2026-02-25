@@ -98,6 +98,12 @@ Implementacion MVP actual:
 - el resolvedor de productos incompletos usa conteo en DB + listado paginado
   y buscador server-side por nombre, para evitar render/carga de miles de
   registros en una sola respuesta.
+- onboarding incorpora editor masivo de productos con filtros server-side y
+  paginacion (25/50/100/200), permitiendo aplicar en lote marca, proveedores,
+  shelf life, precio proveedor y precio unitario sobre seleccionados o todos
+  los resultados filtrados.
+- el editor masivo incluye modal de alta rápida de proveedor (sin abandonar
+  onboarding) y soporte opcional para cargar cuenta de transferencia al crear.
 - las tareas de proveedores mantienen salida rapida a `/suppliers`.
 - la importacion incorpora paso de deteccion y mapeo de columnas para alinear
   nombres del archivo con los campos reales del modelo de datos NODUX.
