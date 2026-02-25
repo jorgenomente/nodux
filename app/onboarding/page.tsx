@@ -901,10 +901,6 @@ const buildProductKey = (row: Record<string, string>) => {
   if (barcode) return `barcode:${barcode}`;
   const internalCode = normalizeForKey(row.internal_code ?? '');
   if (internalCode) return `internal_code:${internalCode}`;
-  const productName = normalizeForKey(
-    row.product_name ?? row.name ?? row.nombre_articulo ?? row.articulo ?? '',
-  );
-  if (productName) return `name:${productName}`;
   return null;
 };
 

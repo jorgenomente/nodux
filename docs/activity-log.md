@@ -6304,3 +6304,31 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run build OK (2026-02-24)
 
 **Commit:** N/A
+
+## 2026-02-25 12:43 -03 — Onboarding: matching estricto por barcode/internal_code
+
+**Tipo:** schema/ui/docs
+**Lote:** onboarding-strict-product-code-match
+**Descripción:** Se ajustó la importación de onboarding para que el matching de productos existentes sea estricto por `barcode` y `internal_code` (sin fallback por nombre). Se reemplazó `rpc_apply_data_import_job` en nueva migración y se alineó la deduplicación previa del archivo para no consolidar productos por nombre cuando faltan códigos.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260225132000_059_onboarding_strict_product_match.sql
+- app/onboarding/page.tsx
+- docs/docs-app-screens-onboarding.md
+- docs/docs-modules-data-onboarding.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:reset` OK (2026-02-25)
+- `select count(*) from public.v_data_onboarding_tasks` OK (2026-02-25)
+- RLS mínima `data_import_jobs` verificada por SQL:
+  - allow: admin ve 1 fila (`count=1`) con claims `authenticated`
+  - deny: staff ve 0 filas (`count=0`) con claims `authenticated`
+- `npm run db:rls:smoke` FAIL (caso preexistente no relacionado: `staff puede leer products de su org`)
+- `npm run lint` OK (2026-02-25)
+- `npm run build` OK (2026-02-25)
+
+**Commit:** N/A

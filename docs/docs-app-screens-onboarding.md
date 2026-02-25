@@ -114,6 +114,9 @@ compartido de alta/edicion de producto para evitar divergencias de contrato.
 ### A3) Aplicar importacion
 
 Se aplican filas validas por upsert idempotente y se deja auditoria de job.
+Para productos, la deteccion de existentes en importacion se resuelve por
+`barcode` y `internal_code` (sin fallback por nombre), priorizando estabilidad
+de identificadores.
 
 ### A4) Resolver pendientes
 

@@ -109,3 +109,4 @@ Ultima actualizacion: 2026-02-24 17:10
 ## Post-MVP ya registrado
 
 - Pagina para movimiento de stock entre sucursales (transferencias masivas).
+- En `/onboarding`, el apply de importación ahora matchea productos existentes solo por `barcode`/`internal_code` (sin fallback por nombre) y la deduplicación previa del archivo sigue la misma regla para evitar merges ambiguos por nombre.

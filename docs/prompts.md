@@ -2329,3 +2329,12 @@ Filas: 3999 total · 3999 validas · 0 invalidas · 3999 aplicadas · 0 omitidas
 
 **Prompt**
 ok hazlo
+
+## 2026-02-25 12:43 -03 — Onboarding: matching estricto de productos por codigo
+
+**Lote:** onboarding-strict-product-code-match
+**Objetivo:** Evitar que la importación de onboarding actualice productos por nombre; el matching de existentes debe resolverse solo por `barcode` o `internal_code` para reducir falsos positivos.
+
+**Prompt**
+no bueno es posible que yo importe un archivo que tiene informacion parecida y cambia en que tiene unos productos adicionales y algunos productos cambiaron de nombre.. en ese caso como seria el flujo?
+ok me gusta hagamos eso solo matchear por barcode/internal_code ya que son codigos que por lo general siempre se van a mantener para identificar productos.

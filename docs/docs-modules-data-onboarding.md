@@ -53,11 +53,11 @@ reprocesos idempotentes.
 
 - Reimportar el mismo archivo no debe duplicar productos/proveedores.
 - Claves de matching recomendadas:
-  - producto: `barcode` o `internal_code`, fallback por nombre normalizado
+  - producto: `barcode` o `internal_code` (sin fallback por nombre)
   - proveedor: nombre normalizado + org
 - En el preprocesamiento de importación, filas repetidas se consolidan antes de
   persistir en `data_import_rows`:
-  - `products`: por `barcode` > `internal_code` > nombre normalizado.
+  - `products`: por `barcode` > `internal_code` (si faltan ambos, no se consolida por nombre).
   - `suppliers`: por nombre de proveedor normalizado.
 - Si un producto consolidado trae precios distintos en filas duplicadas, se
   prioriza el `unit_price` de la fila con fecha más reciente (`source_date` o
