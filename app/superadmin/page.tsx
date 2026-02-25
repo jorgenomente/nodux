@@ -345,7 +345,6 @@ export default async function SuperadminPage({
       ) {
         redirect('/no-access');
       }
-      const auth = contextResult.context;
 
       const ownerEmail = String(formData.get('owner_email') ?? '')
         .trim()
@@ -381,21 +380,40 @@ export default async function SuperadminPage({
         redirect(`/superadmin?org=${orgId}&result=owner_create_error`);
       }
 
-      await auth.supabase.rpc('rpc_invite_user_to_org', {
+      const { error: inviteError } = await admin.rpc('rpc_invite_user_to_org', {
         p_org_id: orgId,
         p_email: ownerEmail,
         p_role: 'org_admin',
         p_branch_ids: [],
       });
+      if (inviteError) {
+        console.error('[superadmin.createOrgAdmin] invite failed', {
+          orgId,
+          ownerEmail,
+          error: inviteError.message,
+        });
+        redirect(`/superadmin?org=${orgId}&result=owner_create_error`);
+      }
 
-      await auth.supabase.rpc('rpc_update_user_membership', {
-        p_org_id: orgId,
-        p_user_id: createdUser.user.id,
-        p_role: 'org_admin',
-        p_is_active: true,
-        p_display_name: ownerName || '',
-        p_branch_ids: [],
-      });
+      const { error: membershipError } = await admin.rpc(
+        'rpc_update_user_membership',
+        {
+          p_org_id: orgId,
+          p_user_id: createdUser.user.id,
+          p_role: 'org_admin',
+          p_is_active: true,
+          p_display_name: ownerName || '',
+          p_branch_ids: [],
+        },
+      );
+      if (membershipError) {
+        console.error('[superadmin.createOrgAdmin] membership failed', {
+          orgId,
+          userId: createdUser.user.id,
+          error: membershipError.message,
+        });
+        redirect(`/superadmin?org=${orgId}&result=owner_create_error`);
+      }
 
       revalidatePath('/superadmin');
       redirect(`/superadmin?org=${orgId}&result=owner_created`);

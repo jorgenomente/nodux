@@ -46,6 +46,8 @@ Search: nombre/email
 
 Lista de usuarios
 
+Toggle de visualización: `Tabla` | `Tarjetas`
+
 Cada row:
 
 nombre / email
@@ -58,7 +60,11 @@ estado: activo/inactivo
 
 acción: “Editar”
 
-Vista compacta por defecto; edición se revela al hacer click en “Editar”
+Vista `Tabla`: filas compactas con columnas fijas (nombre, email, rol, sucursales) y acción “Editar”.
+
+Vista `Tarjetas`: resumen por usuario optimizado para lectura vertical/mobile.
+
+En ambas vistas, la edición se revela al hacer click en “Editar”.
 
 Modal “Invitar/Editar”
 Panel “Crear/Editar”

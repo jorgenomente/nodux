@@ -126,6 +126,9 @@ export async function proxy(request: NextRequest) {
   const role = membership?.role ?? null;
 
   if (!isSuperadmin && (!membership?.org_id || !membership?.role)) {
+    if (pathname === '/no-access') {
+      return response;
+    }
     if (isServerAction) return response;
     return NextResponse.redirect(new URL('/no-access', request.url));
   }

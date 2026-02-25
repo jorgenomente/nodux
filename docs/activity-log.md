@@ -6677,3 +6677,117 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run build OK (2026-02-25)
 
 **Commit:** N/A
+
+## 2026-02-25 17:47 -03 — Settings Users: vista tabla/tarjetas + layout compacto
+
+**Tipo:** ui/docs
+**Lote:** settings-users-table-cards-layout
+**Descripción:** Se rediseñó `/settings/users` para corregir expansión de la última columna en modo tabla y se incorporó toggle de visualización `Tabla | Tarjetas`. En tabla se agregaron headers y filas compactas con editor desplegable separado; en tarjetas se mantiene lectura vertical mobile-first con el mismo editor.
+
+**Archivos afectados:**
+
+- app/settings/users/page.tsx
+- docs/docs-app-screens-settings-users.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 18:31 -03 — Settings Users: diferenciar visualmente Tabla vs Tarjetas
+
+**Tipo:** ui/docs
+**Lote:** settings-users-table-cards-layout
+**Descripción:** Se ajustó `/settings/users` para que la diferencia entre vistas sea explícita: indicador de vista activa, resumen compacto en modo tabla y tarjeta visual con badge de rol/sucursales en modo tarjetas.
+
+**Archivos afectados:**
+
+- app/settings/users/page.tsx
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 18:38 -03 — Settings Users: fix toggle Tabla/Tarjetas (searchParams)
+
+**Tipo:** ui/docs
+**Lote:** settings-users-table-cards-layout
+**Descripción:** Se corrigió lectura de `searchParams` en `/settings/users` para Next 16 (`Promise<SearchParams>` + `await`). Esto habilita correctamente `?view=table|cards` y activa el toggle visual.
+
+**Archivos afectados:**
+
+- app/settings/users/page.tsx
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 18:45 -03 — Proxy: detener loop de /no-access con usuarios sin org
+
+**Tipo:** ui/docs
+**Lote:** auth-no-access-redirect-loop-fix
+**Descripción:** Se ajustó `proxy.ts` para permitir `pathname === '/no-access'` cuando el usuario está autenticado pero sin membresía (`org_id/role` nulos), evitando redirección circular a sí misma.
+
+**Archivos afectados:**
+
+- proxy.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 18:53 -03 — Alta de usuarios: chequeo estricto de RPCs de membresía
+
+**Tipo:** ui/docs
+**Lote:** auth-user-membership-assignment-hardening
+**Descripción:** Se reforzó `/settings/users` para ejecutar RPCs de membresía con `service_role` y validar `error` explícitamente antes de marcar éxito. Se agregaron resultados UI para fallos de asignación (`membership_failed`, `membership_update_failed`). Además, se endureció `/superadmin` (crear admin para org existente) con chequeo explícito de errores de invitación/membresía para evitar cuentas en Auth sin org.
+
+**Archivos afectados:**
+
+- app/settings/users/page.tsx
+- app/superadmin/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 19:08 -03 — Settings Users: Org Admin con acceso global visible
+
+**Tipo:** ui/docs
+**Lote:** settings-users-org-admin-branches-label
+**Descripción:** Se ajustó la presentación de sucursales en tabla y tarjetas de `/settings/users`: para rol `org_admin` ahora se muestra “Todas las sucursales (acceso global)”. Se mantiene “Sin sucursales” para staff sin asignación.
+
+**Archivos afectados:**
+
+- app/settings/users/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A

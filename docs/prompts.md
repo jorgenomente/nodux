@@ -2476,3 +2476,35 @@ sigo viendo el Sin acceso... intentemos determinar el por que... COmo podemos ob
 
 **Prompt**
 por que hay un redirect al final? a donde se supone que deberia redirigir si es simplemente el superadmin creando una org.
+
+## 2026-02-25 17:47 -03 — Settings Users: optimizar tabla y agregar vista tarjetas
+
+**Lote:** settings-users-table-cards-layout
+**Objetivo:** Mejorar legibilidad de `/settings/users` corrigiendo expansión en última columna, reorganizar layout de edición y sumar vista alternativa por tarjetas.
+
+**Prompt**
+vamos a chequear ahora es /settings/users/ porque la informacion me sale en una tabla que no se ve para nada bien no esta optimizado en la ultima columna se ve todoexpandido raro. podemos organizar esto de una mejor forma? agreguemos tambien una vista por tarjetas
+
+## 2026-02-25 18:45 -03 — Fix redirect loop en /no-access para usuarios sin membresía
+
+**Lote:** auth-no-access-redirect-loop-fix
+**Objetivo:** Evitar `ERR_TOO_MANY_REDIRECTS` cuando un usuario autenticado no tiene `org_users` y navega a `/no-access`.
+
+**Prompt**
+... nuevo usuario admin ... ERR_TOO_MANY_REDIRECTS ... logs muestran /no-access 307 repetido ... SQL muestra org_id/role null.
+
+## 2026-02-25 18:53 -03 — Hardening alta de usuarios: validar RPC de membresía
+
+**Lote:** auth-user-membership-assignment-hardening
+**Objetivo:** Evitar falsos positivos de creación de usuario cuando falla asignación de org/sucursal, validando errores de `rpc_invite_user_to_org` y `rpc_update_user_membership`.
+
+**Prompt**
+hay algun error en la creacion de usuarios desde setting/users que hace que no se asigne la org y la sucursal? puede ser algo asi?
+
+## 2026-02-25 19:08 -03 — Settings Users: etiqueta clara de sucursales para Org Admin
+
+**Lote:** settings-users-org-admin-branches-label
+**Objetivo:** Evitar confusión en `/settings/users`: mostrar para `org_admin` el texto “Todas las sucursales (acceso global)” en lugar de “Sin sucursal”.
+
+**Prompt**
+dale adelante hazlo
