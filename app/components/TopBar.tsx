@@ -35,12 +35,14 @@ export default function TopBar() {
           </Link>
         ))}
       </nav>
-      <Link
-        href="/logout"
-        className="rounded border border-zinc-200 px-3 py-1 text-xs text-zinc-700"
-      >
-        Salir
-      </Link>
+      <form action="/logout" method="post">
+        <button
+          type="submit"
+          className="rounded border border-zinc-200 px-3 py-1 text-xs text-zinc-700"
+        >
+          Salir
+        </button>
+      </form>
     </div>
   );
 }

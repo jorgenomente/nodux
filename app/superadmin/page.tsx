@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
@@ -38,17 +39,53 @@ type SuperadminOrgDetailRow = {
   user_is_active: boolean | null;
 };
 
-const getSuperadminContext = async () => {
+type SuperadminContext = {
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>;
+  userId: string;
+  isPlatformAdmin: boolean;
+};
+
+type SuperadminContextResult =
+  | { status: 'ok'; context: SuperadminContext }
+  | { status: 'no_user' }
+  | { status: 'no_superadmin'; userId: string; role: string | null };
+
+const isNextRedirectError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') return false;
+  const digest =
+    'digest' in error && typeof error.digest === 'string' ? error.digest : '';
+  return digest.startsWith('NEXT_REDIRECT');
+};
+
+const getSuperadminContext = async (
+  source: string,
+): Promise<SuperadminContextResult> => {
+  const cookieStore = await cookies();
+  const supabaseCookieNames = cookieStore
+    .getAll()
+    .map((cookie) => cookie.name)
+    .filter((name) => name.startsWith('sb-'));
+
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return null;
+  if (!user) {
+    console.warn('[superadmin.context] auth.getUser returned null', {
+      source,
+      sbCookieCount: supabaseCookieNames.length,
+      sbCookieNames: supabaseCookieNames.slice(0, 4),
+    });
+    return { status: 'no_user' };
+  }
 
   const { data: isPlatformAdmin } = await supabase.rpc('is_platform_admin');
   if (isPlatformAdmin) {
-    return { supabase, userId: user.id, isPlatformAdmin: true };
+    return {
+      status: 'ok',
+      context: { supabase, userId: user.id, isPlatformAdmin: true },
+    };
   }
 
   const { data: membership } = await supabase
@@ -61,14 +98,28 @@ const getSuperadminContext = async () => {
     // First superadmin can bootstrap platform_admins on empty installs.
     await supabase.rpc('rpc_bootstrap_platform_admin');
     const { data: bootstrapped } = await supabase.rpc('is_platform_admin');
-    return {
-      supabase,
-      userId: user.id,
-      isPlatformAdmin: Boolean(bootstrapped),
-    };
+    if (bootstrapped) {
+      return {
+        status: 'ok',
+        context: {
+          supabase,
+          userId: user.id,
+          isPlatformAdmin: true,
+        },
+      };
+    }
   }
 
-  return null;
+  console.warn('[superadmin.context] user has no superadmin context', {
+    source,
+    userId: user.id,
+    role: membership?.role ?? null,
+  });
+  return {
+    status: 'no_superadmin',
+    userId: user.id,
+    role: membership?.role ?? null,
+  };
 };
 
 export default async function SuperadminPage({
@@ -77,224 +128,284 @@ export default async function SuperadminPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
-  const context = await getSuperadminContext();
+  const contextResult = await getSuperadminContext('page-load');
 
-  if (!context) {
+  if (contextResult.status === 'no_user') {
+    redirect('/login?result=session_missing');
+  }
+  if (contextResult.status !== 'ok') {
     redirect('/no-access');
   }
+  const context = contextResult.context;
 
   const createOrg = async (formData: FormData): Promise<void> => {
     'use server';
-
-    const auth = await getSuperadminContext();
-    if (!auth) {
-      redirect('/no-access');
-    }
-
-    const orgName = String(formData.get('org_name') ?? '').trim();
-    const timezone = String(formData.get('timezone') ?? 'UTC').trim() || 'UTC';
-    const branchName =
-      String(formData.get('initial_branch_name') ?? '').trim() ||
-      'Casa Central';
-    const branchAddress = String(
-      formData.get('initial_branch_address') ?? '',
-    ).trim();
-    const ownerEmail = String(formData.get('owner_email') ?? '')
-      .trim()
-      .toLowerCase();
-    const ownerPassword = String(formData.get('owner_password') ?? '');
-    const ownerName = String(formData.get('owner_display_name') ?? '').trim();
-
-    if (!auth.isPlatformAdmin) {
-      redirect('/superadmin?result=active_org_denied');
-    }
-
-    if (!orgName) {
-      redirect('/superadmin?result=invalid_org');
-    }
-    if (!ownerEmail || !ownerEmail.includes('@')) {
-      redirect('/superadmin?result=invalid_owner_email');
-    }
-    if (ownerPassword.length < 8) {
-      redirect('/superadmin?result=weak_owner_password');
-    }
-
-    const admin = createAdminSupabaseClient();
-    const { data: createdUser, error: createUserError } =
-      await admin.auth.admin.createUser({
-        email: ownerEmail,
-        password: ownerPassword,
-        email_confirm: true,
-        user_metadata: ownerName ? { display_name: ownerName } : undefined,
-      });
-
-    if (createUserError || !createdUser.user?.id) {
-      const message = String(createUserError?.message ?? '').toLowerCase();
-      const alreadyExists =
-        createUserError?.code === 'email_exists' ||
-        message.includes('already') ||
-        message.includes('exists');
-      if (alreadyExists) {
-        redirect('/superadmin?result=owner_email_exists');
+    try {
+      const contextResult = await getSuperadminContext('create-org');
+      if (contextResult.status === 'no_user') {
+        redirect('/login?result=session_missing');
       }
-      redirect('/superadmin?result=owner_create_error');
-    }
+      if (contextResult.status !== 'ok') {
+        redirect('/no-access');
+      }
+      const auth = contextResult.context;
 
-    const { data, error } = await auth.supabase.rpc(
-      'rpc_superadmin_create_org',
-      {
-        p_org_name: orgName,
-        p_timezone: timezone,
-        p_initial_branch_name: branchName,
-        p_initial_branch_address: branchAddress || undefined,
-        p_owner_user_id: createdUser.user.id,
-        p_owner_display_name: ownerName || undefined,
-      },
-    );
+      const orgName = String(formData.get('org_name') ?? '').trim();
+      const timezone =
+        String(formData.get('timezone') ?? 'UTC').trim() || 'UTC';
+      const branchName =
+        String(formData.get('initial_branch_name') ?? '').trim() ||
+        'Casa Central';
+      const branchAddress = String(
+        formData.get('initial_branch_address') ?? '',
+      ).trim();
+      const ownerEmail = String(formData.get('owner_email') ?? '')
+        .trim()
+        .toLowerCase();
+      const ownerPassword = String(formData.get('owner_password') ?? '');
+      const ownerName = String(formData.get('owner_display_name') ?? '').trim();
 
-    if (error) {
+      if (!auth.isPlatformAdmin) {
+        redirect('/superadmin?result=active_org_denied');
+      }
+
+      if (!orgName) {
+        redirect('/superadmin?result=invalid_org');
+      }
+      if (!ownerEmail || !ownerEmail.includes('@')) {
+        redirect('/superadmin?result=invalid_owner_email');
+      }
+      if (ownerPassword.length < 8) {
+        redirect('/superadmin?result=weak_owner_password');
+      }
+
+      const admin = createAdminSupabaseClient();
+      const { data: createdUser, error: createUserError } =
+        await admin.auth.admin.createUser({
+          email: ownerEmail,
+          password: ownerPassword,
+          email_confirm: true,
+          user_metadata: ownerName ? { display_name: ownerName } : undefined,
+        });
+
+      if (createUserError || !createdUser.user?.id) {
+        const message = String(createUserError?.message ?? '').toLowerCase();
+        const alreadyExists =
+          createUserError?.code === 'email_exists' ||
+          message.includes('already') ||
+          message.includes('exists');
+        if (alreadyExists) {
+          redirect('/superadmin?result=owner_email_exists');
+        }
+        redirect('/superadmin?result=owner_create_error');
+      }
+
+      const { data, error } = await auth.supabase.rpc(
+        'rpc_superadmin_create_org',
+        {
+          p_org_name: orgName,
+          p_timezone: timezone,
+          p_initial_branch_name: branchName,
+          p_initial_branch_address: branchAddress || undefined,
+          p_owner_user_id: createdUser.user.id,
+          p_owner_display_name: ownerName || undefined,
+        },
+      );
+
+      if (error) {
+        redirect('/superadmin?result=org_error');
+      }
+
+      const newOrgId =
+        Array.isArray(data) && data[0] && typeof data[0].org_id === 'string'
+          ? data[0].org_id
+          : '';
+
+      if (auth.isPlatformAdmin && newOrgId) {
+        await auth.supabase.rpc('rpc_superadmin_set_active_org', {
+          p_org_id: newOrgId,
+        });
+      }
+
+      revalidatePath('/superadmin');
+      redirect(
+        `/superadmin?result=org_created${newOrgId ? `&org=${newOrgId}` : ''}`,
+      );
+    } catch (error) {
+      if (isNextRedirectError(error)) {
+        throw error;
+      }
+      console.error('[superadmin.createOrg] unexpected error', error);
       redirect('/superadmin?result=org_error');
     }
-
-    const newOrgId =
-      Array.isArray(data) && data[0] && typeof data[0].org_id === 'string'
-        ? data[0].org_id
-        : '';
-
-    if (auth.isPlatformAdmin && newOrgId) {
-      await auth.supabase.rpc('rpc_superadmin_set_active_org', {
-        p_org_id: newOrgId,
-      });
-    }
-
-    revalidatePath('/superadmin');
-    redirect(
-      `/superadmin?result=org_created${newOrgId ? `&org=${newOrgId}` : ''}`,
-    );
   };
 
   const setActiveOrg = async (formData: FormData): Promise<void> => {
     'use server';
+    try {
+      const contextResult = await getSuperadminContext('set-active-org');
+      if (contextResult.status === 'no_user') {
+        redirect('/login?result=session_missing');
+      }
+      if (contextResult.status !== 'ok') {
+        redirect('/no-access');
+      }
+      const auth = contextResult.context;
 
-    const auth = await getSuperadminContext();
-    if (!auth) {
-      redirect('/no-access');
-    }
+      if (!auth.isPlatformAdmin) {
+        redirect('/superadmin?result=active_org_denied');
+      }
 
-    if (!auth.isPlatformAdmin) {
-      redirect('/superadmin?result=active_org_denied');
-    }
+      const orgId = String(formData.get('org_id') ?? '').trim();
+      if (!orgId) {
+        redirect('/superadmin?result=active_org_invalid');
+      }
 
-    const orgId = String(formData.get('org_id') ?? '').trim();
-    if (!orgId) {
-      redirect('/superadmin?result=active_org_invalid');
-    }
+      const { error } = await auth.supabase.rpc(
+        'rpc_superadmin_set_active_org',
+        {
+          p_org_id: orgId,
+        },
+      );
 
-    const { error } = await auth.supabase.rpc('rpc_superadmin_set_active_org', {
-      p_org_id: orgId,
-    });
+      if (error) {
+        redirect('/superadmin?result=active_org_error');
+      }
 
-    if (error) {
+      revalidatePath('/superadmin');
+      redirect(`/superadmin?org=${orgId}&result=active_org_saved`);
+    } catch (error) {
+      if (isNextRedirectError(error)) {
+        throw error;
+      }
+      console.error('[superadmin.setActiveOrg] unexpected error', error);
       redirect('/superadmin?result=active_org_error');
     }
-
-    revalidatePath('/superadmin');
-    redirect(`/superadmin?org=${orgId}&result=active_org_saved`);
   };
 
   const createBranch = async (formData: FormData): Promise<void> => {
     'use server';
-
-    const auth = await getSuperadminContext();
-    if (!auth) {
-      redirect('/no-access');
-    }
-
     const orgId = String(formData.get('org_id') ?? '').trim();
-    const branchName = String(formData.get('branch_name') ?? '').trim();
-    const branchAddress = String(formData.get('branch_address') ?? '').trim();
 
-    if (!orgId || !branchName) {
-      redirect(`/superadmin?org=${orgId}&result=invalid_branch`);
-    }
+    try {
+      const contextResult = await getSuperadminContext('create-branch');
+      if (contextResult.status === 'no_user') {
+        redirect('/login?result=session_missing');
+      }
+      if (contextResult.status !== 'ok') {
+        redirect('/no-access');
+      }
+      const auth = contextResult.context;
 
-    const { error } = await auth.supabase.rpc('rpc_superadmin_upsert_branch', {
-      p_org_id: orgId,
-      p_branch_id: randomUUID(),
-      p_name: branchName,
-      p_address: branchAddress || undefined,
-      p_is_active: true,
-    });
+      const branchName = String(formData.get('branch_name') ?? '').trim();
+      const branchAddress = String(formData.get('branch_address') ?? '').trim();
 
-    if (error) {
+      if (!orgId || !branchName) {
+        redirect(`/superadmin?org=${orgId}&result=invalid_branch`);
+      }
+
+      const { error } = await auth.supabase.rpc(
+        'rpc_superadmin_upsert_branch',
+        {
+          p_org_id: orgId,
+          p_branch_id: randomUUID(),
+          p_name: branchName,
+          p_address: branchAddress || undefined,
+          p_is_active: true,
+        },
+      );
+
+      if (error) {
+        redirect(`/superadmin?org=${orgId}&result=branch_error`);
+      }
+
+      revalidatePath('/superadmin');
+      redirect(`/superadmin?org=${orgId}&result=branch_created`);
+    } catch (error) {
+      if (isNextRedirectError(error)) {
+        throw error;
+      }
+      console.error('[superadmin.createBranch] unexpected error', error);
       redirect(`/superadmin?org=${orgId}&result=branch_error`);
     }
-
-    revalidatePath('/superadmin');
-    redirect(`/superadmin?org=${orgId}&result=branch_created`);
   };
 
   const createOrgAdmin = async (formData: FormData): Promise<void> => {
     'use server';
-
-    const auth = await getSuperadminContext();
-    if (!auth || !auth.isPlatformAdmin) {
-      redirect('/no-access');
-    }
-
     const orgId = String(formData.get('org_id') ?? '').trim();
-    const ownerEmail = String(formData.get('owner_email') ?? '')
-      .trim()
-      .toLowerCase();
-    const ownerPassword = String(formData.get('owner_password') ?? '');
-    const ownerName = String(formData.get('owner_display_name') ?? '').trim();
 
-    if (!orgId || !ownerEmail || !ownerEmail.includes('@')) {
-      redirect(`/superadmin?org=${orgId}&result=invalid_owner_email`);
-    }
-    if (ownerPassword.length < 8) {
-      redirect(`/superadmin?org=${orgId}&result=weak_owner_password`);
-    }
+    try {
+      const contextResult = await getSuperadminContext('create-org-admin');
+      if (contextResult.status === 'no_user') {
+        redirect('/login?result=session_missing');
+      }
+      if (
+        contextResult.status !== 'ok' ||
+        !contextResult.context.isPlatformAdmin
+      ) {
+        redirect('/no-access');
+      }
+      const auth = contextResult.context;
 
-    const admin = createAdminSupabaseClient();
-    const { data: createdUser, error: createUserError } =
-      await admin.auth.admin.createUser({
-        email: ownerEmail,
-        password: ownerPassword,
-        email_confirm: true,
-        user_metadata: ownerName ? { display_name: ownerName } : undefined,
+      const ownerEmail = String(formData.get('owner_email') ?? '')
+        .trim()
+        .toLowerCase();
+      const ownerPassword = String(formData.get('owner_password') ?? '');
+      const ownerName = String(formData.get('owner_display_name') ?? '').trim();
+
+      if (!orgId || !ownerEmail || !ownerEmail.includes('@')) {
+        redirect(`/superadmin?org=${orgId}&result=invalid_owner_email`);
+      }
+      if (ownerPassword.length < 8) {
+        redirect(`/superadmin?org=${orgId}&result=weak_owner_password`);
+      }
+
+      const admin = createAdminSupabaseClient();
+      const { data: createdUser, error: createUserError } =
+        await admin.auth.admin.createUser({
+          email: ownerEmail,
+          password: ownerPassword,
+          email_confirm: true,
+          user_metadata: ownerName ? { display_name: ownerName } : undefined,
+        });
+
+      if (createUserError || !createdUser.user?.id) {
+        const message = String(createUserError?.message ?? '').toLowerCase();
+        const alreadyExists =
+          createUserError?.code === 'email_exists' ||
+          message.includes('already') ||
+          message.includes('exists');
+        if (alreadyExists) {
+          redirect(`/superadmin?org=${orgId}&result=owner_email_exists`);
+        }
+        redirect(`/superadmin?org=${orgId}&result=owner_create_error`);
+      }
+
+      await auth.supabase.rpc('rpc_invite_user_to_org', {
+        p_org_id: orgId,
+        p_email: ownerEmail,
+        p_role: 'org_admin',
+        p_branch_ids: [],
       });
 
-    if (createUserError || !createdUser.user?.id) {
-      const message = String(createUserError?.message ?? '').toLowerCase();
-      const alreadyExists =
-        createUserError?.code === 'email_exists' ||
-        message.includes('already') ||
-        message.includes('exists');
-      if (alreadyExists) {
-        redirect(`/superadmin?org=${orgId}&result=owner_email_exists`);
+      await auth.supabase.rpc('rpc_update_user_membership', {
+        p_org_id: orgId,
+        p_user_id: createdUser.user.id,
+        p_role: 'org_admin',
+        p_is_active: true,
+        p_display_name: ownerName || '',
+        p_branch_ids: [],
+      });
+
+      revalidatePath('/superadmin');
+      redirect(`/superadmin?org=${orgId}&result=owner_created`);
+    } catch (error) {
+      if (isNextRedirectError(error)) {
+        throw error;
       }
+      console.error('[superadmin.createOrgAdmin] unexpected error', error);
       redirect(`/superadmin?org=${orgId}&result=owner_create_error`);
     }
-
-    await auth.supabase.rpc('rpc_invite_user_to_org', {
-      p_org_id: orgId,
-      p_email: ownerEmail,
-      p_role: 'org_admin',
-      p_branch_ids: [],
-    });
-
-    await auth.supabase.rpc('rpc_update_user_membership', {
-      p_org_id: orgId,
-      p_user_id: createdUser.user.id,
-      p_role: 'org_admin',
-      p_is_active: true,
-      p_display_name: ownerName || '',
-      p_branch_ids: [],
-    });
-
-    revalidatePath('/superadmin');
-    redirect(`/superadmin?org=${orgId}&result=owner_created`);
   };
 
   const search = (params.q ?? '').trim();

@@ -25,6 +25,9 @@ const isPublicPath = (pathname: string) =>
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
 
+const isServerActionRequest = (request: NextRequest) =>
+  request.method === 'POST' && request.headers.has('next-action');
+
 const resolveStaffHome = async (
   supabase: ReturnType<typeof createServerClient<Database>>,
 ) => {
@@ -68,6 +71,7 @@ const resolveUserIsPlatformAdmin = async (
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const isServerAction = isServerActionRequest(request);
 
   const response = NextResponse.next({
     request: {
@@ -103,6 +107,7 @@ export async function proxy(request: NextRequest) {
   if (!user) {
     if (pathname === '/login') return response;
     if (isPublicPath(pathname)) return response;
+    if (isServerAction) return response;
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
@@ -121,6 +126,7 @@ export async function proxy(request: NextRequest) {
   const role = membership?.role ?? null;
 
   if (!isSuperadmin && (!membership?.org_id || !membership?.role)) {
+    if (isServerAction) return response;
     return NextResponse.redirect(new URL('/no-access', request.url));
   }
 
@@ -149,6 +155,7 @@ export async function proxy(request: NextRequest) {
 
   if (role === 'staff') {
     if (!isStaffAllowedPath(pathname)) {
+      if (isServerAction) return response;
       return NextResponse.redirect(new URL(homePath, request.url));
     }
     return response;

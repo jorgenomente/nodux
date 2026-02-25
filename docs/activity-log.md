@@ -6543,3 +6543,137 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run build OK (2026-02-25)
 
 **Commit:** N/A
+
+## 2026-02-25 16:39 -03 — Superadmin prod: hardening de Server Actions
+
+**Tipo:** ui/docs
+**Lote:** superadmin-prod-server-action-error-hardening
+**Descripción:** Se reforzaron las Server Actions de `/superadmin` (`createOrg`, `setActiveOrg`, `createBranch`, `createOrgAdmin`) con `try/catch`, `console.error` etiquetado y redirects de fallback para evitar error cliente tipo `unexpected response` cuando falla una acción en producción. Esto permite diagnóstico real en Vercel logs y mantiene UX con `result` controlado.
+
+**Archivos afectados:**
+
+- app/superadmin/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 16:53 -03 — Proxy: bypass redirects en Server Actions
+
+**Tipo:** ui/docs
+**Lote:** superadmin-prod-server-action-error-hardening
+**Descripción:** Se corrigió `proxy.ts` para no forzar redirects (`/login`, `/no-access`, `homePath`) en requests de Server Actions (`POST` con header `next-action`). Antes, esos `307` en `/superadmin` rompían el protocolo de respuesta de Next y el cliente mostraba `An unexpected response was received from the server`.
+
+**Archivos afectados:**
+
+- proxy.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 17:02 -03 — Superadmin: rethrow de NEXT_REDIRECT + trazas de contexto
+
+**Tipo:** ui/docs
+**Lote:** superadmin-prod-server-action-error-hardening
+**Descripción:** Se corrigió `app/superadmin/page.tsx` para no tratar `NEXT_REDIRECT` como error inesperado dentro de Server Actions (se re-lanza), evitando enmascarar redirects válidos como `org_error`. Se agregó logging de contexto (`auth.getUser` nulo y usuario sin contexto superadmin) para diagnosticar en producción por qué una acción termina en `/no-access`.
+
+**Archivos afectados:**
+
+- app/superadmin/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 17:12 -03 — Login: redirección full-page post-auth
+
+**Tipo:** ui/docs
+**Lote:** superadmin-prod-server-action-error-hardening
+**Descripción:** Se endureció el flujo de `/login`: tras `signInWithPassword`, ahora se espera `auth.getSession()` y se navega con `window.location.href='/'` para asegurar que la cookie/sesión quede persistida antes de entrar a rutas SSR/Server Actions.
+
+**Archivos afectados:**
+
+- app/login/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 17:22 -03 — Supabase browser client: cookie handling estándar
+
+**Tipo:** ui/docs
+**Lote:** superadmin-prod-server-action-error-hardening
+**Descripción:** Se simplificó `lib/supabase/client.ts` para crear cliente browser con `createBrowserClient(url, anonKey)` sin adapter manual de cookies. El adapter custom podía desalinear persistencia de auth en producción y causar `auth.getUser` nulo en SSR/Server Actions.
+
+**Archivos afectados:**
+
+- lib/supabase/client.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 17:29 -03 — Superadmin: trazabilidad de contexto y redirects de sesión
+
+**Tipo:** ui/docs
+**Lote:** superadmin-prod-server-action-error-hardening
+**Descripción:** `getSuperadminContext` ahora reporta estado explícito (`ok`, `no_user`, `no_superadmin`) con `source` por etapa y metadatos de cookies `sb-*` para diagnóstico. Cuando falta sesión, `/superadmin` y sus Server Actions redirigen a `/login?result=session_missing` (en lugar de caer silenciosamente a `no-access`).
+
+**Archivos afectados:**
+
+- app/superadmin/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-25 17:36 -03 — Logout hardening: solo POST para signOut
+
+**Tipo:** ui/docs
+**Lote:** superadmin-prod-server-action-error-hardening
+**Descripción:** Se corrigió causa raíz de pérdida de sesión en producción: `TopBar` tenía `Link` a `/logout` y el `GET /logout` ejecutaba `signOut`, por lo que navegación/prefetch podía cerrar sesión de forma involuntaria. Ahora el logout se ejecuta vía `form method=post` y `app/logout/route.ts` solo hace `signOut` en `POST`; `GET /logout` solo redirige a `/login`.
+
+**Archivos afectados:**
+
+- app/components/TopBar.tsx
+- app/logout/route.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-02-25)
+- npm run build OK (2026-02-25)
+
+**Commit:** N/A

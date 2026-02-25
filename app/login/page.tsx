@@ -1,12 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,9 +30,9 @@ export default function LoginPage() {
         return;
       }
 
+      await supabase.auth.getSession();
       setStatus('Login OK. Redirigiendo...');
-      router.replace('/');
-      router.refresh();
+      window.location.href = '/';
     } catch (err) {
       setError('No pudimos iniciar sesion.');
       setStatus(`Error: ${err instanceof Error ? err.message : 'desconocido'}`);

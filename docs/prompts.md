@@ -2420,3 +2420,59 @@ Excelente. ahora en este mismo formulario quiero aplicar la misma logica que ven
 
 **Prompt**
 hay algo mas que me gustaria chequear. al momento de importar los articulos que tengo ahora se supone que el precio se iba a calcular con el subtotal entre la cantidad, porque estoy tomando como referencia un archivo de ventas, pero ahora estoy viendo que todos los articulos tienen precio 0. podriamos chequear que es lo que puede estar pasando? Quizas estoy colocando mal lo de las columnas? A la de precio la deje sin importar y le di las columnas a la de cantidad y subtotal
+
+## 2026-02-25 16:39 -03 — Superadmin prod: manejar error inesperado en creación de org
+
+**Lote:** superadmin-prod-server-action-error-hardening
+**Objetivo:** Evitar crash cliente (`An unexpected response was received from the server`) al crear org en producción y exponer causa real en logs del servidor.
+
+**Prompt**
+en local todo funciona correctamente pero en prod al crear una nueva org me arroja un error. Application error: a client-side exception has occurred while loading nodux-lime.vercel.app (see the browser console for more information).426ec9b873380a93.js:2 Uncaught Error: An unexpected response was received from the server.
+
+## 2026-02-25 16:53 -03 — Hotfix proxy: evitar redirect de Server Actions
+
+**Lote:** superadmin-prod-server-action-error-hardening
+**Objetivo:** Corregir error de cliente en producción evitando redirects desde `proxy.ts` para requests POST de Server Actions (`next-action`) que deben responder protocolo RSC.
+
+**Prompt**
+donde deberia aparecer la etiqueta... hay alguna manera de poder diagnosticar esto> ... esto Feb 25 16:48:51.91 POST --- nodux-lime.vercel.app /superadmin ... /login
+
+## 2026-02-25 17:02 -03 — Superadmin: no capturar NEXT_REDIRECT como error
+
+**Lote:** superadmin-prod-server-action-error-hardening
+**Objetivo:** Evitar falsos `org_error` al capturar excepciones de `redirect()` y agregar trazas de contexto para diagnosticar pérdida de sesión/rol en Server Actions.
+
+**Prompt**
+bueno por lo menos ahora me dedirige a https://nodux-lime.vercel.app/superadmin?result=org_error y los logs dicen ... [superadmin.createOrg] unexpected error Error: NEXT_REDIRECT ... digest: 'NEXT_REDIRECT;push;/no-access;307;'
+
+## 2026-02-25 17:12 -03 — Login hardening: asegurar sesión antes de redirigir
+
+**Lote:** superadmin-prod-server-action-error-hardening
+**Objetivo:** Evitar pérdida de sesión inmediatamente después de login en producción (caso `/superadmin` -> `auth.getUser` null en Server Action).
+
+**Prompt**
+estos son los ultimos logs ... [superadmin.context] auth.getUser returned null ... con esto se queda cargando y nunca manda nada npx vercel logs nodux-lime.vercel.app.
+
+## 2026-02-25 17:22 -03 — Supabase browser client: remover cookie adapter custom
+
+**Lote:** superadmin-prod-server-action-error-hardening
+**Objetivo:** Corregir persistencia de sesión en producción eliminando implementación manual de cookies en `createBrowserSupabaseClient` y usando comportamiento estándar de `@supabase/ssr`.
+
+**Prompt**
+sigo teniendo el mismo problema cuando lleno los datos y le doy a crear org ... [superadmin.context] auth.getUser returned null
+
+## 2026-02-25 17:29 -03 — Instrumentación superadmin: contexto por etapa + cookies sb
+
+**Lote:** superadmin-prod-server-action-error-hardening
+**Objetivo:** Mejorar diagnóstico de sesión/permiso en `/superadmin` con logs estructurados por etapa (`page-load`, `create-org`, etc.), conteo de cookies `sb-*` y redirect explícito a `/login?result=session_missing` cuando falta sesión.
+
+**Prompt**
+sigo viendo el Sin acceso... intentemos determinar el por que... COmo podemos obteer logs de ayuda en UI o en la consola, algo que nos permita diagnosticar donde esta el error
+
+## 2026-02-25 17:36 -03 — Fix crítico: prefetch de /logout invalidaba sesión
+
+**Lote:** superadmin-prod-server-action-error-hardening
+**Objetivo:** Corregir cierre de sesión involuntario por `GET /logout` disparado durante navegación/prefetch, que dejaba `auth.getUser` en null al crear org.
+
+**Prompt**
+por que hay un redirect al final? a donde se supone que deberia redirigir si es simplemente el superadmin creando una org.
