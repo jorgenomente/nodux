@@ -12,6 +12,34 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-26 10:31 -03 — Landing pública para explicar NODUX
+
+**Lote:** public-landing-page-mvp
+**Objetivo:** Crear una página pública institucional para explicar qué es NODUX y dirigir a login/demo sin afectar el flujo autenticado del MVP.
+
+**Prompt**
+Es posible crear una landing page publica donde podamos explicar que es nodux? Como recomiendas hacer esto?
+
+adelante
+
+## 2026-02-26 14:00 -03 — Split de dominios: `nodux.app` público y `app.nodux.app` privado
+
+**Lote:** domain-host-split-marketing-app
+**Objetivo:** Forzar separación por host para que la landing pública viva en `nodux.app` y el sistema autenticado opere en `app.nodux.app`.
+
+**Prompt**
+hice el log in pero la url sigue siendo nodux.app y no app.nodux.app es porque no estoy redigiriendo el sitio desde vercel? Mi duda es si hago eso entonces como la gente va a poder ver nodux.app/landing si los va a redirigir a app.nodux.app
+
+adelante
+
+## 2026-02-26 14:04 -03 — Canonical SEO: `www.nodux.app` -> `nodux.app`
+
+**Lote:** domain-canonical-www-to-root
+**Objetivo:** Forzar dominio canónico para marketing redirigiendo `www.nodux.app` hacia `nodux.app` sin afectar `app.nodux.app`.
+
+**Prompt**
+adelante si
+
 ## 2026-02-24 17:10 -03 — Onboarding: resolver de incompletos paginado con buscador y conteo DB
 
 **Lote:** onboarding-incomplete-products-paginated-resolver

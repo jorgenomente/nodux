@@ -3,7 +3,11 @@ import { createServerClient } from '@supabase/ssr';
 
 import type { Database } from '@/types/supabase';
 
-const PUBLIC_PATHS = ['/login', '/logout', '/no-access'];
+const PUBLIC_PATHS = ['/landing', '/login', '/logout', '/no-access'];
+const MARKETING_PATHS = ['/', '/landing'];
+const APP_HOST = 'app.nodux.app';
+const CANONICAL_MARKETING_HOST = 'nodux.app';
+const MARKETING_HOSTS = new Set([CANONICAL_MARKETING_HOST, 'www.nodux.app']);
 const STAFF_MODULE_ORDER = [
   'pos',
   'cashbox',
@@ -25,8 +29,26 @@ const isPublicPath = (pathname: string) =>
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
 
+const isMarketingPath = (pathname: string) =>
+  MARKETING_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+
 const isServerActionRequest = (request: NextRequest) =>
   request.method === 'POST' && request.headers.has('next-action');
+
+const redirectToHost = (
+  request: NextRequest,
+  host: string,
+  pathname: string,
+) => {
+  const url = request.nextUrl.clone();
+  url.hostname = host;
+  url.pathname = pathname;
+  url.protocol = 'https:';
+  url.port = '';
+  return NextResponse.redirect(url);
+};
 
 const resolveStaffHome = async (
   supabase: ReturnType<typeof createServerClient<Database>>,
@@ -71,7 +93,28 @@ const resolveUserIsPlatformAdmin = async (
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const hostname = request.nextUrl.hostname.toLowerCase();
+  const isMarketingHost = MARKETING_HOSTS.has(hostname);
+  const isAppHost = hostname === APP_HOST;
   const isServerAction = isServerActionRequest(request);
+
+  if (hostname === 'www.nodux.app') {
+    return redirectToHost(request, CANONICAL_MARKETING_HOST, pathname);
+  }
+
+  if (isMarketingHost) {
+    if (pathname === '/') {
+      return NextResponse.redirect(new URL('/landing', request.url));
+    }
+
+    if (!isMarketingPath(pathname)) {
+      return redirectToHost(request, APP_HOST, pathname);
+    }
+  }
+
+  if (isAppHost && pathname.startsWith('/landing')) {
+    return redirectToHost(request, 'nodux.app', '/landing');
+  }
 
   const response = NextResponse.next({
     request: {

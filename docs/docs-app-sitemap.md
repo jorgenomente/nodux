@@ -119,10 +119,16 @@ Acceso:
 
 ## 6. Rutas públicas / Utility
 
+- `/landing` (publica institucional / comercial)
 - `/login`
 - `/logout`
 - `/no-access`
 - `/reset-password` (opcional)
+
+Nota de dominio (produccion):
+
+- `nodux.app` sirve rutas públicas de marketing.
+- `app.nodux.app` sirve login y aplicación operativa autenticada.
 
 ---
 
@@ -189,6 +195,10 @@ Acceso:
 - `/settings/preferences`
 - `/settings/audit-log`
 - `/superadmin`
+
+### Rutas públicas adicionales (fuera del flujo operativo MVP)
+
+- `/landing`
 
 ---
 

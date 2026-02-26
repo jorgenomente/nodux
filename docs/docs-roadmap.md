@@ -273,3 +273,6 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-02-22: Onboarding datos maestros implementa UI `/onboarding` con importación CSV operativa, resumen de jobs, pendientes por tarea y exportes maestros (`/onboarding/export`).
 - 2026-02-22: Proveedores agregan `% ganancia sugerida` (`default_markup_pct`, default 40) y `/products` incorpora `precio proveedor` con sugerencia dinámica de `precio unitario` por proveedor seleccionado.
 - 2026-02-22: Ventas incorpora entry point `/sales/statistics` con filtros por período/sucursal y ranking de productos/proveedores + tendencias por día/semana/mes basado en `v_sales_statistics_items`.
+- 2026-02-26: Se agrega ruta pública `/landing` para posicionamiento comercial de NODUX (propuesta de valor + CTA a `/login` y demo), manteniendo separado el flujo operativo autenticado.
+- 2026-02-26: Se hardenea split de dominios por host en `proxy`: `nodux.app` queda para marketing (`/landing`) y rutas operativas/auth redirigen a `app.nodux.app`.
+- 2026-02-26: Se agrega canonical SEO de marketing en `proxy`: `www.nodux.app` redirige a `nodux.app`.

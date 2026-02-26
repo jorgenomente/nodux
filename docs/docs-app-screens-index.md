@@ -51,6 +51,13 @@ Regla base:
    - Tipo: Utility
    - Propósito: informar que no hay módulos habilitados
 
+Ruta pública adicional (institucional, fuera del flujo operativo MVP):
+
+- `/landing`
+  - Roles: Público
+  - Tipo: Utility
+  - Propósito: explicar propuesta de valor de NODUX y dirigir a login/demo
+
 ---
 
 ## 2) Staff (Primary, navegación dinámica por permisos)

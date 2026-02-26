@@ -18,6 +18,81 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-26 14:00 -03 — Infra/UI: split de dominio `nodux.app` vs `app.nodux.app`
+
+**Tipo:** infra
+**Lote:** domain-host-split-marketing-app
+**Alcance:** frontend, infra, docs, tests
+
+**Resumen**
+Se implementó redirección por host en `proxy.ts` para separar marketing y operación: `nodux.app` sirve landing pública y cualquier ruta operativa/auth se redirige a `app.nodux.app`. Además, la landing actualizó CTAs para apuntar directo a `https://app.nodux.app/login`.
+
+**Archivos**
+
+- proxy.ts
+- app/landing/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-26)
+- `npm run build` OK (2026-02-26)
+
+**Commit:** N/A
+
+## 2026-02-26 14:04 -03 — Infra: canonical de marketing `www.nodux.app` -> `nodux.app`
+
+**Tipo:** infra
+**Lote:** domain-canonical-www-to-root
+**Alcance:** infra, docs, tests
+
+**Resumen**
+Se agregó redirección canónica en `proxy.ts` para que todo tráfico entrante en `www.nodux.app` redirija a `nodux.app`, manteniendo la separación con `app.nodux.app` para la aplicación autenticada.
+
+**Archivos**
+
+- proxy.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-26)
+- `npm run build` OK (2026-02-26)
+
+**Commit:** N/A
+
+## 2026-02-26 10:31 -03 — UI: landing pública `/landing` para posicionamiento de NODUX
+
+**Tipo:** ui
+**Lote:** public-landing-page-mvp
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se implementó una landing pública estática en `/landing` para explicar qué es NODUX (propuesta de valor, módulos core y CTAs a login/demo), manteniendo separado el flujo autenticado del MVP. Además, se habilitó la ruta como pública en `proxy.ts` y se documentó contrato/sitemap asociado.
+
+**Archivos**
+
+- app/landing/page.tsx
+- proxy.ts
+- docs/docs-app-sitemap.md
+- docs/docs-app-screens-index.md
+- docs/docs-app-screens-landing.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-02-26)
+- `npm run build` OK (2026-02-26)
+
+**Commit:** N/A
+
 ## 2026-02-25 10:24 -03 — Fix: `/suppliers/[supplierId]` evita closure de función en server action
 
 **Tipo:** fix

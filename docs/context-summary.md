@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-02-24 17:10
+Ultima actualizacion: 2026-02-26 14:04
 
 ## Estado general
 
@@ -30,6 +30,9 @@ Ultima actualizacion: 2026-02-24 17:10
 
 ## Estado reciente
 
+- Nueva ruta pública `/landing` implementada para explicar qué es NODUX (propuesta de valor, módulos core y CTA a login/demo) sin interferir con el flujo autenticado.
+- Se separa navegación por host en producción: `nodux.app` (landing pública) y `app.nodux.app` (login + app interna), evitando mezclar operación con marketing.
+- Canonical de marketing definido: `www.nodux.app` redirige a `nodux.app` para evitar duplicidad SEO.
 - UI actualizada: /products, /suppliers y /suppliers/[supplierId] con proveedores primario/secundario y safety stock.
 - `/products/lookup` pasa de placeholder a lookup operativo mobile-first para Staff/OA, con búsqueda por nombre en cualquier orden de palabras, límite de resultados (30) y visualización de precio + stock por sucursal.
 - Sugeridos simples en /orders usando ventas 30 dias + safety stock.
