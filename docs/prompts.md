@@ -12,6 +12,26 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-27 12:41 -03 — Fix loop de redirección en demo interactiva
+
+**Lote:** public-demo-mode-from-landing-safe
+**Objetivo:** Corregir `ERR_TOO_MANY_REDIRECTS` en `/demo` ajustando redirecciones por host para `POST /demo/enter`.
+
+**Prompt**
+https://nodux.app/demo?readonly=1 This page isn’t working
+nodux.app redirected you too many times.
+
+Try deleting your cookies.
+ERR_TOO_MANY_REDIRECTS
+
+## 2026-02-27 12:18 -03 — Ajuste: demo interactiva usable (no solo visual)
+
+**Lote:** public-demo-mode-from-landing-safe
+**Objetivo:** Corregir implementación de demo para permitir usar la app en modo prueba con login automático de usuario demo y bloqueo de mutaciones.
+
+**Prompt**
+no etiendo lo que hiciste, la idea es crear un demo que permita usar la app en modo prueba. por eso pense en usuarios de prueba pero esto que hiciste no tiene ninguna funcionalidad no pueddo hacer nada
+
 ## 2026-02-27 10:09 -03 — Demo pública segura desde landing (sin comprometer producción)
 
 **Lote:** public-demo-mode-from-landing-safe

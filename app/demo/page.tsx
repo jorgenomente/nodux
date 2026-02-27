@@ -39,8 +39,27 @@ const demoModules = [
   },
 ];
 
-export default function PublicDemoPage() {
+type DemoPageProps = {
+  searchParams: Promise<{ error?: string; readonly?: string }>;
+};
+
+const resolveNotice = (error: string | undefined, readonly: string | undefined) => {
+  if (readonly === '1') {
+    return 'Esta cuenta demo es solo lectura. Podes navegar todo, pero no guardar cambios.';
+  }
+  if (error === 'config_missing') {
+    return 'Demo no disponible temporalmente. Falta configurar DEMO_LOGIN_EMAIL o DEMO_LOGIN_PASSWORD.';
+  }
+  if (error === 'login_failed') {
+    return 'No pudimos iniciar la sesion demo en este momento. Intenta nuevamente.';
+  }
+  return null;
+};
+
+export default async function PublicDemoPage({ searchParams }: DemoPageProps) {
+  const params = await searchParams;
   const appLoginHref = 'https://app.nodux.app/login';
+  const notice = resolveNotice(params.error, params.readonly);
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
@@ -82,6 +101,19 @@ export default function PublicDemoPage() {
               Entorno de demostracion seguro: solo lectura, datos anonimos y
               reinicio periodico.
             </div>
+            {notice ? (
+              <div className="mt-4 rounded-2xl border border-amber-500/60 bg-amber-100 p-4 text-sm text-amber-900">
+                {notice}
+              </div>
+            ) : null}
+            <form action="/demo/enter" method="post" className="mt-5">
+              <button
+                type="submit"
+                className="rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
+              >
+                Probar demo interactiva
+              </button>
+            </form>
           </div>
 
           <div className="grid gap-3">

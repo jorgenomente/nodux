@@ -18,6 +18,60 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-27 12:41 -03 — Fix infra: loop de redirección en `/demo/enter`
+
+**Tipo:** fix
+**Lote:** public-demo-mode-from-landing-safe
+**Alcance:** infra, frontend, docs, tests
+
+**Resumen**
+Se corrigió un bucle de redirecciones entre `nodux.app` y `app.nodux.app` al ejecutar `POST /demo/enter`. El `proxy` ahora permite `/demo/enter` como ruta de marketing y excluye ese endpoint de la redirección `app -> marketing` para rutas `/demo`. Además, la respuesta de login demo redirige explícitamente a `https://app.nodux.app/` para entrar a la app operativa tras autenticación.
+
+**Archivos**
+
+- proxy.ts
+- app/demo/enter/route.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run build` OK (2026-02-27)
+- `npm run lint` no ejecutado en este fix (baseline conocido en `apps/video/build/*`)
+
+**Commit:** N/A
+
+## 2026-02-27 12:18 -03 — Feature/Infra: demo interactiva con login automático y guard solo lectura
+
+**Tipo:** feature
+**Lote:** public-demo-mode-from-landing-safe
+**Alcance:** frontend, infra, docs, tests
+
+**Resumen**
+Se corrigió el modo demo para que sea operativo: `/demo` ahora expone botón `Probar demo interactiva` que ejecuta `POST /demo/enter` y autentica automáticamente una cuenta demo definida por entorno. Además, `proxy.ts` bloquea métodos mutantes para usuarios demo configurados en `DEMO_READONLY_EMAILS`, evitando cambios en datos mientras se navega la app real.
+
+**Archivos**
+
+- app/demo/page.tsx
+- app/demo/enter/route.ts
+- app/login/page.tsx
+- proxy.ts
+- docs/docs-app-screens-demo.md
+- docs/docs-app-screens-landing.md
+- docs/docs-app-screens-login.md
+- docs/docs-demo-users.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run build` OK (2026-02-27)
+- `npm run lint` FAIL (2026-02-27, baseline ajeno en `apps/video/build/*`)
+
+**Commit:** N/A
+
 ## 2026-02-27 10:09 -03 — UI/Infra: modo demo público seguro accesible desde `/landing`
 
 **Tipo:** ui

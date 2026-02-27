@@ -34,6 +34,7 @@ según rol y permisos.
 
 - Botón: “Iniciar sesión”
 - Estado loading: “Ingresando...”
+- Link secundario: `Probar demo interactiva` -> `/demo`
 
 ### Estados auxiliares
 

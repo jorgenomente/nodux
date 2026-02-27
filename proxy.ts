@@ -4,7 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import type { Database } from '@/types/supabase';
 
 const PUBLIC_PATHS = ['/landing', '/demo', '/login', '/logout', '/no-access'];
-const MARKETING_PATHS = ['/', '/landing', '/demo'];
+const MARKETING_PATHS = ['/', '/landing', '/demo', '/demo/enter'];
 const APP_HOST = 'app.nodux.app';
 const CANONICAL_MARKETING_HOST = 'nodux.app';
 const MARKETING_HOSTS = new Set([CANONICAL_MARKETING_HOST, 'www.nodux.app']);
@@ -15,6 +15,7 @@ const STAFF_MODULE_ORDER = [
   'clients',
   'expirations',
 ];
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 const moduleToRoute: Record<string, string> = {
   pos: '/pos',
@@ -36,6 +37,12 @@ const isMarketingPath = (pathname: string) =>
 
 const isServerActionRequest = (request: NextRequest) =>
   request.method === 'POST' && request.headers.has('next-action');
+
+const parseReadonlyDemoEmails = () =>
+  (process.env.DEMO_READONLY_EMAILS ?? '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
 
 const redirectToHost = (
   request: NextRequest,
@@ -114,7 +121,8 @@ export async function proxy(request: NextRequest) {
 
   if (
     isAppHost &&
-    (pathname.startsWith('/landing') || pathname.startsWith('/demo'))
+    (pathname.startsWith('/landing') ||
+      (pathname.startsWith('/demo') && !pathname.startsWith('/demo/enter')))
   ) {
     return redirectToHost(request, 'nodux.app', pathname);
   }
@@ -155,6 +163,28 @@ export async function proxy(request: NextRequest) {
     if (isPublicPath(pathname)) return response;
     if (isServerAction) return response;
     return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  const demoReadonlyEmails = parseReadonlyDemoEmails();
+  const normalizedUserEmail = user.email?.toLowerCase() ?? null;
+  const isReadonlyDemoUser =
+    normalizedUserEmail !== null &&
+    demoReadonlyEmails.length > 0 &&
+    demoReadonlyEmails.includes(normalizedUserEmail);
+
+  if (
+    isReadonlyDemoUser &&
+    MUTATING_METHODS.has(request.method) &&
+    pathname !== '/logout' &&
+    pathname !== '/demo/enter'
+  ) {
+    if (isServerAction) {
+      return NextResponse.json(
+        { error: 'demo_read_only', message: 'Demo en modo solo lectura.' },
+        { status: 403 },
+      );
+    }
+    return NextResponse.redirect(new URL('/demo?readonly=1', request.url));
   }
 
   const isPlatformAdmin = await resolveUserIsPlatformAdmin(supabase);

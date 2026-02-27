@@ -17,9 +17,10 @@ necesidad de login ni exposición de datos reales.
 
 ## Data Contract
 
-- Pantalla estática sin lectura de DB.
-- Sin RPC principal en MVP.
-- Datos visuales de referencia (ficticios), no vinculados a producción.
+- Pantalla de marketing con datos visuales ficticios.
+- Acción de entrada demo: `POST /demo/enter` (route handler) para iniciar
+  sesión con cuenta demo configurada por entorno.
+- Sin lectura operativa de DB desde la pantalla.
 
 ---
 
@@ -30,6 +31,7 @@ necesidad de login ni exposición de datos reales.
 - Mensaje de entorno seguro de demostración.
 - CTA a `/landing`.
 - CTA a `/login`.
+- CTA principal: `Probar demo interactiva` (form `POST /demo/enter`).
 
 ### Métricas de ejemplo
 
@@ -46,8 +48,12 @@ necesidad de login ni exposición de datos reales.
 ## Reglas de negocio
 
 - No requiere sesión.
-- No permite escritura ni acciones transaccionales.
+- Permite acceso a app operativa con cuenta demo.
+- Cuenta demo en modo solo lectura (mutaciones bloqueadas por `proxy` para
+  emails configurados en `DEMO_READONLY_EMAILS`).
 - Debe vivir en host de marketing (`nodux.app`) y no en host app operativo.
+- Si faltan variables demo (`DEMO_LOGIN_EMAIL`, `DEMO_LOGIN_PASSWORD`) debe
+  informar estado no disponible.
 
 ---
 
@@ -76,3 +82,15 @@ necesidad de login ni exposición de datos reales.
 
 1. Abrir `app.nodux.app/demo`.
 2. Debe redirigir a `nodux.app/demo`.
+
+### DP-04: entrada interactiva
+
+1. Abrir `/demo`.
+2. Click en `Probar demo interactiva`.
+3. Debe iniciar sesión y redirigir a home de app según rol demo.
+
+### DP-05: bloqueo de escritura
+
+1. Ingresar con cuenta demo.
+2. Intentar guardar un cambio en cualquier módulo.
+3. Debe bloquearse por modo solo lectura.

@@ -36,7 +36,7 @@ Explicar que es NODUX, para quien esta pensado y guiar a una accion comercial
 
 - Propuesta de valor clara de NODUX.
 - CTA principal: `Empezar ahora` -> `/login`.
-- CTA secundaria: `Ver demo publica` -> `/demo`.
+- CTA secundaria: `Ver demo publica` -> `/demo` (incluye entrypoint a demo interactiva).
 - CTA comercial: `Solicitar demo` (mailto en MVP).
 
 ### Problema -> Solucion
