@@ -28,6 +28,8 @@ type SaleDetailRow = {
   employee_discount_applied: boolean;
   employee_discount_amount: number;
   employee_discount_pct: number;
+  is_invoiced: boolean;
+  invoiced_at: string | null;
   total_amount: number;
   items: unknown;
   payments: unknown;
@@ -230,6 +232,36 @@ export default async function SaleDetailPage({
     redirect(`/sales/${saleId}?notice=payment_corrected`);
   };
 
+  const markSaleAsInvoiced = async () => {
+    'use server';
+
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) {
+      redirect('/no-access');
+    }
+
+    const { error } = await actionSession.supabase.rpc(
+      'rpc_mark_sale_invoiced' as never,
+      {
+        p_org_id: actionSession.orgId,
+        p_sale_id: saleId,
+        p_source: 'sale_detail',
+      } as never,
+    );
+
+    revalidatePath('/dashboard');
+    revalidatePath('/sales');
+    revalidatePath(`/sales/${saleId}`);
+
+    if (error) {
+      redirect(
+        `/sales/${saleId}?notice=invoice_error:${encodeURIComponent(error.message)}`,
+      );
+    }
+
+    redirect(`/sales/${saleId}?notice=invoice_marked`);
+  };
+
   const notice =
     typeof resolvedSearchParams?.notice === 'string'
       ? resolvedSearchParams.notice
@@ -274,6 +306,17 @@ export default async function SaleDetailPage({
         {notice.startsWith('error:') ? (
           <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
             Error: {decodeURIComponent(notice.replace('error:', ''))}
+          </p>
+        ) : null}
+        {notice === 'invoice_marked' ? (
+          <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            Venta marcada como facturada.
+          </p>
+        ) : null}
+        {notice.startsWith('invoice_error:') ? (
+          <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            Error al facturar:{' '}
+            {decodeURIComponent(notice.replace('invoice_error:', ''))}
           </p>
         ) : null}
 
@@ -323,7 +366,42 @@ export default async function SaleDetailPage({
                 Empleado: {sale.employee_name_snapshot}
               </p>
             ) : null}
+            <p className="mt-1 text-xs text-zinc-500">
+              {sale.is_invoiced ? 'Facturada' : 'No facturada'}
+              {sale.invoiced_at ? ` · ${formatDateTime(sale.invoiced_at)}` : ''}
+            </p>
           </article>
+        </section>
+
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <h2 className="text-lg font-semibold text-zinc-900">
+            Ticket y facturación
+          </h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            El ticket es una copia no fiscal de la venta.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href={`/sales/${saleId}/ticket`}
+              className="rounded border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+            >
+              Imprimir ticket
+            </Link>
+            {!sale.is_invoiced ? (
+              <form action={markSaleAsInvoiced}>
+                <button
+                  type="submit"
+                  className="rounded border border-emerald-300 px-3 py-2 text-sm text-emerald-700"
+                >
+                  Emitir factura
+                </button>
+              </form>
+            ) : (
+              <span className="inline-flex items-center rounded bg-emerald-100 px-3 py-2 text-sm font-medium text-emerald-700">
+                Factura emitida
+              </span>
+            )}
+          </div>
         </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-5">

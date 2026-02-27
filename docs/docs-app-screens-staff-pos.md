@@ -62,7 +62,8 @@ Una venta es un registro con:
 
 - Lista de ítems en carrito (líneas editables)
 - Total + método de pago
-- CTA principal: “Cobrar”
+- CTAs principales: “Cobrar” y “Cobrar y facturar”
+- Acción auxiliar siempre visible: “Imprimir ticket” (copia no fiscal)
 
 ### Footer (táctil)
 
@@ -131,6 +132,13 @@ Una venta es un registro con:
   - stock suficiente (si política de stock lo exige)
 - Ejecuta RPC server-authoritative (ver Data Contract)
 - Muestra “Venta realizada” + recibo simple (pantalla/modal) + opción “Nueva venta”
+- Si usa “Cobrar y facturar”, la venta queda marcada como facturada.
+- Si usa “Cobrar”, queda no facturada y puede facturarse después desde `/sales`.
+
+### A8) Imprimir ticket (copia no fiscal)
+
+- Disponible con carrito cargado (antes de cobrar) o con la última venta registrada (después de cobrar).
+- No reemplaza factura fiscal; es comprobante operativo interno.
 
 ### A7) Pedido especial (si aplica)
 

@@ -26,6 +26,7 @@ Estado actual:
 - `rpc_register_supplier_payment` registra automáticamente egreso en `cash_session_movements` cuando el pago a proveedor es en efectivo y hay sesión abierta de caja (`supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`).
 - Historial/detalle de ventas + conciliación por dispositivo en caja agregados en `supabase/migrations/20260220113000_045_sales_history_cashbox_reconciliation.sql` (`v_sales_admin`, `v_sale_detail_admin`, `rpc_get_cash_session_payment_breakdown`, `rpc_correct_sale_payment_method`).
 - Descuento de empleado + cuentas de empleado por sucursal agregados en `supabase/migrations/20260221223000_052_employee_discount_accounts.sql` (`employee_accounts`, extensión de `org_preferences`, `sales` y `rpc_create_sale`).
+- Facturación operativa de ventas agregada en `supabase/migrations/20260227163000_060_sales_invoicing_ticket_split.sql` (`sales.is_invoiced`, `sales.invoiced_at`, `rpc_mark_sale_invoiced`, extensión de `v_sales_admin`, `v_sale_detail_admin`, `v_dashboard_admin`, `rpc_get_dashboard_admin`).
 - Onboarding de datos maestros agregado en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks` y RPCs de importación/validación/aplicación).
 - Resolver de productos incompletos para onboarding agregado en `supabase/migrations/20260224201000_057_onboarding_products_incomplete_view.sql` (`v_products_incomplete_admin` con `security_invoker=true`; respeta RLS existente de `products` y `supplier_products`).
 - `supplier_products.supplier_price` agregado en `supabase/migrations/20260225111500_058_supplier_product_price.sql` junto con extensión de `rpc_upsert_supplier_product` y `v_supplier_detail_admin` (sin cambios de policy; reusa RLS existente de `supplier_products`).
@@ -66,7 +67,7 @@ Estado actual:
 | `products`                           | read/insert/update | read/insert/update | read (lookup)                 | ST sin escritura                                          |
 | `stock_items`                        | read/insert/update | read/insert/update | read (lookup)                 | ST sin ajustes                                            |
 | `stock_movements`                    | read               | read/insert        | insert (via RPC)              | ST no lectura historica por defecto                       |
-| `sales`                              | read               | read/insert        | insert (via RPC)              | ST crea ventas en su branch                               |
+| `sales`                              | read               | read/insert/update | insert/update (via RPC)       | ST crea ventas y puede marcarlas facturadas via RPC       |
 | `v_sales_statistics_items`           | read               | read               | no                            | View analítica de ventas (OA/SA)                          |
 | `sale_payments`                      | read               | read/insert        | insert (via RPC)              | Desglose de cobro por método                              |
 | `pos_payment_devices`                | read/insert/update | read/insert/update | read/insert/update            | Catálogo de dispositivos de cobro por sucursal            |
@@ -109,6 +110,7 @@ Estado actual:
 - `rpc_create_sale` -> requiere modulo `pos` habilitado, permite pagos divididos (`payments`), descuento cash solo en pago 100% efectivo y descuento empleado con cuenta activa de la sucursal.
   - valida política de combinación entre descuento cash y empleado desde `org_preferences.employee_discount_combinable_with_cash_discount`.
   - para `card` y `mercadopago` exige `payment_device_id` válido en la sucursal.
+- `rpc_mark_sale_invoiced` -> OA/SA y ST con módulo `pos` habilitado (en sucursal de la venta); marca la venta como facturada y audita `sale_marked_invoiced`.
 - `rpc_correct_sale_payment_method` -> solo OA/SA; requiere motivo; bloquea cambios si la venta pertenece a una sesión de caja cerrada; audita `sale_payment_method_corrected`.
 - `rpc_get_cash_session_payment_breakdown` -> OA/SA y ST con módulo `cashbox` habilitado; devuelve conciliación por método/dispositivo dentro de la sesión.
 - `rpc_get_cash_session_reconciliation_rows` -> OA/SA y ST con módulo `cashbox` habilitado; devuelve filas operativas no-efectivo + agregado `MercadoPago (total)` y diferencia con comprobante cargado.

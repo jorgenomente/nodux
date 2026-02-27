@@ -93,6 +93,7 @@ Navegación fija:
 - Proveedor (detalle) → `/suppliers/[supplierId]`
 - Pedido (detalle) → `/orders/[orderId]`
 - Venta (detalle) → `/sales/[saleId]`
+- Ticket venta (impresión) → `/sales/[saleId]/ticket`
 - Estadísticas de ventas → `/sales/statistics`
 - Calendario de proveedores → `/orders/calendar`
 
@@ -187,6 +188,7 @@ Nota de dominio (produccion):
 - `/onboarding`
 - `/orders/[orderId]`
 - `/sales/[saleId]`
+- `/sales/[saleId]/ticket`
 - `/orders/calendar`
 - `/clients`
 - `/settings`

@@ -278,3 +278,4 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-02-26: Se agrega canonical SEO de marketing en `proxy`: `www.nodux.app` redirige a `nodux.app`.
 - 2026-02-27: Se agrega ruta pública `/demo` como recorrido solo lectura con datos ficticios y acceso directo desde `/landing`; `app.nodux.app/demo` redirige a `nodux.app/demo`.
 - 2026-02-27: `/demo` evoluciona a demo interactiva con login automático (`POST /demo/enter`) y guard de solo lectura para usuario demo vía `DEMO_READONLY_EMAILS`.
+- 2026-02-27: POS divide cierre de venta en `Cobrar` y `Cobrar y facturar`; ventas agregan estado fiscal (`is_invoiced`/`invoiced_at`), `/sales` y detalle habilitan `Emitir factura` + `Imprimir ticket` (copia no fiscal), y dashboard suma KPIs de facturación diaria (facturado/no facturado + % facturado).

@@ -12,7 +12,7 @@
 
 ## Propósito
 
-Auditar una venta puntual y corregir método de pago cuando hubo error operativo.
+Auditar una venta puntual, corregir método de pago cuando hubo error operativo y gestionar comprobantes (ticket/factura).
 
 ## UI
 
@@ -29,6 +29,7 @@ Auditar una venta puntual y corregir método de pago cuando hubo error operativo
 - Total
 - Método resumen de la venta
 - Empleado asociado (si aplica)
+- Estado fiscal (facturada/no facturada)
 
 ### Bloque ítems
 
@@ -46,6 +47,11 @@ Auditar una venta puntual y corregir método de pago cuando hubo error operativo
   - para `mercadopago`: selector visible de canal (`Posnet MP`, `QR`, `Transferencia a alias MP`)
 - motivo de corrección obligatorio en todos los casos
 
+### Bloque comprobantes
+
+- Botón “Imprimir ticket” (copia no fiscal)
+- Botón “Emitir factura” si la venta aún no está facturada
+
 ## Data Contract
 
 ### Lectura principal
@@ -57,6 +63,7 @@ Salida mínima:
 - `sale_id`, `org_id`, `branch_id`, `branch_name`
 - `created_at`, `created_by`, `created_by_name`
 - `employee_account_id`, `employee_name_snapshot`
+- `is_invoiced`, `invoiced_at`
 - `payment_method_summary`
 - `subtotal_amount`, `discount_amount`, `discount_pct`, `cash_discount_amount`, `cash_discount_pct`, `employee_discount_applied`, `employee_discount_amount`, `employee_discount_pct`, `total_amount`
 - `items` (jsonb array)
@@ -81,6 +88,12 @@ Reglas críticas:
 - Si la venta pertenece a una sesión de caja ya cerrada, bloquea corrección.
 - Actualiza `sales.payment_method` en base al conjunto actual de `sale_payments`.
 - Audita evento `sale_payment_method_corrected`.
+
+RPC: `rpc_mark_sale_invoiced(...)`
+
+- `p_org_id`
+- `p_sale_id`
+- `p_source` (ej. `sale_detail`, `sales_list`, `pos_checkout`)
 
 ## Seguridad (RLS)
 

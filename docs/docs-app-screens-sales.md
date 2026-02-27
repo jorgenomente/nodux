@@ -17,6 +17,8 @@ Auditar ventas de forma rápida para control operativo de caja.
 - Buscar ventas por monto, método, hora e ítems.
 - Ver desglose de cobros por medio.
 - Acceder al detalle y corrección auditada del cobro.
+- Emitir factura para ventas no facturadas.
+- Imprimir ticket no fiscal de cualquier venta.
 
 ## UI
 
@@ -30,6 +32,7 @@ Auditar ventas de forma rápida para control operativo de caja.
 
 - Sucursal
 - Método de pago
+- Estado fiscal (facturada / no facturada)
 - Monto mínimo/máximo
 - Rango fecha/hora (desde/hasta)
 - Búsqueda por ítems/sucursal/usuario/empleado
@@ -50,8 +53,9 @@ Cada fila muestra:
 - empleado (si aplica descuento empleado)
 - cantidad de ítems + resumen
 - métodos usados
+- estado fiscal + fecha de facturación (si aplica)
 - total
-- acción “Ver detalle”
+- acciones: “Ver detalle”, “Imprimir ticket”, “Emitir factura” (si no facturada)
 
 ## Data Contract
 
@@ -70,6 +74,7 @@ Salida mínima:
 - `item_names_summary`, `item_names_search`
 - `payment_methods[]`
 - `cash_amount`, `card_amount`, `mercadopago_amount`, `other_amount`
+- `is_invoiced`, `invoiced_at`
 
 ## Seguridad (RLS)
 

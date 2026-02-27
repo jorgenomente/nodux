@@ -40,6 +40,25 @@ type SplitPaymentEntry = {
   mercadopagoChannel: MercadoPagoChannel;
 };
 
+type CheckoutMode = 'charge_only' | 'charge_and_invoice';
+
+type TicketSnapshot = {
+  branchName: string;
+  createdAtIso: string;
+  items: Array<{
+    name: string;
+    quantity: number;
+    unit_price: number;
+    line_total: number;
+  }>;
+  subtotal: number;
+  discount: number;
+  total: number;
+  isPaid: boolean;
+  isInvoiced: boolean;
+  saleId?: string;
+};
+
 type PaymentDevice = {
   id: string;
   device_name: string;
@@ -102,6 +121,81 @@ const parseQuantity = (value: string) => {
   if (value.trim() === '') return 0;
   const parsed = Number(value);
   return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const escapeHtml = (value: string) =>
+  value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+
+const openTicketPrintWindow = (ticket: TicketSnapshot) => {
+  const rows = ticket.items
+    .map(
+      (item) => `
+        <tr>
+          <td>${escapeHtml(item.name)}</td>
+          <td style="text-align:right;">${item.quantity}</td>
+          <td style="text-align:right;">${item.unit_price.toFixed(2)}</td>
+          <td style="text-align:right;">${item.line_total.toFixed(2)}</td>
+        </tr>
+      `,
+    )
+    .join('');
+
+  const titleLabel = ticket.isPaid ? 'Ticket de venta' : 'Ticket previo';
+  const statusLabel = ticket.isInvoiced ? 'Facturada' : 'No facturada';
+  const payload = `<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>${titleLabel} - NODUX</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #111827; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border-bottom: 1px solid #e5e7eb; padding: 6px 4px; font-size: 12px; }
+    th { text-align: left; color: #6b7280; }
+    .meta { font-size: 12px; color: #6b7280; margin: 2px 0; }
+    .totals { margin-top: 12px; font-size: 13px; }
+    .total-row { font-weight: 700; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <p class="meta">${titleLabel} (copia no fiscal)</p>
+  <h2 style="margin: 4px 0 8px;">NODUX</h2>
+  <p class="meta">Sucursal: ${escapeHtml(ticket.branchName)}</p>
+  <p class="meta">Fecha: ${escapeHtml(new Date(ticket.createdAtIso).toLocaleString('es-AR', { hour12: false }))}</p>
+  <p class="meta">Estado fiscal: ${statusLabel}</p>
+  ${ticket.saleId ? `<p class="meta">Venta: ${escapeHtml(ticket.saleId.slice(0, 8))}</p>` : ''}
+  <table>
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th style="text-align:right;">Cant.</th>
+        <th style="text-align:right;">Precio</th>
+        <th style="text-align:right;">Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="totals">
+    <div>Subtotal: ${ticket.subtotal.toFixed(2)}</div>
+    <div>Descuento: ${ticket.discount.toFixed(2)}</div>
+    <div class="total-row">Total: ${ticket.total.toFixed(2)}</div>
+  </div>
+</body>
+</html>`;
+
+  const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=520,height=720');
+  if (!printWindow) return false;
+  printWindow.document.open();
+  printWindow.document.write(payload);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+  return true;
 };
 
 const formatSellUnitType = (value: ProductCatalogItem['sell_unit_type']) => {
@@ -180,6 +274,7 @@ export default function PosClient({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [debugMessage, setDebugMessage] = useState<string | null>(null);
+  const [lastTicket, setLastTicket] = useState<TicketSnapshot | null>(null);
   const [specialOrderId, setSpecialOrderId] = useState<string | null>(
     specialOrder?.specialOrderId ?? null,
   );
@@ -322,6 +417,10 @@ export default function PosClient({
   const splitRemaining = useMemo(
     () => Math.round((total - splitPaymentsTotal) * 100) / 100,
     [splitPaymentsTotal, total],
+  );
+  const activeBranchName = useMemo(
+    () => branches.find((branch) => branch.id === activeBranchId)?.name ?? 'Sucursal',
+    [activeBranchId, branches],
   );
 
   const hasInvalidQty = useMemo(
@@ -638,7 +737,38 @@ export default function PosClient({
     return () => clearTimeout(handle);
   }, [activeBranchId, loadProducts, searchTerm]);
 
-  const handleCheckout = async () => {
+  const handlePrintTicket = () => {
+    const draftTicket: TicketSnapshot | null =
+      cart.length > 0
+        ? {
+            branchName: activeBranchName,
+            createdAtIso: new Date().toISOString(),
+            items: cart.map((item) => ({
+              name: item.name,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              line_total: item.unit_price * item.quantity,
+            })),
+            subtotal,
+            discount: cashDiscountAmount + employeeDiscountAmount,
+            total,
+            isPaid: false,
+            isInvoiced: false,
+          }
+        : lastTicket;
+
+    if (!draftTicket) {
+      setErrorMessage('No hay datos para imprimir ticket.');
+      return;
+    }
+
+    const opened = openTicketPrintWindow(draftTicket);
+    if (!opened) {
+      setErrorMessage('Habilita pop-ups para imprimir el ticket.');
+    }
+  };
+
+  const handleCheckout = async (mode: CheckoutMode) => {
     setErrorMessage(null);
     setSuccessMessage(null);
     setDebugMessage(null);
@@ -787,13 +917,51 @@ export default function PosClient({
     }
 
     const sale = (Array.isArray(data) ? data[0] : data) as {
+      sale_id?: string | null;
       total?: number | null;
     } | null;
+    const saleId = String(sale?.sale_id ?? '').trim();
     const totalAmount = Number(sale?.total ?? total);
+    let isInvoiced = false;
 
+    if (mode === 'charge_and_invoice' && saleId) {
+      const { error: invoiceError } = await supabase.rpc(
+        'rpc_mark_sale_invoiced' as never,
+        {
+          p_org_id: orgId,
+          p_sale_id: saleId,
+          p_source: 'pos_checkout',
+        } as never,
+      );
+      if (invoiceError) {
+        setErrorMessage(
+          'Venta cobrada, pero no pudimos marcarla como facturada. Puedes emitir la factura desde Ventas.',
+        );
+      } else {
+        isInvoiced = true;
+      }
+    }
+
+    const fiscalStatusLabel = isInvoiced ? 'facturada' : 'no facturada';
     setSuccessMessage(
-      `Venta registrada. Total: ${formatCurrency(totalAmount)} (${isSplitPayment ? 'pago dividido' : paymentMethod}${!isSplitPayment && applyCashDiscount ? `, descuento ${cashDiscountPct}%` : ''}).`,
+      `Venta registrada. Total: ${formatCurrency(totalAmount)} (${fiscalStatusLabel}).`,
     );
+    setLastTicket({
+      branchName: activeBranchName,
+      createdAtIso: new Date().toISOString(),
+      items: cart.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        line_total: item.unit_price * item.quantity,
+      })),
+      subtotal,
+      discount: cashDiscountAmount + employeeDiscountAmount,
+      total: totalAmount,
+      isPaid: true,
+      isInvoiced,
+      saleId,
+    });
     setCart([]);
     setIsSplitPayment(false);
     setSplitPayments([
@@ -1555,17 +1723,44 @@ export default function PosClient({
 
               <button
                 type="button"
-                onClick={handleCheckout}
-                disabled={isCheckoutDisabled}
-                title={isCheckoutDisabled ? checkoutReason : ''}
-                className={`mt-4 w-full rounded px-4 py-3 text-sm font-semibold text-white ${
-                  isCheckoutDisabled
-                    ? 'cursor-not-allowed bg-zinc-300'
-                    : 'bg-zinc-900'
+                onClick={handlePrintTicket}
+                disabled={cart.length === 0 && !lastTicket}
+                className={`mt-4 w-full rounded border px-4 py-3 text-sm font-semibold ${
+                  cart.length === 0 && !lastTicket
+                    ? 'cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400'
+                    : 'border-zinc-300 bg-white text-zinc-700'
                 }`}
               >
-                Cobrar
+                Imprimir ticket
               </button>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => handleCheckout('charge_only')}
+                  disabled={isCheckoutDisabled}
+                  title={isCheckoutDisabled ? checkoutReason : ''}
+                  className={`w-full rounded px-4 py-3 text-sm font-semibold text-white ${
+                    isCheckoutDisabled
+                      ? 'cursor-not-allowed bg-zinc-300'
+                      : 'bg-zinc-900'
+                  }`}
+                >
+                  Cobrar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCheckout('charge_and_invoice')}
+                  disabled={isCheckoutDisabled}
+                  title={isCheckoutDisabled ? checkoutReason : ''}
+                  className={`w-full rounded px-4 py-3 text-sm font-semibold text-white ${
+                    isCheckoutDisabled
+                      ? 'cursor-not-allowed bg-zinc-300'
+                      : 'bg-emerald-700'
+                  }`}
+                >
+                  Cobrar y facturar
+                </button>
+              </div>
               {isCheckoutDisabled && checkoutReason && (
                 <p className="mt-2 text-xs text-zinc-500">{checkoutReason}</p>
               )}

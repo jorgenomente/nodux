@@ -45,6 +45,7 @@ Estado actual:
 - Caja integra egreso automático por pago proveedor en efectivo y resumen de cobros no-efectivo por sesión en `supabase/migrations/20260220093000_044_pos_devices_card_mercadopago_cashbox_supplier_cash.sql`.
 - Historial/detalle de ventas y conciliación por dispositivo en caja en `supabase/migrations/20260220113000_045_sales_history_cashbox_reconciliation.sql` (`v_sales_admin`, `v_sale_detail_admin`, `rpc_get_cash_session_payment_breakdown`, `rpc_correct_sale_payment_method`).
 - Descuento empleado en POS + cuentas de empleado por sucursal en `supabase/migrations/20260221223000_052_employee_discount_accounts.sql` (`employee_accounts`, preferencias de combinación, extensión de `rpc_create_sale`, vistas de ventas y dashboard).
+- Facturación operativa de ventas (facturada/no facturada), ticket no fiscal y KPIs de facturación en `supabase/migrations/20260227163000_060_sales_invoicing_ticket_split.sql` (`sales.is_invoiced`, `sales.invoiced_at`, `rpc_mark_sale_invoiced`, extensión de `v_sales_admin`, `v_sale_detail_admin`, `v_dashboard_admin`, `rpc_get_dashboard_admin`).
 - Onboarding de datos maestros (jobs/rows de importación + vista de pendientes + RPCs de importación) en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks`, `rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
 - Resolver paginado de productos incompletos para onboarding en `supabase/migrations/20260224201000_057_onboarding_products_incomplete_view.sql` (`v_products_incomplete_admin`).
 - Marca en productos + vista admin actualizada en `supabase/migrations/20260222110000_055_products_brand.sql` (`products.brand`, `v_products_admin.brand`).
@@ -386,6 +387,8 @@ Estado actual:
 - `employee_discount_pct` (numeric 0..100)
 - `employee_account_id` (uuid, nullable FK -> employee_accounts.id)
 - `employee_name_snapshot` (text, nullable)
+- `is_invoiced` (boolean, default false)
+- `invoiced_at` (timestamptz, nullable)
 - `total_amount` (numeric)
 - `created_at`
 
@@ -799,6 +802,7 @@ Ver contratos en `docs/docs-schema-model.md`:
 - RPCs para escrituras (POS, stock, orders, permissions, clients)
 - RPCs de caja: `rpc_open_cash_session(...)`, `rpc_add_cash_session_movement(...)`, `rpc_get_cash_session_summary(...)`, `rpc_close_cash_session(...)`
 - RPCs de conciliación/corrección ventas: `rpc_get_cash_session_payment_breakdown(...)`, `rpc_get_cash_session_reconciliation_rows(...)`, `rpc_upsert_cash_session_reconciliation_inputs(...)`, `rpc_correct_sale_payment_method(...)`
+- RPC de facturación diferida de ventas: `rpc_mark_sale_invoiced(...)`
 - RPC de fechas estimadas de pedidos proveedor: `rpc_set_supplier_order_expected_receive_on(...)`
 - RPC de auditoria append-only: `rpc_log_audit_event(...)`
 - RPCs de superadmin: `rpc_bootstrap_platform_admin(...)`, `rpc_superadmin_create_org(...)`, `rpc_superadmin_upsert_branch(...)`, `rpc_superadmin_set_active_org(...)`, `rpc_get_active_org_id(...)`

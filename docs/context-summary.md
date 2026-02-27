@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-02-26 14:04
+Ultima actualizacion: 2026-02-27 16:30
 
 ## Estado general
 
@@ -98,6 +98,10 @@ Ultima actualizacion: 2026-02-26 14:04
 - Proveedores ahora tienen `% ganancia sugerida` por defecto (`40%`) para pricing y `/products` muestra sugerencia de `precio unitario` desde `precio proveedor` + `%` del proveedor primario.
 - `supplier_price` ahora queda persistido por relación en `supplier_products`; editar producto/proveedor actualiza ese valor y permite trazabilidad del cambio de costo proveedor junto al precio sugerido.
 - Nuevo módulo de historial de ventas en `/sales` y detalle en `/sales/[saleId]` con filtros por monto, método, hora e ítems.
+- POS separa cierre en dos acciones: `Cobrar` (venta no facturada) y `Cobrar y facturar` (venta facturada).
+- `sales` incorpora estado fiscal (`is_invoiced`, `invoiced_at`) y RPC `rpc_mark_sale_invoiced` para facturación diferida.
+- `/sales` y `/sales/[saleId]` agregan acciones operativas `Imprimir ticket` (copia no fiscal) y `Emitir factura` para ventas previas no facturadas.
+- Dashboard agrega KPIs de facturación diaria: monto/cantidad facturado, no facturado y porcentaje facturado sobre ventas del día.
 - `/sales` ahora incluye acceso directo a `/sales/statistics`, con análisis por período/sucursal: top y bottom de productos, relevancia de proveedores y tendencias por día/semana/mes.
 - Corrección de método de pago en detalle de venta vía RPC auditada (`sale_payment_method_corrected`) y bloqueada para ventas de sesiones de caja ya cerradas.
 - Las denominaciones son configurables por organización desde preferencias.

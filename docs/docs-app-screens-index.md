@@ -202,6 +202,12 @@ Ruta pública adicional (institucional, fuera del flujo operativo MVP):
     - Módulo: Ventas
     - Propósito: analizar tendencias y rankings de ventas por período
 
+24. `/sales/[saleId]/ticket`
+    - Roles: OA
+    - Tipo: Secondary
+    - Módulo: Ventas
+    - Propósito: imprimir ticket no fiscal de una venta registrada
+
 ---
 
 ## 5) Settings (Org Admin / Superadmin)
@@ -275,6 +281,7 @@ Ruta pública adicional (institucional, fuera del flujo operativo MVP):
 - `/orders/calendar`
 - `/orders/[orderId]`
 - `/sales/[saleId]`
+- `/sales/[saleId]/ticket`
 - `/sales/statistics`
 - `/products`
 - `/clients`

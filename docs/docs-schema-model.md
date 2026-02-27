@@ -38,6 +38,7 @@ Estado: **baseline**. Este documento define una base de datos mínima coherente 
 - [x] `rpc_upsert_product`
 - [x] `rpc_adjust_stock_manual`
 - [x] `rpc_create_sale`
+- [x] `rpc_mark_sale_invoiced`
 - [x] `rpc_upsert_supplier`
 - [x] `rpc_upsert_supplier_product`
 - [x] `rpc_remove_supplier_product`
@@ -256,6 +257,8 @@ Constraints:
 - `branch_id` (uuid, FK)
 - `created_by` (uuid, FK -> auth.users.id)
 - `payment_method` (payment_method)
+- `is_invoiced` (boolean, default false)
+- `invoiced_at` (timestamptz, nullable)
 - `total_amount` (numeric(12,2))
 - `created_at`
 
@@ -423,6 +426,7 @@ Constraints:
 - `rpc_upsert_product(input)`
 - `rpc_adjust_stock_manual(input)`
 - `rpc_create_sale(input)`
+- `rpc_mark_sale_invoiced(input)`
 - `rpc_upsert_supplier(input)`
 - `rpc_upsert_supplier_product(input)`
 - `rpc_remove_supplier_product(input)`

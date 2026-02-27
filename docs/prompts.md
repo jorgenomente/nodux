@@ -12,6 +12,38 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-27 14:50 -03 — POS: separar Cobrar vs Cobrar y facturar + ticket no fiscal + KPIs facturación
+
+**Lote:** pos-sales-invoicing-split-ticket
+**Objetivo:** Implementar estructura operativa para ventas facturadas/no facturadas con acciones de ticket/factura en POS y `/sales`, y métricas diferenciadas en dashboard.
+
+**Prompt**
+necesito trabajar en una nueva funcion para el post. Ahora vamos a agregar un paso adicional, te doy contexto. Muchas tiendas no suelen facturar todas sus ventas, emitir factura fiscal, entonces debemos habilitar la opcion de facturar o solo cobrar. la diferencia es que si solo cobro, no emito ticket fiscal, por lo tanto es una venta no facturada, pero si le doy facturar entonces es una venta facturada y cuenta a la hora de rendir impuestos y todo eso. Entonces. Mi idea es que en vez del boton cobrar, lo dividamos en dos opciones. cobrar y cobrar y facturar. cuando le doy cobrar y facturar debe hacer la consulta con la api del servicio de facturacion y todo eso, eso lo vamos a hacer despues por ahora quiero armar la estructura del cobro. Si le doy solo cobrar entonces es una venta no facturada y tiene que haber una opcion que diga imprimir ticket, que este siempre disponible por si la persona quiere ver los precios de todo lo que se le dio el total y eso, esto es solo una copia de la venta, no es facturacion y lo puedo imprimir antes o despues del cobro. Lo importante de esto es que si bien el total de ventas del dia es el mismo, ahora tambien tenemos que distinguir entre ventas facturadas y no facturadas, que me diga el monto de cada una ademas del total, esto en el dashboard, tambien me gustaria ver un % de facturacion con respecto a los ingresos totales, asi rapidamente me hago una idea de % de ventas facturados ese dia. dicho esto entonces tambien en /sales donde vemos las ventas que hemos hecho debemos entonces poder tener esta opcion de imprimir ticket o emitir factura, asi esa venta que ya fue procesada antes si no se facturo la puedo facturar o puedo emitir el ticket de compra. no se si se entiende lo que quiero hacer pero es algo que va a requerir que revises todo bien y te asegures de tener toda la info necesaria para que todo salga bien
+
+## 2026-02-27 17:05 -03 — Fix: ambigüedad `invoiced_at` al emitir factura
+
+**Lote:** pos-sales-invoicing-split-ticket
+**Objetivo:** Corregir error SQL `column reference "invoiced_at" is ambiguous` en `rpc_mark_sale_invoiced`.
+
+**Prompt**
+estoy probando esto y le di a emitir factura en una venta que hice y me sale un mensaje que dice Error al facturar: column reference "invoiced_at" is ambiguous
+
+## 2026-02-27 14:28 -03 — UI: ocultar botón Superadmin para no-superadmin
+
+**Lote:** topbar-superadmin-visibility-guard
+**Objetivo:** Evitar que usuarios no superadmin vean el acceso a `/superadmin` en la barra superior.
+
+**Prompt**
+excelente. quitemos ahora el boton de superadmin para que no sea visible para todos los usuarios que no son superadmin porque no necesitan ver eso ahi
+
+## 2026-02-27 13:05 -03 — Demo operativa: ampliar módulos y seed realista en producción
+
+**Lote:** public-demo-mode-from-landing-safe
+**Objetivo:** Habilitar demo con más cobertura funcional (módulos OA) y poblar datos de prueba realistas en entorno controlado read-only.
+
+**Prompt**
+ok puedo estar dentro ahora. lo que me gustaria ahora son dos cosas, dar acceso a mas modulos porque ahora veo que solo funcionan algunos si les doy click y tambien insertar datos de prueba con casos reales o sea nombres reales de articulos, de proveedores, de articulos en vencimiento, en el calendario, en pedidos, en dashboard en caja, en clientes.. podemos dejar todas las paginas visibles no? al final esto es un entorno controlado en el sentido de que es read only? no deberia darme problemas
+
 ## 2026-02-27 12:41 -03 — Fix loop de redirección en demo interactiva
 
 **Lote:** public-demo-mode-from-landing-safe

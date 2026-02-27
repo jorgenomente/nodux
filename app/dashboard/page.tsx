@@ -26,6 +26,10 @@ type DashboardRow = {
   cash_sales_today_count: number | null;
   cash_discount_today_total: number | null;
   cash_discounted_sales_today_count: number | null;
+  invoiced_sales_today_total: number | null;
+  invoiced_sales_today_count: number | null;
+  non_invoiced_sales_today_total: number | null;
+  non_invoiced_sales_today_count: number | null;
   expirations_critical_count: number | null;
   expirations_warning_count: number | null;
   supplier_orders_pending_count: number | null;
@@ -283,6 +287,22 @@ export default async function DashboardPage({
   const cashDiscountedSalesTodayCount = Number(
     dashboardRow?.cash_discounted_sales_today_count ?? 0,
   );
+  const invoicedSalesTodayTotal = Number(
+    dashboardRow?.invoiced_sales_today_total ?? 0,
+  );
+  const invoicedSalesTodayCount = Number(
+    dashboardRow?.invoiced_sales_today_count ?? 0,
+  );
+  const nonInvoicedSalesTodayTotal = Number(
+    dashboardRow?.non_invoiced_sales_today_total ?? 0,
+  );
+  const nonInvoicedSalesTodayCount = Number(
+    dashboardRow?.non_invoiced_sales_today_count ?? 0,
+  );
+  const invoicedPctToday =
+    salesTodayTotal > 0
+      ? Math.round((invoicedSalesTodayTotal / salesTodayTotal) * 10000) / 100
+      : 0;
   const expirationsCritical = Number(
     dashboardRow?.expirations_critical_count ?? 0,
   );
@@ -382,7 +402,7 @@ export default async function DashboardPage({
           </div>
         ) : null}
 
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid gap-4 md:grid-cols-4">
           <div className="rounded-2xl bg-white p-5 shadow-sm">
             <p className="text-xs font-semibold text-zinc-500 uppercase">
               Ventas hoy
@@ -411,6 +431,28 @@ export default async function DashboardPage({
               {formatCurrency(salesMonthTotal)}
             </p>
             <p className="mt-1 text-xs text-zinc-500">Últimos 30 días</p>
+          </div>
+          <div className="rounded-2xl bg-white p-5 shadow-sm">
+            <p className="text-xs font-semibold text-zinc-500 uppercase">
+              Facturado hoy
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-zinc-900">
+              {formatCurrency(invoicedSalesTodayTotal)}
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              {invoicedSalesTodayCount} ventas · {invoicedPctToday}% del total
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white p-5 shadow-sm">
+            <p className="text-xs font-semibold text-zinc-500 uppercase">
+              No facturado hoy
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-zinc-900">
+              {formatCurrency(nonInvoicedSalesTodayTotal)}
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              {nonInvoicedSalesTodayCount} ventas
+            </p>
           </div>
           <div className="rounded-2xl bg-white p-5 shadow-sm">
             <p className="text-xs font-semibold text-zinc-500 uppercase">

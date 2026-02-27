@@ -18,6 +18,113 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-27 14:50 -03 — POS/Sales: ventas facturadas vs no facturadas + ticket no fiscal
+
+**Tipo:** feature
+**Lote:** pos-sales-invoicing-split-ticket
+**Alcance:** db, frontend, docs, tests
+
+**Resumen**
+Se implementó estructura MVP para distinguir ventas facturadas y no facturadas: el POS ahora separa `Cobrar` y `Cobrar y facturar`, agrega `Imprimir ticket` no fiscal (antes o después del cobro), y el historial `/sales` + detalle permiten reimprimir ticket y emitir factura diferida. En DB se agregó estado fiscal de venta (`is_invoiced`, `invoiced_at`), RPC `rpc_mark_sale_invoiced` y extensión de dashboard para KPIs diarios facturado/no facturado.
+
+**Archivos**
+
+- supabase/migrations/20260227163000_060_sales_invoicing_ticket_split.sql
+- app/pos/PosClient.tsx
+- app/dashboard/page.tsx
+- app/sales/page.tsx
+- app/sales/[saleId]/page.tsx
+- app/sales/[saleId]/ticket/page.tsx
+- app/sales/PrintTicketButton.tsx
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-app-screens-sales.md
+- docs/docs-app-screens-sale-detail.md
+- docs/docs-app-screens-admin-dashboard.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run build` OK (2026-02-27)
+- `npm run lint` FAIL (baseline preexistente en `apps/video/build/*`)
+- `npm run db:reset` OK (2026-02-27)
+- `npm run db:seed:demo` OK (2026-02-27)
+- `npm run db:rls:smoke` OK (2026-02-27, requiere datos demo para `products.length > 0`)
+
+**Commit:** N/A
+
+## 2026-02-27 17:05 -03 — Fix DB: `rpc_mark_sale_invoiced` elimina ambigüedad de `invoiced_at`
+
+**Tipo:** fix
+**Lote:** pos-sales-invoicing-split-ticket
+**Alcance:** db, tests, docs
+
+**Resumen**
+Se corrigió el error al emitir factura desde `/sales` y `/sales/[saleId]` (`column reference "invoiced_at" is ambiguous`) ajustando `rpc_mark_sale_invoiced` para calificar explícitamente la columna (`s.invoiced_at`) dentro del `UPDATE`.
+
+**Archivos**
+
+- supabase/migrations/20260227170500_061_fix_rpc_mark_sale_invoiced_ambiguous.sql
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:reset` OK (2026-02-27)
+- `npm run db:seed:demo` OK (2026-02-27)
+- `npm run db:rls:smoke` OK (2026-02-27)
+
+**Commit:** N/A
+
+## 2026-02-27 14:28 -03 — UI: TopBar oculta `Superadmin` para usuarios no SA
+
+**Tipo:** ui
+**Lote:** topbar-superadmin-visibility-guard
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se actualizó `TopBar` para que el link `/superadmin` se renderice únicamente cuando el usuario autenticado es superadmin real (platform admin o rol legacy `superadmin`). Para el resto de usuarios (OA/ST) el botón ya no aparece en navegación.
+
+**Archivos**
+
+- app/components/TopBar.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` FAIL (2026-02-27, baseline preexistente en `apps/video/build/*`)
+- `npm run build` OK (2026-02-27)
+
+**Commit:** N/A
+
+## 2026-02-27 13:05 -03 — Demo prod: cuenta OA read-only + seed realista multi-módulo
+
+**Tipo:** feature
+**Lote:** public-demo-mode-from-landing-safe
+**Alcance:** infra, db, docs, tests
+
+**Resumen**
+Se ajustó el acceso demo de producción para que ingrese con `admin@demo.com` (rol `org_admin`) en lugar de `staff`, permitiendo navegar más módulos del MVP. Además se ejecutó seed completo de usuarios y datos demo operativos en producción (`scripts/seed-users.js` + `scripts/seed-demo-data.js`) para poblar proveedores, productos, ventas, pedidos, vencimientos, clientes y casos smoke. Se redeployó `nodux.app` para tomar la variable `DEMO_LOGIN_EMAIL` actualizada.
+
+**Archivos**
+
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- Verificación login demo prod OK (`admin@demo.com`, rol `org_admin`)
+- `node scripts/seed-users.js` OK (prod, 2026-02-27)
+- `node scripts/seed-demo-data.js` OK (prod, 2026-02-27)
+- `npx vercel --prod` OK (2026-02-27)
+
+**Commit:** N/A
+
 ## 2026-02-27 12:41 -03 — Fix infra: loop de redirección en `/demo/enter`
 
 **Tipo:** fix

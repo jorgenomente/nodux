@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 
 import AmountInputAR from '@/app/components/AmountInputAR';
 import PageShell from '@/app/components/PageShell';
@@ -17,7 +18,9 @@ type SearchParams = {
   to_at?: string;
   q?: string;
   scope?: string;
+  invoice_state?: string;
   debug?: string;
+  notice?: string;
 };
 
 type BranchOption = {
@@ -54,6 +57,8 @@ type SaleRow = {
   card_amount: number;
   mercadopago_amount: number;
   other_amount: number;
+  is_invoiced: boolean;
+  invoiced_at: string | null;
 };
 
 const formatCurrency = (value: number) =>
@@ -160,6 +165,10 @@ export default async function SalesPage({
     typeof resolvedSearchParams.payment_method === 'string'
       ? resolvedSearchParams.payment_method
       : '';
+  const selectedInvoiceState =
+    typeof resolvedSearchParams.invoice_state === 'string'
+      ? resolvedSearchParams.invoice_state
+      : '';
   const minAmountRaw =
     typeof resolvedSearchParams.min_amount === 'string'
       ? resolvedSearchParams.min_amount
@@ -185,6 +194,7 @@ export default async function SalesPage({
   const hasManualFilters = Boolean(
     selectedBranchId ||
     selectedMethod ||
+    selectedInvoiceState ||
     minAmountRaw ||
     maxAmountRaw ||
     fromAtRaw ||
@@ -202,6 +212,43 @@ export default async function SalesPage({
   const effectiveToAtLocal = toAtRaw || toDatetimeLocalValue(endOfToday);
   const fromAtIso = toIsoFromDatetimeLocal(effectiveFromAtLocal);
   const toAtIso = toIsoFromDatetimeLocal(effectiveToAtLocal);
+  const notice =
+    typeof resolvedSearchParams.notice === 'string'
+      ? resolvedSearchParams.notice
+      : '';
+
+  const markSaleAsInvoiced = async (formData: FormData) => {
+    'use server';
+
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) {
+      redirect('/no-access');
+    }
+
+    const saleId = String(formData.get('sale_id') ?? '').trim();
+    if (!saleId) {
+      redirect('/sales?notice=invoice_missing_sale');
+    }
+
+    const { error } = await actionSession.supabase.rpc(
+      'rpc_mark_sale_invoiced' as never,
+      {
+        p_org_id: actionSession.orgId,
+        p_sale_id: saleId,
+        p_source: 'sales_list',
+      } as never,
+    );
+
+    revalidatePath('/dashboard');
+    revalidatePath('/sales');
+    revalidatePath(`/sales/${saleId}`);
+
+    if (error) {
+      redirect(`/sales?notice=invoice_error:${encodeURIComponent(error.message)}`);
+    }
+
+    redirect('/sales?notice=invoice_marked');
+  };
 
   let query = supabase
     .from('v_sales_admin' as never)
@@ -215,6 +262,11 @@ export default async function SalesPage({
   }
   if (selectedMethod) {
     query = query.contains('payment_methods', [selectedMethod]);
+  }
+  if (selectedInvoiceState === 'invoiced') {
+    query = query.eq('is_invoiced', true);
+  } else if (selectedInvoiceState === 'not_invoiced') {
+    query = query.eq('is_invoiced', false);
   }
   if (minAmountRaw.trim() !== '' && Number.isFinite(minAmount)) {
     query = query.gte('total_amount', minAmount);
@@ -288,6 +340,21 @@ export default async function SalesPage({
         </header>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-4">
+          {notice === 'invoice_marked' ? (
+            <div className="mb-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+              Venta marcada como facturada.
+            </div>
+          ) : null}
+          {notice === 'invoice_missing_sale' ? (
+            <div className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              No pudimos identificar la venta a facturar.
+            </div>
+          ) : null}
+          {notice.startsWith('invoice_error:') ? (
+            <div className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              Error al facturar: {decodeURIComponent(notice.replace('invoice_error:', ''))}
+            </div>
+          ) : null}
           <div className="mb-3 text-sm text-zinc-600">
             Mostrando ventas de hoy por defecto (
             {startOfToday.toLocaleDateString('es-AR')})
@@ -348,6 +415,18 @@ export default async function SalesPage({
                   <option value="credit">Crédito</option>
                   <option value="transfer">Transferencia</option>
                   <option value="other">Otro</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-zinc-600">
+                Estado fiscal
+                <select
+                  name="invoice_state"
+                  defaultValue={selectedInvoiceState}
+                  className="rounded border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
+                >
+                  <option value="">Todos</option>
+                  <option value="invoiced">Facturadas</option>
+                  <option value="not_invoiced">No facturadas</option>
                 </select>
               </label>
               <label className="flex flex-col gap-1 text-xs text-zinc-600">
@@ -474,6 +553,7 @@ export default async function SalesPage({
                     <th className="px-3 py-2">Sucursal</th>
                     <th className="px-3 py-2">Ítems</th>
                     <th className="px-3 py-2">Métodos</th>
+                    <th className="px-3 py-2">Comprobante</th>
                     <th className="px-3 py-2">Total</th>
                     <th className="px-3 py-2">Acción</th>
                   </tr>
@@ -515,16 +595,53 @@ export default async function SalesPage({
                           ))}
                         </div>
                       </td>
+                      <td className="px-3 py-2">
+                        {sale.is_invoiced ? (
+                          <div className="text-xs">
+                            <div className="inline-flex rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
+                              Facturada
+                            </div>
+                            <div className="mt-1 text-zinc-500">
+                              {sale.invoiced_at
+                                ? formatDateTime(sale.invoiced_at)
+                                : '—'}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="inline-flex rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                            No facturada
+                          </span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 font-semibold text-zinc-900">
                         {formatCurrency(Number(sale.total_amount ?? 0))}
                       </td>
                       <td className="px-3 py-2">
-                        <Link
-                          href={`/sales/${sale.sale_id}`}
-                          className="rounded border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700"
-                        >
-                          Ver detalle
-                        </Link>
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            href={`/sales/${sale.sale_id}`}
+                            className="rounded border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700"
+                          >
+                            Ver detalle
+                          </Link>
+                          <Link
+                            href={`/sales/${sale.sale_id}/ticket`}
+                            className="rounded border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700"
+                          >
+                            Imprimir ticket
+                          </Link>
+                          {!sale.is_invoiced ? (
+                            <form action={markSaleAsInvoiced}>
+                              <input type="hidden" name="sale_id" value={sale.sale_id} />
+                              <button
+                                type="submit"
+                                className="rounded border border-emerald-300 px-3 py-1.5 text-xs text-emerald-700"
+                              >
+                                Emitir factura
+                              </button>
+                            </form>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))}
