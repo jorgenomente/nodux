@@ -57,6 +57,10 @@ Ruta pública adicional (institucional, fuera del flujo operativo MVP):
   - Roles: Público
   - Tipo: Utility
   - Propósito: explicar propuesta de valor de NODUX y dirigir a login/demo
+- `/demo`
+  - Roles: Público
+  - Tipo: Utility
+  - Propósito: mostrar recorrido de producto con datos ficticios en modo solo lectura
 
 ---
 

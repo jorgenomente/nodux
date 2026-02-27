@@ -120,6 +120,7 @@ Acceso:
 ## 6. Rutas públicas / Utility
 
 - `/landing` (publica institucional / comercial)
+- `/demo` (recorrido publico guiado, solo lectura)
 - `/login`
 - `/logout`
 - `/no-access`
@@ -199,6 +200,7 @@ Nota de dominio (produccion):
 ### Rutas públicas adicionales (fuera del flujo operativo MVP)
 
 - `/landing`
+- `/demo`
 
 ---
 

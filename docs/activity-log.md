@@ -18,6 +18,36 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-02-27 10:09 -03 — UI/Infra: modo demo público seguro accesible desde `/landing`
+
+**Tipo:** ui
+**Lote:** public-demo-mode-from-landing-safe
+**Alcance:** frontend, infra, docs, tests
+
+**Resumen**
+Se agregó una ruta pública `/demo` como recorrido de producto en modo solo lectura con datos ficticios, enlazada desde `/landing`, para que prospectos naveguen sin credenciales compartidas ni exposición operativa. El `proxy` ahora permite `/demo` en host de marketing y fuerza redirección de `app.nodux.app/demo` hacia `nodux.app/demo`.
+
+**Archivos**
+
+- app/demo/page.tsx
+- app/landing/page.tsx
+- proxy.ts
+- docs/docs-app-sitemap.md
+- docs/docs-app-screens-index.md
+- docs/docs-app-screens-landing.md
+- docs/docs-app-screens-demo.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` FAIL (2026-02-27, baseline ajeno en `apps/video/build/*` con reglas ESLint faltantes y warnings masivos)
+- `npm run build` OK (2026-02-27)
+
+**Commit:** N/A
+
 ## 2026-02-26 14:00 -03 — Infra/UI: split de dominio `nodux.app` vs `app.nodux.app`
 
 **Tipo:** infra
@@ -6864,5 +6894,25 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 
 - npm run lint OK (2026-02-25)
 - npm run build OK (2026-02-25)
+
+**Commit:** N/A
+
+## 2026-02-26 14:39 -03 — Fix deploy prod Vercel por TypeScript scope
+
+**Tipo:** infra/ui/docs
+**Lote:** vercel-prod-build-fix-exclude-video-workspace
+**Descripción:** Se ejecutó `npx vercel --prod` con permisos escalados. El primer intento falló por `npm run build` (TypeScript intentaba compilar `apps/video/skills/...` y faltaban dependencias de Remotion en el app principal). Se corrigió `tsconfig.json` excluyendo `apps/**` del alcance de TypeScript para Next. Se validó con `npm run build` local y se relanzó deploy productivo exitoso con alias activo en `nodux.app`.
+
+**Archivos afectados:**
+
+- tsconfig.json
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run build OK (2026-02-26)
+- npx vercel --prod FAIL inicial (2026-02-26)
+- npx vercel --prod OK (2026-02-26)
 
 **Commit:** N/A

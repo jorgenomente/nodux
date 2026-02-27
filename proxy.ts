@@ -3,8 +3,8 @@ import { createServerClient } from '@supabase/ssr';
 
 import type { Database } from '@/types/supabase';
 
-const PUBLIC_PATHS = ['/landing', '/login', '/logout', '/no-access'];
-const MARKETING_PATHS = ['/', '/landing'];
+const PUBLIC_PATHS = ['/landing', '/demo', '/login', '/logout', '/no-access'];
+const MARKETING_PATHS = ['/', '/landing', '/demo'];
 const APP_HOST = 'app.nodux.app';
 const CANONICAL_MARKETING_HOST = 'nodux.app';
 const MARKETING_HOSTS = new Set([CANONICAL_MARKETING_HOST, 'www.nodux.app']);
@@ -112,8 +112,11 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (isAppHost && pathname.startsWith('/landing')) {
-    return redirectToHost(request, 'nodux.app', '/landing');
+  if (
+    isAppHost &&
+    (pathname.startsWith('/landing') || pathname.startsWith('/demo'))
+  ) {
+    return redirectToHost(request, 'nodux.app', pathname);
   }
 
   const response = NextResponse.next({

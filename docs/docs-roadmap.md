@@ -276,3 +276,4 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-02-26: Se agrega ruta pública `/landing` para posicionamiento comercial de NODUX (propuesta de valor + CTA a `/login` y demo), manteniendo separado el flujo operativo autenticado.
 - 2026-02-26: Se hardenea split de dominios por host en `proxy`: `nodux.app` queda para marketing (`/landing`) y rutas operativas/auth redirigen a `app.nodux.app`.
 - 2026-02-26: Se agrega canonical SEO de marketing en `proxy`: `www.nodux.app` redirige a `nodux.app`.
+- 2026-02-27: Se agrega ruta pública `/demo` como recorrido solo lectura con datos ficticios y acceso directo desde `/landing`; `app.nodux.app/demo` redirige a `nodux.app/demo`.

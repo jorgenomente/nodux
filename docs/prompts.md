@@ -12,6 +12,16 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-02-27 10:09 -03 — Demo pública segura desde landing (sin comprometer producción)
+
+**Lote:** public-demo-mode-from-landing-safe
+**Objetivo:** Implementar un modo demo accesible desde `/landing`, en solo lectura y sin exponer usuarios/credenciales de producción.
+
+**Prompt**
+Bueno, adelante, hagamos un modo demo que pueda ser accesible desde la landing y que no rompa ni comprometa nada
+
+si adelante, si quieres comitea y pushea antes
+
 ## 2026-02-26 10:31 -03 — Landing pública para explicar NODUX
 
 **Lote:** public-landing-page-mvp
@@ -2536,3 +2546,11 @@ hay algun error en la creacion de usuarios desde setting/users que hace que no s
 
 **Prompt**
 dale adelante hazlo
+
+## 2026-02-26 14:39 -03 — Deploy prod Vercel: fix de build por workspace externo
+
+**Lote:** vercel-prod-build-fix-exclude-video-workspace
+**Objetivo:** Ejecutar deploy productivo en Vercel con permisos escalados y corregir falla de build TypeScript causada por inclusión de `apps/video` en el typecheck del app principal.
+
+**Prompt**
+usa permisos escalados y corre npx vercel --prod y arregla los problemas que puedan ocurrir

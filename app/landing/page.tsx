@@ -70,6 +70,12 @@ export default function LandingPage() {
               >
                 Empezar ahora
               </Link>
+              <Link
+                href="/demo"
+                className="rounded-full border border-amber-400 bg-amber-100 px-5 py-3 text-sm font-semibold text-amber-900 transition hover:bg-amber-200"
+              >
+                Ver demo publica
+              </Link>
               <a
                 href="mailto:hola@nodux.app?subject=Quiero%20una%20demo%20de%20NODUX"
                 className="rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:border-slate-900"
@@ -122,6 +128,12 @@ export default function LandingPage() {
               className="rounded-full bg-orange-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-300"
             >
               Ingresar a NODUX
+            </Link>
+            <Link
+              href="/demo"
+              className="rounded-full border border-orange-300 px-5 py-3 text-sm font-semibold text-orange-100 transition hover:border-orange-100"
+            >
+              Explorar demo
             </Link>
             <a
               href="mailto:hola@nodux.app?subject=Demo%20NODUX%20retail"
