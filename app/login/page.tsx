@@ -48,12 +48,14 @@ export default function LoginPage() {
         <p className="mt-2 text-sm text-zinc-500">
           Accedé a tu organización para continuar.
         </p>
-        <a
-          href="/demo"
-          className="mt-3 inline-flex text-xs font-semibold text-zinc-700 underline"
-        >
-          Probar demo interactiva
-        </a>
+        <form action="/demo/enter" method="post" className="mt-3">
+          <button
+            type="submit"
+            className="inline-flex text-xs font-semibold text-zinc-700 underline"
+          >
+            Probar demo interactiva
+          </button>
+        </form>
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <label className="block text-sm font-medium text-zinc-700">

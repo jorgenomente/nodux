@@ -59,6 +59,7 @@ const resolveNotice = (error: string | undefined, readonly: string | undefined) 
 export default async function PublicDemoPage({ searchParams }: DemoPageProps) {
   const params = await searchParams;
   const appLoginHref = 'https://app.nodux.app/login';
+  const appDemoEnterHref = 'https://app.nodux.app/demo/enter';
   const notice = resolveNotice(params.error, params.readonly);
 
   return (
@@ -106,7 +107,7 @@ export default async function PublicDemoPage({ searchParams }: DemoPageProps) {
                 {notice}
               </div>
             ) : null}
-            <form action="/demo/enter" method="post" className="mt-5">
+            <form action={appDemoEnterHref} method="post" className="mt-5">
               <button
                 type="submit"
                 className="rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"

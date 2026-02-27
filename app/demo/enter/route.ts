@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   const demoPassword = process.env.DEMO_LOGIN_PASSWORD;
 
   if (!url || !anonKey || !demoEmail || !demoPassword) {
-    return NextResponse.redirect(toDemoUrl(request, 'config_missing'));
+    return NextResponse.redirect(toDemoUrl(request, 'config_missing'), 303);
   }
 
   const appUrl = new URL(request.url);
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   appUrl.protocol = 'https:';
   appUrl.port = '';
 
-  const response = NextResponse.redirect(appUrl);
+  const response = NextResponse.redirect(appUrl, 303);
 
   const supabase = createServerClient<Database>(url, anonKey, {
     cookies: {
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (error) {
-    return NextResponse.redirect(toDemoUrl(request, 'login_failed'));
+    return NextResponse.redirect(toDemoUrl(request, 'login_failed'), 303);
   }
 
   return response;
