@@ -32,6 +32,10 @@ activar/desactivar (si aplica)
 
 ver resumen básico (usuarios asignados, opcional)
 
+Nota:
+
+- La configuración de plantillas de ticket se gestiona en `/settings/tickets`.
+
 Gestionar dispositivos de cobro por sucursal (POS):
 
 alta de dispositivo

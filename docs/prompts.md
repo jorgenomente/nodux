@@ -2676,3 +2676,45 @@ quita el texto que dice Contrato: rpc_get_dashboard_admin. en /dashboard y Contr
 
 **Prompt**
 puedes solcuionar los lint errors pendientes?
+
+## 2026-03-01 13:43 -03 — POS: plantillas de ticket por sucursal + base fiscal de prueba
+
+**Lote:** pos-branch-ticket-templates-foundation
+**Objetivo:** Permitir configurar por sucursal el contenido del ticket (encabezado/pie/nota fiscal de prueba) desde `/settings/branches` y usar esa configuración al imprimir en POS y en `/sales/[saleId]/ticket`, preparando base para futura facturación fiscal.
+
+**Prompt**
+vamos a trabajar ahora sobre la impresion de tickets en el pos tengo los productos del carrito y el boton de imprimir ticket, me gustaria entonces poder configurar lo que va a aparecer en ese ticket, quizas podamos hacerlo desde configuracion, que yo pueda decidir que texto va a aparecer en el ticket, tener una especie de input de texto donde se especifique que es lo que va a decir en el ticket, esto es importante porque es posible que la informacion sea distinta por sucursal entonces debemos claramente poder definir que va a decir el ticket segun sucursal, esta misma preparacion la vamos a necesitar para cobrar y facturar, porque al facturar obligatoriamente se tiene que imprimir el ticket fiscal que va a tener la informacion de facturacion, pero todavia no hago la integracion con el arca o el proveedor de facturas fiscales estatales. Por ahora en ese caso lo dejamos como crear un pdf de prueba en ambos casos. La cuestion es esta, tengo una impresora USB  y ethernet de 80mm ESC/POS command support. Y me gustaria hacer pruebas, vamos primero a definir bien la idea, si me entiendes lo que quiero hacer, como lo hariamos y que necesitariamos
+
+excelente avancemos
+
+## 2026-03-01 14:12 -03 — Settings: separar Tickets e impresión del resto
+
+**Lote:** settings-tickets-dedicated-screen-and-guidelines
+**Objetivo:** Desacoplar la configuración de tickets de `/settings/branches`, crear `/settings/tickets` como pantalla dedicada para editar ticket no fiscal vs leyenda fiscal de prueba por sucursal, y dejar guía explícita de formato 80mm.
+
+**Prompt**
+ok pero me gustaria que quede explicito donde se editan los tickets y que corresponde a ticket fiscal y el formato en el cual tengo que escribir el texto para que quede perfecto, me gustaria diferenciar todo el tema de la impresion de ticket del resto de settings asi que organicemos eso mejor
+
+## 2026-03-01 14:49 -03 — Fix settings/tickets: selección de sucursal persistente
+
+**Lote:** settings-tickets-branch-selection-fix
+**Objetivo:** Corregir `/settings/tickets` para que respete la sucursal seleccionada en `Ver`/`Guardar` y no vuelva siempre a la primera opción.
+
+**Prompt**
+pues no estoy entendiendo. cuando estoy en caballito y edito y le doy guardar cambios, cuando entro en la de palermo y le doy ver, tiene la misma informacion que puse en caballito entonces de alguna manera se estan persistiendo los mismos datos o no se que pasa, tambien siempre me dice sucursal caballito ver, incluso si selecciono de palermo, quizas es porque es la primera opcion pero deberia salirme por defecto la que esta selecionada para evitar confusion
+
+## 2026-03-01 14:57 -03 — Settings tickets: contador de caracteres por línea
+
+**Lote:** settings-tickets-line-character-counter
+**Objetivo:** Agregar contador de caracteres por línea dentro de cada editor de texto en `/settings/tickets` para facilitar formato térmico 80mm.
+
+**Prompt**
+coloca tambien un contador de caracteres por linea dentro de cada editor de texto
+
+## 2026-03-01 14:59 -03 — POS print: fallback sin pop-up blocker
+
+**Lote:** pos-ticket-print-popup-fallback
+**Objetivo:** Evitar bloqueo al imprimir ticket en POS cuando el navegador bloquea `window.open`, agregando fallback por `iframe` oculto.
+
+**Prompt**
+estoy probando darle al boton de imprimir ticket y me dice Habilita pop-ups para imprimir el ticket.

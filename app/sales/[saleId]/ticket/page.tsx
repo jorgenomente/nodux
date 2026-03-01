@@ -20,6 +20,12 @@ type SaleDetailRow = {
   items: unknown;
 };
 
+type BranchTicketConfigRow = {
+  ticket_header_text: string | null;
+  ticket_footer_text: string | null;
+  fiscal_ticket_note_text: string | null;
+};
+
 type SaleItem = {
   sale_item_id: string;
   product_name: string;
@@ -85,6 +91,13 @@ export default async function SaleTicketPage({
 
   const sale = detailData as SaleDetailRow;
   const items = parseItems(sale.items);
+  const { data: branchConfigData } = await session.supabase
+    .from('branches' as never)
+    .select('ticket_header_text, ticket_footer_text, fiscal_ticket_note_text')
+    .eq('org_id', session.orgId)
+    .eq('id', sale.branch_id)
+    .maybeSingle();
+  const branchConfig = (branchConfigData ?? null) as BranchTicketConfigRow | null;
 
   return (
     <div className="mx-auto w-full max-w-2xl p-4 print:p-0">
@@ -111,12 +124,22 @@ export default async function SaleTicketPage({
           Ticket de venta (copia no fiscal)
         </p>
         <h1 className="mt-1 text-xl font-semibold">NODUX</h1>
+        {branchConfig?.ticket_header_text ? (
+          <p className="mt-1 text-xs text-zinc-600 whitespace-pre-line">
+            {branchConfig.ticket_header_text}
+          </p>
+        ) : null}
         <p className="text-xs text-zinc-500">Sucursal: {sale.branch_name ?? '—'}</p>
         <p className="text-xs text-zinc-500">Fecha: {formatDateTime(sale.created_at)}</p>
         <p className="text-xs text-zinc-500">Vendedor: {sale.created_by_name}</p>
         <p className="text-xs text-zinc-500">
           Estado fiscal: {sale.is_invoiced ? 'Facturada' : 'No facturada'}
         </p>
+        {branchConfig?.fiscal_ticket_note_text ? (
+          <p className="text-xs text-zinc-500 whitespace-pre-line">
+            {branchConfig.fiscal_ticket_note_text}
+          </p>
+        ) : null}
 
         <div className="mt-3 border-t border-b border-zinc-200 py-2">
           {items.length === 0 ? (
@@ -152,6 +175,11 @@ export default async function SaleTicketPage({
             <span>{formatCurrency(Number(sale.total_amount ?? 0))}</span>
           </div>
         </div>
+        {branchConfig?.ticket_footer_text ? (
+          <div className="mt-4 border-t border-zinc-200 pt-2 text-xs text-zinc-600 whitespace-pre-line">
+            {branchConfig.ticket_footer_text}
+          </div>
+        ) : null}
       </div>
     </div>
   );

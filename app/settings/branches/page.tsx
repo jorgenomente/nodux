@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
@@ -65,13 +66,22 @@ export default async function SettingsBranchesPage({
       redirect('/settings/branches?result=invalid');
     }
 
-    await auth.supabase.rpc('rpc_upsert_branch', {
-      p_branch_id: branchIdRaw || randomUUID(),
-      p_org_id: auth.orgId,
-      p_name: name,
-      p_address: addressRaw,
-      p_is_active: isActive,
-    });
+    const branchId = branchIdRaw || randomUUID();
+
+    const { error: upsertBranchError } = await auth.supabase.rpc(
+      'rpc_upsert_branch',
+      {
+        p_branch_id: branchId,
+        p_org_id: auth.orgId,
+        p_name: name,
+        p_address: addressRaw,
+        p_is_active: isActive,
+      },
+    );
+
+    if (upsertBranchError) {
+      redirect('/settings/branches?result=invalid');
+    }
 
     revalidatePath('/settings/branches');
     revalidatePath('/products');
@@ -144,12 +154,14 @@ export default async function SettingsBranchesPage({
   };
 
   const { data } = await context.supabase
-    .from('v_branches_admin')
+    .from('v_branches_admin' as never)
     .select('*')
     .eq('org_id', context.orgId)
     .order('name');
 
-  const branches = (data ?? []) as BranchRow[];
+  const branches = ((data ?? []) as unknown as BranchRow[]).filter(
+    (branch) => Boolean(branch.branch_id),
+  );
   const { data: devicesData } = await context.supabase
     .from('pos_payment_devices' as never)
     .select('id, org_id, branch_id, device_name, provider, is_active')
@@ -166,6 +178,13 @@ export default async function SettingsBranchesPage({
           <p className="mt-2 text-sm text-zinc-600">
             Crea y actualiza sucursales. Las sucursales inactivas dejan de estar
             disponibles para operacion.
+          </p>
+          <p className="mt-2 text-sm text-zinc-600">
+            La configuración de textos de ticket ahora se edita en{' '}
+            <Link href="/settings/tickets" className="font-semibold underline">
+              Tickets e impresion
+            </Link>
+            .
           </p>
           {searchParams.result === 'saved' ? (
             <p className="mt-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
@@ -326,7 +345,7 @@ export default async function SettingsBranchesPage({
                         QR/posnet y opciones futuras.
                       </p>
                       <p className="mt-1 text-xs text-zinc-500">
-                        Convención sugerida: <strong>MP QR</strong>,{' '}
+                        Convencion sugerida: <strong>MP QR</strong>,{' '}
                         <strong>MP Posnet 1</strong>,{' '}
                         <strong>MP Posnet 2</strong>, <strong>MP Alias</strong>,{' '}
                         <strong>Posnet principal</strong>.
@@ -472,8 +491,8 @@ export default async function SettingsBranchesPage({
                         </div>
                       </form>
                       <p className="mt-2 text-xs text-zinc-500">
-                        Tip: al escribir en “Nuevo dispositivo”, el navegador
-                        sugiere nombres estándar para mantener consistencia
+                        Tip: al escribir en Nuevo dispositivo, el navegador
+                        sugiere nombres estandar para mantener consistencia
                         operativa.
                       </p>
                     </div>

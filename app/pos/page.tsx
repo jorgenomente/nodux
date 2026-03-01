@@ -17,6 +17,14 @@ type EmployeeAccount = {
   name: string;
 };
 
+type BranchOption = {
+  id: string;
+  name: string;
+  ticket_header_text: string | null;
+  ticket_footer_text: string | null;
+  fiscal_ticket_note_text: string | null;
+};
+
 const STAFF_MODULE_ORDER = [
   'pos',
   'cashbox',
@@ -84,7 +92,7 @@ export default async function PosPage({
     }
   }
 
-  let branches: Array<{ id: string; name: string }> = [];
+  let branches: BranchOption[] = [];
 
   if (role === 'staff') {
     const { data: branchMemberships } = await supabase
@@ -102,23 +110,31 @@ export default async function PosPage({
     }
 
     const { data: branchRows } = await supabase
-      .from('branches')
-      .select('id, name')
+      .from('branches' as never)
+      .select(
+        'id, name, ticket_header_text, ticket_footer_text, fiscal_ticket_note_text',
+      )
       .eq('org_id', orgId)
       .eq('is_active', true)
       .in('id', branchIds)
       .order('name');
 
-    branches = branchRows ?? [];
+    branches = ((branchRows ?? []) as BranchOption[]).filter(
+      (branch) => Boolean(branch.id),
+    );
   } else {
     const { data: branchRows } = await supabase
-      .from('branches')
-      .select('id, name')
+      .from('branches' as never)
+      .select(
+        'id, name, ticket_header_text, ticket_footer_text, fiscal_ticket_note_text',
+      )
       .eq('org_id', orgId)
       .eq('is_active', true)
       .order('name');
 
-    branches = branchRows ?? [];
+    branches = ((branchRows ?? []) as BranchOption[]).filter(
+      (branch) => Boolean(branch.id),
+    );
   }
 
   let defaultBranchId = branches.length > 0 ? branches[0].id : null;

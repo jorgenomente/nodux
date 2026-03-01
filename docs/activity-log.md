@@ -7243,3 +7243,123 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run build OK (2026-03-01)
 
 **Commit:** N/A
+
+## 2026-03-01 13:43 -03 — POS tickets: plantillas por sucursal
+
+**Tipo:** schema/ui/docs
+**Lote:** pos-branch-ticket-templates-foundation
+**Descripción:** Se implementó configuración de impresión por sucursal para tickets en POS y ticket de venta admin. Se agregaron campos en `branches` (`ticket_header_text`, `ticket_footer_text`, `fiscal_ticket_note_text`), se extendió `v_branches_admin`, se actualizó `/settings/branches` para editar esos textos, y se integró la plantilla en la impresión de `/pos` (pre y post cobro) y `/sales/[saleId]/ticket`.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260301143000_063_branch_ticket_templates.sql
+- app/settings/branches/page.tsx
+- app/pos/page.tsx
+- app/pos/PosClient.tsx
+- app/sales/[saleId]/ticket/page.tsx
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-app-screens-settings-branches.md
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-app-screens-sale-ticket.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-01)
+- npm run build OK (2026-03-01)
+- npm run db:reset OK (2026-03-01)
+- Verificación DB objetos creados OK (columnas en `branches` + `select` de `v_branches_admin` vía `psql`)
+- npm run db:rls:smoke FAIL inicial (sin datos demo tras reset)
+- npm run db:seed:demo OK (2026-03-01)
+- npm run db:rls:smoke OK (permitido/denegado verificado)
+
+**Commit:** N/A
+
+## 2026-03-01 14:12 -03 — Settings: pantalla dedicada de Tickets e impresión
+
+**Tipo:** ui/docs
+**Lote:** settings-tickets-dedicated-screen-and-guidelines
+**Descripción:** Se reorganizó Settings para separar la configuración de impresión del resto: se crea `/settings/tickets` como pantalla dedicada por sucursal para editar `ticket_header_text`, `ticket_footer_text` y `fiscal_ticket_note_text`, diferenciando explícitamente ticket no fiscal vs comprobante fiscal de prueba e incorporando guía de formato 80mm. `/settings/branches` deja de editar esos textos y queda enfocada en sucursales/dispositivos.
+
+**Archivos afectados:**
+
+- app/settings/page.tsx
+- app/settings/tickets/page.tsx
+- app/settings/branches/page.tsx
+- docs/docs-app-screens-settings-tickets.md
+- docs/docs-app-screens-settings-branches.md
+- docs/docs-app-screens-index.md
+- docs/docs-app-sitemap.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-01)
+- npm run build OK (2026-03-01)
+
+**Commit:** N/A
+
+## 2026-03-01 14:49 -03 — Fix `/settings/tickets`: branch selection estable
+
+**Tipo:** ui/docs
+**Lote:** settings-tickets-branch-selection-fix
+**Descripción:** Se corrigió lectura de `searchParams` en `/settings/tickets` para Next.js 16 (`searchParams` async). Antes la pantalla caía siempre en la primera sucursal (Caballito), provocando confusión y sobrescritura aparente al guardar. Ahora `Ver` y `Guardar` operan sobre la sucursal seleccionada y el estado permanece consistente.
+
+**Archivos afectados:**
+
+- app/settings/tickets/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-01)
+- npm run build OK (2026-03-01)
+
+**Commit:** N/A
+
+## 2026-03-01 14:57 -03 — `/settings/tickets`: contador por línea en editores
+
+**Tipo:** ui/docs
+**Lote:** settings-tickets-line-character-counter
+**Descripción:** Se agregaron contadores de caracteres por línea dentro de cada editor de plantilla en `/settings/tickets` (encabezado, pie y leyenda fiscal de prueba). El contador muestra total de líneas, longitud máxima y chips `Lx: n` con alerta visual cuando supera recomendación de 32 chars por línea para 80mm.
+
+**Archivos afectados:**
+
+- app/settings/tickets/TicketTemplateEditors.tsx
+- app/settings/tickets/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-01)
+- npm run build OK (2026-03-01)
+
+**Commit:** N/A
+
+## 2026-03-01 14:59 -03 — POS: impresión con fallback sin pop-up
+
+**Tipo:** ui/docs
+**Lote:** pos-ticket-print-popup-fallback
+**Descripción:** Se actualizó `openTicketPrintWindow` en POS para mantener flujo actual con `window.open` y, si el navegador lo bloquea, usar fallback de impresión mediante `iframe` oculto. Con esto el botón `Imprimir ticket` no depende estrictamente de permisos de pop-up.
+
+**Archivos afectados:**
+
+- app/pos/PosClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-01)
+- npm run build OK (2026-03-01)
+
+**Commit:** N/A

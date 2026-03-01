@@ -14,6 +14,9 @@ import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 type BranchOption = {
   id: string;
   name: string;
+  ticket_header_text: string | null;
+  ticket_footer_text: string | null;
+  fiscal_ticket_note_text: string | null;
 };
 
 type ProductCatalogItem = {
@@ -44,6 +47,9 @@ type CheckoutMode = 'charge_only' | 'charge_and_invoice';
 
 type TicketSnapshot = {
   branchName: string;
+  ticketHeaderText?: string | null;
+  ticketFooterText?: string | null;
+  fiscalTicketNoteText?: string | null;
   createdAtIso: string;
   items: Array<{
     name: string;
@@ -147,55 +153,111 @@ const openTicketPrintWindow = (ticket: TicketSnapshot) => {
 
   const titleLabel = ticket.isPaid ? 'Ticket de venta' : 'Ticket previo';
   const statusLabel = ticket.isInvoiced ? 'Facturada' : 'No facturada';
+  const headerText = ticket.ticketHeaderText?.trim() ?? '';
+  const footerText = ticket.ticketFooterText?.trim() ?? '';
+  const fiscalNoteText = ticket.fiscalTicketNoteText?.trim() ?? '';
   const payload = `<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <title>${titleLabel} - NODUX</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 24px; color: #111827; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    th, td { border-bottom: 1px solid #e5e7eb; padding: 6px 4px; font-size: 12px; }
-    th { text-align: left; color: #6b7280; }
-    .meta { font-size: 12px; color: #6b7280; margin: 2px 0; }
-    .totals { margin-top: 12px; font-size: 13px; }
-    .total-row { font-weight: 700; font-size: 14px; }
+    @page { size: 80mm auto; margin: 6mm; }
+    body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace; margin: 0; color: #111827; }
+    .ticket { width: 68mm; margin: 0 auto; font-size: 12px; line-height: 1.35; }
+    .center { text-align: center; }
+    .meta { color: #374151; margin: 2px 0; }
+    .hr { border-top: 1px dashed #9ca3af; margin: 8px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    th, td { padding: 3px 0; vertical-align: top; }
+    th { text-align: left; color: #6b7280; font-weight: 600; }
+    td.r, th.r { text-align: right; white-space: nowrap; }
+    .totals { margin-top: 8px; }
+    .totals-row { display: flex; justify-content: space-between; gap: 8px; margin: 2px 0; }
+    .total-row { font-weight: 700; font-size: 13px; }
+    .pre { white-space: pre-line; }
   </style>
 </head>
 <body>
-  <p class="meta">${titleLabel} (copia no fiscal)</p>
-  <h2 style="margin: 4px 0 8px;">NODUX</h2>
-  <p class="meta">Sucursal: ${escapeHtml(ticket.branchName)}</p>
-  <p class="meta">Fecha: ${escapeHtml(new Date(ticket.createdAtIso).toLocaleString('es-AR', { hour12: false }))}</p>
-  <p class="meta">Estado fiscal: ${statusLabel}</p>
-  ${ticket.saleId ? `<p class="meta">Venta: ${escapeHtml(ticket.saleId.slice(0, 8))}</p>` : ''}
-  <table>
-    <thead>
-      <tr>
-        <th>Producto</th>
-        <th style="text-align:right;">Cant.</th>
-        <th style="text-align:right;">Precio</th>
-        <th style="text-align:right;">Subtotal</th>
-      </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>
-  <div class="totals">
-    <div>Subtotal: ${ticket.subtotal.toFixed(2)}</div>
-    <div>Descuento: ${ticket.discount.toFixed(2)}</div>
-    <div class="total-row">Total: ${ticket.total.toFixed(2)}</div>
-  </div>
+  <main class="ticket">
+    <p class="meta center">${titleLabel} (copia no fiscal)</p>
+    <h2 class="center" style="margin: 4px 0 6px;">NODUX</h2>
+    ${headerText ? `<p class="meta center pre">${escapeHtml(headerText)}</p>` : ''}
+    <div class="hr"></div>
+    <p class="meta">Sucursal: ${escapeHtml(ticket.branchName)}</p>
+    <p class="meta">Fecha: ${escapeHtml(new Date(ticket.createdAtIso).toLocaleString('es-AR', { hour12: false }))}</p>
+    <p class="meta">Estado fiscal: ${statusLabel}</p>
+    ${ticket.saleId ? `<p class="meta">Venta: ${escapeHtml(ticket.saleId.slice(0, 8))}</p>` : ''}
+    ${fiscalNoteText ? `<p class="meta pre">${escapeHtml(fiscalNoteText)}</p>` : ''}
+    <div class="hr"></div>
+    <table>
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th class="r">Cant.</th>
+          <th class="r">Precio</th>
+          <th class="r">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="hr"></div>
+    <div class="totals">
+      <div class="totals-row"><span>Subtotal</span><span>${ticket.subtotal.toFixed(2)}</span></div>
+      <div class="totals-row"><span>Descuento</span><span>${ticket.discount.toFixed(2)}</span></div>
+      <div class="totals-row total-row"><span>Total</span><span>${ticket.total.toFixed(2)}</span></div>
+    </div>
+    ${footerText ? `<div class="hr"></div><p class="meta center pre">${escapeHtml(footerText)}</p>` : ''}
+  </main>
 </body>
 </html>`;
 
-  const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=520,height=720');
-  if (!printWindow) return false;
-  printWindow.document.open();
-  printWindow.document.write(payload);
-  printWindow.document.close();
-  printWindow.focus();
-  printWindow.print();
-  return true;
+  const printWithHiddenFrame = () => {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+
+    const frameWindow = iframe.contentWindow;
+    if (!frameWindow) {
+      iframe.remove();
+      return false;
+    }
+
+    frameWindow.document.open();
+    frameWindow.document.write(payload);
+    frameWindow.document.close();
+
+    window.setTimeout(() => {
+      frameWindow.focus();
+      frameWindow.print();
+      window.setTimeout(() => iframe.remove(), 1000);
+    }, 100);
+
+    return true;
+  };
+
+  const printWindow = window.open(
+    '',
+    '_blank',
+    'noopener,noreferrer,width=520,height=720',
+  );
+
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(payload);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    return true;
+  }
+
+  return printWithHiddenFrame();
 };
 
 const formatSellUnitType = (value: ProductCatalogItem['sell_unit_type']) => {
@@ -420,6 +482,10 @@ export default function PosClient({
   );
   const activeBranchName = useMemo(
     () => branches.find((branch) => branch.id === activeBranchId)?.name ?? 'Sucursal',
+    [activeBranchId, branches],
+  );
+  const activeBranchConfig = useMemo(
+    () => branches.find((branch) => branch.id === activeBranchId) ?? null,
     [activeBranchId, branches],
   );
 
@@ -754,6 +820,10 @@ export default function PosClient({
             total,
             isPaid: false,
             isInvoiced: false,
+            ticketHeaderText: activeBranchConfig?.ticket_header_text ?? '',
+            ticketFooterText: activeBranchConfig?.ticket_footer_text ?? '',
+            fiscalTicketNoteText:
+              activeBranchConfig?.fiscal_ticket_note_text ?? '',
           }
         : lastTicket;
 
@@ -961,6 +1031,9 @@ export default function PosClient({
       isPaid: true,
       isInvoiced,
       saleId,
+      ticketHeaderText: activeBranchConfig?.ticket_header_text ?? '',
+      ticketFooterText: activeBranchConfig?.ticket_footer_text ?? '',
+      fiscalTicketNoteText: activeBranchConfig?.fiscal_ticket_note_text ?? '',
     });
     setCart([]);
     setIsSplitPayment(false);

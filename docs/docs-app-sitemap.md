@@ -107,6 +107,7 @@ Subrutas:
 
 - `/settings/users`
 - `/settings/branches`
+- `/settings/tickets`
 - `/settings/staff-permissions`
 - `/settings/preferences`
 - `/settings/audit-log`
@@ -194,6 +195,7 @@ Nota de dominio (produccion):
 - `/settings`
 - `/settings/users`
 - `/settings/branches`
+- `/settings/tickets`
 - `/settings/staff-permissions`
 - `/settings/preferences`
 - `/settings/audit-log`

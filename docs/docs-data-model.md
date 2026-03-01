@@ -46,6 +46,7 @@ Estado actual:
 - Historial/detalle de ventas y conciliación por dispositivo en caja en `supabase/migrations/20260220113000_045_sales_history_cashbox_reconciliation.sql` (`v_sales_admin`, `v_sale_detail_admin`, `rpc_get_cash_session_payment_breakdown`, `rpc_correct_sale_payment_method`).
 - Descuento empleado en POS + cuentas de empleado por sucursal en `supabase/migrations/20260221223000_052_employee_discount_accounts.sql` (`employee_accounts`, preferencias de combinación, extensión de `rpc_create_sale`, vistas de ventas y dashboard).
 - Facturación operativa de ventas (facturada/no facturada), ticket no fiscal y KPIs de facturación en `supabase/migrations/20260227163000_060_sales_invoicing_ticket_split.sql` (`sales.is_invoiced`, `sales.invoiced_at`, `rpc_mark_sale_invoiced`, extensión de `v_sales_admin`, `v_sale_detail_admin`, `v_dashboard_admin`, `rpc_get_dashboard_admin`).
+- Plantillas de impresión por sucursal para ticket/copia fiscal de prueba en `supabase/migrations/20260301143000_063_branch_ticket_templates.sql` (`branches.ticket_header_text`, `branches.ticket_footer_text`, `branches.fiscal_ticket_note_text`, extensión de `v_branches_admin`).
 - Onboarding de datos maestros (jobs/rows de importación + vista de pendientes + RPCs de importación) en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks`, `rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
 - Resolver paginado de productos incompletos para onboarding en `supabase/migrations/20260224201000_057_onboarding_products_incomplete_view.sql` (`v_products_incomplete_admin`).
 - Marca en productos + vista admin actualizada en `supabase/migrations/20260222110000_055_products_brand.sql` (`products.brand`, `v_products_admin.brand`).
@@ -110,6 +111,9 @@ Estado actual:
 - `org_id` (uuid, FK -> orgs.id)
 - `name` (text)
 - `address` (text, nullable)
+- `ticket_header_text` (text, nullable)
+- `ticket_footer_text` (text, nullable)
+- `fiscal_ticket_note_text` (text, nullable)
 - `is_active` (boolean)
 - `created_at`, `updated_at`
 

@@ -17,6 +17,10 @@ Permitir imprimir un ticket de venta como copia operativa no fiscal.
 ## UI
 
 - Encabezado con fecha, sucursal y vendedor.
+- Si la sucursal tiene plantilla configurada, mostrar:
+  - `ticket_header_text`
+  - `ticket_footer_text`
+  - `fiscal_ticket_note_text`
 - Lista de ítems (cantidad, precio, subtotal).
 - Totales (`subtotal`, `descuento`, `total`).
 - Estado fiscal de la venta (`facturada` / `no facturada`).

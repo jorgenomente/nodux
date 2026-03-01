@@ -16,6 +16,12 @@ const SETTINGS_LINKS = [
     description: 'Crear y editar sucursales operativas de la organizacion.',
   },
   {
+    href: '/settings/tickets',
+    title: 'Tickets e impresion',
+    description:
+      'Configurar plantillas por sucursal para ticket no fiscal y comprobante fiscal de prueba.',
+  },
+  {
     href: '/settings/staff-permissions',
     title: 'Permisos de staff',
     description: 'Habilitar o deshabilitar modulos para personal operativo.',
