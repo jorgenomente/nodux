@@ -45,6 +45,11 @@ type SuperadminContext = {
   isPlatformAdmin: boolean;
 };
 
+type InviteUserRow = {
+  user_id?: string | null;
+  invited_user_id?: string | null;
+};
+
 type SuperadminContextResult =
   | { status: 'ok'; context: SuperadminContext }
   | { status: 'no_user' }
@@ -361,6 +366,9 @@ export default async function SuperadminPage({
       }
 
       const admin = createAdminSupabaseClient();
+      let createdUserId: string | null = null;
+      let createdInAuth = false;
+
       const { data: createdUser, error: createUserError } =
         await admin.auth.admin.createUser({
           email: ownerEmail,
@@ -369,19 +377,22 @@ export default async function SuperadminPage({
           user_metadata: ownerName ? { display_name: ownerName } : undefined,
         });
 
+      const message = String(createUserError?.message ?? '').toLowerCase();
+      const alreadyExists =
+        createUserError?.code === 'email_exists' ||
+        message.includes('already') ||
+        message.includes('exists');
+
       if (createUserError || !createdUser.user?.id) {
-        const message = String(createUserError?.message ?? '').toLowerCase();
-        const alreadyExists =
-          createUserError?.code === 'email_exists' ||
-          message.includes('already') ||
-          message.includes('exists');
-        if (alreadyExists) {
-          redirect(`/superadmin?org=${orgId}&result=owner_email_exists`);
+        if (!alreadyExists) {
+          redirect(`/superadmin?org=${orgId}&result=owner_create_error`);
         }
-        redirect(`/superadmin?org=${orgId}&result=owner_create_error`);
+      } else {
+        createdUserId = createdUser.user.id;
+        createdInAuth = true;
       }
 
-      const { error: inviteError } = await auth.supabase.rpc(
+      const { data: inviteData, error: inviteError } = await auth.supabase.rpc(
         'rpc_invite_user_to_org',
         {
           p_org_id: orgId,
@@ -391,11 +402,38 @@ export default async function SuperadminPage({
         },
       );
       if (inviteError) {
+        if (createdInAuth && createdUserId) {
+          await admin.auth.admin.deleteUser(createdUserId);
+        }
         console.error('[superadmin.createOrgAdmin] invite failed', {
           orgId,
           ownerEmail,
           error: inviteError.message,
+          code: inviteError.code,
+          details: inviteError.details,
+          hint: inviteError.hint,
         });
+        redirect(`/superadmin?org=${orgId}&result=owner_create_error`);
+      }
+
+      const inviteRows = Array.isArray(inviteData)
+        ? (inviteData as InviteUserRow[])
+        : [];
+      const invitedUserId =
+        inviteRows[0]?.invited_user_id ??
+        inviteRows[0]?.user_id ??
+        createdUserId;
+      if (!invitedUserId) {
+        if (createdInAuth && createdUserId) {
+          await admin.auth.admin.deleteUser(createdUserId);
+        }
+        console.error(
+          '[superadmin.createOrgAdmin] invite response without user id',
+          {
+            orgId,
+            ownerEmail,
+          },
+        );
         redirect(`/superadmin?org=${orgId}&result=owner_create_error`);
       }
 
@@ -403,7 +441,7 @@ export default async function SuperadminPage({
         'rpc_update_user_membership',
         {
           p_org_id: orgId,
-          p_user_id: createdUser.user.id,
+          p_user_id: invitedUserId,
           p_role: 'org_admin',
           p_is_active: true,
           p_display_name: ownerName || '',
@@ -411,10 +449,16 @@ export default async function SuperadminPage({
         },
       );
       if (membershipError) {
+        if (createdInAuth && createdUserId) {
+          await admin.auth.admin.deleteUser(createdUserId);
+        }
         console.error('[superadmin.createOrgAdmin] membership failed', {
           orgId,
-          userId: createdUser.user.id,
+          userId: invitedUserId,
           error: membershipError.message,
+          code: membershipError.code,
+          details: membershipError.details,
+          hint: membershipError.hint,
         });
         redirect(`/superadmin?org=${orgId}&result=owner_create_error`);
       }

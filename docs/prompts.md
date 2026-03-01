@@ -2727,3 +2727,23 @@ estoy probando darle al boton de imprimir ticket y me dice Habilita pop-ups para
 **Prompt**
 estoy en https://app.nodux.app/settings/users y cree un nuevo usuario adming org en
   la org pero me da un mensaje que dice Se creó la cuenta en Auth, pero falló la asignación a la organización/sucursales. El usuario no se creo, podemos ver que puede estar pasando?
+
+## 2026-03-01 15:38 -03 — Diagnóstico prod: Auth creado pero falla asignación org/sucursales
+
+**Lote:** users-membership-prod-diagnosis-hotfix
+**Objetivo:** Diagnosticar y resolver en producción el error persistente en `/settings/users` donde se crea usuario en Auth pero falla la asignación en `org_users/branch_memberships`.
+
+**Prompt**
+sigo teniendo este mensaje Se creó la cuenta en Auth, pero falló la asignación a la organización/sucursales. como podemos diagnosticar lo que puede estar pasando?
+
+## 2026-03-01 15:55 -03 — Hardening alta usuarios: evitar huérfanos y recuperar emails existentes
+
+**Lote:** users-membership-prod-diagnosis-hotfix
+**Objetivo:** Evitar creación de usuarios huérfanos cuando falle la asignación a org/sucursales y permitir recuperar usuarios huérfanos previos por email.
+
+**Prompt**
+si intente dos usarios previos que estan huerfanos que son samuel@demo.com y samuelg@demo.com estaba intentando agregarlos a la org demo veo que ya se agrego este usuario  de prueba Diag User
+
+diag.users.fix2.1772390282950@demo.com
+
+sigo obteniendo Se creó la cuenta en Auth, pero falló la asignación a la organización/sucursales. despues de desplegar a prod. me gustaria que no se creen los usuarios si no se asignan correctamente porque despues quedan huerfanos y no los puedo agregar.

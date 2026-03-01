@@ -105,6 +105,11 @@ Desactivar usuario (revocar acceso operativo)
 
 Restablecer contraseña (solo admin)
 
+Regla operativa de robustez:
+
+- Si falla la asignación de membresía luego de crear en Auth, el backend revierte la cuenta recién creada para evitar usuarios huérfanos.
+- Si el email ya existe en Auth (incluyendo cuentas huérfanas previas), el flujo reutiliza ese usuario y completa la asignación a la org/sucursales.
+
 Data Contract
 Lectura
 

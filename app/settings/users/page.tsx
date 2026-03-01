@@ -30,6 +30,11 @@ type BranchRow = {
   is_active: boolean;
 };
 
+type InviteUserRow = {
+  user_id?: string | null;
+  invited_user_id?: string | null;
+};
+
 const roleLabel = (role: SettingsUserRow['role']) => {
   if (role === 'org_admin') return 'Org Admin';
   if (role === 'staff') return 'Staff';
@@ -95,6 +100,9 @@ export default async function SettingsUsersPage({
 
     const admin = createAdminSupabaseClient();
 
+    let createdUserId: string | null = null;
+    let createdInAuth = false;
+
     const { data: createdUser, error: createError } =
       await admin.auth.admin.createUser({
         email,
@@ -103,35 +111,61 @@ export default async function SettingsUsersPage({
         user_metadata: displayName ? { display_name: displayName } : undefined,
       });
 
+    const message = String(createError?.message ?? '').toLowerCase();
+    const alreadyExists =
+      createError?.code === 'email_exists' ||
+      message.includes('already') ||
+      message.includes('exists');
+
     if (createError || !createdUser.user?.id) {
-      const message = String(createError?.message ?? '').toLowerCase();
-      const alreadyExists =
-        createError?.code === 'email_exists' ||
-        message.includes('already') ||
-        message.includes('exists');
-
-      if (alreadyExists) {
-        redirect('/settings/users?result=email_exists');
+      if (!alreadyExists) {
+        redirect('/settings/users?result=create_failed');
       }
-
-      redirect('/settings/users?result=create_failed');
+    } else {
+      createdUserId = createdUser.user.id;
+      createdInAuth = true;
     }
 
-    const { error: inviteError } = await auth.supabase.rpc(
+    const { data: inviteData, error: inviteError } = await auth.supabase.rpc(
       'rpc_invite_user_to_org',
       {
-      p_org_id: auth.orgId,
-      p_email: email,
-      p_role: role,
-      p_branch_ids: role === 'staff' ? branchIds : [],
+        p_org_id: auth.orgId,
+        p_email: email,
+        p_role: role,
+        p_branch_ids: role === 'staff' ? branchIds : [],
       },
     );
     if (inviteError) {
+      if (createdInAuth && createdUserId) {
+        await admin.auth.admin.deleteUser(createdUserId);
+      }
+      const message = String(createError?.message ?? '').toLowerCase();
       console.error('[settings.users.create] rpc_invite_user_to_org failed', {
         orgId: auth.orgId,
         email,
         role,
         error: inviteError.message,
+        code: inviteError.code,
+        details: inviteError.details,
+        hint: inviteError.hint,
+        createError: message || null,
+      });
+      redirect('/settings/users?result=membership_failed');
+    }
+
+    const inviteRows = Array.isArray(inviteData)
+      ? (inviteData as InviteUserRow[])
+      : [];
+    const invitedUserId =
+      inviteRows[0]?.invited_user_id ?? inviteRows[0]?.user_id ?? createdUserId;
+    if (!invitedUserId) {
+      if (createdInAuth && createdUserId) {
+        await admin.auth.admin.deleteUser(createdUserId);
+      }
+      console.error('[settings.users.create] invite response without user id', {
+        orgId: auth.orgId,
+        email,
+        role,
       });
       redirect('/settings/users?result=membership_failed');
     }
@@ -140,7 +174,7 @@ export default async function SettingsUsersPage({
       'rpc_update_user_membership',
       {
         p_org_id: auth.orgId,
-        p_user_id: createdUser.user.id,
+        p_user_id: invitedUserId,
         p_role: role,
         p_is_active: true,
         p_display_name: displayName,
@@ -148,13 +182,19 @@ export default async function SettingsUsersPage({
       },
     );
     if (membershipError) {
+      if (createdInAuth && createdUserId) {
+        await admin.auth.admin.deleteUser(createdUserId);
+      }
       console.error(
         '[settings.users.create] rpc_update_user_membership failed',
         {
           orgId: auth.orgId,
-          userId: createdUser.user.id,
+          userId: invitedUserId,
           role,
           error: membershipError.message,
+          code: membershipError.code,
+          details: membershipError.details,
+          hint: membershipError.hint,
         },
       );
       redirect('/settings/users?result=membership_failed');

@@ -7394,3 +7394,59 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run db:rls:smoke OK (allow/deny verificado)
 
 **Commit:** N/A
+
+## 2026-03-01 15:38 -03 — Hotfix prod: `rpc_invite_user_to_org` error SQL 42702
+
+**Tipo:** schema/tests/decision
+**Lote:** users-membership-prod-diagnosis-hotfix
+**Descripción:** Se diagnosticó en producción el fallo de alta en `/settings/users`: `auth.admin.createUser` creaba el usuario, pero `rpc_invite_user_to_org` fallaba con `42702 column reference "user_id" is ambiguous`, dejando usuarios huérfanos en Auth sin `org_users`. Se aplicaron hotfixes de DB para eliminar conflicto de nombres (OUT param y referencias SQL), y se verificó contra producción con prueba sintética `createUser + rpc_invite_user_to_org + rpc_update_user_membership` en estado OK.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260301170000_065_fix_rpc_invite_user_to_org_ambiguous_user_id.sql
+- supabase/migrations/20260301171500_066_fix_rpc_invite_user_to_org_out_param_conflict.sql
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-03-01)
+- npm run db:seed:demo OK (2026-03-01)
+- npm run db:rls:smoke OK (2026-03-01)
+- Producción: `npx supabase db push --linked --yes` OK (migraciones 065 y 066)
+- Producción: prueba sintética de alta y membresía OK (`invite_error=null`, `update_error=null`)
+
+**Commit:** N/A
+
+## 2026-03-01 15:55 -03 — Prod hotfix final: alta usuarios sin huérfanos + recuperación por email existente
+
+**Tipo:** ui/infra/schema/tests
+**Lote:** users-membership-prod-diagnosis-hotfix
+**Descripción:** Se implementó hardening en `createUser` de `/settings/users` y `/superadmin` para evitar huérfanos: cuando `auth.admin.createUser` fue exitoso pero falla cualquier RPC de membresía, se ejecuta rollback compensatorio eliminando la cuenta recién creada en Auth. Además, si el email ya existe (incluye huérfanos previos), el flujo ahora reutiliza el usuario existente e intenta asignación a org en lugar de abortar por `email_exists`. Se aplicaron migraciones 065/066 a prod y se redeployó `nodux.app`.
+
+**Archivos afectados:**
+
+- app/settings/users/page.tsx
+- app/superadmin/page.tsx
+- supabase/migrations/20260301170000_065_fix_rpc_invite_user_to_org_ambiguous_user_id.sql
+- supabase/migrations/20260301171500_066_fix_rpc_invite_user_to_org_out_param_conflict.sql
+- docs/docs-app-screens-settings-users.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-01)
+- npm run build OK (2026-03-01)
+- npm run db:reset OK (2026-03-01)
+- npm run db:seed:demo OK (2026-03-01)
+- npm run db:rls:smoke OK (2026-03-01)
+- Producción: `npx supabase db push --linked --yes` OK (065 y 066)
+- Producción: `npx vercel --prod` OK (alias `https://nodux.app`)
+- Producción: recuperación manual de huérfanos `samuel@demo.com` y `samuelg@demo.com` OK (invite/update sin error)
+
+**Commit:** N/A
