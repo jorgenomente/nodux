@@ -7161,3 +7161,85 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run build OK (2026-03-01)
 
 **Commit:** N/A
+
+## 2026-03-01 12:46 -03 — Sales Statistics: separación ventas vs proveedores/pagos
+
+**Tipo:** ui/docs
+**Lote:** sales-statistics-separate-sales-vs-suppliers-payments
+**Descripción:** Se reorganizó `/sales/statistics` para separar la información en dos secciones desplegables independientes: `Ventas de artículos` y `Proveedores y pagos`. En la sección de proveedores se incorporaron KPIs y rankings basados en `v_supplier_payables_admin` (pagado, pendiente, vencidas, proveedores más importantes, más frecuentes y menos solicitados), manteniendo además la relevancia por ventas. Se actualizó el contrato de pantalla y contexto vivo.
+
+**Archivos afectados:**
+
+- app/sales/statistics/page.tsx
+- docs/docs-app-screens-sales-statistics.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint FAIL (2026-03-01) por errores preexistentes fuera de alcance en `apps/video/build/*` y `apps/postcss.config.mjs`.
+- npx eslint app/sales/statistics/page.tsx OK (2026-03-01)
+- npm run build OK (2026-03-01)
+
+**Commit:** N/A
+
+## 2026-03-01 13:04 -03 — Sales Statistics: bloque “Mostrando” y lock de sucursal única
+
+**Tipo:** ui/docs
+**Lote:** sales-statistics-active-config-and-single-branch-lock
+**Descripción:** Se agregó en `/sales/statistics` un bloque de contexto `Mostrando` debajo de filtros para indicar configuración activa (sucursal, rango y modo aplicado). Además, si el usuario tiene una única sucursal asignada en `branch_memberships`, la pantalla fuerza ese `branch_id` en servidor, lo deja preseleccionado y bloqueado en UI, y preserva ese scope en presets/limpiar.
+
+**Archivos afectados:**
+
+- app/sales/statistics/page.tsx
+- docs/docs-app-screens-sales-statistics.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npx eslint app/sales/statistics/page.tsx OK (2026-03-01)
+- npm run build OK (2026-03-01)
+
+**Commit:** N/A
+
+## 2026-03-01 13:09 -03 — Dashboard/Products: quitar texto de contrato en encabezados
+
+**Tipo:** ui/docs
+**Lote:** ui-remove-contract-labels-dashboard-products
+**Descripción:** Se removió el texto técnico de contrato en los subtítulos de `/dashboard` y `/products` para reducir ruido visual en UI operativa.
+
+**Archivos afectados:**
+
+- app/dashboard/page.tsx
+- app/products/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint FAIL (2026-03-01) por errores preexistentes fuera de alcance en `apps/video/build/*` y `apps/postcss.config.mjs`.
+- npm run build OK (2026-03-01)
+
+**Commit:** N/A
+
+## 2026-03-01 13:20 -03 — Lint global: fix de scope en ESLint
+
+**Tipo:** infra/docs
+**Lote:** lint-global-ignore-generated-workspaces
+**Descripción:** Se corrigió el scope de `npm run lint` en `eslint.config.mjs` agregando ignores explícitos para `apps/**` y bundles generados (`**/*.bundle.js`, `**/bundle.js`). Con esto se evita analizar artefactos del workspace de video y se elimina ruido de reglas/plugins no presentes en este app.
+
+**Archivos afectados:**
+
+- eslint.config.mjs
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-01)
+- npm run build OK (2026-03-01)
+
+**Commit:** N/A

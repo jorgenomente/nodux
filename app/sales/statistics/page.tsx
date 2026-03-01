@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import type { ReactNode } from 'react';
 
 import PageShell from '@/app/components/PageShell';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
@@ -33,12 +34,42 @@ type SalesStatisticsRow = {
   supplier_name: string | null;
 };
 
+type SupplierPayableRow = {
+  payable_id: string;
+  org_id: string;
+  branch_id: string;
+  branch_name: string | null;
+  supplier_id: string;
+  supplier_name: string | null;
+  order_id: string;
+  order_status: string;
+  payable_status: string;
+  payment_state: string;
+  estimated_amount: number | string | null;
+  invoice_amount: number | string | null;
+  paid_amount: number | string | null;
+  outstanding_amount: number | string | null;
+  due_on: string | null;
+  is_overdue: boolean | null;
+  created_at: string;
+};
+
 type AggregatedMetric = {
   key: string;
   label: string;
   units: number;
   revenue: number;
   saleCount: number;
+};
+
+type SupplierPaymentsMetric = {
+  key: string;
+  label: string;
+  ordersCount: number;
+  totalPaid: number;
+  totalOutstanding: number;
+  totalInvoiced: number;
+  overdueCount: number;
 };
 
 const formatCurrency = (value: number) =>
@@ -96,6 +127,14 @@ const getPresetDates = (preset: string) => {
   return { from: '', to: '' };
 };
 
+const getPresetLabel = (preset: string) => {
+  if (preset === 'ytd') return 'Año actual';
+  if (preset === 'last_90_days') return 'Últimos 90 días';
+  if (preset === 'last_30_days') return 'Últimos 30 días';
+  if (preset === 'last_7_days') return 'Últimos 7 días';
+  return 'Histórico completo';
+};
+
 const getIsoWeekLabel = (date: Date) => {
   const utc = new Date(
     Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
@@ -121,6 +160,38 @@ const sortByRevenueAsc = (a: AggregatedMetric, b: AggregatedMetric) =>
 
 const sortByUnitsAsc = (a: AggregatedMetric, b: AggregatedMetric) =>
   a.units - b.units || a.revenue - b.revenue || a.saleCount - b.saleCount;
+
+const sortSupplierByPaidDesc = (
+  a: SupplierPaymentsMetric,
+  b: SupplierPaymentsMetric,
+) =>
+  b.totalPaid - a.totalPaid ||
+  b.ordersCount - a.ordersCount ||
+  b.totalOutstanding - a.totalOutstanding;
+
+const sortSupplierByOutstandingDesc = (
+  a: SupplierPaymentsMetric,
+  b: SupplierPaymentsMetric,
+) =>
+  b.totalOutstanding - a.totalOutstanding ||
+  b.ordersCount - a.ordersCount ||
+  b.totalPaid - a.totalPaid;
+
+const sortSupplierByOrdersDesc = (
+  a: SupplierPaymentsMetric,
+  b: SupplierPaymentsMetric,
+) =>
+  b.ordersCount - a.ordersCount ||
+  b.totalPaid - a.totalPaid ||
+  b.totalOutstanding - a.totalOutstanding;
+
+const sortSupplierByOrdersAsc = (
+  a: SupplierPaymentsMetric,
+  b: SupplierPaymentsMetric,
+) =>
+  a.ordersCount - b.ordersCount ||
+  a.totalPaid - b.totalPaid ||
+  a.totalOutstanding - b.totalOutstanding;
 
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
 const WEEKDAY_LABELS: Record<number, string> = {
@@ -187,6 +258,96 @@ function RankingTable({
   );
 }
 
+function CollapsibleSection({
+  title,
+  description,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  description: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <details
+      open={defaultOpen}
+      className="rounded-2xl border border-zinc-200 bg-white"
+    >
+      <summary className="cursor-pointer list-none px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
+            <p className="text-xs text-zinc-500">{description}</p>
+          </div>
+          <span className="rounded-full border border-zinc-200 px-2 py-1 text-[11px] text-zinc-600">
+            Desplegar
+          </span>
+        </div>
+      </summary>
+      <div className="border-t border-zinc-100 p-4">{children}</div>
+    </details>
+  );
+}
+
+function SupplierPaymentsTable({
+  title,
+  subtitle,
+  rows,
+}: {
+  title: string;
+  subtitle: string;
+  rows: SupplierPaymentsMetric[];
+}) {
+  return (
+    <article className="rounded-xl border border-zinc-200 bg-white p-4">
+      <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
+      <p className="mt-1 text-xs text-zinc-500">{subtitle}</p>
+      {rows.length === 0 ? (
+        <p className="mt-3 text-sm text-zinc-500">
+          Sin cuentas por pagar para este período.
+        </p>
+      ) : (
+        <div className="mt-3 overflow-x-auto">
+          <table className="min-w-full text-left text-xs">
+            <thead className="text-zinc-500 uppercase">
+              <tr>
+                <th className="px-2 py-1">Proveedor</th>
+                <th className="px-2 py-1 text-right">Pedidos</th>
+                <th className="px-2 py-1 text-right">Pagado</th>
+                <th className="px-2 py-1 text-right">Pendiente</th>
+                <th className="px-2 py-1 text-right">Vencidas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr
+                  key={`${title}-${row.key}`}
+                  className="border-t border-zinc-100"
+                >
+                  <td className="px-2 py-1 text-zinc-800">{row.label}</td>
+                  <td className="px-2 py-1 text-right text-zinc-700">
+                    {row.ordersCount}
+                  </td>
+                  <td className="px-2 py-1 text-right text-zinc-700">
+                    {formatCurrency(row.totalPaid)}
+                  </td>
+                  <td className="px-2 py-1 text-right text-zinc-700">
+                    {formatCurrency(row.totalOutstanding)}
+                  </td>
+                  <td className="px-2 py-1 text-right text-zinc-700">
+                    {row.overdueCount}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </article>
+  );
+}
+
 export default async function SalesStatisticsPage({
   searchParams,
 }: {
@@ -210,11 +371,38 @@ export default async function SalesStatisticsPage({
     .eq('org_id', orgId)
     .eq('is_active', true)
     .order('name');
-  const branches = (branchesData ?? []) as BranchOption[];
+  const allBranches = (branchesData ?? []) as BranchOption[];
 
-  const selectedBranchId =
+  const { data: branchMembershipsData } = await supabase
+    .from('branch_memberships')
+    .select('branch_id')
+    .eq('org_id', orgId)
+    .eq('user_id', session.userId)
+    .eq('is_active', true);
+
+  const membershipBranchIds = new Set(
+    (branchMembershipsData ?? [])
+      .map((row) => String(row.branch_id ?? '').trim())
+      .filter(Boolean),
+  );
+  const assignedBranches =
+    membershipBranchIds.size > 0
+      ? allBranches.filter((branch) => membershipBranchIds.has(branch.id))
+      : [];
+  const hasSingleAssignedBranch = assignedBranches.length === 1;
+  const forcedBranchId = hasSingleAssignedBranch ? assignedBranches[0].id : '';
+  const branches =
+    membershipBranchIds.size > 0 ? assignedBranches : allBranches;
+  const branchIds = new Set(branches.map((branch) => branch.id));
+
+  const requestedBranchId =
     typeof resolvedSearchParams.branch_id === 'string'
       ? resolvedSearchParams.branch_id
+      : '';
+  const selectedBranchId = hasSingleAssignedBranch
+    ? forcedBranchId
+    : branchIds.has(requestedBranchId)
+      ? requestedBranchId
       : '';
   const selectedPreset =
     typeof resolvedSearchParams.preset === 'string'
@@ -255,6 +443,24 @@ export default async function SalesStatisticsPage({
 
   const { data: statisticsData } = await query;
   const rows = (statisticsData ?? []) as unknown as SalesStatisticsRow[];
+
+  let payablesQuery = supabase
+    .from('v_supplier_payables_admin' as never)
+    .select('*')
+    .eq('org_id', orgId);
+
+  if (selectedBranchId) {
+    payablesQuery = payablesQuery.eq('branch_id', selectedBranchId);
+  }
+  if (effectiveFromIso) {
+    payablesQuery = payablesQuery.gte('created_at', effectiveFromIso);
+  }
+  if (effectiveToIso) {
+    payablesQuery = payablesQuery.lte('created_at', effectiveToIso);
+  }
+
+  const { data: payablesData } = await payablesQuery;
+  const supplierPayables = (payablesData ?? []) as unknown as SupplierPayableRow[];
 
   const saleIds = new Set<string>();
   const productMap = new Map<
@@ -477,18 +683,91 @@ export default async function SalesStatisticsPage({
   const bestWeeks = [...weeks].sort(sortByRevenueDesc).slice(0, 10);
   const bestMonths = [...months].sort(sortByRevenueDesc).slice(0, 10);
 
+  const supplierPaymentsMap = new Map<string, SupplierPaymentsMetric>();
+  let totalSupplierPaid = 0;
+  let totalSupplierOutstanding = 0;
+  let supplierOverduePayablesCount = 0;
+
+  supplierPayables.forEach((row) => {
+    const supplierKey = String(row.supplier_id ?? '').trim();
+    if (!supplierKey) return;
+
+    const paidAmount = Number(row.paid_amount ?? 0);
+    const outstandingAmount = Number(row.outstanding_amount ?? 0);
+    const invoiceAmount = Number(row.invoice_amount ?? row.estimated_amount ?? 0);
+    const isOverdue = Boolean(row.is_overdue) || row.payment_state === 'overdue';
+
+    const safePaidAmount = Number.isFinite(paidAmount) ? paidAmount : 0;
+    const safeOutstandingAmount = Number.isFinite(outstandingAmount)
+      ? outstandingAmount
+      : 0;
+    const safeInvoiceAmount = Number.isFinite(invoiceAmount) ? invoiceAmount : 0;
+
+    totalSupplierPaid += safePaidAmount;
+    totalSupplierOutstanding += safeOutstandingAmount;
+    if (isOverdue) {
+      supplierOverduePayablesCount += 1;
+    }
+
+    const current = supplierPaymentsMap.get(supplierKey) ?? {
+      key: supplierKey,
+      label: String(row.supplier_name ?? '').trim() || 'Proveedor sin nombre',
+      ordersCount: 0,
+      totalPaid: 0,
+      totalOutstanding: 0,
+      totalInvoiced: 0,
+      overdueCount: 0,
+    };
+
+    current.ordersCount += 1;
+    current.totalPaid += safePaidAmount;
+    current.totalOutstanding += safeOutstandingAmount;
+    current.totalInvoiced += safeInvoiceAmount;
+    if (isOverdue) {
+      current.overdueCount += 1;
+    }
+
+    supplierPaymentsMap.set(supplierKey, current);
+  });
+
+  const supplierPaymentsRows = Array.from(supplierPaymentsMap.values());
+  const topSuppliersByPaid = [...supplierPaymentsRows]
+    .sort(sortSupplierByPaidDesc)
+    .slice(0, 10);
+  const topSuppliersByOutstanding = [...supplierPaymentsRows]
+    .sort(sortSupplierByOutstandingDesc)
+    .slice(0, 10);
+  const frequentSuppliers = [...supplierPaymentsRows]
+    .sort(sortSupplierByOrdersDesc)
+    .slice(0, 10);
+  const leastFrequentSuppliers = [...supplierPaymentsRows]
+    .filter((row) => row.ordersCount > 0)
+    .sort(sortSupplierByOrdersAsc)
+    .slice(0, 10);
+
   const averageTicket = saleIds.size > 0 ? totalRevenue / saleIds.size : 0;
   const selectedBranchName =
     branches.find((branch) => branch.id === selectedBranchId)?.name ?? '';
+  const activePresetLabel = getPresetLabel(selectedPreset);
+  const activeModeLabel =
+    manualFromDate || manualToDate ? 'Rango manual' : activePresetLabel;
+  const isSingleBranchScoped = hasSingleAssignedBranch;
 
   const buildPresetHref = (preset: string) => {
     const params = new URLSearchParams();
-    if (selectedBranchId) {
+    if (isSingleBranchScoped && forcedBranchId) {
+      params.set('branch_id', forcedBranchId);
+    } else if (selectedBranchId) {
       params.set('branch_id', selectedBranchId);
     }
     params.set('preset', preset);
     return `/sales/statistics?${params.toString()}`;
   };
+
+  const clearHref =
+    isSingleBranchScoped && forcedBranchId
+      ? `/sales/statistics?branch_id=${forcedBranchId}`
+      : '/sales/statistics';
 
   return (
     <PageShell>
@@ -568,15 +847,21 @@ export default async function SalesStatisticsPage({
               <select
                 name="branch_id"
                 defaultValue={selectedBranchId}
+                disabled={isSingleBranchScoped}
                 className="rounded border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
               >
-                <option value="">Todas</option>
+                {!isSingleBranchScoped ? <option value="">Todas</option> : null}
                 {branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>
                     {branch.name}
                   </option>
                 ))}
               </select>
+              {isSingleBranchScoped ? (
+                <span className="text-[11px] text-zinc-500">
+                  Sucursal fija por asignación de usuario.
+                </span>
+              ) : null}
             </label>
             <label className="flex flex-col gap-1 text-xs text-zinc-600">
               Desde
@@ -597,6 +882,9 @@ export default async function SalesStatisticsPage({
               />
             </label>
             <div className="flex items-end gap-2">
+              {isSingleBranchScoped && forcedBranchId ? (
+                <input type="hidden" name="branch_id" value={forcedBranchId} />
+              ) : null}
               <button
                 type="submit"
                 className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
@@ -604,116 +892,211 @@ export default async function SalesStatisticsPage({
                 Aplicar
               </button>
               <Link
-                href="/sales/statistics"
+                href={clearHref}
                 className="rounded border border-zinc-200 px-4 py-2 text-sm text-zinc-700"
               >
                 Limpiar
               </Link>
             </div>
           </form>
+
+          <div className="mt-4 rounded-xl border border-zinc-100 bg-zinc-50 p-3">
+            <p className="text-xs font-semibold tracking-wide text-zinc-700 uppercase">
+              Mostrando
+            </p>
+            <p className="mt-1 text-sm text-zinc-700">
+              Configuración activa:{' '}
+              <span className="font-medium text-zinc-900">
+                {selectedBranchName || 'Todas las sucursales'} ·{' '}
+                {effectiveFromDate || 'Inicio histórico'} →{' '}
+                {effectiveToDate || 'Hasta hoy'} · {activeModeLabel}
+              </span>
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              Esta configuración aplica a ventas de artículos y a proveedores y
+              pagos.
+            </p>
+          </div>
         </section>
 
-        <section className="grid gap-3 md:grid-cols-5">
-          <article className="rounded-xl border border-zinc-200 bg-white p-4">
-            <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-              Ventas
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-zinc-900">
-              {saleIds.size}
-            </p>
-          </article>
-          <article className="rounded-xl border border-zinc-200 bg-white p-4">
-            <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-              Ingresos
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-zinc-900">
-              {formatCurrency(totalRevenue)}
-            </p>
-          </article>
-          <article className="rounded-xl border border-zinc-200 bg-white p-4">
-            <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-              Unidades
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-zinc-900">
-              {formatUnits(totalUnits)}
-            </p>
-          </article>
-          <article className="rounded-xl border border-zinc-200 bg-white p-4">
-            <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-              Ticket promedio
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-zinc-900">
-              {formatCurrency(averageTicket)}
-            </p>
-          </article>
-          <article className="rounded-xl border border-zinc-200 bg-white p-4">
-            <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-              Productos vendidos
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-zinc-900">
-              {products.length}
-            </p>
-          </article>
-        </section>
+        <CollapsibleSection
+          title="Ventas de artículos"
+          description="Todo lo relacionado al rendimiento de ventas y tendencias temporales."
+          defaultOpen
+        >
+          <div className="grid gap-3 md:grid-cols-5">
+            <article className="rounded-xl border border-zinc-200 bg-white p-4">
+              <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                Ventas
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                {saleIds.size}
+              </p>
+            </article>
+            <article className="rounded-xl border border-zinc-200 bg-white p-4">
+              <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                Ingresos
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                {formatCurrency(totalRevenue)}
+              </p>
+            </article>
+            <article className="rounded-xl border border-zinc-200 bg-white p-4">
+              <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                Unidades
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                {formatUnits(totalUnits)}
+              </p>
+            </article>
+            <article className="rounded-xl border border-zinc-200 bg-white p-4">
+              <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                Ticket promedio
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                {formatCurrency(averageTicket)}
+              </p>
+            </article>
+            <article className="rounded-xl border border-zinc-200 bg-white p-4">
+              <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                Productos vendidos
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                {products.length}
+              </p>
+            </article>
+          </div>
 
-        <section className="grid gap-4 lg:grid-cols-2">
-          <RankingTable
-            title="Productos más vendidos (unidades)"
-            subtitle="Top 10 por cantidad de unidades vendidas."
-            rows={topProductsByUnits}
-          />
-          <RankingTable
-            title="Productos que más facturan"
-            subtitle="Top 10 por ingresos totales."
-            rows={topProductsByRevenue}
-          />
-          <RankingTable
-            title="Productos con menor movimiento (unidades)"
-            subtitle="Bottom 10 del período seleccionado."
-            rows={lowProductsByUnits}
-          />
-          <RankingTable
-            title="Productos con menor facturación"
-            subtitle="Bottom 10 por ingresos del período."
-            rows={lowProductsByRevenue}
-          />
-        </section>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <RankingTable
+              title="Productos más vendidos (unidades)"
+              subtitle="Top 10 por cantidad de unidades vendidas."
+              rows={topProductsByUnits}
+            />
+            <RankingTable
+              title="Productos que más facturan"
+              subtitle="Top 10 por ingresos totales."
+              rows={topProductsByRevenue}
+            />
+            <RankingTable
+              title="Productos con menor movimiento (unidades)"
+              subtitle="Bottom 10 del período seleccionado."
+              rows={lowProductsByUnits}
+            />
+            <RankingTable
+              title="Productos con menor facturación"
+              subtitle="Bottom 10 por ingresos del período."
+              rows={lowProductsByRevenue}
+            />
+          </div>
 
-        <section className="grid gap-4 lg:grid-cols-2">
-          <RankingTable
-            title="Proveedores más relevantes"
-            subtitle="Top 10 por ingresos de productos vendidos."
-            rows={topSuppliersByRevenue}
-          />
-          <RankingTable
-            title="Proveedores con menor movimiento"
-            subtitle="Bottom 10 por unidades vendidas."
-            rows={lowSuppliersByUnits}
-          />
-        </section>
+          <div className="mt-4 grid gap-4 lg:grid-cols-3">
+            <RankingTable
+              title="Ventas por día de la semana"
+              subtitle="Comparativo por ingresos para identificar qué día rinde más."
+              rows={[...weekdays].sort(sortByRevenueDesc)}
+            />
+            <RankingTable
+              title="Días con más ventas"
+              subtitle="Top 10 días por ingresos."
+              rows={bestDays}
+            />
+            <RankingTable
+              title="Semanas con más ventas"
+              subtitle="Top 10 semanas ISO por ingresos."
+              rows={bestWeeks}
+            />
+            <RankingTable
+              title="Meses con más ventas"
+              subtitle="Top 10 meses por ingresos."
+              rows={bestMonths}
+            />
+          </div>
+        </CollapsibleSection>
 
-        <section className="grid gap-4 lg:grid-cols-3">
-          <RankingTable
-            title="Ventas por día de la semana"
-            subtitle="Comparativo por ingresos para identificar qué día rinde más."
-            rows={[...weekdays].sort(sortByRevenueDesc)}
-          />
-          <RankingTable
-            title="Días con más ventas"
-            subtitle="Top 10 días por ingresos."
-            rows={bestDays}
-          />
-          <RankingTable
-            title="Semanas con más ventas"
-            subtitle="Top 10 semanas ISO por ingresos."
-            rows={bestWeeks}
-          />
-          <RankingTable
-            title="Meses con más ventas"
-            subtitle="Top 10 meses por ingresos."
-            rows={bestMonths}
-          />
-        </section>
+        <CollapsibleSection
+          title="Proveedores y pagos"
+          description="Pagos hechos a proveedores, saldos pendientes y frecuencia de pedidos por proveedor."
+        >
+          <div className="grid gap-3 md:grid-cols-5">
+            <article className="rounded-xl border border-zinc-200 bg-white p-4">
+              <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                Cuentas
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                {supplierPayables.length}
+              </p>
+            </article>
+            <article className="rounded-xl border border-zinc-200 bg-white p-4">
+              <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                Pagado
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                {formatCurrency(totalSupplierPaid)}
+              </p>
+            </article>
+            <article className="rounded-xl border border-zinc-200 bg-white p-4">
+              <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                Pendiente
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                {formatCurrency(totalSupplierOutstanding)}
+              </p>
+            </article>
+            <article className="rounded-xl border border-zinc-200 bg-white p-4">
+              <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                Vencidas
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                {supplierOverduePayablesCount}
+              </p>
+            </article>
+            <article className="rounded-xl border border-zinc-200 bg-white p-4">
+              <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+                Proveedores activos
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-zinc-900">
+                {supplierPaymentsRows.length}
+              </p>
+            </article>
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <SupplierPaymentsTable
+              title="Proveedores más importantes"
+              subtitle="Top 10 por monto total pagado."
+              rows={topSuppliersByPaid}
+            />
+            <SupplierPaymentsTable
+              title="Proveedores con mayor saldo pendiente"
+              subtitle="Top 10 por deuda abierta."
+              rows={topSuppliersByOutstanding}
+            />
+            <SupplierPaymentsTable
+              title="Proveedores más frecuentes"
+              subtitle="Top 10 por cantidad de pedidos/facturas."
+              rows={frequentSuppliers}
+            />
+            <SupplierPaymentsTable
+              title="Proveedores menos solicitados"
+              subtitle="Bottom 10 por cantidad de pedidos/facturas."
+              rows={leastFrequentSuppliers}
+            />
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <RankingTable
+              title="Proveedores más relevantes en ventas"
+              subtitle="Top 10 por ingresos de productos vendidos."
+              rows={topSuppliersByRevenue}
+            />
+            <RankingTable
+              title="Proveedores con menor movimiento en ventas"
+              subtitle="Bottom 10 por unidades vendidas."
+              rows={lowSuppliersByUnits}
+            />
+          </div>
+        </CollapsibleSection>
       </div>
     </PageShell>
   );

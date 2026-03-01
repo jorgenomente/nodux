@@ -15,10 +15,11 @@
 Analizar desempeño de ventas en un período o acumulado histórico para tomar
 decisiones operativas rápidas.
 
+- separar analítica en dos vistas desplegables: `Ventas` y `Proveedores/Pagos`
 - ranking de productos (más/menos vendidos y más/menos ingresos)
 - tendencias por día, semana y mes
 - comparación por día de semana (lunes..domingo)
-- relevancia de proveedores según ventas de sus productos
+- ranking de proveedores por ventas y por pagos/deuda/frecuencia de pedidos
 
 ## UI
 
@@ -32,16 +33,30 @@ decisiones operativas rápidas.
 - Sucursal (opcional)
 - Desde / Hasta (fecha)
 - Presets rápidos: histórico, YTD, 90d, 30d, 7d
+- Bloque de contexto visible: `Mostrando` con configuración activa aplicada
+  (sucursal + período + modo de rango)
 
-### Resumen superior
+Reglas de sucursal:
 
-- cantidad de ventas
-- ingresos totales
-- unidades vendidas
-- ticket promedio
-- cantidad de productos vendidos
+- si el usuario tiene una única sucursal asignada, esa sucursal queda
+  preseleccionada y bloqueada en UI.
+- el backend fuerza esa sucursal en consultas para evitar acceso por query params
+  a otras sucursales.
 
-### Bloques de análisis
+### Estructura principal
+
+- dos secciones desplegables:
+  - `Ventas de artículos`
+  - `Proveedores y pagos`
+
+### Sección desplegable: Ventas de artículos
+
+- resumen:
+  - cantidad de ventas
+  - ingresos totales
+  - unidades vendidas
+  - ticket promedio
+  - cantidad de productos vendidos
 
 - Productos:
   - top por unidades
@@ -57,6 +72,22 @@ decisiones operativas rápidas.
   - semanas con más ventas
   - meses con más ventas
 
+### Sección desplegable: Proveedores y pagos
+
+- resumen:
+  - cantidad de cuentas por pagar
+  - total pagado a proveedores
+  - saldo pendiente total
+  - cantidad de cuentas vencidas
+  - cantidad de proveedores activos en el período
+- rankings:
+  - proveedores más importantes por monto pagado
+  - proveedores con mayor saldo pendiente
+  - proveedores más frecuentes (por pedidos/facturas)
+  - proveedores menos solicitados (por pedidos/facturas)
+  - proveedores más relevantes en ventas
+  - proveedores con menor movimiento en ventas
+
 ## Data Contract
 
 ### Lectura principal
@@ -69,6 +100,17 @@ Salida mínima:
 - `product_id`, `product_name`, `quantity`, `unit_price`, `line_total`
 - `supplier_id`, `supplier_name` (proveedor primario del producto, si existe)
 
+### Lectura complementaria (proveedores y pagos)
+
+View: `v_supplier_payables_admin`
+
+Salida mínima:
+
+- `payable_id`, `org_id`, `branch_id`, `branch_name`, `created_at`
+- `supplier_id`, `supplier_name`, `order_id`
+- `payment_state`, `paid_amount`, `outstanding_amount`
+- `invoice_amount`, `estimated_amount`, `is_overdue`
+
 ## Seguridad (RLS)
 
 - Scope por `org_id`.
@@ -77,7 +119,11 @@ Salida mínima:
 
 ## Smoke tests
 
-1. Abrir `/sales/statistics` y ver métricas históricas.
-2. Aplicar filtro por sucursal y verificar cambios en rankings.
+1. Abrir `/sales/statistics` y validar los dos desplegables (`Ventas` y `Proveedores y pagos`).
+2. Aplicar filtro por sucursal y verificar cambios en ambos bloques.
 3. Aplicar rango de fechas manual y verificar tendencias por día/semana/mes.
-4. Validar que “Ver estadísticas” desde `/sales` abre la pantalla.
+4. Validar bloque `Mostrando` y coherencia con filtros activos.
+5. Si un usuario tiene una sola sucursal asignada, validar que no puede cambiar
+   sucursal ni ver datos de otras.
+6. Validar rankings de proveedores por pagos/deuda/frecuencia con datos de `v_supplier_payables_admin`.
+7. Validar que “Ver estadísticas” desde `/sales` abre la pantalla.

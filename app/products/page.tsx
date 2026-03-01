@@ -586,7 +586,7 @@ export default async function ProductsPage({
         <header className="flex flex-col gap-2">
           <h1 className="text-3xl font-semibold text-zinc-900">Productos</h1>
           <p className="text-sm text-zinc-500">
-            Catalogo y stock por sucursal. Contrato: v_products_admin.
+            Catalogo y stock por sucursal.
           </p>
         </header>
 

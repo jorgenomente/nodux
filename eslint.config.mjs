@@ -13,6 +13,10 @@ const eslintConfig = defineConfig([
     'build/**',
     'next-env.d.ts',
     'scripts/**',
+    // Ignore sibling workspace artifacts and generated bundles.
+    'apps/**',
+    '**/*.bundle.js',
+    '**/bundle.js',
   ]),
 ]);
 

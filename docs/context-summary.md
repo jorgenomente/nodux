@@ -105,6 +105,8 @@ Ultima actualizacion: 2026-03-01 10:40
 - `/sales` y `/sales/[saleId]` agregan acciones operativas `Imprimir ticket` (copia no fiscal) y `Emitir factura` para ventas previas no facturadas.
 - Dashboard agrega KPIs de facturación diaria: monto/cantidad facturado, no facturado y porcentaje facturado sobre ventas del día.
 - `/sales` ahora incluye acceso directo a `/sales/statistics`, con análisis por período/sucursal: top y bottom de productos, relevancia de proveedores y tendencias por día/semana/mes.
+- `/sales/statistics` separa la analítica en dos desplegables independientes (`Ventas de artículos` y `Proveedores y pagos`) para consultar por separado rendimiento comercial vs pagos/deuda/frecuencia de proveedores.
+- `/sales/statistics` agrega bloque `Mostrando` con configuración activa (sucursal/período/modo) y fuerza sucursal única cuando el usuario tiene una sola asignación activa.
 - Corrección de método de pago en detalle de venta vía RPC auditada (`sale_payment_method_corrected`) y bloqueada para ventas de sesiones de caja ya cerradas.
 - Las denominaciones son configurables por organización desde preferencias.
 - Pagos a proveedor por sucursal agregados: `supplier_payables` por pedido y `supplier_payments` como movimientos.

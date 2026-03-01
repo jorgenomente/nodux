@@ -2630,3 +2630,49 @@ vamos a trabajar sobre /orders/id en el momento de confirmar recepecion de produ
 
 **Prompt**
 ok ahora vamos a trabajar sobre /orders/id donde confirmo la recepcion. hay una lista del pedido eso esta bien pero lo que dice ordenado me sale de ultimo en la tabla, necesito que salga de primero. aqui debemos agregar el input de precio de venta, que va a modificar el precio del producto del sistema, es el item de precio unitario, el que se usa como precio final en el pos, este input aqui servira para modificarle el precio al articulo en el catalogo general, asi este es un ajuste de precio aplicado inmediatamente. me tiene que dar un sugerido de acuerdo a lo que este registrado como % de ganancia en el proveedor o el 40% por defecto. asi como lo hemos hecho hasta ahora en otros casos. Este precio unitario de venta no tiene nada que ver con las facturas y la orden, esto es para actualizar el precio en el momento de confirmada la recpecion para evitar tener que hacerlo manualmente en el futuro. Entonces por defecto aqui en ese einput debe venir el precio unitario que tiene el producto en el sistema, es el mismo que el precio de venta, entonces agrega eso como una columna nueva despues de precio proveedor. Me gustaria ademas desde configuracion en preferencias  tener un input donde yo pueda configurar ese % de ganancia por defecto, no se si existe ya esto, pero ahora lo establecimos como 40% pero si quisiera ser mas exacto y quiero establecer por defecto 41.5% para realizar estos calculos estimativos en las diferentes paginas, entonces esto yo lo pueda cambiar desde configuracion.
+
+## 2026-03-01 12:46 -03 — Sales Statistics: separar ventas vs proveedores/pagos en desplegables
+
+**Lote:** sales-statistics-separate-sales-vs-suppliers-payments
+**Objetivo:** Reorganizar `/sales/statistics` para separar visualmente la analítica de ventas de artículos y la analítica de proveedores/pagos, permitiendo lectura y búsqueda por separado sin romper contratos existentes.
+
+**Prompt**
+vamos a trabajar ahora sobre /sales/statistics. quiero separar estadistincas de ventas de las estadisticas relacionadas a los proveedores, entocnes que la informacion este contenida en tods desplegables, uno de ventas el otro de proveedores, asi puedo ver todo por separado y buscar informacion por separado ya que son cosas diferentes, de un lado veo todo lo relacionado a las ventas de articulos y por otro los pagos hechos a proveedores, y los proveedores mas importantes los que menos se piden los mas frecuentes etc, que todo sea muy organizado y optimizado para la experiencia de usuario asegurate de entoender todo el contexto necesario para no romper nada
+
+## 2026-03-01 13:04 -03 — Sales Statistics: bloque “Mostrando” + sucursal única bloqueada
+
+**Lote:** sales-statistics-active-config-and-single-branch-lock
+**Objetivo:** Mejorar claridad de lectura en `/sales/statistics` mostrando explícitamente la configuración activa y forzar sucursal única cuando el usuario solo tiene una asignada.
+
+**Prompt**
+agrega otra seccion debajo de la de Periodo activo: Inicio histórico → Hasta hoy · Todas las sucursales
+
+Histórico completo
+Año actual
+Últimos 90 días
+Últimos 30 días
+Últimos 7 días
+Sucursal
+Todas
+Desde
+dd/mm/yyyy
+Hasta
+dd/mm/yyyy
+Aplicar
+Limpiar que me muestre lo que se esta mostrando en ese momento, porque cuando abro la pagina veo informacion pero estoy un poco perdido con respecto a lo que estoy viendo. entonces que diga mostrando: y diga cual es la configuracion usada. Tambien necesito que cuando el usuario tenga solo una suscursal asignada ahi en sucursal que salga por defecto la suscursal asignada y no permita seleccionar otras, esto para limitar que el staff de una sucursal vea esto en otras sucursales
+
+## 2026-03-01 13:09 -03 — Remover texto técnico de contrato en headers
+
+**Lote:** ui-remove-contract-labels-dashboard-products
+**Objetivo:** Limpiar copy de encabezados en `/dashboard` y `/products` quitando la mención explícita a contratos técnicos.
+
+**Prompt**
+quita el texto que dice Contrato: rpc_get_dashboard_admin. en /dashboard y Contrato: v_products_admin. en /products
+
+## 2026-03-01 13:20 -03 — Resolver lint global ignorando artefactos/workspaces externos
+
+**Lote:** lint-global-ignore-generated-workspaces
+**Objetivo:** Dejar `npm run lint` en verde corrigiendo el scope de ESLint para ignorar artefactos generados y carpetas de workspace externas al app principal.
+
+**Prompt**
+puedes solcuionar los lint errors pendientes?

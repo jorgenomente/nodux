@@ -372,9 +372,7 @@ export default async function DashboardPage({
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <header className="flex flex-col gap-2">
           <h1 className="text-2xl font-semibold text-zinc-900">Dashboard</h1>
-          <p className="text-sm text-zinc-500">
-            Visión operativa del negocio. Contrato: rpc_get_dashboard_admin.
-          </p>
+          <p className="text-sm text-zinc-500">Visión operativa del negocio.</p>
         </header>
 
         <section className="flex flex-wrap items-end justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm">
