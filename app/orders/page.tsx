@@ -60,6 +60,15 @@ type ProductPriceRow = {
   unit_price: number | null;
 };
 
+type OrgPreferencesMarkupRow = {
+  default_supplier_markup_pct: number | null;
+};
+
+type SupplierProductPriceRow = {
+  product_id: string;
+  supplier_price: number | null;
+};
+
 type OrderItemAmountRow = {
   order_id: string;
   ordered_qty: number | null;
@@ -252,8 +261,17 @@ export default async function OrdersPage({
     typeof resolvedSearchParams.draft_avg_mode === 'string'
       ? resolvedSearchParams.draft_avg_mode
       : 'cycle';
+  const { data: orgPreferencesMarkupRow } = await supabase
+    .from('org_preferences')
+    .select('default_supplier_markup_pct')
+    .eq('org_id', orgId)
+    .maybeSingle();
+  const orgDefaultMarkupPct = Number(
+    (orgPreferencesMarkupRow as OrgPreferencesMarkupRow | null)
+      ?.default_supplier_markup_pct ?? 40,
+  );
   const draftMarginPct =
-    draftMarginPctRaw === '' ? 0 : Number(draftMarginPctRaw);
+    draftMarginPctRaw === '' ? orgDefaultMarkupPct : Number(draftMarginPctRaw);
 
   let orderQuery = supabase
     .from('v_orders_admin')
@@ -354,11 +372,28 @@ export default async function OrdersPage({
           .eq('org_id', orgId)
           .in('id', suggestionIds)
       : { data: [] };
+  const { data: supplierProductPrices } =
+    draftSupplierId && suggestionIds && suggestionIds.length > 0
+      ? await supabase
+          .from('supplier_products')
+          .select('product_id, supplier_price')
+          .eq('org_id', orgId)
+          .eq('supplier_id', draftSupplierId)
+          .in('product_id', suggestionIds)
+      : { data: [] };
 
   const priceByProduct = new Map<string, number>();
   (suggestionPrices as ProductPriceRow[] | null)?.forEach((row) => {
     if (!row.id) return;
     priceByProduct.set(row.id, Number(row.unit_price ?? 0));
+  });
+  const supplierPriceByProduct = new Map<string, number>();
+  (supplierProductPrices as SupplierProductPriceRow[] | null)?.forEach((row) => {
+    if (!row.product_id) return;
+    supplierPriceByProduct.set(
+      row.product_id,
+      Number(row.supplier_price ?? 0),
+    );
   });
 
   const createOrder = async (formData: FormData) => {
@@ -486,6 +521,10 @@ export default async function OrdersPage({
   priceByProduct.forEach((value, key) => {
     priceByProductRecord[key] = value;
   });
+  const supplierPriceByProductRecord: Record<string, number> = {};
+  supplierPriceByProduct.forEach((value, key) => {
+    supplierPriceByProductRecord[key] = value;
+  });
   const branchNameById = new Map<string, string>();
   branches?.forEach((branch) => {
     branchNameById.set(branch.id, branch.name);
@@ -584,7 +623,11 @@ export default async function OrdersPage({
                 }
                 draftSupplierId={draftSupplierId}
                 draftBranchId={draftBranchId}
-                draftMarginPct={draftMarginPctRaw}
+                draftMarginPct={
+                  draftMarginPctRaw === ''
+                    ? String(orgDefaultMarkupPct)
+                    : draftMarginPctRaw
+                }
                 draftAvgMode={draftAvgMode}
               />
 
@@ -680,6 +723,7 @@ export default async function OrdersPage({
                       key={`${draftSupplierId}-${draftBranchId}`}
                       suggestions={suggestions as SuggestionRow[]}
                       priceByProduct={priceByProductRecord}
+                      supplierPriceByProduct={supplierPriceByProductRecord}
                       avgMode={
                         (draftAvgMode as
                           | 'cycle'
@@ -688,6 +732,8 @@ export default async function OrdersPage({
                           | 'monthly') || 'cycle'
                       }
                       safeMarginPct={safeMarginPct}
+                      useEstimatedCostsByDefault={false}
+                      allowEstimateToggle
                       showingSummary={`${selectedSupplier?.name ?? 'Proveedor'} · ${selectedBranch?.name ?? 'Sucursal'} · Margen: ${safeMarginPct.toFixed(2)}% · Promedio: ${formatAvgModeLabel(draftAvgMode)}`}
                       specialOrders={
                         specialOrderItemsWithBranch as Array<

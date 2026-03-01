@@ -73,6 +73,12 @@ Columnas:
 - “Guardar items del borrador” aplica la nueva lista completa:
   - qty > 0: upsert item
   - qty = 0 o no incluido: remover item existente
+- El costo unitario del borrador se completa por defecto con `supplier_price` registrado.
+- Existe check `Usar % ganancia para costo estimado`:
+  - activo: todos los costos unitarios pasan al sugerido por margen.
+  - inactivo: vuelve a costos registrados por proveedor.
+  - si un producto no tiene costo proveedor registrado (`0`), el campo queda editable y muestra sugerido por margen.
+- Editar costos en borrador NO sobrescribe `supplier_price`; solo impacta el pedido actual.
 
 ### A2) Enviar pedido (draft → sent)
 
@@ -88,16 +94,33 @@ RPC status change:
 ### A3) Recibir mercadería y controlar (sent → reconciled)
 
 - UI cambia a modo recepción + control:
+  - ordered_qty visible al inicio de cada fila
   - received_qty por item (default = ordered_qty)
   - fecha/hora de recepción editable
   - nombre de quien controla (obligatorio) + autofirma
 - Confirmar recepción/control:
   - registra received_at (manual)
   - registra controlado por (nombre + user)
+  - permite editar `precio proveedor unitario` por item al momento del remito/factura
   - status → `reconciled` (Controlado)
   - genera movimientos purchase por item (stock +)
   - genera batches de vencimiento si el producto tiene `shelf_life_days`
+  - persiste el costo real en:
+    - `supplier_order_items.unit_cost` (snapshot del pedido)
+    - `supplier_products.supplier_price` (vigente para próximos pedidos)
     RPC: `rpc_receive_supplier_order(order_id, received_items[], received_at, controlled_by)`
+- Calculadora operativa de remito:
+  - subtotal sin IVA
+  - check `Aplicar IVA` + `%`
+  - subtotal con IVA
+  - check `Aplicar descuento` + monto
+  - total remito/factura
+- El total calculado se sincroniza en `supplier_payables.invoice_amount`.
+- Columna adicional en recepción: `precio unitario de venta` (`products.unit_price`):
+  - default: precio de venta actual del catálogo
+  - sugerido: precio proveedor confirmado + `% ganancia` del proveedor (o fallback de preferencias org)
+  - al confirmar recepción se actualiza inmediatamente el catálogo global del producto.
+- Este ajuste de precio de venta es independiente del remito/factura y del cálculo de cuentas por pagar.
 - Compatibilidad legacy:
   - si existe un pedido en estado `received` (flujo anterior), el control final lo pasa a `reconciled` guardando fecha y firma.
 - Flujo efectivo (proveedor con método preferido `cash`):
@@ -156,6 +179,8 @@ Salida:
   - ordered_qty
   - received_qty
   - unit_cost (optional)
+  - supplier_price (lookup auxiliar para default en UI)
+  - suggested_unit_cost_by_markup (computed en UI)
   - diff_qty (computed)
 
 View auxiliar (solo `draft`): `v_supplier_product_suggestions(supplier_id, branch_id)`

@@ -236,6 +236,7 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - bandeja de pendientes de completitud de datos maestros
 - acciones rapidas para completar proveedor primario, shelf_life_days y datos de pago
 - exportes maestros CSV para respaldo y portabilidad
+- hardening anti-duplicado de catálogo por org (barcode/internal_code/name normalizado)
 
 **Estado**: EN PROGRESO (base DB + UI implementadas, hardening pendiente)
 
@@ -277,5 +278,9 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-02-26: Se hardenea split de dominios por host en `proxy`: `nodux.app` queda para marketing (`/landing`) y rutas operativas/auth redirigen a `app.nodux.app`.
 - 2026-02-26: Se agrega canonical SEO de marketing en `proxy`: `www.nodux.app` redirige a `nodux.app`.
 - 2026-02-27: Se agrega ruta pública `/demo` como recorrido solo lectura con datos ficticios y acceso directo desde `/landing`; `app.nodux.app/demo` redirige a `nodux.app/demo`.
+- 2026-03-01: `/orders/[orderId]` agrega hardening de recepción para confirmar costo proveedor real por ítem, calcular total remito (subtotal sin IVA + IVA opcional + descuento opcional) y persistir costo vigente en `supplier_products.supplier_price` para próximos pedidos.
+- 2026-03-01: `/orders/[orderId]` agrega ajuste inmediato de `precio unitario de venta` en recepción/control (update de `products.unit_price`) con sugerido por `% de ganancia` proveedor/fallback org y orden de datos priorizando cantidad ordenada al inicio de fila.
+- 2026-03-01: `/settings/preferences` incorpora `% de ganancia por defecto` de la org (`default_supplier_markup_pct`) para unificar sugeridos cuando el proveedor no define margen.
 - 2026-02-27: `/demo` evoluciona a demo interactiva con login automático (`POST /demo/enter`) y guard de solo lectura para usuario demo vía `DEMO_READONLY_EMAILS`.
 - 2026-02-27: POS divide cierre de venta en `Cobrar` y `Cobrar y facturar`; ventas agregan estado fiscal (`is_invoiced`/`invoiced_at`), `/sales` y detalle habilitan `Emitir factura` + `Imprimir ticket` (copia no fiscal), y dashboard suma KPIs de facturación diaria (facturado/no facturado + % facturado).
+- 2026-03-01: decisión de catálogo global por org explicitada en docs + política anti-duplicado obligatoria para productos (`barcode`, `internal_code`, `name` normalizado). Queda pendiente hardening DB/RPC para unicidad por nombre.

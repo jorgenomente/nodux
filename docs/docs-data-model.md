@@ -53,6 +53,7 @@ Estado actual:
 - Conciliación operativa en caja con inputs por fila y agregado MercadoPago total en `supabase/migrations/20260220153000_047_cashbox_reconciliation_inputs.sql` (`cash_session_reconciliation_inputs`, `rpc_get_cash_session_reconciliation_rows`, `rpc_upsert_cash_session_reconciliation_inputs`).
 - Conciliación de caja ajustada para incluir fila de `Efectivo esperado total (caja + reserva)` en `supabase/migrations/20260220170000_048_cashbox_reconciliation_include_cash_expected.sql`.
 - Conciliación de caja ajustada para clasificar `MercadoPago (total)` solo por método `mercadopago` en `supabase/migrations/20260220182000_049_cashbox_reconciliation_mp_by_method_only.sql`.
+- Margen de ganancia por defecto org-wide para sugeridos de compra/precio en `supabase/migrations/20260301123000_062_org_preferences_default_supplier_markup_pct.sql` (`org_preferences.default_supplier_markup_pct`, default `40`, check `0..1000`).
 - `docs/schema.sql` actualizado desde DB local.
 - `types/supabase.ts` actualizado desde DB local.
 
@@ -211,6 +212,7 @@ Estado actual:
 - `critical_days` (int)
 - `warning_days` (int)
 - `allow_negative_stock` (boolean)
+- `default_supplier_markup_pct` (numeric 0..1000, default 40)
 - `cash_discount_enabled` (boolean)
 - `cash_discount_default_pct` (numeric 0..100)
 - `employee_discount_enabled` (boolean)
@@ -323,6 +325,8 @@ Estado actual:
 
 - unique (`org_id`, `internal_code`) where internal_code is not null
 - unique (`org_id`, `barcode`) where barcode is not null
+- Regla operativa de catálogo (2026-03-01): no duplicar `name` normalizado por org
+  (trim + minúsculas). Hardening DB/RPC pendiente en lote dedicado.
 
 ---
 

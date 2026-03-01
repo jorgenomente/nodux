@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import AmountInputAR from '@/app/components/AmountInputAR';
 import PageShell from '@/app/components/PageShell';
 import OrderSuggestionsClient from '@/app/orders/OrderSuggestionsClient';
+import ReceiveItemsPricingClient from '@/app/orders/ReceiveItemsPricingClient';
 import ReceiveActionsRow from '@/app/orders/ReceiveActionsRow';
 import InvoiceImageField from '@/app/payments/InvoiceImageField';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
@@ -38,6 +39,7 @@ type OrderDetailRow = {
 type SupplierPaymentProfileRow = {
   id: string;
   preferred_payment_method: 'cash' | 'transfer' | null;
+  default_markup_pct: number | null;
 };
 
 type PayableStatusRow = {
@@ -70,6 +72,17 @@ type SuggestionRow = {
 type ProductPriceRow = {
   id: string;
   unit_price: number | null;
+};
+
+type OrgPreferencesMarkupRow = {
+  default_supplier_markup_pct: number | null;
+};
+
+type SupplierProductPriceRow = {
+  product_id: string;
+  supplier_id: string;
+  relation_type: 'primary' | 'secondary';
+  supplier_price: number | null;
 };
 
 const formatStatusLabel = (status: string) => {
@@ -119,6 +132,10 @@ export default async function OrderDetailPage({
     cash_paid_amount?: string;
     cash_partial_payment?: string;
     cash_partial_total_amount?: string;
+    apply_tax?: string;
+    tax_pct?: string;
+    apply_discount?: string;
+    discount_amount?: string;
   }>;
 }) {
   const resolvedParams = await params;
@@ -150,13 +167,30 @@ export default async function OrderDetailPage({
   );
   const { data: supplierPaymentProfile } = await supabase
     .from('suppliers')
-    .select('id, preferred_payment_method')
+    .select('id, preferred_payment_method, default_markup_pct')
     .eq('org_id', orgId)
     .eq('id', order.supplier_id)
     .maybeSingle();
   const preferredPaymentMethod = (
     supplierPaymentProfile as SupplierPaymentProfileRow | null
   )?.preferred_payment_method;
+  const { data: orgPreferencesMarkupRow } = await supabase
+    .from('org_preferences')
+    .select('default_supplier_markup_pct')
+    .eq('org_id', orgId)
+    .maybeSingle();
+  const orgDefaultMarkupPct = Number(
+    (orgPreferencesMarkupRow as OrgPreferencesMarkupRow | null)
+      ?.default_supplier_markup_pct ?? 40,
+  );
+  const supplierMarkupRaw = Number(
+    (supplierPaymentProfile as SupplierPaymentProfileRow | null)
+      ?.default_markup_pct ?? 40,
+  );
+  const supplierDefaultMarkupPct =
+    Number.isFinite(supplierMarkupRaw) && supplierMarkupRaw !== 40
+      ? supplierMarkupRaw
+      : orgDefaultMarkupPct;
   const isCashSupplier = preferredPaymentMethod === 'cash';
   const { data: payableStatusRow } = await supabase
     .from('supplier_payables')
@@ -223,6 +257,15 @@ export default async function OrderDetailPage({
           .eq('org_id', orgId)
           .in('id', suggestionIds)
       : { data: [] };
+  const { data: supplierProductPrices } =
+    suggestionIds && suggestionIds.length > 0
+      ? await supabase
+          .from('supplier_products')
+          .select('product_id, supplier_id, relation_type, supplier_price')
+          .eq('org_id', orgId)
+          .eq('supplier_id', order.supplier_id)
+          .in('product_id', suggestionIds)
+      : { data: [] };
   const priceByProduct = new Map<string, number>();
   (suggestionPrices as ProductPriceRow[] | null)?.forEach((row) => {
     if (!row.id) return;
@@ -232,6 +275,15 @@ export default async function OrderDetailPage({
   priceByProduct.forEach((value, key) => {
     priceByProductRecord[key] = value;
   });
+  const supplierPriceByProductRecord: Record<string, number> = {};
+  (supplierProductPrices as SupplierProductPriceRow[] | null)?.forEach(
+    (row) => {
+      if (!row.product_id) return;
+      supplierPriceByProductRecord[row.product_id] = Number(
+        row.supplier_price ?? 0,
+      );
+    },
+  );
   const existingItemQuantities: Record<string, number> = {};
   items.forEach((item) => {
     if (!item.product_id) return;
@@ -375,6 +427,13 @@ export default async function OrderDetailPage({
     const partialTotalAmountRaw = String(
       formData.get('cash_partial_total_amount') ?? '',
     ).trim();
+    const applyTax = String(formData.get('apply_tax') ?? '').trim() === '1';
+    const taxPctRaw = String(formData.get('tax_pct') ?? '').trim();
+    const applyDiscount =
+      String(formData.get('apply_discount') ?? '').trim() === '1';
+    const discountAmountRaw = String(
+      formData.get('discount_amount') ?? '',
+    ).trim();
 
     const buildReceiveNoticeUrl = (noticeValue: string) => {
       const params = new URLSearchParams();
@@ -387,6 +446,10 @@ export default async function OrderDetailPage({
       if (partialTotalAmountRaw) {
         params.set('cash_partial_total_amount', partialTotalAmountRaw);
       }
+      if (applyTax) params.set('apply_tax', '1');
+      if (taxPctRaw) params.set('tax_pct', taxPctRaw);
+      if (applyDiscount) params.set('apply_discount', '1');
+      if (discountAmountRaw) params.set('discount_amount', discountAmountRaw);
       return `/orders/${orderId}?${params.toString()}`;
     };
 
@@ -417,6 +480,21 @@ export default async function OrderDetailPage({
     ) {
       redirect(buildReceiveNoticeUrl('partial_total_required'));
     }
+    const taxPct = taxPctRaw === '' ? 0 : Number(taxPctRaw);
+    if (
+      applyTax &&
+      (Number.isNaN(taxPct) || taxPct < 0 || taxPct > 1000)
+    ) {
+      redirect(buildReceiveNoticeUrl('invalid_tax_pct'));
+    }
+    const discountAmount =
+      discountAmountRaw === '' ? 0 : Number(discountAmountRaw);
+    if (
+      applyDiscount &&
+      (Number.isNaN(discountAmount) || discountAmount < 0)
+    ) {
+      redirect(buildReceiveNoticeUrl('invalid_discount_amount'));
+    }
 
     const parsedReceivedAt = receivedAtRaw ? new Date(receivedAtRaw) : null;
     const receivedAt =
@@ -427,22 +505,88 @@ export default async function OrderDetailPage({
     const userId = userData.user?.id ?? null;
     const itemsPayload = items
       .map((item) => {
-        const value = Number(
+        const receivedQty = Number(
           formData.get(`received_${item.order_item_id}`) ?? 0,
+        );
+        const unitCost = Number(
+          formData.get(`unit_cost_${item.order_item_id}`) ?? 0,
+        );
+        const unitPrice = Number(
+          formData.get(`unit_price_${item.order_item_id}`) ?? 0,
         );
         if (!item.order_item_id) return null;
         return {
           order_item_id: item.order_item_id,
-          received_qty: value,
+          product_id: item.product_id,
+          received_qty:
+            Number.isFinite(receivedQty) && receivedQty >= 0 ? receivedQty : 0,
+          unit_cost: Number.isFinite(unitCost) && unitCost >= 0 ? unitCost : 0,
+          unit_price:
+            Number.isFinite(unitPrice) && unitPrice >= 0 ? unitPrice : 0,
         };
       })
-      .filter(Boolean);
+      .filter(
+        (
+          value,
+        ): value is {
+          order_item_id: string;
+          product_id: string | null;
+          received_qty: number;
+          unit_cost: number;
+          unit_price: number;
+        } => Boolean(value),
+      );
+
+    await Promise.all(
+      itemsPayload.map((item) =>
+        supabaseServer
+          .from('supplier_order_items')
+          .update({
+            unit_cost: Number(item.unit_cost ?? 0),
+          })
+          .eq('org_id', orgId)
+          .eq('order_id', orderId)
+          .eq('id', String(item.order_item_id)),
+      ),
+    );
+
+    await Promise.all(
+      itemsPayload
+        .filter((item) => Boolean(item.product_id))
+        .map((item) =>
+          supabaseServer
+            .from('products')
+            .update({
+              unit_price: Number(item.unit_price ?? 0),
+            })
+            .eq('org_id', orgId)
+            .eq('id', String(item.product_id)),
+        ),
+    );
+
+    const subtotalWithoutTax = itemsPayload.reduce((total, item) => {
+      const lineTotal =
+        Number(item.received_qty ?? 0) * Number(item.unit_cost ?? 0);
+      if (!Number.isFinite(lineTotal)) return total;
+      return total + lineTotal;
+    }, 0);
+    const computedTaxAmount =
+      applyTax && taxPct > 0 ? (subtotalWithoutTax * taxPct) / 100 : 0;
+    const subtotalWithTax = subtotalWithoutTax + computedTaxAmount;
+    const computedDiscountAmount =
+      applyDiscount && discountAmount > 0 ? discountAmount : 0;
+    const computedInvoiceAmount = Number(
+      Math.max(subtotalWithTax - computedDiscountAmount, 0).toFixed(2),
+    );
 
     if (order.status === 'sent') {
       await supabaseServer.rpc('rpc_receive_supplier_order', {
         p_org_id: orgId,
         p_order_id: orderId,
-        p_items: itemsPayload,
+        p_items: itemsPayload.map((item) => ({
+          order_item_id: item.order_item_id,
+          received_qty: item.received_qty,
+        })),
         p_received_at: receivedAt,
         p_controlled_by_user_id: userId,
         p_controlled_by_name: controlledByName,
@@ -465,22 +609,124 @@ export default async function OrderDetailPage({
         .eq('status', 'received');
     }
 
+    const productIdsForPriceSync = itemsPayload
+      .map((item) => String(item.product_id ?? ''))
+      .filter(Boolean);
+    const { data: existingSupplierProducts } =
+      productIdsForPriceSync.length > 0
+        ? await supabaseServer
+            .from('supplier_products')
+            .select('product_id, supplier_id, relation_type')
+            .eq('org_id', orgId)
+            .in('product_id', productIdsForPriceSync)
+        : { data: [] };
+    const rowsByProduct = new Map<
+      string,
+      Array<{ supplier_id: string; relation_type: 'primary' | 'secondary' }>
+    >();
+    (
+      existingSupplierProducts as Array<{
+        product_id: string;
+        supplier_id: string;
+        relation_type: 'primary' | 'secondary';
+      }> | null
+    )?.forEach((row) => {
+      if (!rowsByProduct.has(row.product_id)) {
+        rowsByProduct.set(row.product_id, []);
+      }
+      rowsByProduct.get(row.product_id)?.push({
+        supplier_id: row.supplier_id,
+        relation_type: row.relation_type,
+      });
+    });
+
+    await Promise.all(
+      itemsPayload.map(async (item) => {
+        if (!item.product_id) return;
+        const productId = String(item.product_id);
+        const unitCost = Number(item.unit_cost ?? 0);
+        if (!Number.isFinite(unitCost) || unitCost < 0) return;
+
+        const relatedRows = rowsByProduct.get(productId) ?? [];
+        const sameSupplierRelation = relatedRows.find(
+          (row) => row.supplier_id === order.supplier_id,
+        );
+        const hasPrimaryFromAnotherSupplier = relatedRows.some(
+          (row) =>
+            row.supplier_id !== order.supplier_id && row.relation_type === 'primary',
+        );
+        const relationType = sameSupplierRelation?.relation_type
+          ? sameSupplierRelation.relation_type
+          : hasPrimaryFromAnotherSupplier
+            ? 'secondary'
+            : 'primary';
+
+        await supabaseServer.from('supplier_products').upsert(
+          {
+            org_id: orgId,
+            supplier_id: order.supplier_id,
+            product_id: productId,
+            relation_type: relationType,
+            supplier_price: unitCost,
+          },
+          {
+            onConflict: 'org_id,supplier_id,product_id',
+          },
+        );
+      }),
+    );
+
+    const { data: payableAfterReceive } = await supabaseServer
+      .from('supplier_payables')
+      .select(
+        'id, due_on, invoice_reference, invoice_photo_url, invoice_note, selected_payment_method, estimated_amount, invoice_amount, status, outstanding_amount, paid_amount',
+      )
+      .eq('org_id', orgId)
+      .eq('order_id', orderId)
+      .maybeSingle();
+    const payableAfterReceiveAny =
+      payableAfterReceive as Record<string, unknown> | null;
+    const payableIdForTotals = String(payableAfterReceiveAny?.id ?? '');
+
+    if (payableIdForTotals) {
+      const breakdownNote = [
+        `Detalle remito ${new Date().toLocaleString('es-AR')}:`,
+        `Subtotal sin IVA ${subtotalWithoutTax.toFixed(2)}`,
+        `IVA ${applyTax ? `${taxPct.toFixed(2)}% = ${computedTaxAmount.toFixed(2)}` : 'no aplicado'}`,
+        `Descuento ${applyDiscount ? computedDiscountAmount.toFixed(2) : 'no aplicado'}`,
+      ].join(' · ');
+      const previousNote = String(payableAfterReceiveAny?.invoice_note ?? '').trim();
+      const mergedNote = previousNote
+        ? `${previousNote}\n${breakdownNote}`
+        : breakdownNote;
+
+      await supabaseServer.rpc('rpc_update_supplier_payable', {
+        p_org_id: orgId,
+        p_payable_id: payableIdForTotals,
+        p_invoice_amount: computedInvoiceAmount,
+        p_due_on: (payableAfterReceiveAny?.due_on as string | null) ?? undefined,
+        p_invoice_reference:
+          (payableAfterReceiveAny?.invoice_reference as string | null) ??
+          undefined,
+        p_invoice_photo_url:
+          (payableAfterReceiveAny?.invoice_photo_url as string | null) ?? undefined,
+        p_invoice_note: mergedNote,
+        p_selected_payment_method:
+          (payableAfterReceiveAny?.selected_payment_method as
+            | 'cash'
+            | 'transfer'
+            | null) ?? undefined,
+      });
+    }
+
     if (markCashPaymentAsDone) {
-      const { data: payableRow } = await supabaseServer
-        .from('supplier_payables')
-        .select('*')
-        .eq('org_id', orgId)
-        .eq('order_id', orderId)
-        .maybeSingle();
-      const payableRowAny = payableRow as Record<string, unknown> | null;
+      const payableRowAny = payableAfterReceiveAny;
 
       const payableId = String(payableRowAny?.id ?? '');
       const outstandingAmount = Number(payableRowAny?.outstanding_amount ?? 0);
       const currentPaidAmount = Number(payableRowAny?.paid_amount ?? 0);
       const payableStatus = String(payableRowAny?.status ?? '');
-      const baseAmount = Number(
-        payableRowAny?.invoice_amount ?? payableRowAny?.estimated_amount ?? 0,
-      );
+      const baseAmount = computedInvoiceAmount;
 
       if (payableId && payableStatus !== 'paid' && outstandingAmount > 0) {
         const paidAt = receivedAt ?? new Date().toISOString();
@@ -718,6 +964,40 @@ export default async function OrderDetailPage({
     if (!Number.isFinite(lineTotal)) return total;
     return total + lineTotal;
   }, 0);
+  const receiveItems = items
+    .filter((item): item is OrderDetailRow & { order_item_id: string } =>
+      Boolean(item.order_item_id && item.product_id),
+    )
+    .map((item) => {
+      const productId = String(item.product_id ?? '');
+      const productUnitPrice = Number(priceByProductRecord[productId] ?? 0);
+      const supplierRegisteredPrice = Number(
+        supplierPriceByProductRecord[productId] ?? 0,
+      );
+      const suggestedUnitCost =
+        productUnitPrice * (1 - supplierDefaultMarkupPct / 100);
+      return {
+        order_item_id: item.order_item_id,
+        product_id: productId,
+        product_name: item.product_name,
+        ordered_qty: Number(item.ordered_qty ?? 0),
+        default_received_qty:
+          order.status === 'received'
+            ? Number(item.received_qty ?? item.ordered_qty ?? 0)
+            : Number(item.ordered_qty ?? 0),
+        default_unit_cost:
+          supplierRegisteredPrice > 0
+            ? supplierRegisteredPrice
+            : Number(item.unit_cost ?? 0) > 0
+              ? Number(item.unit_cost ?? 0)
+              : suggestedUnitCost > 0
+                ? suggestedUnitCost
+                : 0,
+        suggested_unit_cost: suggestedUnitCost > 0 ? suggestedUnitCost : 0,
+        default_unit_price: productUnitPrice > 0 ? productUnitPrice : 0,
+        markup_pct: supplierDefaultMarkupPct > 0 ? supplierDefaultMarkupPct : 40,
+      };
+    });
   const controlledByLabel =
     order.controlled_by_name || order.controlled_by_user_name;
   const receiveDefaultAt = new Date().toISOString().slice(0, 16);
@@ -742,6 +1022,18 @@ export default async function OrderDetailPage({
     typeof resolvedSearchParams?.cash_partial_total_amount === 'string'
       ? resolvedSearchParams.cash_partial_total_amount
       : '';
+  const initialApplyTax = resolvedSearchParams?.apply_tax === '1';
+  const initialTaxPct =
+    typeof resolvedSearchParams?.tax_pct === 'string' &&
+    resolvedSearchParams.tax_pct
+      ? Number(resolvedSearchParams.tax_pct)
+      : 21;
+  const initialApplyDiscount = resolvedSearchParams?.apply_discount === '1';
+  const initialDiscountAmount =
+    typeof resolvedSearchParams?.discount_amount === 'string' &&
+    resolvedSearchParams.discount_amount
+      ? Number(resolvedSearchParams.discount_amount)
+      : 0;
   const userLabel = session.userId;
   const isFinalized = order.status === 'reconciled';
   const isControlledByMissingNotice =
@@ -795,15 +1087,28 @@ export default async function OrderDetailPage({
                             message:
                               'La imagen de factura/remito no es válida.',
                           }
-                        : resolvedSearchParams?.notice === 'image_too_large'
+                      : resolvedSearchParams?.notice === 'image_too_large'
                           ? {
                               tone: 'error',
                               message:
                                 'La imagen comprimida supera el límite permitido (450KB).',
                             }
-                          : resolvedSearchParams?.notice ===
-                              'expected_receive_updated'
+                          : resolvedSearchParams?.notice === 'invalid_tax_pct'
                             ? {
+                                tone: 'error',
+                                message:
+                                  'El porcentaje de IVA debe estar entre 0 y 1000.',
+                              }
+                            : resolvedSearchParams?.notice ===
+                                'invalid_discount_amount'
+                              ? {
+                                  tone: 'error',
+                                  message:
+                                    'El descuento debe ser mayor o igual a 0.',
+                                }
+                            : resolvedSearchParams?.notice ===
+                                'expected_receive_updated'
+                              ? {
                                 tone: 'success',
                                 message: 'Fecha estimada actualizada.',
                               }
@@ -976,8 +1281,11 @@ export default async function OrderDetailPage({
                 key={`${order.supplier_id}-${order.branch_id}`}
                 suggestions={mergedSuggestions}
                 priceByProduct={priceByProductRecord}
+                supplierPriceByProduct={supplierPriceByProductRecord}
                 avgMode="cycle"
-                safeMarginPct={0}
+                safeMarginPct={supplierDefaultMarkupPct}
+                useEstimatedCostsByDefault={false}
+                allowEstimateToggle
                 initialQuantities={existingItemQuantities}
                 showingSummary={`${order.supplier_name ?? 'Proveedor'} · ${order.branch_name ?? 'Sucursal'}`}
               />
@@ -1195,31 +1503,14 @@ export default async function OrderDetailPage({
                   la entrega, usa el botón “Pago en efectivo realizado”.
                 </p>
               ) : null}
-              {items.map((item) => (
-                <div
-                  key={item.order_item_id}
-                  className="grid gap-2 md:grid-cols-3"
-                >
-                  <div className="text-sm text-zinc-700">
-                    {item.product_name}
-                  </div>
-                  <input
-                    name={`received_${item.order_item_id}`}
-                    type="number"
-                    step="0.01"
-                    defaultValue={
-                      order.status === 'received'
-                        ? (item.received_qty ?? item.ordered_qty ?? 0)
-                        : (item.ordered_qty ?? 0)
-                    }
-                    disabled={order.status === 'received'}
-                    className="rounded border border-zinc-200 px-2 py-1 text-sm"
-                  />
-                  <div className="text-xs text-zinc-500">
-                    Ordenado: {item.ordered_qty ?? 0}
-                  </div>
-                </div>
-              ))}
+              <ReceiveItemsPricingClient
+                items={receiveItems}
+                disableQtyEditing={order.status === 'received'}
+                defaultApplyTax={initialApplyTax}
+                defaultTaxPct={initialTaxPct}
+                defaultApplyDiscount={initialApplyDiscount}
+                defaultDiscountAmount={initialDiscountAmount}
+              />
               <ReceiveActionsRow
                 isCashSupplier={isCashSupplier}
                 isPayableAlreadyPaid={isPayableAlreadyPaid}

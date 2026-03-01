@@ -18,6 +18,31 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-03-01 10:40 -03 — Docs: catálogo global por org y anti-duplicado de productos
+
+**Tipo:** decision
+**Lote:** docs-catalog-org-antidup-products
+**Alcance:** docs
+
+**Resumen**
+Se actualizó la documentación viva para dejar explícito que el catálogo de productos es único por organización y que la política operativa anti-duplicado obliga a no repetir productos por `barcode`, `internal_code` ni `name` normalizado (trim + minúsculas). También se dejó trazada la brecha actual: la unicidad por nombre requiere hardening DB/RPC en lote técnico posterior.
+
+**Archivos**
+
+- docs/docs-modules-products-stock.md
+- docs/docs-app-screens-products.md
+- docs/docs-data-model.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- No aplica (`docs-only`).
+
+**Commit:** N/A
+
 ## 2026-02-27 14:50 -03 — POS/Sales: ventas facturadas vs no facturadas + ticket no fiscal
 
 **Tipo:** feature
@@ -7075,5 +7100,64 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run build OK (2026-02-26)
 - npx vercel --prod FAIL inicial (2026-02-26)
 - npx vercel --prod OK (2026-02-26)
+
+**Commit:** N/A
+
+## 2026-03-01 11:20 -03 — Orders: recepción con costo real + IVA/descuento y sync de costo proveedor
+
+**Tipo:** ui/docs
+**Lote:** orders-receive-real-cost-iva-discount
+**Descripción:** Se extendió `/orders/[orderId]` para confirmar costo proveedor unitario por ítem durante recepción/control, calcular total de remito (subtotal sin IVA + IVA opcional + descuento opcional) y sincronizar el costo vigente en `supplier_products.supplier_price` para próximos pedidos. También se actualizó el armado de pedido (`/orders` y `/orders/[orderId]` en draft) con toggle para alternar entre costo proveedor registrado y estimado por `% ganancia`, manteniendo edición manual por item sin sobrescribir el maestro hasta recepción.
+
+**Archivos afectados:**
+
+- app/orders/[orderId]/page.tsx
+- app/orders/OrderSuggestionsClient.tsx
+- app/orders/ReceiveItemsPricingClient.tsx
+- app/orders/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/docs-modules-supplier-orders.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint FAIL global (2026-03-01) por errores preexistentes fuera de scope en `apps/video/build/*` y `apps/postcss.config.mjs`.
+- npm run lint -- app/orders/OrderSuggestionsClient.tsx app/orders/[orderId]/page.tsx app/orders/page.tsx app/orders/ReceiveItemsPricingClient.tsx OK (2026-03-01)
+- npm run build OK (2026-03-01)
+
+**Commit:** N/A
+
+## 2026-03-01 12:10 -03 — Orders recepción: precio venta en confirmación + margen default org
+
+**Tipo:** schema/ui/docs
+**Lote:** orders-receive-sale-price-and-org-default-markup
+**Descripción:** Se ajustó la grilla de recepción para mostrar `Ordenado` al inicio y agregar input de `Precio venta (unitario)` por ítem con sugerido por margen. Al confirmar recepción, ahora también se actualiza `products.unit_price` (catálogo/POS) además del costo proveedor. Se agregó configuración org-wide de margen default en `/settings/preferences` y en DB (`org_preferences.default_supplier_markup_pct`) para fallback de sugeridos.
+
+**Archivos afectados:**
+
+- app/orders/ReceiveItemsPricingClient.tsx
+- app/orders/[orderId]/page.tsx
+- app/settings/preferences/page.tsx
+- supabase/migrations/20260301123000_062_org_preferences_default_supplier_markup_pct.sql
+- docs/docs-data-model.md
+- docs/docs-app-screens-order-detail.md
+- docs/docs-app-screens-settings-preferences.md
+- docs/docs-modules-supplier-orders.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-03-01)
+- Verificación SQL objeto nuevo OK: `org_preferences.default_supplier_markup_pct` existe (2026-03-01)
+- Verificación SQL view principal OK: `select ... from v_order_detail_admin` ejecuta sin error (2026-03-01)
+- npm run db:rls:smoke FAIL (2026-03-01) por caso preexistente ajeno al cambio: `staff puede leer products de su org`.
+- npm run lint -- app/orders/ReceiveItemsPricingClient.tsx app/orders/[orderId]/page.tsx app/settings/preferences/page.tsx app/orders/OrderSuggestionsClient.tsx app/orders/page.tsx OK (2026-03-01)
+- npm run build OK (2026-03-01)
 
 **Commit:** N/A

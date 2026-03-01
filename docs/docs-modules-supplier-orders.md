@@ -135,6 +135,24 @@ En detalle de pedido (`/orders/[orderId]`), el estado `draft` usa edición batch
 - Permitidas (realidad operativa)
 - Deben quedar registradas (ordered_qty vs received_qty)
 
+### R4.2) Costo real por remito en recepción/control
+
+- En `sent -> reconciled`, cada item permite confirmar/editar costo unitario real del proveedor.
+- El costo real confirmado actualiza:
+  - `supplier_order_items.unit_cost` (snapshot histórico del pedido recibido)
+  - `supplier_products.supplier_price` (costo vigente para sugerencias futuras)
+- Si un producto no tenía costo proveedor, queda editable en recepción y se persiste al confirmar.
+
+### R4.3) Ajuste inmediato de precio de venta en recepción
+
+- En la misma recepción/control, cada item expone `precio unitario de venta` (catálogo global).
+- Default del input: `products.unit_price` actual.
+- La UI muestra sugerido en base a costo proveedor confirmado + `% ganancia`:
+  - primero `%` del proveedor (`suppliers.default_markup_pct`)
+  - fallback `%` por defecto de la org (`org_preferences.default_supplier_markup_pct`).
+- Al confirmar recepción/control, se actualiza `products.unit_price` inmediatamente para evitar ajuste manual posterior.
+- Esta actualización es operativa de catálogo y no modifica lógica de remito/factura.
+
 ### R4.1) Integración con pagos por proveedor
 
 - Al recibir/controlar un pedido, se sincroniza una cuenta por pagar (`supplier_payables`) ligada al `order_id`.
@@ -146,6 +164,7 @@ En detalle de pedido (`/orders/[orderId]`), el estado `draft` usa edición batch
   - al confirmar control con check marcado, además de controlar se registra el pago efectivo por el monto ingresado.
   - si hay pago parcial, actualiza `invoice_amount` con el total declarado; si no hay parcial y el monto supera saldo/estimado, también ajusta `invoice_amount` para reflejar el monto real.
   - `/orders/[orderId]` incorpora además un segundo entry point para registrar factura/remito (número, monto, vencimiento, método, foto, nota), equivalente al flujo operativo de `/payments`.
+  - en recepción/control también se calcula total remito desde items (subtotal sin IVA, IVA opcional, descuento opcional) y se sincroniza en `supplier_payables.invoice_amount`.
 
 ### R5) Proveedor inactivo
 

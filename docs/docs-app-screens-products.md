@@ -28,6 +28,7 @@ Gestionar el catálogo de productos y el stock por sucursal, con operación real
 - visibilidad por sucursal (desglose) + total
 - asociación de proveedor primario/secundario
 - safety stock por sucursal
+- catálogo único por org (sin duplicados de maestro)
 
 ## Contexto de sucursal (branch context)
 
@@ -104,6 +105,14 @@ Comportamiento de sugerencia de precio:
 - UI muestra sugerencia de `unit_price` usando `% ganancia sugerida` del proveedor
   primario.
 - fallback: si proveedor no tiene `%` definido, se usa `40%`.
+
+Reglas anti-duplicado (obligatorias):
+
+- No crear si ya existe producto en la org con el mismo `barcode`.
+- No crear si ya existe producto en la org con el mismo `internal_code`.
+- No crear si ya existe producto en la org con el mismo `name` normalizado
+  (trim + minúsculas), aunque no tenga códigos.
+- La UI debe informar el conflicto y ofrecer abrir/editar el producto existente.
 
 ### A2) Editar producto
 

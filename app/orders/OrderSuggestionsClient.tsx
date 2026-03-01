@@ -16,8 +16,11 @@ type SuggestionRow = {
 type Props = {
   suggestions: SuggestionRow[];
   priceByProduct: Record<string, number>;
+  supplierPriceByProduct?: Record<string, number>;
   avgMode: 'cycle' | 'weekly' | 'biweekly' | 'monthly';
   safeMarginPct: number;
+  useEstimatedCostsByDefault?: boolean;
+  allowEstimateToggle?: boolean;
   initialQuantities?: Record<string, number>;
   showingSummary?: string | null;
   specialOrders?: Array<{
@@ -50,12 +53,28 @@ const avgDaysForMode = (mode: Props['avgMode'], cycleDays: number): number => {
 export default function OrderSuggestionsClient({
   suggestions,
   priceByProduct,
+  supplierPriceByProduct = {},
   avgMode,
   safeMarginPct,
+  useEstimatedCostsByDefault = false,
+  allowEstimateToggle = true,
   initialQuantities,
   showingSummary,
   specialOrders = [],
 }: Props) {
+  const buildDefaultUnitCosts = (useEstimated: boolean) => {
+    const next: Record<string, string> = {};
+    suggestions.forEach((row) => {
+      const unitPrice = priceByProduct[row.product_id] ?? 0;
+      const estimatedCost = unitPrice * (1 - safeMarginPct / 100);
+      const supplierCost = Number(supplierPriceByProduct[row.product_id] ?? 0);
+      const baseCost = useEstimated ? estimatedCost : supplierCost;
+      next[row.product_id] =
+        Number.isFinite(baseCost) && baseCost > 0 ? baseCost.toFixed(2) : '0';
+    });
+    return next;
+  };
+
   const [view, setView] = useState<'table' | 'cards'>('table');
 
   useEffect(() => {
@@ -75,6 +94,12 @@ export default function OrderSuggestionsClient({
   });
   const [specialOrderItemIds, setSpecialOrderItemIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [useEstimatedCosts, setUseEstimatedCosts] = useState(
+    useEstimatedCostsByDefault,
+  );
+  const [unitCosts, setUnitCosts] = useState<Record<string, string>>(() =>
+    buildDefaultUnitCosts(useEstimatedCostsByDefault),
+  );
 
   const filteredSuggestions = suggestions.filter((row) => {
     const query = searchQuery.trim().toLowerCase();
@@ -87,19 +112,27 @@ export default function OrderSuggestionsClient({
     const avgDays = avgDaysForMode(avgMode, cycleDays);
     const avgCycle = Math.round(Number(row.avg_daily_sales_30d ?? 0) * avgDays);
     const unitPrice = priceByProduct[row.product_id] ?? 0;
-    const unitCost = unitPrice * (1 - safeMarginPct / 100);
+    const estimatedCost = unitPrice * (1 - safeMarginPct / 100);
+    const supplierCost = Number(supplierPriceByProduct[row.product_id] ?? 0);
     const suggestedQty = Math.ceil(Number(row.suggested_qty ?? 0));
     const currentQtyRaw = quantities[row.product_id] ?? String(suggestedQty);
     const currentQty = currentQtyRaw === '' ? 0 : Number(currentQtyRaw);
+    const currentUnitCostRaw = unitCosts[row.product_id] ?? '0';
+    const currentUnitCost =
+      currentUnitCostRaw === '' ? 0 : Number(currentUnitCostRaw);
+    const unitCost = Number.isFinite(currentUnitCost) ? currentUnitCost : 0;
     const subtotal = unitCost * currentQty;
 
     return {
       avgCycle,
       unitPrice,
+      estimatedCost,
+      supplierCost,
       unitCost,
       suggestedQty,
       currentQtyRaw,
       currentQty,
+      currentUnitCostRaw,
       subtotal,
     };
   };
@@ -139,12 +172,27 @@ export default function OrderSuggestionsClient({
     return total + (value === '' || value == null ? 0 : Number(value));
   }, 0);
   const totalCost = suggestions.reduce((total, row) => {
-    const unitPrice = priceByProduct[row.product_id] ?? 0;
-    const unitCost = unitPrice * (1 - safeMarginPct / 100);
+    const unitCostRaw = unitCosts[row.product_id] ?? '0';
+    const unitCost = unitCostRaw === '' ? 0 : Number(unitCostRaw);
     const qtyRaw = quantities[row.product_id];
     const qty = qtyRaw === '' || qtyRaw == null ? 0 : Number(qtyRaw);
     return total + unitCost * qty;
   }, 0);
+
+  const handleUnitCostChange = (productId: string, value: string) => {
+    if (value === '') {
+      setUnitCosts((prev) => ({
+        ...prev,
+        [productId]: '',
+      }));
+      return;
+    }
+    const parsed = Number(value);
+    setUnitCosts((prev) => ({
+      ...prev,
+      [productId]: Number.isFinite(parsed) && parsed >= 0 ? value : prev[productId],
+    }));
+  };
 
   if (suggestions.length === 0) {
     return (
@@ -161,15 +209,19 @@ export default function OrderSuggestionsClient({
         name="special_order_item_ids"
         value={JSON.stringify(specialOrderItemIds)}
       />
+      <input
+        type="hidden"
+        name="use_estimated_costs"
+        value={useEstimatedCosts ? '1' : '0'}
+      />
       {suggestions.map((row) => {
-        const unitPrice = priceByProduct[row.product_id] ?? 0;
-        const unitCost = unitPrice * (1 - safeMarginPct / 100);
+        const unitCostRaw = unitCosts[row.product_id] ?? '0';
         return (
           <input
             key={`unit-cost-${row.product_id}`}
             type="hidden"
             name={`unit_cost_${row.product_id}`}
-            value={unitCost}
+            value={unitCostRaw}
           />
         );
       })}
@@ -227,6 +279,21 @@ export default function OrderSuggestionsClient({
           Vista: {view === 'table' ? 'Tabla' : 'Tarjetas'} · Resultados:{' '}
           {filteredSuggestions.length}
         </p>
+        {allowEstimateToggle ? (
+          <label className="flex items-center gap-2 text-xs text-zinc-600">
+            <input
+              type="checkbox"
+              checked={useEstimatedCosts}
+              onChange={(event) => {
+                const checked = event.target.checked;
+                setUseEstimatedCosts(checked);
+                setUnitCosts(buildDefaultUnitCosts(checked));
+              }}
+              className="h-4 w-4 rounded border-zinc-300"
+            />
+            Usar % ganancia para costo estimado
+          </label>
+        ) : null}
         <div className="flex gap-2">
           <button
             type="button"
@@ -266,9 +333,11 @@ export default function OrderSuggestionsClient({
                 const {
                   avgCycle,
                   unitPrice,
-                  unitCost,
+                  estimatedCost,
+                  supplierCost,
                   suggestedQty,
                   currentQtyRaw,
+                  currentUnitCostRaw,
                   subtotal,
                 } = renderRow(row);
 
@@ -295,7 +364,26 @@ export default function OrderSuggestionsClient({
                       />
                     </td>
                     <td className="px-3 py-2">{unitPrice.toFixed(2)}</td>
-                    <td className="px-3 py-2">{unitCost.toFixed(2)}</td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={currentUnitCostRaw}
+                        onChange={(event) =>
+                          handleUnitCostChange(row.product_id, event.target.value)
+                        }
+                        className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm"
+                      />
+                      <p className="mt-1 text-[11px] text-zinc-500">
+                        <span className="block">
+                          Registrado: {supplierCost.toFixed(2)}
+                        </span>
+                        <span className="block">
+                          Sugerido: {estimatedCost.toFixed(2)}
+                        </span>
+                      </p>
+                    </td>
                     <td className="px-3 py-2">{subtotal.toFixed(2)}</td>
                   </tr>
                 );
@@ -309,9 +397,11 @@ export default function OrderSuggestionsClient({
             const {
               avgCycle,
               unitPrice,
-              unitCost,
+              estimatedCost,
+              supplierCost,
               suggestedQty,
               currentQtyRaw,
+              currentUnitCostRaw,
               subtotal,
             } = renderRow(row);
 
@@ -361,7 +451,24 @@ export default function OrderSuggestionsClient({
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Costo estimado</span>
-                    <span>{unitCost.toFixed(2)}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={currentUnitCostRaw}
+                      onChange={(event) =>
+                        handleUnitCostChange(row.product_id, event.target.value)
+                      }
+                      className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm"
+                    />
+                  </div>
+                  <div className="text-[11px] text-zinc-500">
+                    <span className="block">
+                      Registrado: {supplierCost.toFixed(2)}
+                    </span>
+                    <span className="block">
+                      Sugerido: {estimatedCost.toFixed(2)}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between font-semibold text-zinc-900">
                     <span>Subtotal estimado</span>

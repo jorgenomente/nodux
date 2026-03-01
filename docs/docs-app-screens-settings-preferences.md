@@ -35,6 +35,8 @@ Si no está definido, se posterga.
 
 allow_negative_stock (default true)
 
+default_supplier_markup_pct (default 40)
+
 cash_discount_enabled (default true)
 
 cash_discount_default_pct (default 10)
@@ -58,6 +60,8 @@ input número: critical_days
 input número: warning_days
 
 toggle: cash_discount_enabled
+
+input número: default_supplier_markup_pct (0..1000)
 
 input número: cash_discount_default_pct (0..100)
 
@@ -87,6 +91,8 @@ warning_days
 
 cash_discount_enabled
 
+default_supplier_markup_pct
+
 cash_discount_default_pct
 
 employee_discount_enabled
@@ -111,6 +117,8 @@ warning_days
 
 cash_discount_enabled
 
+default_supplier_markup_pct
+
 cash_discount_default_pct
 
 employee_discount_enabled
@@ -128,6 +136,8 @@ critical_days >= 0
 warning_days >= critical_days
 
 cash_discount_default_pct >= 0 y <= 100
+
+default_supplier_markup_pct >= 0 y <= 1000
 
 employee_discount_default_pct >= 0 y <= 100
 

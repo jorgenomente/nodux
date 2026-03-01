@@ -15,6 +15,7 @@ type PreferencesRow = {
   critical_days: number;
   warning_days: number;
   allow_negative_stock: boolean;
+  default_supplier_markup_pct: number;
   cash_discount_enabled: boolean;
   cash_discount_default_pct: number;
   employee_discount_enabled: boolean;
@@ -84,6 +85,9 @@ export default async function SettingsPreferencesPage({
     const warningDays = Number(String(formData.get('warning_days') ?? '0'));
     const allowNegativeStock = formData.get('allow_negative_stock') === 'on';
     const cashDiscountEnabled = formData.get('cash_discount_enabled') === 'on';
+    const defaultSupplierMarkupPct = Number(
+      String(formData.get('default_supplier_markup_pct') ?? '40'),
+    );
     const cashDiscountDefaultPct = Number(
       String(formData.get('cash_discount_default_pct') ?? '0'),
     );
@@ -103,9 +107,12 @@ export default async function SettingsPreferencesPage({
       Number.isNaN(criticalDays) ||
       Number.isNaN(warningDays) ||
       Number.isNaN(cashDiscountDefaultPct) ||
+      Number.isNaN(defaultSupplierMarkupPct) ||
       Number.isNaN(employeeDiscountDefaultPct) ||
       criticalDays < 0 ||
       warningDays < criticalDays ||
+      defaultSupplierMarkupPct < 0 ||
+      defaultSupplierMarkupPct > 1000 ||
       cashDiscountDefaultPct < 0 ||
       cashDiscountDefaultPct > 100 ||
       employeeDiscountDefaultPct < 0 ||
@@ -118,7 +125,7 @@ export default async function SettingsPreferencesPage({
     const { data: previousRow } = await auth.supabase
       .from('org_preferences')
       .select(
-        'critical_days, warning_days, allow_negative_stock, cash_discount_enabled, cash_discount_default_pct, employee_discount_enabled, employee_discount_default_pct, employee_discount_combinable_with_cash_discount, cash_denominations',
+        'critical_days, warning_days, allow_negative_stock, default_supplier_markup_pct, cash_discount_enabled, cash_discount_default_pct, employee_discount_enabled, employee_discount_default_pct, employee_discount_combinable_with_cash_discount, cash_denominations',
       )
       .eq('org_id', auth.orgId)
       .maybeSingle();
@@ -128,6 +135,7 @@ export default async function SettingsPreferencesPage({
       critical_days: criticalDays,
       warning_days: warningDays,
       allow_negative_stock: allowNegativeStock,
+      default_supplier_markup_pct: defaultSupplierMarkupPct,
       cash_discount_enabled: cashDiscountEnabled,
       cash_discount_default_pct: cashDiscountDefaultPct,
       employee_discount_enabled: employeeDiscountEnabled,
@@ -149,6 +157,7 @@ export default async function SettingsPreferencesPage({
           critical_days: criticalDays,
           warning_days: warningDays,
           allow_negative_stock: allowNegativeStock,
+          default_supplier_markup_pct: defaultSupplierMarkupPct,
           cash_discount_enabled: cashDiscountEnabled,
           cash_discount_default_pct: cashDiscountDefaultPct,
           employee_discount_enabled: employeeDiscountEnabled,
@@ -166,6 +175,7 @@ export default async function SettingsPreferencesPage({
     revalidatePath('/expirations');
     revalidatePath('/pos');
     revalidatePath('/cashbox');
+    revalidatePath('/orders');
     redirect('/settings/preferences?result=saved');
   };
 
@@ -302,7 +312,7 @@ export default async function SettingsPreferencesPage({
   const { data: preferencesRow } = await context.supabase
     .from('org_preferences')
     .select(
-      'org_id, critical_days, warning_days, allow_negative_stock, cash_discount_enabled, cash_discount_default_pct, employee_discount_enabled, employee_discount_default_pct, employee_discount_combinable_with_cash_discount, cash_denominations',
+      'org_id, critical_days, warning_days, allow_negative_stock, default_supplier_markup_pct, cash_discount_enabled, cash_discount_default_pct, employee_discount_enabled, employee_discount_default_pct, employee_discount_combinable_with_cash_discount, cash_denominations',
     )
     .eq('org_id', context.orgId)
     .maybeSingle();
@@ -321,6 +331,7 @@ export default async function SettingsPreferencesPage({
     critical_days: 3,
     warning_days: 7,
     allow_negative_stock: true,
+    default_supplier_markup_pct: 40,
     cash_discount_enabled: true,
     cash_discount_default_pct: 10,
     employee_discount_enabled: true,
@@ -350,7 +361,8 @@ export default async function SettingsPreferencesPage({
           {searchParams.result === 'invalid' ? (
             <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
               Revisa los valores: warning debe ser mayor o igual a critical y el
-              descuento en efectivo/empleado debe estar entre 0 y 100. Las
+              descuento en efectivo/empleado debe estar entre 0 y 100. El
+              margen de ganancia por defecto debe estar entre 0 y 1000. Las
               denominaciones deben ser números positivos separados por coma.
             </p>
           ) : null}
@@ -403,6 +415,30 @@ export default async function SettingsPreferencesPage({
               />
               Permitir stock negativo (modo operativo)
             </label>
+
+            <div className="grid gap-1 rounded-xl border border-zinc-200 p-4">
+              <label
+                htmlFor="default_supplier_markup_pct"
+                className="text-xs font-semibold text-zinc-600"
+              >
+                Margen de ganancia por defecto para sugeridos (%)
+              </label>
+              <input
+                id="default_supplier_markup_pct"
+                name="default_supplier_markup_pct"
+                type="number"
+                min={0}
+                max={1000}
+                step={0.01}
+                defaultValue={preferences.default_supplier_markup_pct}
+                className="rounded border border-zinc-200 px-3 py-2 text-sm"
+                required
+              />
+              <p className="text-xs text-zinc-500">
+                Se usa como fallback cuando un proveedor no tiene % de ganancia
+                definido para cálculos sugeridos de costo/precio.
+              </p>
+            </div>
 
             <div className="grid gap-4 rounded-xl border border-zinc-200 p-4 md:grid-cols-2">
               <label className="flex items-center gap-2 text-sm text-zinc-700">

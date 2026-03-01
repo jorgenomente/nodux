@@ -66,6 +66,7 @@ Campos clave:
 ### R1) Separación producto vs stock
 
 - Producto ≠ stock
+- La ficha del producto es **global por org** (compartida por todas las sucursales)
 - El stock siempre es por sucursal
 
 ### R2) Unidades y cantidades
@@ -93,6 +94,16 @@ Campos clave:
 
 - El safety stock se define por sucursal y producto.
 - Se usa para sugerencias de compra (módulo pedidos a proveedor).
+
+### R7) Anti-duplicado de catálogo por org
+
+- No se permiten productos duplicados dentro de la misma org por:
+  - `barcode`
+  - `internal_code`
+  - `name` (normalizado: trim + minúsculas)
+- Estado actual:
+  - DB ya fuerza unicidad por `barcode` y `internal_code`.
+  - La unicidad por `name` queda definida como regla operativa obligatoria y debe endurecerse en lote DB/RPC de hardening.
 
 ---
 

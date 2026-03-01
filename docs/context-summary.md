@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-02-27 16:30
+Ultima actualizacion: 2026-03-01 10:40
 
 ## Estado general
 
@@ -14,6 +14,8 @@ Ultima actualizacion: 2026-02-27 16:30
 - Moneda operativa: pesos argentinos (ARS).
 - Stock negativo permitido para evitar bloqueos por desincronizacion.
 - Productos con stock 0 deben seguir visibles (no ocultar en POS ni en catalogo).
+- Catálogo de productos es único por org; stock se mantiene por sucursal.
+- Política anti-duplicado de productos definida para la org: no duplicar `barcode`, `internal_code` ni `name` normalizado (trim + minúsculas). La unicidad por nombre queda pendiente de hardening DB/RPC.
 
 ## Proveedores y pedidos (MVP)
 
@@ -112,6 +114,10 @@ Ultima actualizacion: 2026-02-27 16:30
 - `/orders/[orderId]` en estado `draft` ahora usa editor batch de items con lista completa de sugeridos, buscador y guardado único de la nueva lista.
 - `/orders/[orderId]` muestra monto estimado total en header/recepción y costo estimado por item (unitario + subtotal).
 - `/orders/[orderId]` en recepción/control agrega segundo entry point para registrar factura/remito (número, monto, vencimiento, método, foto, nota) y soporta pago efectivo parcial con total declarado + restante proyectado.
+- `/orders/[orderId]` en recepción/control ahora permite confirmar costo proveedor unitario por ítem (desde remito/factura), calcular total operativo con IVA/descuento opcionales y persistir `supplier_price` vigente en `supplier_products` para próximos pedidos.
+- `/orders/[orderId]` ahora permite ajustar `precio unitario de venta` por ítem al confirmar recepción, actualizando `products.unit_price` en el acto con sugerido por `% de ganancia` proveedor/fallback org.
+- En armado de pedido (`/orders` y `/orders/[orderId]` en draft), costo unitario usa por defecto precio proveedor registrado con check opcional para recalcular por `% ganancia` sugerido.
+- `/settings/preferences` incorpora `default_supplier_markup_pct` para definir el margen global por defecto (ej. 41.5%) usado en sugeridos cuando no hay margen específico de proveedor.
 - Proveedores incorporan perfil de pago: plazo (días), método de pago preferido (cash/transfer), datos de pago/notas y cuentas de transferencia.
 - En `/payments`, la foto de factura/remito se comprime automáticamente (JPG liviano) y se guarda en Storage (`supplier-invoices`).
 
