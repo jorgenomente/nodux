@@ -117,12 +117,15 @@ export default async function SettingsUsersPage({
       redirect('/settings/users?result=create_failed');
     }
 
-    const { error: inviteError } = await admin.rpc('rpc_invite_user_to_org', {
+    const { error: inviteError } = await auth.supabase.rpc(
+      'rpc_invite_user_to_org',
+      {
       p_org_id: auth.orgId,
       p_email: email,
       p_role: role,
       p_branch_ids: role === 'staff' ? branchIds : [],
-    });
+      },
+    );
     if (inviteError) {
       console.error('[settings.users.create] rpc_invite_user_to_org failed', {
         orgId: auth.orgId,
@@ -133,7 +136,7 @@ export default async function SettingsUsersPage({
       redirect('/settings/users?result=membership_failed');
     }
 
-    const { error: membershipError } = await admin.rpc(
+    const { error: membershipError } = await auth.supabase.rpc(
       'rpc_update_user_membership',
       {
         p_org_id: auth.orgId,
@@ -236,8 +239,7 @@ export default async function SettingsUsersPage({
       redirect('/settings/users?result=password_reset');
     }
 
-    const admin = createAdminSupabaseClient();
-    const { error: updateMembershipError } = await admin.rpc(
+    const { error: updateMembershipError } = await auth.supabase.rpc(
       'rpc_update_user_membership',
       {
         p_org_id: auth.orgId,

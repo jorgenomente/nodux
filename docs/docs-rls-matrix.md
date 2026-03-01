@@ -37,6 +37,7 @@ Estado actual:
 - Ajuste de conciliación para clasificar `MercadoPago (total)` solo por método de pago (no por proveedor de dispositivo) en `supabase/migrations/20260220182000_049_cashbox_reconciliation_mp_by_method_only.sql`.
 - `org_preferences.default_supplier_markup_pct` agregado en `supabase/migrations/20260301123000_062_org_preferences_default_supplier_markup_pct.sql` (sin cambios de policy; reusa RLS existente de `org_preferences`).
 - Plantillas de ticket por sucursal agregadas en `supabase/migrations/20260301143000_063_branch_ticket_templates.sql` (`branches.ticket_header_text`, `branches.ticket_footer_text`, `branches.fiscal_ticket_note_text`, extensión de `v_branches_admin`; sin cambios de policy, reusa RLS existente de `branches`).
+- Hardening de membresía de usuarios en `supabase/migrations/20260301162000_064_users_membership_rpcs_auth_context.sql`: `rpc_invite_user_to_org` y `rpc_update_user_membership` pasan a `security definer`, exigen sesión autenticada OA/SA (`is_org_admin_or_superadmin`), validan rol/sucursales y auditan con actor real (`auth.uid()`).
 - Bucket de facturas proveedor agregado en `supabase/migrations/20260217221500_040_supplier_invoice_storage_bucket.sql` (`storage.buckets: supplier-invoices` + policies en `storage.objects` por `org_id` en path).
 - Smoke RLS automatizado agregado en `scripts/rls-smoke-tests.mjs` (ejecución: `npm run db:rls:smoke`).
 - CI hardening agrega ejecución automática de smoke RLS + smoke Playwright en `.github/workflows/ci-hardening.yml`.
@@ -136,3 +137,5 @@ Estado actual:
 - `rpc_superadmin_create_org` -> solo SA global.
 - `rpc_superadmin_upsert_branch` -> solo SA global.
 - `rpc_superadmin_set_active_org` -> solo SA global.
+- `rpc_invite_user_to_org` -> solo OA/SA autenticado para la org destino; requiere branches válidas para `staff`.
+- `rpc_update_user_membership` -> solo OA/SA autenticado para la org destino; exige al menos 1 branch para `staff` y limpia/reasigna membresías de sucursal de forma atómica.

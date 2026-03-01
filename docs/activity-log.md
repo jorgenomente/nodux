@@ -7363,3 +7363,34 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run build OK (2026-03-01)
 
 **Commit:** N/A
+
+## 2026-03-01 15:20 -03 — Fix `/settings/users`: Auth creado pero falla membresía org/sucursales
+
+**Tipo:** schema/ui/docs/tests
+**Lote:** settings-users-membership-failure-auth-created
+**Descripción:** Se corrigió el flujo de alta/edición de usuarios cuando `auth.admin.createUser` creaba la cuenta pero fallaba la asignación en org/sucursales. Se endurecieron `rpc_invite_user_to_org` y `rpc_update_user_membership` como `security definer` con validación explícita (`is_org_admin_or_superadmin`, rol permitido y branches válidas para staff), y se actualizó app para ejecutar esas RPCs con sesión autenticada (`auth.supabase`) en `/settings/users` y `/superadmin`. Con esto, la auditoría conserva `actor_user_id` real y se evita el rollback por contexto sin usuario.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260301162000_064_users_membership_rpcs_auth_context.sql
+- app/settings/users/page.tsx
+- app/superadmin/page.tsx
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-app-screens-settings-users.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-01)
+- npm run build OK (2026-03-01)
+- npm run db:reset OK (2026-03-01)
+- Verificación objetos DB OK (`rpc_invite_user_to_org` y `rpc_update_user_membership` con `prosecdef=true`)
+- Select básico OK (`select count(*) from public.v_settings_users_admin`)
+- npm run db:rls:smoke FAIL inicial (faltaba data demo tras reset)
+- npm run db:seed:demo OK (2026-03-01)
+- npm run db:rls:smoke OK (allow/deny verificado)
+
+**Commit:** N/A

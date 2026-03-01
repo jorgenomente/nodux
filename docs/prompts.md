@@ -2718,3 +2718,12 @@ coloca tambien un contador de caracteres por linea dentro de cada editor de text
 
 **Prompt**
 estoy probando darle al boton de imprimir ticket y me dice Habilita pop-ups para imprimir el ticket.
+
+## 2026-03-01 15:20 -03 — Fix alta usuarios: Auth OK pero falla asignación org/sucursales
+
+**Lote:** settings-users-membership-failure-auth-created
+**Objetivo:** Resolver el fallo en `/settings/users` donde la cuenta se crea en Auth pero falla la asignación a `org_users`/`branch_memberships`, preservando auditoría con `actor_user_id` real.
+
+**Prompt**
+estoy en https://app.nodux.app/settings/users y cree un nuevo usuario adming org en
+  la org pero me da un mensaje que dice Se creó la cuenta en Auth, pero falló la asignación a la organización/sucursales. El usuario no se creo, podemos ver que puede estar pasando?

@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-03-01 10:40
+Ultima actualizacion: 2026-03-01 15:20
 
 ## Estado general
 
@@ -63,6 +63,7 @@ Ultima actualizacion: 2026-03-01 10:40
 - Alta de usuarios desde `/settings/users` para OA: crea cuenta con email + contraseña inicial sin validación por email (`email_confirm=true`) usando Admin API server-side; la contraseña solo puede restablecerla el admin (no visible en UI).
 - `/settings/users` gestiona solo roles `org_admin` y `staff`; superadmin queda fuera de creación/listado/edición en esta pantalla.
 - En `/settings/users`, el checklist de sucursales se muestra solo para `staff`; para `org_admin` se oculta y aplica acceso global por organización.
+- Hardening de alta/edición de usuarios en `/settings/users` y `/superadmin`: las RPCs de membresía (`rpc_invite_user_to_org`, `rpc_update_user_membership`) se ejecutan con sesión autenticada OA/SA (no con `service_role`) y quedan auditadas con `actor_user_id` real, evitando el error "Auth creado pero falló asignación org/sucursales".
 - Smoke RLS automatizado disponible en `npm run db:rls:smoke` para validar allow/deny por rol (staff, org_admin, superadmin).
 - Workflow CI de hardening agregado en `.github/workflows/ci-hardening.yml` con Supabase local, seed y smoke E2E.
 - POS soporta descuento por efectivo con toggle operativo; el porcentaje no es editable en caja y se toma fijo desde `settings/preferences`.

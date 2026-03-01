@@ -129,7 +129,7 @@ Escrituras
 Server action/API server-side:
 
 - `auth.admin.createUser` (Supabase Admin API, con `email_confirm=true`)
-- luego asignación en org vía RPCs de membresía
+- luego asignación en org vía RPCs de membresía ejecutadas con sesión autenticada OA/SA
 
 RPC: rpc_invite_user_to_org(input)
 
@@ -153,7 +153,7 @@ branch_ids
 is_active
 
 Nota: en MVP se usa alta directa con contraseña inicial y sin confirmación de email.
-El `service_role` se usa solo en backend (nunca en cliente).
+El `service_role` se usa solo para Admin API de Auth (crear/reset password); las RPCs de membresía se ejecutan con sesión autenticada para conservar `actor_user_id` en auditoría.
 
 Seguridad
 

@@ -345,6 +345,7 @@ export default async function SuperadminPage({
       ) {
         redirect('/no-access');
       }
+      const auth = contextResult.context;
 
       const ownerEmail = String(formData.get('owner_email') ?? '')
         .trim()
@@ -380,12 +381,15 @@ export default async function SuperadminPage({
         redirect(`/superadmin?org=${orgId}&result=owner_create_error`);
       }
 
-      const { error: inviteError } = await admin.rpc('rpc_invite_user_to_org', {
-        p_org_id: orgId,
-        p_email: ownerEmail,
-        p_role: 'org_admin',
-        p_branch_ids: [],
-      });
+      const { error: inviteError } = await auth.supabase.rpc(
+        'rpc_invite_user_to_org',
+        {
+          p_org_id: orgId,
+          p_email: ownerEmail,
+          p_role: 'org_admin',
+          p_branch_ids: [],
+        },
+      );
       if (inviteError) {
         console.error('[superadmin.createOrgAdmin] invite failed', {
           orgId,
@@ -395,7 +399,7 @@ export default async function SuperadminPage({
         redirect(`/superadmin?org=${orgId}&result=owner_create_error`);
       }
 
-      const { error: membershipError } = await admin.rpc(
+      const { error: membershipError } = await auth.supabase.rpc(
         'rpc_update_user_membership',
         {
           p_org_id: orgId,
