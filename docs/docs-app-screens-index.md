@@ -166,7 +166,7 @@ Ruta pública adicional (institucional, fuera del flujo operativo MVP):
     - Roles: OA
     - Tipo: Secondary (hub)
     - Módulo: Configuración
-    - Propósito: acceso a settings del sistema
+    - Propósito: acceso a settings del sistema + referencia operativa de Tienda Online (estado storefront, org slug y links públicos por org/sucursal)
 
 19. `/onboarding`
     - Roles: OA

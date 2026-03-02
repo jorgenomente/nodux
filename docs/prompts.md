@@ -12,6 +12,14 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-03-02 09:58 -03 — Settings: sección Tienda Online con links públicos para QA
+
+**Lote:** settings-online-store-links-hub
+**Objetivo:** Exponer en `/settings` el estado storefront, `orgSlug` y links públicos por sucursal para validar QA manual sin SQL.
+
+**Prompt**
+estoy intentando hacer el QA de qa-online-store-manual.md pero  no se como verificar que la org tenga storefront_settings.is_enabled = true y Verificar que org y sucursales activas tengan `storefront_slug` despues tampoco sabria cual es mi /<orgslug> podriamos colocar esa informacion en https://app.nodux.app/settings en una nueva seccion de Tienda Online donde ahi pueda ver por sucursal los links publicos y el link de ORG que sirve para redirigir a las diferentes tiendas de las sucursales
+
 ## 2026-03-01 21:50 -03 — Docs: QA manual ecommerce y pedidos online v1
 
 **Lote:** online-orders-payment-proofs-v1
@@ -2805,3 +2813,14 @@ ok avancemos
 
 **Prompt**
 adelante
+
+## 2026-03-02 09:19 -03 — Logout redirige a `/login` con HTTP 405
+
+**Lote:** logout-redirect-405-fix
+**Objetivo:** Corregir el flujo de logout en producción para evitar `HTTP 405` al volver a `/login` después de cerrar sesión.
+
+**Prompt**
+cuando le doy click a logout y me lleva a This page isn’t working
+If the problem continues, contact the site owner.
+HTTP ERROR 405
+en https://app.nodux.app/login no se por que sucede

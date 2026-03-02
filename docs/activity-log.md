@@ -52,6 +52,32 @@ Se implementó el primer flujo operativo de comprobantes para pedidos online. El
 
 **Commit:** N/A
 
+## 2026-03-02 09:58 -03 — Settings: sección "Tienda online" para QA operativo
+
+**Tipo:** feature
+**Lote:** settings-online-store-links-hub
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se agregó en `/settings` una sección "Tienda online" que muestra en UI el estado real de storefront (`storefront_settings.is_enabled`), el `orgSlug` público y links directos por organización/sucursal (`/:orgSlug`, `/:orgSlug/:branchSlug`). El objetivo es eliminar dependencia de SQL/Studio durante QA manual del ecommerce.
+
+**Archivos**
+
+- app/settings/page.tsx
+- docs/docs-app-screens-index.md
+- docs/docs-modules-online-store.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-03-02)
+- `npm run build` OK (2026-03-02)
+
+**Commit:** N/A
+
 ## 2026-03-01 21:50 -03 — Docs: guía QA manual ecommerce/pedidos online v1
 
 **Tipo:** docs
@@ -7681,5 +7707,25 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - Producción: `npx supabase db push --linked --yes` OK (065 y 066)
 - Producción: `npx vercel --prod` OK (alias `https://nodux.app`)
 - Producción: recuperación manual de huérfanos `samuel@demo.com` y `samuelg@demo.com` OK (invite/update sin error)
+
+**Commit:** N/A
+
+## 2026-03-02 09:19 -03 — Fix logout: redirect 303 para evitar `HTTP 405` en `/login`
+
+**Tipo:** ui/docs/tests
+**Lote:** logout-redirect-405-fix
+**Descripción:** Se corrigió el handler de `/logout` para responder con redirect `303 See Other` tanto en `GET` como en `POST`. El flujo previo redirigía con código temporal por defecto (307), lo que podía reenviar `POST` a `/login` y provocar `HTTP 405` en producción. Se actualizó además el contrato de pantalla de logout para reflejar soporte de `POST`.
+
+**Archivos afectados:**
+
+- app/logout/route.ts
+- docs/docs-app-screens-logout.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-02)
+- npm run build OK (2026-03-02)
 
 **Commit:** N/A

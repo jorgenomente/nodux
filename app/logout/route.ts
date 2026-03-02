@@ -29,16 +29,16 @@ const buildSupabaseFromRequest = async () => {
 };
 
 export async function GET(request: Request) {
-  return NextResponse.redirect(new URL('/login', request.url));
+  return NextResponse.redirect(new URL('/login', request.url), 303);
 }
 
 export async function POST(request: Request) {
   const supabase = await buildSupabaseFromRequest();
   if (!supabase) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(new URL('/login', request.url), 303);
   }
 
   await supabase.auth.signOut();
 
-  return NextResponse.redirect(new URL('/login', request.url));
+  return NextResponse.redirect(new URL('/login', request.url), 303);
 }

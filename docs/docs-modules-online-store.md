@@ -119,6 +119,7 @@ Storage asociado:
 - Storefront público: `/:orgSlug` y `/:orgSlug/:branchSlug`
 - Tracking público: `/o/:trackingToken`
 - Gestión interna: `/online-orders`
+- Referencia operativa en settings: `/settings` (sección "Tienda online" con estado + links)
 
 ## Data contracts (resumen)
 

@@ -13,6 +13,7 @@
 - `/logout`
 
 Nota: es un `route.ts` (handler GET), no una página con UI.
+Tambien acepta `POST` para logout via formulario.
 
 ## Rol / Acceso
 
