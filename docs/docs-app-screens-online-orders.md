@@ -6,7 +6,7 @@
 
 ## Estado
 
-Post-MVP en progreso: contrato DB + UI interna v1 implementadas.
+Post-MVP en progreso: contrato DB + UI interna v1 implementadas, con revisión de comprobantes de pago v1.
 
 ## Rol / Acceso
 
@@ -48,6 +48,7 @@ Cada row/card:
 - items + cantidades + precios snapshot
 - notas cliente
 - comprobante adjunto (si existe)
+- revisión de comprobante (aprobar/rechazar + nota)
 - acciones de estado
 - CTA “Enviar WhatsApp”
 
@@ -89,6 +90,17 @@ Input mínimo:
 - internal_note optional
 - customer_note optional
 - `notify_via_whatsapp` queda para capa app/integración (no en firma actual RPC)
+
+### Escritura revisión de comprobante
+
+Tabla: `online_order_payment_proofs`
+
+Campos actualizados:
+
+- review_status (`approved`/`rejected`)
+- review_note (optional)
+- reviewed_by_user_id
+- reviewed_at
 
 ## Seguridad (RLS)
 

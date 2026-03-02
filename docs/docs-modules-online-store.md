@@ -19,7 +19,7 @@ Abrir un canal de venta online conectado al inventario real de NODUX:
 
 ## Estado
 
-Post-MVP en progreso: fundación DB implementada (migración 068) + UI pública v1 (`/:orgSlug`, `/:orgSlug/:branchSlug`, `/o/:trackingToken`) + UI interna v1 (`/online-orders`).
+Post-MVP en progreso: fundación DB implementada (migración 068) + UI pública v1 (`/:orgSlug`, `/:orgSlug/:branchSlug`, `/o/:trackingToken`) + UI interna v1 (`/online-orders`) + comprobantes online v1 (carga pública y revisión interna).
 
 ## Roles
 
@@ -90,6 +90,12 @@ Comprobantes adjuntos por cliente:
 - uploaded_at
 - review_status (pending/approved/rejected)
 - reviewed_by/reviewed_at
+
+Storage asociado:
+
+- bucket privado `online-order-proofs`
+- path por archivo: `org_id/online_order_id/<timestamp>-<uuid>.<ext>`
+- lectura vía signed URL para miembros de la org
 
 ## Estados de pedido online (propuestos)
 

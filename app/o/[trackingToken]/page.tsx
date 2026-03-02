@@ -1,5 +1,9 @@
 import Link from 'next/link';
+import { randomUUID } from 'node:crypto';
+import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 
+import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 type TrackingRow = {
@@ -29,10 +33,23 @@ const statusLabel: Record<TrackingRow['status'], string> = {
 
 type TrackingPageProps = {
   params: Promise<{ trackingToken: string }>;
+  searchParams: Promise<{ notice?: string }>;
 };
 
-export default async function OnlineOrderTrackingPage({ params }: TrackingPageProps) {
+const proofNoticeMessage: Record<string, string> = {
+  proof_uploaded: 'Comprobante enviado. El equipo lo revisará pronto.',
+  invalid_file: 'Archivo inválido. Usa JPG, PNG o WEBP.',
+  file_too_large: 'El archivo supera 5MB.',
+  tracking_not_found: 'No encontramos el pedido para este link.',
+  upload_failed: 'No pudimos subir el comprobante. Reintenta.',
+};
+
+export default async function OnlineOrderTrackingPage({
+  params,
+  searchParams,
+}: TrackingPageProps) {
   const { trackingToken } = await params;
+  const resolvedSearchParams = await searchParams;
   const supabase = await createServerSupabaseClient();
   const supabaseRpc = supabase as unknown as {
     rpc: (
@@ -57,6 +74,86 @@ export default async function OnlineOrderTrackingPage({ params }: TrackingPagePr
 
   const rows = Array.isArray(data) ? (data as TrackingRow[]) : [];
   const row = rows[0] ?? null;
+  const notice = resolvedSearchParams.notice ?? '';
+
+  const uploadProof = async (formData: FormData) => {
+    'use server';
+
+    const token = String(formData.get('tracking_token') ?? '').trim();
+    const fileValue = formData.get('payment_proof');
+    const file = fileValue instanceof File ? fileValue : null;
+    const allowedContentTypes = new Set([
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+    ]);
+
+    if (!token || !file || !allowedContentTypes.has(file.type)) {
+      redirect(`/o/${token || trackingToken}?notice=invalid_file`);
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      redirect(`/o/${token}?notice=file_too_large`);
+    }
+
+    const admin = createAdminSupabaseClient();
+    const { data: tokenRaw } = await admin
+      .from('online_order_tracking_tokens' as never)
+      .select('org_id, online_order_id, expires_at')
+      .eq('token', token)
+      .eq('is_active', true)
+      .maybeSingle();
+    const tokenRow = tokenRaw as {
+      org_id: string;
+      online_order_id: string;
+      expires_at: string | null;
+    } | null;
+
+    const isExpired =
+      tokenRow?.expires_at != null &&
+      new Date(tokenRow.expires_at).getTime() <= Date.now();
+
+    if (!tokenRow || isExpired) {
+      redirect(`/o/${token}?notice=tracking_not_found`);
+    }
+
+    const extension =
+      file.type === 'image/png'
+        ? 'png'
+        : file.type === 'image/webp'
+          ? 'webp'
+          : 'jpg';
+    const storagePath = `${tokenRow.org_id}/${tokenRow.online_order_id}/${Date.now()}-${randomUUID()}.${extension}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const { error: uploadError } = await admin.storage
+      .from('online-order-proofs')
+      .upload(storagePath, buffer, {
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      redirect(`/o/${token}?notice=upload_failed`);
+    }
+
+    const { error: insertError } = await admin
+      .from('online_order_payment_proofs' as never)
+      .insert(
+        {
+          org_id: tokenRow.org_id,
+          online_order_id: tokenRow.online_order_id,
+          storage_path: storagePath,
+        } as never,
+      );
+
+    if (insertError) {
+      redirect(`/o/${token}?notice=upload_failed`);
+    }
+
+    revalidatePath(`/o/${token}`);
+    revalidatePath('/online-orders');
+    redirect(`/o/${token}?notice=proof_uploaded`);
+  };
 
   if (!row) {
     return (
@@ -108,6 +205,39 @@ export default async function OnlineOrderTrackingPage({ params }: TrackingPagePr
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-600">
+            Comprobante de pago
+          </h2>
+          <p className="mt-2 text-xs text-slate-600">
+            Si pagaste por transferencia o QR, sube aquí el comprobante para
+            acelerar la preparación.
+          </p>
+          {notice && proofNoticeMessage[notice] ? (
+            <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+              {proofNoticeMessage[notice]}
+            </p>
+          ) : null}
+          <form action={uploadProof} className="mt-3 flex flex-wrap items-end gap-3">
+            <input type="hidden" name="tracking_token" value={trackingToken} />
+            <div className="min-w-64 flex-1">
+              <input
+                type="file"
+                name="payment_proof"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                className="w-full rounded border border-slate-300 px-3 py-2 text-xs text-slate-700"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-900"
+            >
+              Adjuntar comprobante
+            </button>
+          </form>
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2">

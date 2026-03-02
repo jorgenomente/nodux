@@ -18,6 +18,61 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-03-01 21:45 -03 — PM-2 v1: comprobantes online (tracking público + revisión interna)
+
+**Tipo:** feature
+**Lote:** online-orders-payment-proofs-v1
+**Alcance:** db, frontend, docs, tests
+
+**Resumen**
+Se implementó el primer flujo operativo de comprobantes para pedidos online. El cliente puede adjuntar imagen de comprobante desde `/o/:trackingToken` y el staff/admin revisa el último comprobante en `/online-orders` con acciones de aprobación/rechazo y nota. Se agregó bucket privado de storage para comprobantes online y políticas asociadas.
+
+**Archivos**
+
+- supabase/migrations/20260302101500_069_online_order_proofs_storage_bucket.sql
+- app/o/[trackingToken]/page.tsx
+- app/online-orders/page.tsx
+- docs/docs-modules-online-store.md
+- docs/docs-app-screens-online-order-tracking.md
+- docs/docs-app-screens-online-orders.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:reset` OK (2026-03-01)
+- Validación objetos DB OK (`storage.buckets.online-order-proofs` + policies `online_order_proofs_*`)
+- Verificación RLS mínima `online_order_payment_proofs` OK (`allow_count=1`, `deny_count=0`)
+- `npm run lint` OK (2026-03-01)
+- `npm run build` OK (2026-03-01)
+
+**Commit:** N/A
+
+## 2026-03-01 21:50 -03 — Docs: guía QA manual ecommerce/pedidos online v1
+
+**Tipo:** docs
+**Lote:** online-orders-payment-proofs-v1
+**Alcance:** docs
+
+**Resumen**
+Se agregó un documento operativo de QA manual para validar end-to-end el flujo ecommerce: storefront por slug, checkout, tracking público, carga de comprobantes y revisión interna en `/online-orders`, incluyendo casos negativos y criterios de aprobación.
+
+**Archivos**
+
+- docs/docs-qa-online-store-manual.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- No aplica (`docs-only`).
+
+**Commit:** N/A
+
 ## 2026-03-01 10:40 -03 — Docs: catálogo global por org y anti-duplicado de productos
 
 **Tipo:** decision

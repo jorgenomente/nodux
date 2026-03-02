@@ -49,6 +49,7 @@ Estado actual:
 - Plantillas de impresión por sucursal para ticket/copia fiscal de prueba en `supabase/migrations/20260301143000_063_branch_ticket_templates.sql` (`branches.ticket_header_text`, `branches.ticket_footer_text`, `branches.fiscal_ticket_note_text`, extensión de `v_branches_admin`).
 - Layout de impresión por sucursal (ancho/márgenes/fuente/interlineado) en `supabase/migrations/20260301170200_067_branch_ticket_print_layout.sql` (`branches.ticket_paper_width_mm`, `ticket_margin_*_mm`, `ticket_font_size_px`, `ticket_line_height`, extensión de `v_branches_admin`).
 - Fundación DB de tienda online (slugs públicos, storefront, pedidos online y tracking) en `supabase/migrations/20260301213000_068_online_store_foundation.sql` (`orgs.storefront_slug`, `branches.storefront_slug`, `products.image_url`, `storefront_settings`, `storefront_domains`, `online_orders*`, `v_online_orders_admin`, RPCs públicas de storefront/tracking y RPC de cambio de estado).
+- Bucket/policies de comprobantes de pedidos online en `supabase/migrations/20260302101500_069_online_order_proofs_storage_bucket.sql` (`online-order-proofs`).
 - Hardening de RPCs de usuarios para preservar actor de auditoría en alta/edición de membresía en `supabase/migrations/20260301162000_064_users_membership_rpcs_auth_context.sql` (`rpc_invite_user_to_org`, `rpc_update_user_membership` como `security definer` con validación explícita de rol/org/sucursales).
 - Hotfix de `rpc_invite_user_to_org` por ambigüedad de `user_id` en producción en `supabase/migrations/20260301170000_065_fix_rpc_invite_user_to_org_ambiguous_user_id.sql` y `supabase/migrations/20260301171500_066_fix_rpc_invite_user_to_org_out_param_conflict.sql` (se elimina conflicto de OUT param y queda salida `invited_user_id`).
 - Onboarding de datos maestros (jobs/rows de importación + vista de pendientes + RPCs de importación) en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks`, `rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
@@ -935,6 +936,7 @@ Estado actual:
 - `reviewed_by_user_id` (uuid, nullable FK -> auth.users.id)
 - `reviewed_at` (timestamptz, nullable)
 - `uploaded_at`
+- bucket storage: `online-order-proofs` (privado)
 
 ---
 

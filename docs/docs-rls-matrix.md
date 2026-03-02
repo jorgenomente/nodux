@@ -41,6 +41,7 @@ Estado actual:
 - Hardening de membresía de usuarios en `supabase/migrations/20260301162000_064_users_membership_rpcs_auth_context.sql`: `rpc_invite_user_to_org` y `rpc_update_user_membership` pasan a `security definer`, exigen sesión autenticada OA/SA (`is_org_admin_or_superadmin`), validan rol/sucursales y auditan con actor real (`auth.uid()`).
 - Hotfix producción en `supabase/migrations/20260301170000_065_fix_rpc_invite_user_to_org_ambiguous_user_id.sql` y `supabase/migrations/20260301171500_066_fix_rpc_invite_user_to_org_out_param_conflict.sql`: se corrige error SQL `42702` en `rpc_invite_user_to_org` (ambigüedad `user_id`) para restablecer altas de usuarios desde settings/superadmin.
 - Fundación DB de canal online en `supabase/migrations/20260301213000_068_online_store_foundation.sql`: nuevas tablas `storefront_*` y `online_orders*`, slugs públicos en `orgs/branches`, y RPCs públicas `rpc_get_public_storefront_branches`, `rpc_get_public_storefront_products`, `rpc_create_online_order`, `rpc_get_online_order_tracking`.
+- Bucket de comprobantes online en `supabase/migrations/20260302101500_069_online_order_proofs_storage_bucket.sql`: `storage.buckets.online-order-proofs` + policies `online_order_proofs_*` en `storage.objects` (select para miembros de org, write admin/superadmin).
 - Bucket de facturas proveedor agregado en `supabase/migrations/20260217221500_040_supplier_invoice_storage_bucket.sql` (`storage.buckets: supplier-invoices` + policies en `storage.objects` por `org_id` en path).
 - Smoke RLS automatizado agregado en `scripts/rls-smoke-tests.mjs` (ejecución: `npm run db:rls:smoke`).
 - CI hardening agrega ejecución automática de smoke RLS + smoke Playwright en `.github/workflows/ci-hardening.yml`.
@@ -149,6 +150,7 @@ Estado actual:
 - `rpc_create_online_order` -> público (anon/authenticated), crea pedido online en estado `pending` con validación de stock.
 - `rpc_get_online_order_tracking` -> público (anon/authenticated), tracking por token activo/no expirado.
 - `rpc_set_online_order_status` -> autenticado miembro de org, con transiciones válidas y auditoría `online_order_status_set`.
+- Carga pública de comprobante en `/o/:trackingToken` (server action): valida token activo/no expirado, sube a `online-order-proofs` con service role e inserta en `online_order_payment_proofs` para revisión interna.
 - `rpc_superadmin_create_org` -> solo SA global.
 - `rpc_superadmin_upsert_branch` -> solo SA global.
 - `rpc_superadmin_set_active_org` -> solo SA global.

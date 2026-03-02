@@ -81,6 +81,16 @@ type OnlineOrderRow = {
   payment_proof_review_status: 'pending' | 'approved' | 'rejected' | null;
 };
 
+type PaymentProofRow = {
+  id: string;
+  org_id: string;
+  online_order_id: string;
+  storage_path: string;
+  review_status: 'pending' | 'approved' | 'rejected';
+  review_note: string | null;
+  uploaded_at: string;
+};
+
 const statusLabel: Record<OnlineOrderStatus, string> = {
   pending: 'Pendiente',
   confirmed: 'Confirmado',
@@ -237,6 +247,38 @@ export default async function OnlineOrdersPage({
 
   const { data: ordersData } = await ordersQuery.limit(100);
   const orders = (ordersData ?? []) as OnlineOrderRow[];
+  const orderIds = orders.map((order) => order.online_order_id);
+
+  const latestProofByOrderId = new Map<string, PaymentProofRow>();
+  if (orderIds.length > 0) {
+    const { data: proofsData } = await supabase
+      .from('online_order_payment_proofs' as never)
+      .select(
+        'id, org_id, online_order_id, storage_path, review_status, review_note, uploaded_at',
+      )
+      .eq('org_id', orgId)
+      .in('online_order_id', orderIds)
+      .order('uploaded_at', { ascending: false });
+
+    for (const proof of (proofsData ?? []) as PaymentProofRow[]) {
+      if (!latestProofByOrderId.has(proof.online_order_id)) {
+        latestProofByOrderId.set(proof.online_order_id, proof);
+      }
+    }
+  }
+
+  const signedProofUrlByOrderId = new Map<string, string>();
+  await Promise.all(
+    Array.from(latestProofByOrderId.values()).map(async (proof) => {
+      const { data: signed } = await supabase.storage
+        .from('online-order-proofs')
+        .createSignedUrl(proof.storage_path, 60 * 60);
+
+      if (signed?.signedUrl) {
+        signedProofUrlByOrderId.set(proof.online_order_id, signed.signedUrl);
+      }
+    }),
+  );
 
   const setStatus = async (formData: FormData) => {
     'use server';
@@ -369,6 +411,139 @@ export default async function OnlineOrdersPage({
     );
   };
 
+  const reviewProof = async (formData: FormData) => {
+    'use server';
+
+    const actionSession = await getOrgMemberSession();
+    if (!actionSession?.orgId || !actionSession.effectiveRole) {
+      redirect('/no-access');
+    }
+
+    const actionSupabase = actionSession.supabase;
+    const actionOrgId = actionSession.orgId;
+    const actionRole = actionSession.effectiveRole;
+    const actionUserId = actionSession.userId;
+
+    const proofId = String(formData.get('proof_id') ?? '').trim();
+    const decision = String(formData.get('decision') ?? '').trim();
+    const reviewNote = String(formData.get('review_note') ?? '').trim();
+    const returnQ = String(formData.get('return_q') ?? '').trim();
+    const returnBranchId = String(formData.get('return_branch_id') ?? '').trim();
+    const returnStatus = String(formData.get('return_status') ?? '').trim();
+
+    if (!proofId || !['approved', 'rejected'].includes(decision)) {
+      redirect(
+        buildListUrl({
+          q: returnQ,
+          branchId: returnBranchId,
+          status: returnStatus,
+          notice: 'invalid_proof_review',
+        }),
+      );
+    }
+
+    const { data: proofRaw } = await actionSupabase
+      .from('online_order_payment_proofs' as never)
+      .select('id, org_id, online_order_id')
+      .eq('id', proofId)
+      .eq('org_id', actionOrgId)
+      .maybeSingle();
+    const proofRow = proofRaw as {
+      id: string;
+      org_id: string;
+      online_order_id: string;
+    } | null;
+
+    if (!proofRow) {
+      redirect(
+        buildListUrl({
+          q: returnQ,
+          branchId: returnBranchId,
+          status: returnStatus,
+          notice: 'proof_not_found',
+        }),
+      );
+    }
+
+    const { data: orderRaw } = await actionSupabase
+      .from('online_orders' as never)
+      .select('id, branch_id')
+      .eq('id', proofRow.online_order_id)
+      .eq('org_id', actionOrgId)
+      .maybeSingle();
+    const orderRow = orderRaw as { id: string; branch_id: string } | null;
+
+    if (!orderRow) {
+      redirect(
+        buildListUrl({
+          q: returnQ,
+          branchId: returnBranchId,
+          status: returnStatus,
+          notice: 'order_not_found',
+        }),
+      );
+    }
+
+    if (actionRole === 'staff') {
+      const { data: membership } = await actionSupabase
+        .from('branch_memberships')
+        .select('id')
+        .eq('org_id', actionOrgId)
+        .eq('user_id', actionUserId)
+        .eq('branch_id', orderRow.branch_id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!membership) {
+        redirect('/no-access');
+      }
+
+      const { data: modules } = await actionSupabase.rpc(
+        'rpc_get_staff_effective_modules',
+      );
+      const enabledOnlineOrders = modules?.some(
+        (module) => module.module_key === 'online_orders' && module.is_enabled,
+      );
+      if (!enabledOnlineOrders) {
+        redirect('/no-access');
+      }
+    }
+
+    const { error } = await actionSupabase
+      .from('online_order_payment_proofs' as never)
+      .update(
+        {
+          review_status: decision as 'approved' | 'rejected',
+          review_note: reviewNote || null,
+          reviewed_by_user_id: actionUserId,
+          reviewed_at: new Date().toISOString(),
+        } as never,
+      )
+      .eq('id', proofId)
+      .eq('org_id', actionOrgId);
+
+    if (error) {
+      redirect(
+        buildListUrl({
+          q: returnQ,
+          branchId: returnBranchId,
+          status: returnStatus,
+          notice: `error:${encodeURIComponent(error.message)}`,
+        }),
+      );
+    }
+
+    revalidatePath('/online-orders');
+    redirect(
+      buildListUrl({
+        q: returnQ,
+        branchId: returnBranchId,
+        status: returnStatus,
+        notice: 'proof_review_saved',
+      }),
+    );
+  };
+
   return (
     <PageShell>
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -383,6 +558,21 @@ export default async function OnlineOrdersPage({
           {resolvedSearchParams.notice === 'status_saved' ? (
             <p className="mt-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
               Estado actualizado.
+            </p>
+          ) : null}
+          {resolvedSearchParams.notice === 'proof_review_saved' ? (
+            <p className="mt-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+              Revisión de comprobante guardada.
+            </p>
+          ) : null}
+          {resolvedSearchParams.notice === 'invalid_proof_review' ? (
+            <p className="mt-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              Revisión inválida.
+            </p>
+          ) : null}
+          {resolvedSearchParams.notice === 'proof_not_found' ? (
+            <p className="mt-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              No encontramos el comprobante.
             </p>
           ) : null}
           {resolvedSearchParams.notice?.startsWith('error:') ? (
@@ -467,6 +657,8 @@ export default async function OnlineOrdersPage({
 
           {orders.map((order) => {
             const nextStatuses = getNextStatuses(order.status);
+            const latestProof = latestProofByOrderId.get(order.online_order_id) ?? null;
+            const proofUrl = signedProofUrlByOrderId.get(order.online_order_id) ?? '';
             return (
               <article
                 key={order.online_order_id}
@@ -512,9 +704,9 @@ export default async function OnlineOrdersPage({
                       Ver tracking
                     </Link>
                   ) : null}
-                  {order.has_payment_proof ? (
+                  {latestProof ? (
                     <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
-                      Comprobante: {order.payment_proof_review_status ?? 'pending'}
+                      Comprobante: {latestProof.review_status}
                     </span>
                   ) : (
                     <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 font-semibold text-zinc-600">
@@ -522,6 +714,67 @@ export default async function OnlineOrdersPage({
                     </span>
                   )}
                 </div>
+
+                {latestProof ? (
+                  <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                    <p className="text-xs text-zinc-600">
+                      Último comprobante: {formatDateTime(latestProof.uploaded_at)}
+                    </p>
+                    {proofUrl ? (
+                      <a
+                        href={proofUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-flex rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-semibold text-zinc-700"
+                      >
+                        Ver comprobante
+                      </a>
+                    ) : (
+                      <p className="mt-1 text-xs text-zinc-500">
+                        No se pudo generar vista previa temporal.
+                      </p>
+                    )}
+                    {latestProof.review_note ? (
+                      <p className="mt-2 text-xs text-zinc-700">
+                        Nota revisión: {latestProof.review_note}
+                      </p>
+                    ) : null}
+                    <form action={reviewProof} className="mt-3 grid gap-2">
+                      <input type="hidden" name="proof_id" value={latestProof.id} />
+                      <input type="hidden" name="return_q" value={query} />
+                      <input
+                        type="hidden"
+                        name="return_branch_id"
+                        value={selectedBranchId}
+                      />
+                      <input type="hidden" name="return_status" value={statusFilter} />
+                      <textarea
+                        name="review_note"
+                        placeholder="Nota de revisión (opcional)"
+                        className="min-h-20 rounded border border-zinc-300 bg-white px-3 py-2 text-xs"
+                        defaultValue={latestProof.review_note ?? ''}
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="submit"
+                          name="decision"
+                          value="approved"
+                          className="rounded border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
+                        >
+                          Aprobar comprobante
+                        </button>
+                        <button
+                          type="submit"
+                          name="decision"
+                          value="rejected"
+                          className="rounded border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700"
+                        >
+                          Rechazar comprobante
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                ) : null}
 
                 {nextStatuses.length > 0 ? (
                   <div className="mt-4 flex flex-wrap gap-2">

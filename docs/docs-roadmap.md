@@ -285,7 +285,7 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - notificación WhatsApp asistida (mensaje prearmado) y evolución a automática
 - plantillas de mensajes por estado de pedido
 
-**Estado**: PLANEADA
+**Estado**: EN PROGRESO (comprobantes online v1 implementados)
 
 ---
 
@@ -332,6 +332,7 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-03-01: configuración de impresión se desacopla de `/settings/branches` y pasa a `/settings/tickets` con guía explícita de formato para rollo térmico 80mm y separación de ticket no fiscal vs leyenda fiscal de prueba.
 - 2026-03-01: impresión de tickets agrega parámetros de layout por sucursal (`ticket_paper_width_mm`, márgenes, `ticket_font_size_px`, `ticket_line_height`) para ajustar recortes/offset de impresoras térmicas; `/settings/tickets`, POS y `/sales/[saleId]/ticket` aplican la configuración.
 - 2026-03-01: PM-1 (canal online) inicia fundación DB en migración `20260301213000_068_online_store_foundation.sql` con slugs públicos (`orgs/branches`), `storefront_settings`, `storefront_domains`, `online_orders*`, `v_online_orders_admin` y RPCs de storefront/checkout/tracking/estado.
+- 2026-03-01: PM-2 inicia con comprobantes online v1: bucket `online-order-proofs` (migración `20260302101500_069_online_order_proofs_storage_bucket.sql`), carga pública desde `/o/:trackingToken` y revisión interna (aprobar/rechazar + nota) en `/online-orders`.
 - 2026-02-27: `/demo` evoluciona a demo interactiva con login automático (`POST /demo/enter`) y guard de solo lectura para usuario demo vía `DEMO_READONLY_EMAILS`.
 - 2026-02-27: POS divide cierre de venta en `Cobrar` y `Cobrar y facturar`; ventas agregan estado fiscal (`is_invoiced`/`invoiced_at`), `/sales` y detalle habilitan `Emitir factura` + `Imprimir ticket` (copia no fiscal), y dashboard suma KPIs de facturación diaria (facturado/no facturado + % facturado).
 - 2026-03-01: decisión de catálogo global por org explicitada en docs + política anti-duplicado obligatoria para productos (`barcode`, `internal_code`, `name` normalizado). Queda pendiente hardening DB/RPC para unicidad por nombre.

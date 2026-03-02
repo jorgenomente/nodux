@@ -12,6 +12,22 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-03-01 21:50 -03 — Docs: QA manual ecommerce y pedidos online v1
+
+**Lote:** online-orders-payment-proofs-v1
+**Objetivo:** Documentar un checklist de QA manual para storefront, checkout, tracking y comprobantes online.
+
+**Prompt**
+OK haz un documento con este QA y despues comitea y pushea todo que lo hacemos ma;ana
+
+## 2026-03-01 21:45 -03 — PM-2: comprobantes online (carga pública + revisión interna)
+
+**Lote:** online-orders-payment-proofs-v1
+**Objetivo:** Implementar el flujo mínimo de comprobantes para pedidos online: carga desde tracking público y revisión interna en `/online-orders`, con storage privado y políticas.
+
+**Prompt**
+ok vamos a comitear y pushear todo lo pendiente y despues continuar
+
 ## 2026-03-01 10:40 -03 — Docs: catálogo global por org + regla anti-duplicado de productos
 
 **Lote:** docs-catalog-org-antidup-products
