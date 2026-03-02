@@ -32,6 +32,8 @@ activar/desactivar (si aplica)
 
 ver resumen básico (usuarios asignados, opcional)
 
+configurar WhatsApp de tienda por sucursal para storefront
+
 Nota:
 
 - La configuración de plantillas de ticket se gestiona en `/settings/tickets`.
@@ -55,6 +57,8 @@ Modal crear/editar:
 name (requerido)
 
 address (opcional)
+
+storefront_whatsapp_phone (opcional)
 
 is_active (default true)
 
@@ -94,6 +98,10 @@ address
 is_active
 
 members_count (opcional)
+
+storefront_slug
+
+storefront_whatsapp_phone
 
 Escritura
 

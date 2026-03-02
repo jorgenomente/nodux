@@ -70,6 +70,7 @@ type OnlineOrderRow = {
   status: OnlineOrderStatus;
   customer_name: string;
   customer_phone: string;
+  customer_address: string | null;
   customer_notes: string | null;
   staff_notes: string | null;
   payment_intent: 'pay_on_pickup' | 'transfer' | 'qr';
@@ -89,6 +90,14 @@ type PaymentProofRow = {
   review_status: 'pending' | 'approved' | 'rejected';
   review_note: string | null;
   uploaded_at: string;
+};
+
+type OnlineOrderItemRow = {
+  online_order_id: string;
+  product_name_snapshot: string;
+  quantity: number;
+  unit_price_snapshot: number;
+  line_total: number;
 };
 
 const statusLabel: Record<OnlineOrderStatus, string> = {
@@ -250,7 +259,23 @@ export default async function OnlineOrdersPage({
   const orderIds = orders.map((order) => order.online_order_id);
 
   const latestProofByOrderId = new Map<string, PaymentProofRow>();
+  const itemsByOrderId = new Map<string, OnlineOrderItemRow[]>();
   if (orderIds.length > 0) {
+    const { data: itemsData } = await supabase
+      .from('online_order_items' as never)
+      .select(
+        'online_order_id, product_name_snapshot, quantity, unit_price_snapshot, line_total',
+      )
+      .eq('org_id', orgId)
+      .in('online_order_id', orderIds)
+      .order('created_at', { ascending: true });
+
+    for (const item of (itemsData ?? []) as OnlineOrderItemRow[]) {
+      const list = itemsByOrderId.get(item.online_order_id) ?? [];
+      list.push(item);
+      itemsByOrderId.set(item.online_order_id, list);
+    }
+
     const { data: proofsData } = await supabase
       .from('online_order_payment_proofs' as never)
       .select(
@@ -659,6 +684,7 @@ export default async function OnlineOrdersPage({
             const nextStatuses = getNextStatuses(order.status);
             const latestProof = latestProofByOrderId.get(order.online_order_id) ?? null;
             const proofUrl = signedProofUrlByOrderId.get(order.online_order_id) ?? '';
+            const orderItems = itemsByOrderId.get(order.online_order_id) ?? [];
             return (
               <article
                 key={order.online_order_id}
@@ -675,6 +701,9 @@ export default async function OnlineOrdersPage({
                     <p className="text-sm text-zinc-600">
                       {order.customer_phone} · {order.branch_name}
                     </p>
+                    {order.customer_address ? (
+                      <p className="text-xs text-zinc-500">{order.customer_address}</p>
+                    ) : null}
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-zinc-900">
@@ -702,6 +731,14 @@ export default async function OnlineOrdersPage({
                       className="rounded-full border border-zinc-300 px-3 py-1 font-semibold text-zinc-700"
                     >
                       Ver tracking
+                    </Link>
+                  ) : null}
+                  {order.status !== 'delivered' && order.status !== 'cancelled' ? (
+                    <Link
+                      href={`/pos?online_order_id=${order.online_order_id}`}
+                      className="rounded-full border border-indigo-300 bg-indigo-50 px-3 py-1 font-semibold text-indigo-700"
+                    >
+                      Cobrar en POS
                     </Link>
                   ) : null}
                   {latestProof ? (
@@ -775,6 +812,35 @@ export default async function OnlineOrdersPage({
                     </form>
                   </div>
                 ) : null}
+
+                <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                    Detalle de artículos
+                  </p>
+                  {orderItems.length === 0 ? (
+                    <p className="mt-2 text-xs text-zinc-500">
+                      No hay ítems cargados para este pedido.
+                    </p>
+                  ) : (
+                    <div className="mt-2 grid gap-2">
+                      {orderItems.map((item, index) => (
+                        <div
+                          key={`${order.online_order_id}-${index}`}
+                          className="rounded border border-zinc-200 bg-white px-3 py-2 text-xs"
+                        >
+                          <p className="font-semibold text-zinc-800">
+                            {item.product_name_snapshot}
+                          </p>
+                          <p className="text-zinc-600">
+                            {Number(item.quantity)} x{' '}
+                            {formatCurrency(Number(item.unit_price_snapshot))} ={' '}
+                            {formatCurrency(Number(item.line_total))}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 {nextStatuses.length > 0 ? (
                   <div className="mt-4 flex flex-wrap gap-2">

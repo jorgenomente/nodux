@@ -19,7 +19,7 @@ Abrir un canal de venta online conectado al inventario real de NODUX:
 
 ## Estado
 
-Post-MVP en progreso: fundación DB implementada (migración 068) + UI pública v1 (`/:orgSlug`, `/:orgSlug/:branchSlug`, `/o/:trackingToken`) + UI interna v1 (`/online-orders`) + comprobantes online v1 (carga pública y revisión interna).
+Post-MVP en progreso: fundación DB implementada (migración 068) + UI pública v1 (`/:orgSlug`, `/:orgSlug/:branchSlug`, `/o/:trackingToken`) + UI interna v1 (`/online-orders`) + iteración checkout/tracking (dirección cliente, pago al retirar, WhatsApp por sucursal, tracking detallado).
 
 ## Roles
 
@@ -46,9 +46,9 @@ Cabecera de pedido online:
 
 - org_id, branch_id
 - order_code público corto
-- customer_name, customer_phone
+- customer_name, customer_phone, customer_address
 - pickup_mode (retiro)
-- payment_intent (retiro/transferencia/qr)
+- payment_intent (actualmente fijo en `pay_on_pickup`)
 - status
 - notes de cliente/staff
 
@@ -120,12 +120,13 @@ Storage asociado:
 - Tracking público: `/o/:trackingToken`
 - Gestión interna: `/online-orders`
 - Referencia operativa en settings: `/settings` (sección "Tienda online" con estado + links)
+- Handoff de cobro: `/pos?online_order_id=:id` (precarga de ítems desde pedido online)
 
 ## Data contracts (resumen)
 
 - Lectura sucursales storefront: `rpc_get_public_storefront_branches(org_slug)`
 - Lectura productos storefront: `rpc_get_public_storefront_products(org_slug, branch_slug)`
-- Escritura checkout: `rpc_create_online_order(org_slug, branch_slug, customer_name, customer_phone, payment_intent, items, customer_notes)`
+- Escritura checkout: `rpc_create_online_order(org_slug, branch_slug, customer_name, customer_phone, customer_address, items, customer_notes)`
 - Lectura gestión interna: `v_online_orders_admin`
 - Cambio de estado: `rpc_set_online_order_status(online_order_id, new_status, internal_note, customer_note)`
 - Tracking público: `rpc_get_online_order_tracking(token)`

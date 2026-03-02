@@ -52,6 +52,75 @@ Se implementó el primer flujo operativo de comprobantes para pedidos online. El
 
 **Commit:** N/A
 
+## 2026-03-02 17:46 -03 — Online orders + POS: detalle de ítems y handoff de cobro
+
+**Tipo:** feature
+**Lote:** online-store-iteration-checkout-whatsapp-tracking
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se agregó visibilidad operativa de artículos en `/online-orders` y un handoff directo de cobro al POS mediante `Cobrar en POS` (`/pos?online_order_id=:id`). El POS ahora puede precargar carrito desde pedido online y, tras venta exitosa, intenta avanzar el estado del pedido a `delivered` vía `rpc_set_online_order_status`.
+
+**Archivos**
+
+- app/online-orders/page.tsx
+- app/pos/page.tsx
+- app/pos/PosClient.tsx
+- docs/docs-app-screens-online-orders.md
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-qa-online-store-manual.md
+- docs/docs-modules-online-store.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-03-02)
+- `npm run build` OK (2026-03-02)
+
+**Commit:** N/A
+
+## 2026-03-02 10:59 -03 — Iteración ecommerce: checkout simplificado, WhatsApp sucursal y tracking detallado
+
+**Tipo:** feature
+**Lote:** online-store-iteration-checkout-whatsapp-tracking
+**Alcance:** db, frontend, docs, tests
+
+**Resumen**
+Se iteró el flujo online para ajustarlo a operación real: checkout público ahora requiere nombre/WhatsApp/dirección y fija pago en `pay_on_pickup`; se habilitó notificación a tienda por WhatsApp con mensaje prearmado del pedido; el teléfono de tienda pasa a ser configurable por sucursal (`storefront_whatsapp_phone` en branches); y el tracking público muestra resumen completo del pedido (datos cliente, ítems, total y estado).
+
+**Archivos**
+
+- supabase/migrations/20260302121000_070_online_store_checkout_tracking_iteration.sql
+- app/api/storefront/order/route.ts
+- app/[orgSlug]/[branchSlug]/StorefrontBranchClient.tsx
+- app/o/[trackingToken]/page.tsx
+- app/settings/branches/page.tsx
+- app/online-orders/page.tsx
+- docs/docs-app-screens-online-storefront-public.md
+- docs/docs-app-screens-online-order-tracking.md
+- docs/docs-app-screens-online-orders.md
+- docs/docs-app-screens-settings-branches.md
+- docs/docs-modules-online-store.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/docs-qa-online-store-manual.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:reset` OK (2026-03-02)
+- Verificación DB/RLS mínima online proof/checkout/tracking: OK
+- `npm run lint` OK (2026-03-02)
+- `npm run build` OK (2026-03-02)
+
+**Commit:** N/A
+
 ## 2026-03-02 09:58 -03 — Settings: sección "Tienda online" para QA operativo
 
 **Tipo:** feature

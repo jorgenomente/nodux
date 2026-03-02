@@ -50,6 +50,7 @@ Estado actual:
 - Layout de impresión por sucursal (ancho/márgenes/fuente/interlineado) en `supabase/migrations/20260301170200_067_branch_ticket_print_layout.sql` (`branches.ticket_paper_width_mm`, `ticket_margin_*_mm`, `ticket_font_size_px`, `ticket_line_height`, extensión de `v_branches_admin`).
 - Fundación DB de tienda online (slugs públicos, storefront, pedidos online y tracking) en `supabase/migrations/20260301213000_068_online_store_foundation.sql` (`orgs.storefront_slug`, `branches.storefront_slug`, `products.image_url`, `storefront_settings`, `storefront_domains`, `online_orders*`, `v_online_orders_admin`, RPCs públicas de storefront/tracking y RPC de cambio de estado).
 - Bucket/policies de comprobantes de pedidos online en `supabase/migrations/20260302101500_069_online_order_proofs_storage_bucket.sql` (`online-order-proofs`).
+- Iteración checkout/tracking online en `supabase/migrations/20260302121000_070_online_store_checkout_tracking_iteration.sql` (`branches.storefront_whatsapp_phone`, `online_orders.customer_address`, checkout `pay_on_pickup` y tracking con ítems/total/datos cliente).
 - Hardening de RPCs de usuarios para preservar actor de auditoría en alta/edición de membresía en `supabase/migrations/20260301162000_064_users_membership_rpcs_auth_context.sql` (`rpc_invite_user_to_org`, `rpc_update_user_membership` como `security definer` con validación explícita de rol/org/sucursales).
 - Hotfix de `rpc_invite_user_to_org` por ambigüedad de `user_id` en producción en `supabase/migrations/20260301170000_065_fix_rpc_invite_user_to_org_ambiguous_user_id.sql` y `supabase/migrations/20260301171500_066_fix_rpc_invite_user_to_org_out_param_conflict.sql` (se elimina conflicto de OUT param y queda salida `invited_user_id`).
 - Onboarding de datos maestros (jobs/rows de importación + vista de pendientes + RPCs de importación) en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks`, `rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
@@ -131,6 +132,7 @@ Estado actual:
 - `ticket_font_size_px` (integer, not null, default 12, check 8..24)
 - `ticket_line_height` (numeric(4,2), not null, default 1.35, check 1..2.5)
 - `storefront_slug` (text, nullable, unique por org)
+- `storefront_whatsapp_phone` (text, nullable)
 - `is_active` (boolean)
 - `created_at`, `updated_at`
 
@@ -859,6 +861,7 @@ Estado actual:
 - `status` (online_order_status)
 - `customer_name` (text)
 - `customer_phone` (text)
+- `customer_address` (text, nullable)
 - `customer_notes` (text, nullable)
 - `staff_notes` (text, nullable)
 - `payment_intent` (online_payment_intent)
@@ -952,7 +955,7 @@ Ver contratos en `docs/docs-schema-model.md`:
 - Views de superadmin global: `v_superadmin_orgs`, `v_superadmin_org_detail`
 - RPCs para escrituras (POS, stock, orders, permissions, clients)
 - RPCs de caja: `rpc_open_cash_session(...)`, `rpc_add_cash_session_movement(...)`, `rpc_get_cash_session_summary(...)`, `rpc_close_cash_session(...)`
-- RPCs storefront público: `rpc_get_public_storefront_branches(...)`, `rpc_get_public_storefront_products(...)`, `rpc_create_online_order(...)`, `rpc_get_online_order_tracking(...)`
+- RPCs storefront público: `rpc_get_public_storefront_branches(...)`, `rpc_get_public_storefront_products(...)`, `rpc_create_online_order(...)` (checkout con dirección y pago al retirar), `rpc_get_online_order_tracking(...)` (incluye cliente, total e ítems)
 - RPC de operación interna de pedidos online: `rpc_set_online_order_status(...)`
 - RPCs de conciliación/corrección ventas: `rpc_get_cash_session_payment_breakdown(...)`, `rpc_get_cash_session_reconciliation_rows(...)`, `rpc_upsert_cash_session_reconciliation_inputs(...)`, `rpc_correct_sale_payment_method(...)`
 - RPC de facturación diferida de ventas: `rpc_mark_sale_invoiced(...)`

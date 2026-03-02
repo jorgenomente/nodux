@@ -111,6 +111,18 @@ type Props = {
       quantity: number;
     }>;
   };
+  onlineOrder?: {
+    onlineOrderId: string;
+    orderCode: string;
+    customerName: string | null;
+    status: 'pending' | 'confirmed' | 'ready_for_pickup' | 'delivered' | 'cancelled';
+    items: Array<{
+      product_id: string;
+      name: string;
+      unit_price: number;
+      quantity: number;
+    }>;
+  };
   cashDiscount: {
     cash_discount_enabled: boolean;
     cash_discount_default_pct: number;
@@ -349,6 +361,7 @@ export default function PosClient({
   initialProducts,
   initialPaymentDevices,
   specialOrder,
+  onlineOrder,
   cashDiscount,
   initialEmployeeAccounts,
 }: Props) {
@@ -360,6 +373,23 @@ export default function PosClient({
   const [barcodeTerm, setBarcodeTerm] = useState('');
   const [results, setResults] = useState<ProductCatalogItem[]>(initialProducts);
   const [cart, setCart] = useState<CartItem[]>(() => {
+    if (onlineOrder?.onlineOrderId) {
+      return onlineOrder.items
+        .filter((item) => item.quantity > 0)
+        .map((item) => ({
+          product_id: item.product_id,
+          name: item.name,
+          internal_code: null,
+          barcode: null,
+          sell_unit_type: 'unit',
+          uom: 'u',
+          unit_price: item.unit_price,
+          stock_on_hand: 0,
+          is_active: true,
+          quantity: item.quantity,
+          quantityInput: String(item.quantity),
+        }));
+    }
     if (!specialOrder?.specialOrderId) return [];
     return specialOrder.items
       .filter((item) => item.quantity > 0)
@@ -417,6 +447,18 @@ export default function PosClient({
     string | null
   >(specialOrder?.clientName ?? null);
   const [closeSpecialOrder, setCloseSpecialOrder] = useState(true);
+  const [onlineOrderId, setOnlineOrderId] = useState<string | null>(
+    onlineOrder?.onlineOrderId ?? null,
+  );
+  const [onlineOrderCode, setOnlineOrderCode] = useState<string | null>(
+    onlineOrder?.orderCode ?? null,
+  );
+  const [onlineOrderStatus, setOnlineOrderStatus] = useState<
+    'pending' | 'confirmed' | 'ready_for_pickup' | 'delivered' | 'cancelled' | null
+  >(onlineOrder?.status ?? null);
+  const [onlineOrderCustomerName, setOnlineOrderCustomerName] = useState<
+    string | null
+  >(onlineOrder?.customerName ?? null);
   const showSearchHint =
     searchTerm.trim().length > 0 && searchTerm.trim().length < 3;
 
@@ -1094,6 +1136,38 @@ export default function PosClient({
       }
     }
 
+    if (onlineOrderId && onlineOrderStatus && onlineOrderStatus !== 'cancelled') {
+      const transitionsByStatus: Record<
+        'pending' | 'confirmed' | 'ready_for_pickup' | 'delivered',
+        Array<'confirmed' | 'ready_for_pickup' | 'delivered'>
+      > = {
+        pending: ['confirmed', 'ready_for_pickup', 'delivered'],
+        confirmed: ['ready_for_pickup', 'delivered'],
+        ready_for_pickup: ['delivered'],
+        delivered: [],
+      };
+      const transitions = transitionsByStatus[onlineOrderStatus];
+
+      for (const nextStatus of transitions) {
+        const { error: statusError } = await supabase.rpc(
+          'rpc_set_online_order_status' as never,
+          {
+            p_online_order_id: onlineOrderId,
+            p_new_status: nextStatus,
+            p_internal_note: `Cobrado desde POS en venta ${saleId || 'N/A'}`,
+            p_customer_note: null,
+          } as never,
+        );
+
+        if (statusError) {
+          setErrorMessage(
+            'Venta cobrada, pero no pudimos actualizar el estado del pedido online.',
+          );
+          break;
+        }
+      }
+    }
+
     const fiscalStatusLabel = isInvoiced ? 'facturada' : 'no facturada';
     setSuccessMessage(
       `Venta registrada. Total: ${formatCurrency(totalAmount)} (${fiscalStatusLabel}).`,
@@ -1149,6 +1223,10 @@ export default function PosClient({
     setEmployeeAccountId('');
     setSpecialOrderId(null);
     setSpecialOrderClientName(null);
+    setOnlineOrderId(null);
+    setOnlineOrderCode(null);
+    setOnlineOrderStatus(null);
+    setOnlineOrderCustomerName(null);
     if (activeBranchId) {
       loadProducts(activeBranchId, searchTerm);
     }
@@ -1242,6 +1320,17 @@ export default function PosClient({
               />
               Cerrar pedido especial al cobrar
             </label>
+          </div>
+        ) : null}
+        {onlineOrderId ? (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <div>
+              Pedido online en POS · {onlineOrderCode}
+              {onlineOrderCustomerName ? ` · Cliente: ${onlineOrderCustomerName}` : ''}
+            </div>
+            <div className="text-xs font-semibold">
+              Estado actual: {onlineOrderStatus ?? 'pending'}
+            </div>
           </div>
         ) : null}
 

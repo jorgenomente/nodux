@@ -280,12 +280,12 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 
 **Incluye (objetivo funcional)**:
 
-- pago contra retiro + opción transferencia/QR con comprobante
+- pago contra retiro (iteración actual) y evolución a transferencia/QR
 - validación interna de comprobantes en consola de pedidos online
 - notificación WhatsApp asistida (mensaje prearmado) y evolución a automática
 - plantillas de mensajes por estado de pedido
 
-**Estado**: EN PROGRESO (comprobantes online v1 implementados)
+**Estado**: EN PROGRESO (checkout simplificado + WhatsApp asistido + tracking detallado)
 
 ---
 
@@ -334,6 +334,8 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-03-01: PM-1 (canal online) inicia fundación DB en migración `20260301213000_068_online_store_foundation.sql` con slugs públicos (`orgs/branches`), `storefront_settings`, `storefront_domains`, `online_orders*`, `v_online_orders_admin` y RPCs de storefront/checkout/tracking/estado.
 - 2026-03-01: PM-2 inicia con comprobantes online v1: bucket `online-order-proofs` (migración `20260302101500_069_online_order_proofs_storage_bucket.sql`), carga pública desde `/o/:trackingToken` y revisión interna (aprobar/rechazar + nota) en `/online-orders`.
 - 2026-03-02: `/settings` incorpora sección "Tienda online" para QA/operación: muestra `storefront_settings.is_enabled`, `org_slug` y links públicos por org/sucursal (`/:orgSlug`, `/:orgSlug/:branchSlug`).
+- 2026-03-02: iteración de UX online: checkout exige nombre/WhatsApp/dirección con pago fijo `pay_on_pickup`, CTA para notificar pedido por WhatsApp a teléfono de sucursal y tracking público enriquecido con datos de cliente, ítems y total.
+- 2026-03-02: `/online-orders` agrega detalle de ítems y CTA `Cobrar en POS`; `/pos` acepta `online_order_id` para precargar carrito y, tras cobrar, intenta cerrar el pedido online en `delivered`.
 - 2026-02-27: `/demo` evoluciona a demo interactiva con login automático (`POST /demo/enter`) y guard de solo lectura para usuario demo vía `DEMO_READONLY_EMAILS`.
 - 2026-02-27: POS divide cierre de venta en `Cobrar` y `Cobrar y facturar`; ventas agregan estado fiscal (`is_invoiced`/`invoiced_at`), `/sales` y detalle habilitan `Emitir factura` + `Imprimir ticket` (copia no fiscal), y dashboard suma KPIs de facturación diaria (facturado/no facturado + % facturado).
 - 2026-03-01: decisión de catálogo global por org explicitada en docs + política anti-duplicado obligatoria para productos (`barcode`, `internal_code`, `name` normalizado). Queda pendiente hardening DB/RPC para unicidad por nombre.

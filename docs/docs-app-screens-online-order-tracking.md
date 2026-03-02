@@ -6,7 +6,7 @@
 
 ## Estado
 
-Post-MVP en progreso: contrato DB + UI pública v1 implementadas, incluyendo carga de comprobante de pago desde link público.
+Post-MVP en progreso: contrato DB + UI pública v1 implementadas, con detalle completo de pedido (cliente + items + total).
 
 ## Rol / Acceso
 
@@ -24,6 +24,13 @@ Permitir al cliente consultar el estado de su pedido con un link único, sin exp
 - código de pedido
 - estado actual (badge)
 
+### Resumen del pedido
+
+- datos del cliente (nombre, WhatsApp, dirección)
+- método de pago declarado
+- total del pedido
+- listado de ítems con cantidad y subtotal
+
 ### Timeline de estado
 
 - pendiente
@@ -38,12 +45,6 @@ Permitir al cliente consultar el estado de su pedido con un link único, sin exp
 - teléfono de contacto
 - botón WhatsApp (mensaje prearmado)
 
-### Comprobante de pago
-
-- input de archivo (jpg/png/webp, hasta 5MB)
-- envío del comprobante asociado al `trackingToken`
-- feedback de éxito/error al cliente
-
 ## Data Contract (One Screen = One Data Contract)
 
 RPC: `rpc_get_online_order_tracking(token)`
@@ -56,14 +57,15 @@ Salida mínima:
 - status
 - created_at
 - last_status_at
+- customer_name
+- customer_phone
+- customer_address
+- customer_notes
+- payment_intent
+- total_amount
+- items[]
 - timeline[]
 - contact_phone
-
-### Escritura complementaria (server action)
-
-- valida `trackingToken` activo/no expirado
-- sube archivo en `storage` bucket `online-order-proofs`
-- inserta fila en `online_order_payment_proofs` con `review_status='pending'`
 
 ## Seguridad
 

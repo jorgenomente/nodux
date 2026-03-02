@@ -42,6 +42,8 @@ Cada row/card:
 - estado
 - hora de creación
 - alerta de comprobante pendiente (si aplica)
+- detalle de ítems del pedido (nombre/cantidad/precio/subtotal)
+- CTA `Cobrar en POS` (handoff operativo)
 
 ### Detalle lateral/modal
 
@@ -51,6 +53,7 @@ Cada row/card:
 - revisión de comprobante (aprobar/rechazar + nota)
 - acciones de estado
 - CTA “Enviar WhatsApp”
+- CTA “Cobrar en POS”
 
 ## Estados y acciones
 
@@ -71,6 +74,7 @@ Salida mínima:
 - order_code
 - org_id, branch_id, branch_name
 - customer_name, customer_phone
+- customer_address
 - status
 - total_amount
 - payment_intent

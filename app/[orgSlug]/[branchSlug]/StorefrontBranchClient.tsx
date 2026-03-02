@@ -19,6 +19,7 @@ type CheckoutState = {
   message: string;
   orderCode?: string;
   trackingToken?: string;
+  whatsappMessage?: string;
 };
 
 type StorefrontBranchClientProps = {
@@ -44,7 +45,7 @@ export default function StorefrontBranchClient({
   const [cart, setCart] = useState<Record<string, number>>({});
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [paymentIntent, setPaymentIntent] = useState<'pay_on_pickup' | 'transfer' | 'qr'>('pay_on_pickup');
+  const [customerAddress, setCustomerAddress] = useState('');
   const [customerNotes, setCustomerNotes] = useState('');
   const [checkoutState, setCheckoutState] = useState<CheckoutState>({
     status: 'idle',
@@ -103,16 +104,16 @@ export default function StorefrontBranchClient({
   };
 
   const whatsappHref = useMemo(() => {
-    if (!checkoutState.trackingToken || !whatsappPhone) return null;
+    if (!checkoutState.trackingToken || !whatsappPhone || !checkoutState.whatsappMessage) {
+      return null;
+    }
     const normalizedPhone = normalizePhoneForWhatsApp(whatsappPhone);
     if (!normalizedPhone) return null;
 
-    const text = encodeURIComponent(
-      `Hola, hice el pedido ${checkoutState.orderCode} en ${orgName} (${branchName}). Link de seguimiento: /o/${checkoutState.trackingToken}`,
-    );
+    const text = encodeURIComponent(checkoutState.whatsappMessage);
 
     return `https://wa.me/${normalizedPhone}?text=${text}`;
-  }, [branchName, checkoutState.orderCode, checkoutState.trackingToken, orgName, whatsappPhone]);
+  }, [checkoutState.trackingToken, checkoutState.whatsappMessage, whatsappPhone]);
 
   const handleCheckout = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -132,7 +133,7 @@ export default function StorefrontBranchClient({
       branchSlug,
       customerName,
       customerPhone,
-      paymentIntent,
+      customerAddress,
       customerNotes,
       items: cartItems.map((item) => ({
         product_id: item.product_id,
@@ -164,12 +165,40 @@ export default function StorefrontBranchClient({
       return;
     }
 
+    const trackingUrl = `${window.location.origin}/o/${body.trackingToken}`;
+    const itemsSummary = cartItems
+      .map(
+        (item) =>
+          `- ${item.product_name} x${item.quantity} ($${Number(item.lineTotal).toFixed(2)})`,
+      )
+      .join('\n');
+    const whatsappMessage = [
+      `Hola, te envio mi pedido ${body.orderCode}.`,
+      `Tienda: ${orgName} - ${branchName}`,
+      `Cliente: ${customerName}`,
+      `WhatsApp: ${customerPhone}`,
+      `Direccion: ${customerAddress}`,
+      `Pago: Pago al retirar`,
+      'Detalle:',
+      itemsSummary,
+      `Total: $${cartTotal.toFixed(2)}`,
+      `Seguimiento: ${trackingUrl}`,
+      customerNotes ? `Notas: ${customerNotes}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
     setCart({});
+    setCustomerName('');
+    setCustomerPhone('');
+    setCustomerAddress('');
+    setCustomerNotes('');
     setCheckoutState({
       status: 'success',
       message: 'Pedido creado correctamente.',
       orderCode: body.orderCode,
       trackingToken: body.trackingToken,
+      whatsappMessage,
     });
   };
 
@@ -304,17 +333,16 @@ export default function StorefrontBranchClient({
               placeholder="Tu teléfono"
               className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none ring-orange-200 transition focus:ring"
             />
-            <select
-              value={paymentIntent}
-              onChange={(event) =>
-                setPaymentIntent(event.target.value as 'pay_on_pickup' | 'transfer' | 'qr')
-              }
+            <input
+              required
+              value={customerAddress}
+              onChange={(event) => setCustomerAddress(event.target.value)}
+              placeholder="Dirección"
               className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none ring-orange-200 transition focus:ring"
-            >
-              <option value="pay_on_pickup">Pago al retirar</option>
-              <option value="transfer">Transferencia</option>
-              <option value="qr">QR</option>
-            </select>
+            />
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              Método de pago: <span className="font-semibold">Pagar al retirar</span>
+            </div>
             <textarea
               value={customerNotes}
               onChange={(event) => setCustomerNotes(event.target.value)}
@@ -353,7 +381,7 @@ export default function StorefrontBranchClient({
                   rel="noreferrer"
                   className="ml-3 inline-block font-semibold text-emerald-900 underline"
                 >
-                  Avisar por WhatsApp
+                  Notificar a la tienda por WhatsApp
                 </a>
               ) : null}
             </div>

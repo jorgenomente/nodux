@@ -12,6 +12,24 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-03-02 17:46 -03 — Online orders: detalle de ítems y cobro en POS
+
+**Lote:** online-store-iteration-checkout-whatsapp-tracking
+**Objetivo:** Extender operación de pedidos online con detalle de artículos en `/online-orders` y flujo de cobro en `/pos` con precarga desde `online_order_id`.
+
+**Prompt**
+en http://localhost:3000/online-orders veo la orden que se hizo pero no veo la descripcion del pedido y los articulos, y tampoco veo un flujo para cobrarlo en POS, como recomiendas que hagamos esto?
+
+adelante
+
+## 2026-03-02 10:59 -03 — Iteración checkout/tracking online + WhatsApp por sucursal
+
+**Lote:** online-store-iteration-checkout-whatsapp-tracking
+**Objetivo:** Ajustar e-commerce al flujo operativo pedido: datos cliente (nombre/WhatsApp/dirección), pago al retirar, notificación a tienda por WhatsApp por sucursal y tracking detallado.
+
+**Prompt**
+Bueno vamos a esperar un momento, vamos a ir iterando desde el principio. me gusta mucho hasta ahora, en los datos de la persona en la tienda online debemos colocar nombre, numero de whatsapp, direccion, y el metodo de pago que sea pagar al retirar por ahora. una vez creado el pedido yo debo poder notificar a la tienda por whatsapp donde le puedo enviar a traves de un simple click el pedido al celular del whatsapp de la tienda. Esto debe ser configurable en configuracion donde se editan las settings de las tiendas ahi colocar el whatsapp por sucursal asi se habilita esto. luego cuando yo le doy al boton ver seguimiento me doy cuenta de que en el seguimiento de pedido no se ven los articulos que se pidieron ni el monto ni los datos de la persona nada, solo se ve el estado, esto debemos optimizarlo para que el usuario sepa exactamente que esta pasando.
+
 ## 2026-03-02 09:58 -03 — Settings: sección Tienda Online con links públicos para QA
 
 **Lote:** settings-online-store-links-hub

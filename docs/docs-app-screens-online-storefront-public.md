@@ -7,7 +7,7 @@
 
 ## Estado
 
-Post-MVP en progreso: contrato DB + UI pública v1 implementadas.
+Post-MVP en progreso: contrato DB + UI pública v1 implementadas, iteración checkout simplificada (pago al retirar) y notificación por WhatsApp a tienda.
 
 ## Rol / Acceso
 
@@ -47,8 +47,9 @@ Campos mínimos:
 
 - nombre
 - teléfono (WhatsApp)
+- dirección
 - notas
-- forma de pago declarada (retiro/transferencia/qr)
+- forma de pago fija: pagar al retirar
 
 Salida:
 
@@ -75,7 +76,7 @@ Salida mínima:
 
 ### Escritura checkout
 
-RPC: `rpc_create_online_order(org_slug, branch_slug, customer_name, customer_phone, payment_intent, items, customer_notes)`
+RPC: `rpc_create_online_order(org_slug, branch_slug, customer_name, customer_phone, customer_address, items, customer_notes)`
 
 Input mínimo:
 
@@ -83,7 +84,7 @@ Input mínimo:
 - branch_slug
 - customer_name
 - customer_phone
-- payment_intent
+- customer_address
 - items[]
 
 Output mínimo:

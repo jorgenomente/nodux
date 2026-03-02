@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 
 import PageShell from '@/app/components/PageShell';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
@@ -13,6 +14,8 @@ type BranchRow = {
   address: string | null;
   is_active: boolean;
   members_count: number | null;
+  storefront_slug: string | null;
+  storefront_whatsapp_phone: string | null;
 };
 
 type PosPaymentDeviceRow = {
@@ -60,6 +63,9 @@ export default async function SettingsBranchesPage({
     const branchIdRaw = String(formData.get('branch_id') ?? '').trim();
     const name = String(formData.get('name') ?? '').trim();
     const addressRaw = String(formData.get('address') ?? '').trim();
+    const storefrontWhatsappPhone = String(
+      formData.get('storefront_whatsapp_phone') ?? '',
+    ).trim();
     const isActive = formData.get('is_active') === 'on';
 
     if (!name) {
@@ -83,7 +89,20 @@ export default async function SettingsBranchesPage({
       redirect('/settings/branches?result=invalid');
     }
 
+    const { error: updateBranchError } = await auth.supabase
+      .from('branches' as never)
+      .update({
+        storefront_whatsapp_phone: storefrontWhatsappPhone || null,
+      } as never)
+      .eq('id', branchId)
+      .eq('org_id', auth.orgId);
+
+    if (updateBranchError) {
+      redirect('/settings/branches?result=invalid');
+    }
+
     revalidatePath('/settings/branches');
+    revalidatePath('/settings');
     revalidatePath('/products');
     revalidatePath('/orders');
     revalidatePath('/dashboard');
@@ -162,6 +181,18 @@ export default async function SettingsBranchesPage({
   const branches = ((data ?? []) as unknown as BranchRow[]).filter(
     (branch) => Boolean(branch.branch_id),
   );
+  const requestHeaders = await headers();
+  const forwardedProto = requestHeaders.get('x-forwarded-proto');
+  const forwardedHost = requestHeaders.get('x-forwarded-host');
+  const host = forwardedHost || requestHeaders.get('host') || 'app.nodux.app';
+  const protocol = forwardedProto || (host.includes('localhost') ? 'http' : 'https');
+  const appBaseUrl = `${protocol}://${host}`;
+  const { data: orgRaw } = await context.supabase
+    .from('orgs')
+    .select('storefront_slug')
+    .eq('id', context.orgId)
+    .maybeSingle();
+  const orgSlug = (orgRaw as { storefront_slug: string | null } | null)?.storefront_slug ?? '';
   const { data: devicesData } = await context.supabase
     .from('pos_payment_devices' as never)
     .select('id, org_id, branch_id, device_name, provider, is_active')
@@ -248,6 +279,20 @@ export default async function SettingsBranchesPage({
                 placeholder="Calle 123"
               />
             </div>
+            <div className="flex flex-col gap-1 md:col-span-1">
+              <label
+                className="text-xs font-semibold text-zinc-600"
+                htmlFor="new-storefront-whatsapp"
+              >
+                WhatsApp tienda (storefront)
+              </label>
+              <input
+                id="new-storefront-whatsapp"
+                name="storefront_whatsapp_phone"
+                className="rounded border border-zinc-200 px-3 py-2 text-sm"
+                placeholder="54911..."
+              />
+            </div>
             <div className="flex items-end gap-3 md:col-span-1">
               <label className="flex items-center gap-2 text-sm text-zinc-700">
                 <input type="checkbox" name="is_active" defaultChecked />
@@ -283,10 +328,7 @@ export default async function SettingsBranchesPage({
                     key={branch.branch_id}
                     className="rounded-xl border border-zinc-200 p-4"
                   >
-                    <form
-                      action={saveBranch}
-                      className="grid gap-3 md:grid-cols-5"
-                    >
+                    <form action={saveBranch} className="grid gap-3 md:grid-cols-6">
                       <input
                         type="hidden"
                         name="branch_id"
@@ -313,6 +355,17 @@ export default async function SettingsBranchesPage({
                           className="rounded border border-zinc-200 px-3 py-2 text-sm"
                         />
                       </div>
+                      <div className="flex flex-col gap-1 md:col-span-1">
+                        <label className="text-xs font-semibold text-zinc-600">
+                          WhatsApp tienda
+                        </label>
+                        <input
+                          name="storefront_whatsapp_phone"
+                          defaultValue={branch.storefront_whatsapp_phone ?? ''}
+                          placeholder="54911..."
+                          className="rounded border border-zinc-200 px-3 py-2 text-sm"
+                        />
+                      </div>
                       <div className="flex items-end md:col-span-1">
                         <label className="flex items-center gap-2 text-sm text-zinc-700">
                           <input
@@ -335,6 +388,22 @@ export default async function SettingsBranchesPage({
                         </button>
                       </div>
                     </form>
+                    <p className="mt-2 break-all text-xs text-zinc-600">
+                      Slug público: {branch.storefront_slug || 'Sin definir'}{' '}
+                      {orgSlug && branch.storefront_slug ? (
+                        <>
+                          · Link:{' '}
+                          <a
+                            href={`${appBaseUrl}/${orgSlug}/${branch.storefront_slug}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-semibold text-blue-700 underline"
+                          >
+                            {`${appBaseUrl}/${orgSlug}/${branch.storefront_slug}`}
+                          </a>
+                        </>
+                      ) : null}
+                    </p>
 
                     <div className="mt-5 border-t border-zinc-200 pt-4">
                       <h3 className="text-sm font-semibold text-zinc-900">

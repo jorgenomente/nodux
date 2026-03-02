@@ -72,7 +72,7 @@ const resolveStaffHome = (
 export default async function PosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ special_order_id?: string }>;
+  searchParams: Promise<{ special_order_id?: string; online_order_id?: string }>;
 }) {
   const resolvedSearchParams = await searchParams;
   const session = await getOrgMemberSession();
@@ -152,6 +152,10 @@ export default async function PosPage({
     typeof resolvedSearchParams.special_order_id === 'string'
       ? resolvedSearchParams.special_order_id
       : '';
+  const onlineOrderId =
+    typeof resolvedSearchParams.online_order_id === 'string'
+      ? resolvedSearchParams.online_order_id
+      : '';
 
   const { data: specialOrderItems } = specialOrderId
     ? await supabase.rpc('rpc_get_special_order_for_pos', {
@@ -176,6 +180,44 @@ export default async function PosPage({
 
   const specialOrderMeta = specialOrderRows[0];
 
+  const { data: onlineOrderRaw } = onlineOrderId
+    ? await supabase
+        .from('online_orders' as never)
+        .select(
+          'id, org_id, branch_id, order_code, customer_name, status, payment_intent',
+        )
+        .eq('id', onlineOrderId)
+        .eq('org_id', orgId)
+        .maybeSingle()
+    : { data: null };
+  const onlineOrderMeta = onlineOrderRaw as
+    | {
+        id: string;
+        org_id: string;
+        branch_id: string;
+        order_code: string;
+        customer_name: string;
+        status: 'pending' | 'confirmed' | 'ready_for_pickup' | 'delivered' | 'cancelled';
+        payment_intent: 'pay_on_pickup' | 'transfer' | 'qr';
+      }
+    | null;
+  const { data: onlineOrderItemsRaw } = onlineOrderMeta
+    ? await supabase
+        .from('online_order_items' as never)
+        .select(
+          'product_id, product_name_snapshot, quantity, unit_price_snapshot',
+        )
+        .eq('org_id', orgId)
+        .eq('online_order_id', onlineOrderMeta.id)
+        .order('created_at', { ascending: true })
+    : { data: [] };
+  const onlineOrderItems = (onlineOrderItemsRaw ?? []) as Array<{
+    product_id: string;
+    product_name_snapshot: string;
+    quantity: number;
+    unit_price_snapshot: number;
+  }>;
+
   if (specialOrderMeta?.branch_id) {
     if (role === 'staff') {
       const allowed = branches.some(
@@ -186,6 +228,15 @@ export default async function PosPage({
       }
     }
     defaultBranchId = specialOrderMeta.branch_id;
+  }
+  if (onlineOrderMeta?.branch_id) {
+    if (role === 'staff') {
+      const allowed = branches.some((branch) => branch.id === onlineOrderMeta.branch_id);
+      if (!allowed) {
+        redirect('/no-access');
+      }
+    }
+    defaultBranchId = onlineOrderMeta.branch_id;
   }
 
   const { data: initialProducts } = defaultBranchId
@@ -276,6 +327,22 @@ export default async function PosPage({
             quantity: Number(row.remaining_qty ?? 0),
           })),
         }}
+        onlineOrder={
+          onlineOrderMeta
+            ? {
+                onlineOrderId: onlineOrderMeta.id,
+                orderCode: onlineOrderMeta.order_code,
+                customerName: onlineOrderMeta.customer_name,
+                status: onlineOrderMeta.status,
+                items: onlineOrderItems.map((row) => ({
+                  product_id: row.product_id,
+                  name: row.product_name_snapshot,
+                  unit_price: Number(row.unit_price_snapshot),
+                  quantity: Number(row.quantity),
+                })),
+              }
+            : undefined
+        }
         cashDiscount={cashDiscount}
         initialEmployeeAccounts={
           (initialEmployeeAccounts ?? []) as EmployeeAccount[]

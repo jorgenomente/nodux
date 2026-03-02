@@ -8,15 +8,10 @@ type CheckoutPayload = {
   branchSlug?: string;
   customerName?: string;
   customerPhone?: string;
-  paymentIntent?: 'pay_on_pickup' | 'transfer' | 'qr';
+  customerAddress?: string;
   customerNotes?: string;
   items?: Array<{ product_id?: string; quantity?: number }>;
 };
-
-const isValidPaymentIntent = (
-  value: unknown,
-): value is 'pay_on_pickup' | 'transfer' | 'qr' =>
-  value === 'pay_on_pickup' || value === 'transfer' || value === 'qr';
 
 export async function POST(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -35,17 +30,11 @@ export async function POST(request: Request) {
   const branchSlug = payload.branchSlug?.trim();
   const customerName = payload.customerName?.trim();
   const customerPhone = payload.customerPhone?.trim();
+  const customerAddress = payload.customerAddress?.trim();
 
-  if (!orgSlug || !branchSlug || !customerName || !customerPhone) {
+  if (!orgSlug || !branchSlug || !customerName || !customerPhone || !customerAddress) {
     return NextResponse.json(
       { error: 'Faltan datos obligatorios para crear el pedido.' },
-      { status: 400 },
-    );
-  }
-
-  if (!isValidPaymentIntent(payload.paymentIntent)) {
-    return NextResponse.json(
-      { error: 'Método de pago inválido.' },
       { status: 400 },
     );
   }
@@ -95,7 +84,7 @@ export async function POST(request: Request) {
     p_branch_slug: branchSlug,
     p_customer_name: customerName,
     p_customer_phone: customerPhone,
-    p_payment_intent: payload.paymentIntent,
+    p_customer_address: customerAddress,
     p_items: items,
     p_customer_notes: payload.customerNotes?.trim() || null,
   });

@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Validar manualmente el flujo de tienda online conectado a stock, checkout, tracking público y comprobantes de pago (carga pública + revisión interna).
+Validar manualmente el flujo de tienda online conectado a stock, checkout simplificado, notificación por WhatsApp y tracking público detallado.
 
 ## Precondiciones
 
@@ -20,8 +20,11 @@ npm run dev
 ## Escenario 1 — Configuración inicial storefront
 
 1. Ingresar como admin.
-2. Verificar que la org tenga `storefront_settings.is_enabled = true`.
-3. Verificar que org y sucursales activas tengan `storefront_slug`.
+2. Ir a `/settings` y validar sección "Tienda online":
+- `Estado storefront = Habilitado`.
+- `Org slug` visible.
+- Links públicos por sucursal visibles.
+3. Ir a `/settings/branches` y validar WhatsApp de tienda por sucursal.
 
 Resultado esperado:
 
@@ -50,7 +53,7 @@ Resultado esperado:
 
 ## Escenario 4 — Checkout de pedido online
 
-1. Completar nombre, teléfono, método de pago y notas.
+1. Completar nombre, WhatsApp, dirección y notas.
 2. Confirmar pedido.
 
 Resultado esperado:
@@ -58,38 +61,32 @@ Resultado esperado:
 - pedido creado exitosamente.
 - código de pedido visible.
 - link de tracking `/o/<trackingToken>` disponible.
+- método de pago indicado como "Pagar al retirar".
+- aparece CTA para notificar pedido por WhatsApp a la tienda.
 
-## Escenario 5 — Tracking público
+## Escenario 5 — Notificación WhatsApp a tienda
+
+1. Desde checkout exitoso, hacer click en "Notificar a la tienda por WhatsApp".
+2. Verificar que abre WhatsApp con mensaje prearmado.
+
+Resultado esperado:
+
+- mensaje incluye pedido, datos cliente, items y total.
+- se envía al número configurado de la sucursal.
+
+## Escenario 6 — Tracking público detallado
 
 1. Abrir `/o/<trackingToken>`.
 2. Validar:
 - estado actual.
+- resumen del cliente (nombre, WhatsApp, dirección).
+- detalle de ítems y total.
 - timeline de estados.
 - botón de contacto WhatsApp (si hay teléfono configurado).
 
 Resultado esperado:
 
 - tracking responde sin login y con datos correctos del pedido.
-
-## Escenario 6 — Carga pública de comprobante (nuevo)
-
-1. En `/o/<trackingToken>`, adjuntar archivo válido (`jpg/png/webp`, <= 5MB).
-2. Enviar formulario.
-
-Resultado esperado:
-
-- mensaje de éxito.
-- comprobante persistido para revisión interna.
-
-Pruebas negativas:
-
-1. Subir archivo no imagen.
-2. Subir archivo > 5MB.
-3. Usar token inválido o expirado.
-
-Resultado esperado:
-
-- error controlado y mensaje claro, sin fallas de servidor.
 
 ## Escenario 7 — Gestión interna `/online-orders`
 
@@ -100,20 +97,22 @@ Resultado esperado:
 Resultado esperado:
 
 - pedido visible con estado correcto.
-- badge/comprobante visible cuando exista.
+- datos del cliente (incluida dirección) visibles.
+- detalle de artículos visible.
 - link a tracking funcional.
+- botón `Cobrar en POS` visible para pedidos no finalizados.
 
-## Escenario 8 — Revisión de comprobante (nuevo)
+## Escenario 8 — Cobro en POS desde pedido online
 
-1. En el pedido, abrir comprobante (signed URL).
-2. Probar aprobar con nota.
-3. Probar rechazar con nota.
+1. En `/online-orders`, click en `Cobrar en POS`.
+2. Validar que abre `/pos?online_order_id=...`.
+3. Confirmar que el carrito del POS viene precargado con los ítems del pedido.
+4. Cobrar la venta en POS.
 
 Resultado esperado:
 
-- estado de revisión actualizado (`approved`/`rejected`).
-- nota persistida.
-- cambios visibles tras recarga.
+- venta registrada correctamente.
+- el pedido online avanza a `delivered` después del cobro.
 
 ## Escenario 9 — Transiciones de estado del pedido
 
@@ -156,8 +155,9 @@ Resultado esperado:
 Se aprueba QA manual cuando:
 
 1. Checkout y tracking funcionan sin errores.
-2. Carga de comprobante pública funciona y errores negativos están controlados.
-3. Revisión interna de comprobantes funciona (aprobar/rechazar + nota).
-4. Transiciones de estado del pedido son correctas.
-5. Permisos de staff respetan módulo y sucursal.
-6. `lint` y `build` finalizan OK.
+2. Notificación por WhatsApp abre mensaje completo al número correcto de sucursal.
+3. Tracking muestra información completa del pedido (cliente, ítems, total, estado).
+4. Handoff a POS funciona (`Cobrar en POS`) y cierra pedido al cobrar.
+5. Transiciones de estado del pedido son correctas.
+6. Permisos de staff respetan módulo y sucursal.
+7. `lint` y `build` finalizan OK.

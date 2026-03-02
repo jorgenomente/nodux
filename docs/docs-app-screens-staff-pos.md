@@ -11,6 +11,7 @@
 ## Ruta
 
 - `/pos`
+- `/pos?online_order_id=:id` (handoff desde `/online-orders`)
 
 ## Rol / Acceso
 
@@ -147,6 +148,12 @@ Una venta es un registro con:
 - Si se abre desde `/clients`, el POS precarga ítems del pedido especial.
 - El stock se descuenta al cobrar.
 - Opción: “Cerrar pedido especial al cobrar”.
+
+### A9) Cobro de pedido online
+
+- Si se ingresa con `online_order_id`, el POS precarga ítems snapshot del pedido online.
+- El cajero completa cobro normal (`Cobrar` o `Cobrar y facturar`).
+- Tras venta exitosa, se intenta avanzar estado del pedido online hasta `delivered`.
 
 ---
 
