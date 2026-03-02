@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
@@ -90,6 +91,49 @@ export default async function SettingsPage() {
   const orgPublicPath = orgSlug ? `/${orgSlug}` : '';
   const orgPublicUrl = orgPublicPath ? `${appBaseUrl}${orgPublicPath}` : '';
 
+  async function toggleStorefrontEnabledAction(formData: FormData) {
+    'use server';
+
+    const actionSession = await getOrgAdminSession();
+    if (!actionSession?.orgId) {
+      redirect('/login');
+    }
+
+    const nextEnabledRaw = String(formData.get('next_enabled') ?? '').trim();
+    const nextEnabled = nextEnabledRaw === 'true';
+    const actionSupabase = actionSession.supabase;
+    const actionOrgId = actionSession.orgId;
+
+    const { data: existingRaw, error: existingError } = await actionSupabase
+      .from('storefront_settings' as never)
+      .select('org_id')
+      .eq('org_id', actionOrgId)
+      .maybeSingle();
+    if (existingError) {
+      throw new Error(existingError.message || 'No se pudo consultar storefront_settings.');
+    }
+    const existing = existingRaw as { org_id: string } | null;
+
+    if (existing) {
+      const { error: updateError } = await actionSupabase
+        .from('storefront_settings' as never)
+        .update({ is_enabled: nextEnabled } as never)
+        .eq('org_id', actionOrgId);
+      if (updateError) {
+        throw new Error(updateError.message || 'No se pudo actualizar storefront_settings.');
+      }
+    } else {
+      const { error: insertError } = await actionSupabase
+        .from('storefront_settings' as never)
+        .insert({ org_id: actionOrgId, is_enabled: nextEnabled } as never);
+      if (insertError) {
+        throw new Error(insertError.message || 'No se pudo crear storefront_settings.');
+      }
+    }
+
+    revalidatePath('/settings');
+  }
+
   return (
     <PageShell>
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
@@ -138,6 +182,25 @@ export default async function SettingsPage() {
               </p>
               <p className="mt-2 text-xs text-zinc-600">Org slug: {orgSlug || 'Sin definir'}</p>
               <p className="mt-1 text-xs text-zinc-600">Base URL detectada: {appBaseUrl}</p>
+              <form action={toggleStorefrontEnabledAction} className="mt-3">
+                <input
+                  type="hidden"
+                  name="next_enabled"
+                  value={storefrontEnabled ? 'false' : 'true'}
+                />
+                <button
+                  type="submit"
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                    storefrontEnabled
+                      ? 'bg-rose-600 text-white hover:bg-rose-700'
+                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  }`}
+                >
+                  {storefrontEnabled
+                    ? 'Deshabilitar tienda online'
+                    : 'Habilitar tienda online'}
+                </button>
+              </form>
               {orgPublicUrl ? (
                 <p className="mt-2 break-all text-xs text-zinc-700">
                   Link público org:{' '}

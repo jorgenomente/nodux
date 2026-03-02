@@ -2842,3 +2842,11 @@ cuando le doy click a logout y me lleva a This page isn’t working
 If the problem continues, contact the site owner.
 HTTP ERROR 405
 en https://app.nodux.app/login no se por que sucede
+
+## 2026-03-02 18:54 -03 — Settings: toggle UI para habilitar tienda online
+
+**Lote:** settings-storefront-toggle-ui
+**Objetivo:** Agregar en `/settings` un botón directo para habilitar/deshabilitar `storefront_settings.is_enabled` sin depender de SQL manual.
+
+**Prompt**
+en este momento http://localhost:3000/settings tienda onlime me sale deshabilitado. podemos agregar un boton donde se habiliten facilimente desde UI?

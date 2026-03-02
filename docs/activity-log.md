@@ -7798,3 +7798,24 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run build OK (2026-03-02)
 
 **Commit:** N/A
+
+## 2026-03-02 18:54 -03 — UI: toggle rápido de Tienda Online en `/settings`
+
+**Tipo:** ui/docs/tests
+**Lote:** settings-storefront-toggle-ui
+**Descripción:** Se agregó en la tarjeta "Tienda online" de `/settings` un botón contextual para `Habilitar/Deshabilitar tienda online`, con `server action` que crea o actualiza `storefront_settings.is_enabled` para la org activa y revalida la ruta. Esto elimina dependencia de SQL manual para activar storefront.
+
+**Archivos afectados:**
+
+- app/settings/page.tsx
+- docs/context-summary.md
+- docs/docs-app-screens-index.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-02)
+- npm run build OK (2026-03-02)
+
+**Commit:** N/A
