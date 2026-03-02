@@ -40,6 +40,7 @@ MVP module_keys recomendados:
 - `cashbox`
 - `products_lookup`
 - `clients`
+- `online_orders` (Post-MVP en progreso)
 - `orders` (opcional para staff en MVP; por defecto apagado)
 - (futuros): `products_manage`, `expirations_manage`, etc.
 

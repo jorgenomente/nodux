@@ -238,7 +238,54 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - exportes maestros CSV para respaldo y portabilidad
 - hardening anti-duplicado de catálogo por org (barcode/internal_code/name normalizado)
 
-**Estado**: EN PROGRESO (base DB + UI implementadas, hardening pendiente)
+---
+
+## Post-MVP (Backlog priorizado)
+
+### PM-1 — Canal online por tienda/sucursal
+
+**Objetivo**: habilitar ecommerce conectado a stock real de NODUX sin romper el flujo operativo interno.
+
+**Incluye (objetivo funcional)**:
+
+- storefront público por slug de org: `app.nodux.app/:orgSlug`
+- storefront público por sucursal: `app.nodux.app/:orgSlug/:branchSlug`
+- selector de sucursal cuando se entra por slug de org
+- catálogo público con precio, stock y foto
+- checkout de pedido online (retiro en tienda)
+- link público único para tracking de pedido
+- consola interna de gestión en `/online-orders`
+
+**Estado**: EN PROGRESO (fundación DB completada + storefront/tracking públicos v1)
+
+**Avance técnico (2026-03-01)**:
+
+- migración `20260301213000_068_online_store_foundation.sql` aplicada en local
+- slugs públicos en `orgs` y `branches`
+- tablas base: `storefront_settings`, `storefront_domains`, `online_orders*`
+- contratos DB: `v_online_orders_admin`, `rpc_get_public_storefront_branches`, `rpc_get_public_storefront_products`, `rpc_create_online_order`, `rpc_set_online_order_status`, `rpc_get_online_order_tracking`
+- rutas UI públicas v1 implementadas: `/:orgSlug`, `/:orgSlug/:branchSlug`, `/o/:trackingToken`, API checkout `/api/storefront/order`
+- ruta UI interna v1 implementada: `/online-orders` (listado, filtros y transición de estado)
+
+**Documentación base**:
+
+- `docs/docs-modules-online-store.md`
+- `docs/docs-app-screens-online-storefront-public.md`
+- `docs/docs-app-screens-online-orders.md`
+- `docs/docs-app-screens-online-order-tracking.md`
+
+### PM-2 — Pagos y comunicaciones para pedidos online
+
+**Objetivo**: cerrar loop operativo de confirmación y notificación al cliente.
+
+**Incluye (objetivo funcional)**:
+
+- pago contra retiro + opción transferencia/QR con comprobante
+- validación interna de comprobantes en consola de pedidos online
+- notificación WhatsApp asistida (mensaje prearmado) y evolución a automática
+- plantillas de mensajes por estado de pedido
+
+**Estado**: PLANEADA
 
 ---
 
@@ -283,6 +330,8 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-03-01: `/settings/preferences` incorpora `% de ganancia por defecto` de la org (`default_supplier_markup_pct`) para unificar sugeridos cuando el proveedor no define margen.
 - 2026-03-01: se agregan plantillas de impresión por sucursal en `branches` (`ticket_header_text`, `ticket_footer_text`, `fiscal_ticket_note_text`) y se integran en POS + `/sales/[saleId]/ticket` para ticket no fiscal configurable por sucursal.
 - 2026-03-01: configuración de impresión se desacopla de `/settings/branches` y pasa a `/settings/tickets` con guía explícita de formato para rollo térmico 80mm y separación de ticket no fiscal vs leyenda fiscal de prueba.
+- 2026-03-01: impresión de tickets agrega parámetros de layout por sucursal (`ticket_paper_width_mm`, márgenes, `ticket_font_size_px`, `ticket_line_height`) para ajustar recortes/offset de impresoras térmicas; `/settings/tickets`, POS y `/sales/[saleId]/ticket` aplican la configuración.
+- 2026-03-01: PM-1 (canal online) inicia fundación DB en migración `20260301213000_068_online_store_foundation.sql` con slugs públicos (`orgs/branches`), `storefront_settings`, `storefront_domains`, `online_orders*`, `v_online_orders_admin` y RPCs de storefront/checkout/tracking/estado.
 - 2026-02-27: `/demo` evoluciona a demo interactiva con login automático (`POST /demo/enter`) y guard de solo lectura para usuario demo vía `DEMO_READONLY_EMAILS`.
 - 2026-02-27: POS divide cierre de venta en `Cobrar` y `Cobrar y facturar`; ventas agregan estado fiscal (`is_invoiced`/`invoiced_at`), `/sales` y detalle habilitan `Emitir factura` + `Imprimir ticket` (copia no fiscal), y dashboard suma KPIs de facturación diaria (facturado/no facturado + % facturado).
 - 2026-03-01: decisión de catálogo global por org explicitada en docs + política anti-duplicado obligatoria para productos (`barcode`, `internal_code`, `name` normalizado). Queda pendiente hardening DB/RPC para unicidad por nombre.

@@ -47,6 +47,8 @@ Estado actual:
 - Descuento empleado en POS + cuentas de empleado por sucursal en `supabase/migrations/20260221223000_052_employee_discount_accounts.sql` (`employee_accounts`, preferencias de combinación, extensión de `rpc_create_sale`, vistas de ventas y dashboard).
 - Facturación operativa de ventas (facturada/no facturada), ticket no fiscal y KPIs de facturación en `supabase/migrations/20260227163000_060_sales_invoicing_ticket_split.sql` (`sales.is_invoiced`, `sales.invoiced_at`, `rpc_mark_sale_invoiced`, extensión de `v_sales_admin`, `v_sale_detail_admin`, `v_dashboard_admin`, `rpc_get_dashboard_admin`).
 - Plantillas de impresión por sucursal para ticket/copia fiscal de prueba en `supabase/migrations/20260301143000_063_branch_ticket_templates.sql` (`branches.ticket_header_text`, `branches.ticket_footer_text`, `branches.fiscal_ticket_note_text`, extensión de `v_branches_admin`).
+- Layout de impresión por sucursal (ancho/márgenes/fuente/interlineado) en `supabase/migrations/20260301170200_067_branch_ticket_print_layout.sql` (`branches.ticket_paper_width_mm`, `ticket_margin_*_mm`, `ticket_font_size_px`, `ticket_line_height`, extensión de `v_branches_admin`).
+- Fundación DB de tienda online (slugs públicos, storefront, pedidos online y tracking) en `supabase/migrations/20260301213000_068_online_store_foundation.sql` (`orgs.storefront_slug`, `branches.storefront_slug`, `products.image_url`, `storefront_settings`, `storefront_domains`, `online_orders*`, `v_online_orders_admin`, RPCs públicas de storefront/tracking y RPC de cambio de estado).
 - Hardening de RPCs de usuarios para preservar actor de auditoría en alta/edición de membresía en `supabase/migrations/20260301162000_064_users_membership_rpcs_auth_context.sql` (`rpc_invite_user_to_org`, `rpc_update_user_membership` como `security definer` con validación explícita de rol/org/sucursales).
 - Hotfix de `rpc_invite_user_to_org` por ambigüedad de `user_id` en producción en `supabase/migrations/20260301170000_065_fix_rpc_invite_user_to_org_ambiguous_user_id.sql` y `supabase/migrations/20260301171500_066_fix_rpc_invite_user_to_org_out_param_conflict.sql` (se elimina conflicto de OUT param y queda salida `invited_user_id`).
 - Onboarding de datos maestros (jobs/rows de importación + vista de pendientes + RPCs de importación) en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks`, `rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
@@ -73,7 +75,7 @@ Estado actual:
 
 ---
 
-## Enums (MVP)
+## Enums
 
 - `user_role`: `superadmin` | `org_admin` | `staff`
 - `sell_unit_type`: `unit` | `weight` | `bulk`
@@ -84,6 +86,9 @@ Estado actual:
 - `order_frequency`: `weekly` | `biweekly` | `every_3_weeks` | `monthly`
 - `weekday`: `mon` | `tue` | `wed` | `thu` | `fri` | `sat` | `sun`
 - `supplier_product_relation_type`: `primary` | `secondary`
+- `online_order_status`: `pending` | `confirmed` | `ready_for_pickup` | `delivered` | `cancelled`
+- `online_payment_intent`: `pay_on_pickup` | `transfer` | `qr`
+- `online_proof_review_status`: `pending` | `approved` | `rejected`
 
 ---
 
@@ -99,6 +104,7 @@ Estado actual:
 - `name` (text)
 - `timezone` (text, default 'UTC')
 - `is_active` (boolean)
+- `storefront_slug` (text, nullable, unique)
 - `created_at`, `updated_at`
 
 ---
@@ -116,6 +122,14 @@ Estado actual:
 - `ticket_header_text` (text, nullable)
 - `ticket_footer_text` (text, nullable)
 - `fiscal_ticket_note_text` (text, nullable)
+- `ticket_paper_width_mm` (numeric(5,2), not null, default 80, check 48..80)
+- `ticket_margin_top_mm` (numeric(5,2), not null, default 2, check 0..20)
+- `ticket_margin_right_mm` (numeric(5,2), not null, default 2, check 0..20)
+- `ticket_margin_bottom_mm` (numeric(5,2), not null, default 2, check 0..20)
+- `ticket_margin_left_mm` (numeric(5,2), not null, default 2, check 0..20)
+- `ticket_font_size_px` (integer, not null, default 12, check 8..24)
+- `ticket_line_height` (numeric(4,2), not null, default 1.35, check 1..2.5)
+- `storefront_slug` (text, nullable, unique por org)
 - `is_active` (boolean)
 - `created_at`, `updated_at`
 
@@ -323,6 +337,7 @@ Estado actual:
 - `sell_unit_type` (sell_unit_type)
 - `uom` (text)
 - `unit_price` (numeric)
+- `image_url` (text, nullable)
 - `shelf_life_days` (int, nullable)
 - `is_active` (boolean)
 - `created_at`, `updated_at`
@@ -800,6 +815,129 @@ Estado actual:
 
 ---
 
+### storefront_settings
+
+**Proposito**: configuración operativa del storefront por organización.
+
+**Campos clave**:
+
+- `org_id` (uuid, PK/FK -> orgs.id)
+- `is_enabled` (boolean)
+- `allow_out_of_stock_order` (boolean)
+- `whatsapp_phone` (text, nullable)
+- `pickup_instructions` (text, nullable)
+- `created_at`, `updated_at`
+
+---
+
+### storefront_domains
+
+**Proposito**: mapeo opcional de dominios personalizados por tienda (org).
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `hostname` (text, unique)
+- `is_active` (boolean)
+- `is_primary` (boolean)
+- `created_at`, `updated_at`
+
+---
+
+### online_orders
+
+**Proposito**: cabecera de pedidos online realizados desde storefront público.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `branch_id` (uuid, FK)
+- `order_code` (text, unique por org)
+- `status` (online_order_status)
+- `customer_name` (text)
+- `customer_phone` (text)
+- `customer_notes` (text, nullable)
+- `staff_notes` (text, nullable)
+- `payment_intent` (online_payment_intent)
+- `subtotal_amount`, `total_amount` (numeric)
+- `created_by_user_id` (uuid, nullable FK -> auth.users.id)
+- `confirmed_at`, `ready_for_pickup_at`, `delivered_at`, `cancelled_at` (timestamptz, nullable)
+- `created_at`, `updated_at`
+
+---
+
+### online_order_items
+
+**Proposito**: items snapshot de pedido online.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `online_order_id` (uuid, FK -> online_orders.id)
+- `product_id` (uuid, FK)
+- `product_name_snapshot` (text)
+- `unit_price_snapshot` (numeric)
+- `quantity` (numeric > 0)
+- `line_total` (numeric)
+- `created_at`
+
+---
+
+### online_order_status_history
+
+**Proposito**: historial append-only de estados de pedido online.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `online_order_id` (uuid, FK -> online_orders.id)
+- `old_status` (online_order_status, nullable)
+- `new_status` (online_order_status)
+- `internal_note` (text, nullable)
+- `customer_note` (text, nullable)
+- `changed_by_user_id` (uuid, nullable FK -> auth.users.id)
+- `changed_at`
+
+---
+
+### online_order_tracking_tokens
+
+**Proposito**: tokens públicos para seguimiento de pedido online.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `online_order_id` (uuid, FK -> online_orders.id)
+- `token` (text, unique)
+- `is_active` (boolean)
+- `expires_at` (timestamptz, nullable)
+- `created_at`
+
+---
+
+### online_order_payment_proofs
+
+**Proposito**: comprobantes de pago (transferencia/QR) adjuntados a pedidos online.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `online_order_id` (uuid, FK -> online_orders.id)
+- `storage_path` (text)
+- `review_status` (online_proof_review_status)
+- `review_note` (text, nullable)
+- `reviewed_by_user_id` (uuid, nullable FK -> auth.users.id)
+- `reviewed_at` (timestamptz, nullable)
+- `uploaded_at`
+
+---
+
 ## Views y RPCs (resumen)
 
 Ver contratos en `docs/docs-schema-model.md`:
@@ -808,9 +946,12 @@ Ver contratos en `docs/docs-schema-model.md`:
 - View de caja operativa: `v_cashbox_session_current`
 - Views de ventas: `v_sales_admin`, `v_sale_detail_admin`
 - View de estadísticas de ventas: `v_sales_statistics_items`
+- View de gestión de pedidos online: `v_online_orders_admin`
 - Views de superadmin global: `v_superadmin_orgs`, `v_superadmin_org_detail`
 - RPCs para escrituras (POS, stock, orders, permissions, clients)
 - RPCs de caja: `rpc_open_cash_session(...)`, `rpc_add_cash_session_movement(...)`, `rpc_get_cash_session_summary(...)`, `rpc_close_cash_session(...)`
+- RPCs storefront público: `rpc_get_public_storefront_branches(...)`, `rpc_get_public_storefront_products(...)`, `rpc_create_online_order(...)`, `rpc_get_online_order_tracking(...)`
+- RPC de operación interna de pedidos online: `rpc_set_online_order_status(...)`
 - RPCs de conciliación/corrección ventas: `rpc_get_cash_session_payment_breakdown(...)`, `rpc_get_cash_session_reconciliation_rows(...)`, `rpc_upsert_cash_session_reconciliation_inputs(...)`, `rpc_correct_sale_payment_method(...)`
 - RPC de facturación diferida de ventas: `rpc_mark_sale_invoiced(...)`
 - RPC de fechas estimadas de pedidos proveedor: `rpc_set_supplier_order_expected_receive_on(...)`

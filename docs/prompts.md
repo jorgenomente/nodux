@@ -404,6 +404,14 @@ hoy en dia los inputs de montos son confusos porque los numeros son planos, en a
 **Prompt**
 adelante
 
+## 2026-03-01 21:36 -03 — Lote UI interna: `/online-orders` + permisos staff
+
+**Lote:** postmvp-online-orders-internal-ui-v1
+**Objetivo:** Implementar la consola interna de pedidos online (`/online-orders`) con filtros y cambio de estado, y completar wiring de permisos/rutas para Staff usando módulo `online_orders`.
+
+**Prompt**
+adelante continua segun lo que recomiendes
+
 ## 2026-02-20 10:39 -03 — Ventas: historial/detalle + conciliación de caja por dispositivo
 
 **Lote:** sales-history-detail-cashbox-device-reconciliation
@@ -2747,3 +2755,37 @@ si intente dos usarios previos que estan huerfanos que son samuel@demo.com y sam
 diag.users.fix2.1772390282950@demo.com
 
 sigo obteniendo Se creó la cuenta en Auth, pero falló la asignación a la organización/sucursales. despues de desplegar a prod. me gustaria que no se creen los usuarios si no se asignan correctamente porque despues quedan huerfanos y no los puedo agregar.
+
+## 2026-03-01 16:52 -03 — Tickets: parámetros de impresión por sucursal + ajuste de cortes laterales
+
+**Lote:** tickets-print-layout-controls
+**Objetivo:** Corregir ticket recortado (margen izquierdo alto y corte a la derecha) agregando configuración por sucursal para ancho, márgenes y tipografía aplicada en POS y en `/sales/[saleId]/ticket`.
+
+**Prompt**
+estoy intentando hacer pruebas de impresion de ticket y no me sale completa la informacion en el ticket impreso, me queda mucho margen a la izquierda y se corta la info a la derecha. podemos agregar tambien en la configuracion de impresion parametros que me permitan configurar la impresion, el tamano del texto el margen izquierdo derecho etc? tambien me pasa que se me abre un dialogo al que le tengo que dar imprimir y me gustaria que simplemente se enviara a imprimir sin el dialogo con la preview
+
+## 2026-03-01 21:03 -03 — Tienda online conectada a NODUX (aterrizaje Post-MVP)
+
+**Lote:** postmvp-online-store-foundation-docs
+**Objetivo:** Aterrizar la idea de tienda online con slugs por org/sucursal, pedidos online, tracking por link, WhatsApp asistido y pagos con comprobante como diseño Post-MVP documentado y listo para implementación por fases.
+
+**Prompt**
+Ves posible poder implementar una tienda online con la informacion que tenemos hasta  ahora? Se me ocurre poder otorgar un link publico por tienda con su org en el dominio. por ejemplo app.nodux.app/tiendadecafe/ y si tiene varias sucursales entonces se agrega la sucursal como app.nodux.app/tiendadecafe/caballito y el link de org sirva para que te permita selecionar la sucursal. la idea es que los productos aparezcan en una tienda online y se vea el stock y el precio y una imagen representativa o una foto del producto, y asi de esta manera los clientes podrian acceder online y hacer pedidos por alli directamente, podriamos agregar una pestana de pedidos online donde pueda ver los pedidos y administrarlos y que el cliente notifique el pedido por whatsapp a manera de alerta, que pague en la tienda al momento de retirarlo o que pueda pagar por transferencia o QR y que adjunte el comprobante. el pedido puede ir cambiando de estado es decir cuando se recoge y se almacena se marca como guardado y una vez entregado se marca como entregado. quizas todo esto puede vivir desde un link unico que se crea en el momento de la orden para que el cliente pueda trackear su pedido y ver cuando ya ha sido guardado y completado. eso lo maneja el staff en el momento que lo guarda entonces lo marca y quizas tener alli directo un mensaje por whatasapp que se le envie al cliente, porque obicamente el cliente va a dejar su numero cuando hace la orden y se le notifica que ya esta guardada su orden y ahi mismo se le puede decir lo que no hay o si algo no llego en el proveedor o si cambio de precio lo que sea. Creo que ya estoy yendome demasiado asi que te dejo para que me ayudes a aterrizar esta idea y me digas si es posible hacerlo, lo importante es que debe estar conectada con su plataforma nodux asi se ve el control del stock y tambien tiene que ser muy amigable para el usuario ya que sera una tienda online. que te parece la idea? seguramente si el cliente tiene su propio dominio podria usar ese link como para colocarle el dominio a esa pagina? o quizas hacer una espeice de redirect para que sea mas sencillo? dime que pinesas primero despues ejecutamos
+
+excelente avanza
+
+## 2026-03-01 21:21 -03 — Lote SQL: fundación DB de tienda online
+
+**Lote:** postmvp-online-store-db-foundation
+**Objetivo:** Implementar la base de datos inicial del canal online (slugs públicos por org/sucursal, configuración storefront, pedidos online, tracking por token, RPCs públicas/internas y RLS mínima) conectada a stock real de NODUX.
+
+**Prompt**
+ok avancemos
+
+## 2026-03-01 21:30 -03 — Lote UI pública: storefront + checkout + tracking
+
+**Lote:** postmvp-online-store-public-ui-v1
+**Objetivo:** Implementar la primera versión pública del canal online: selector de sucursal por org (`/:orgSlug`), catálogo con carrito y checkout (`/:orgSlug/:branchSlug`), tracking por token (`/o/:trackingToken`) y endpoint de creación de pedido.
+
+**Prompt**
+adelante

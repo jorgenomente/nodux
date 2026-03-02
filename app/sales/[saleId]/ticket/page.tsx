@@ -24,6 +24,13 @@ type BranchTicketConfigRow = {
   ticket_header_text: string | null;
   ticket_footer_text: string | null;
   fiscal_ticket_note_text: string | null;
+  ticket_paper_width_mm: number | null;
+  ticket_margin_top_mm: number | null;
+  ticket_margin_right_mm: number | null;
+  ticket_margin_bottom_mm: number | null;
+  ticket_margin_left_mm: number | null;
+  ticket_font_size_px: number | null;
+  ticket_line_height: number | null;
 };
 
 type SaleItem = {
@@ -64,6 +71,25 @@ const formatDateTime = (value: string) => {
   return parsed.toLocaleString('es-AR', { hour12: false });
 };
 
+const DEFAULT_PRINT_SETTINGS = {
+  paperWidthMm: 80,
+  marginTopMm: 2,
+  marginRightMm: 2,
+  marginBottomMm: 2,
+  marginLeftMm: 2,
+  fontSizePx: 12,
+  lineHeight: 1.35,
+} as const;
+
+const sanitizeNumber = (
+  value: number | null | undefined,
+  range: { min: number; max: number; fallback: number },
+) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return range.fallback;
+  return Math.min(Math.max(parsed, range.min), range.max);
+};
+
 export default async function SaleTicketPage({
   params,
 }: {
@@ -93,14 +119,75 @@ export default async function SaleTicketPage({
   const items = parseItems(sale.items);
   const { data: branchConfigData } = await session.supabase
     .from('branches' as never)
-    .select('ticket_header_text, ticket_footer_text, fiscal_ticket_note_text')
+    .select(
+      'ticket_header_text, ticket_footer_text, fiscal_ticket_note_text, ticket_paper_width_mm, ticket_margin_top_mm, ticket_margin_right_mm, ticket_margin_bottom_mm, ticket_margin_left_mm, ticket_font_size_px, ticket_line_height',
+    )
     .eq('org_id', session.orgId)
     .eq('id', sale.branch_id)
     .maybeSingle();
   const branchConfig = (branchConfigData ?? null) as BranchTicketConfigRow | null;
+  const printSettings = {
+    paperWidthMm: sanitizeNumber(branchConfig?.ticket_paper_width_mm, {
+      min: 48,
+      max: 80,
+      fallback: DEFAULT_PRINT_SETTINGS.paperWidthMm,
+    }),
+    marginTopMm: sanitizeNumber(branchConfig?.ticket_margin_top_mm, {
+      min: 0,
+      max: 20,
+      fallback: DEFAULT_PRINT_SETTINGS.marginTopMm,
+    }),
+    marginRightMm: sanitizeNumber(branchConfig?.ticket_margin_right_mm, {
+      min: 0,
+      max: 20,
+      fallback: DEFAULT_PRINT_SETTINGS.marginRightMm,
+    }),
+    marginBottomMm: sanitizeNumber(branchConfig?.ticket_margin_bottom_mm, {
+      min: 0,
+      max: 20,
+      fallback: DEFAULT_PRINT_SETTINGS.marginBottomMm,
+    }),
+    marginLeftMm: sanitizeNumber(branchConfig?.ticket_margin_left_mm, {
+      min: 0,
+      max: 20,
+      fallback: DEFAULT_PRINT_SETTINGS.marginLeftMm,
+    }),
+    fontSizePx: Math.round(
+      sanitizeNumber(branchConfig?.ticket_font_size_px, {
+        min: 8,
+        max: 24,
+        fallback: DEFAULT_PRINT_SETTINGS.fontSizePx,
+      }),
+    ),
+    lineHeight: sanitizeNumber(branchConfig?.ticket_line_height, {
+      min: 1,
+      max: 2.5,
+      fallback: DEFAULT_PRINT_SETTINGS.lineHeight,
+    }),
+  };
+  const contentWidthMm = Math.max(
+    printSettings.paperWidthMm -
+      printSettings.marginLeftMm -
+      printSettings.marginRightMm,
+    30,
+  );
 
   return (
     <div className="mx-auto w-full max-w-2xl p-4 print:p-0">
+      <style>{`
+        @media print {
+          @page {
+            size: ${printSettings.paperWidthMm}mm auto;
+            margin: ${printSettings.marginTopMm}mm ${printSettings.marginRightMm}mm ${printSettings.marginBottomMm}mm ${printSettings.marginLeftMm}mm;
+          }
+          .ticket-print-root {
+            width: ${contentWidthMm}mm;
+            margin: 0;
+            font-size: ${printSettings.fontSizePx}px;
+            line-height: ${printSettings.lineHeight};
+          }
+        }
+      `}</style>
       <div className="mb-4 flex items-center justify-between print:hidden">
         <div className="flex items-center gap-2">
           <Link
@@ -119,7 +206,7 @@ export default async function SaleTicketPage({
         <PrintTicketButton />
       </div>
 
-      <div className="rounded border border-zinc-300 bg-white p-4 text-sm text-zinc-900 print:border-none print:p-0">
+      <div className="ticket-print-root rounded border border-zinc-300 bg-white p-4 text-sm text-zinc-900 print:border-none print:p-0">
         <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
           Ticket de venta (copia no fiscal)
         </p>

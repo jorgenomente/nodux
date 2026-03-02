@@ -6,6 +6,15 @@ type Props = {
   headerInitial: string;
   footerInitial: string;
   fiscalInitial: string;
+  printSettingsInitial: {
+    ticket_paper_width_mm: number;
+    ticket_margin_top_mm: number;
+    ticket_margin_right_mm: number;
+    ticket_margin_bottom_mm: number;
+    ticket_margin_left_mm: number;
+    ticket_font_size_px: number;
+    ticket_line_height: number;
+  };
 };
 
 const IDEAL_MAX_LINE_CHARS = 32;
@@ -52,6 +61,7 @@ export default function TicketTemplateEditors({
   headerInitial,
   footerInitial,
   fiscalInitial,
+  printSettingsInitial,
 }: Props) {
   const [headerText, setHeaderText] = useState(headerInitial);
   const [footerText, setFooterText] = useState(footerInitial);
@@ -95,6 +105,116 @@ export default function TicketTemplateEditors({
               placeholder="Cambios dentro de 7 dias\nIG: @tu_tienda"
             />
             <LineCounter value={footerText} />
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-zinc-200 p-4">
+        <h2 className="text-sm font-semibold text-zinc-900">
+          Configuracion de impresion
+        </h2>
+        <p className="mt-1 text-xs text-zinc-600">
+          Ajusta formato para evitar cortes laterales o exceso de margen en tu
+          impresora termica.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-1">
+            <label className="text-xs font-semibold text-zinc-600">
+              Ancho de papel (mm)
+            </label>
+            <input
+              type="number"
+              name="ticket_paper_width_mm"
+              min={48}
+              max={80}
+              step={0.1}
+              defaultValue={printSettingsInitial.ticket_paper_width_mm}
+              className="rounded border border-zinc-200 px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="grid gap-1">
+            <label className="text-xs font-semibold text-zinc-600">
+              Tamano de texto (px)
+            </label>
+            <input
+              type="number"
+              name="ticket_font_size_px"
+              min={8}
+              max={24}
+              step={1}
+              defaultValue={printSettingsInitial.ticket_font_size_px}
+              className="rounded border border-zinc-200 px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="grid gap-1">
+            <label className="text-xs font-semibold text-zinc-600">
+              Margen superior (mm)
+            </label>
+            <input
+              type="number"
+              name="ticket_margin_top_mm"
+              min={0}
+              max={20}
+              step={0.1}
+              defaultValue={printSettingsInitial.ticket_margin_top_mm}
+              className="rounded border border-zinc-200 px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="grid gap-1">
+            <label className="text-xs font-semibold text-zinc-600">
+              Margen inferior (mm)
+            </label>
+            <input
+              type="number"
+              name="ticket_margin_bottom_mm"
+              min={0}
+              max={20}
+              step={0.1}
+              defaultValue={printSettingsInitial.ticket_margin_bottom_mm}
+              className="rounded border border-zinc-200 px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="grid gap-1">
+            <label className="text-xs font-semibold text-zinc-600">
+              Margen izquierdo (mm)
+            </label>
+            <input
+              type="number"
+              name="ticket_margin_left_mm"
+              min={0}
+              max={20}
+              step={0.1}
+              defaultValue={printSettingsInitial.ticket_margin_left_mm}
+              className="rounded border border-zinc-200 px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="grid gap-1">
+            <label className="text-xs font-semibold text-zinc-600">
+              Margen derecho (mm)
+            </label>
+            <input
+              type="number"
+              name="ticket_margin_right_mm"
+              min={0}
+              max={20}
+              step={0.1}
+              defaultValue={printSettingsInitial.ticket_margin_right_mm}
+              className="rounded border border-zinc-200 px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="grid gap-1 sm:col-span-2">
+            <label className="text-xs font-semibold text-zinc-600">
+              Interlineado
+            </label>
+            <input
+              type="number"
+              name="ticket_line_height"
+              min={1}
+              max={2.5}
+              step={0.05}
+              defaultValue={printSettingsInitial.ticket_line_height}
+              className="rounded border border-zinc-200 px-3 py-2 text-sm"
+            />
           </div>
         </div>
       </div>

@@ -10,6 +10,7 @@ const STAFF_MODULE_ORDER = [
   'products_lookup',
   'clients',
   'expirations',
+  'online_orders',
 ] as const;
 
 const moduleToRoute: Record<string, string> = {
@@ -18,6 +19,7 @@ const moduleToRoute: Record<string, string> = {
   products_lookup: '/products/lookup',
   clients: '/clients',
   expirations: '/expirations',
+  online_orders: '/online-orders',
 };
 
 const resolveStaffHome = (

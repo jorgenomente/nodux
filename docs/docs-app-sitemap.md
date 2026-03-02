@@ -133,6 +133,13 @@ Nota de dominio (produccion):
 - `nodux.app` sirve rutas públicas de marketing.
 - `app.nodux.app` sirve login y aplicación operativa autenticada.
 
+Rutas post-MVP planeadas (NO implementar en MVP):
+
+- `/:orgSlug` (tienda online pública por organización) — implementada v1
+- `/:orgSlug/:branchSlug` (tienda online pública por sucursal) — implementada v1
+- `/o/:trackingToken` (tracking público de pedido online) — implementada v1
+- `/online-orders` (gestión interna de pedidos online OA/SA/ST según permiso) — implementada v1
+
 ---
 
 ## 7. Reglas de redirección

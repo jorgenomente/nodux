@@ -37,8 +37,10 @@ Estado actual:
 - Ajuste de conciliación para clasificar `MercadoPago (total)` solo por método de pago (no por proveedor de dispositivo) en `supabase/migrations/20260220182000_049_cashbox_reconciliation_mp_by_method_only.sql`.
 - `org_preferences.default_supplier_markup_pct` agregado en `supabase/migrations/20260301123000_062_org_preferences_default_supplier_markup_pct.sql` (sin cambios de policy; reusa RLS existente de `org_preferences`).
 - Plantillas de ticket por sucursal agregadas en `supabase/migrations/20260301143000_063_branch_ticket_templates.sql` (`branches.ticket_header_text`, `branches.ticket_footer_text`, `branches.fiscal_ticket_note_text`, extensión de `v_branches_admin`; sin cambios de policy, reusa RLS existente de `branches`).
+- Configuración de layout de impresión por sucursal agregada en `supabase/migrations/20260301170200_067_branch_ticket_print_layout.sql` (`branches.ticket_paper_width_mm`, `ticket_margin_*_mm`, `ticket_font_size_px`, `ticket_line_height`, extensión de `v_branches_admin`; sin cambios de policy, reusa RLS existente de `branches`).
 - Hardening de membresía de usuarios en `supabase/migrations/20260301162000_064_users_membership_rpcs_auth_context.sql`: `rpc_invite_user_to_org` y `rpc_update_user_membership` pasan a `security definer`, exigen sesión autenticada OA/SA (`is_org_admin_or_superadmin`), validan rol/sucursales y auditan con actor real (`auth.uid()`).
 - Hotfix producción en `supabase/migrations/20260301170000_065_fix_rpc_invite_user_to_org_ambiguous_user_id.sql` y `supabase/migrations/20260301171500_066_fix_rpc_invite_user_to_org_out_param_conflict.sql`: se corrige error SQL `42702` en `rpc_invite_user_to_org` (ambigüedad `user_id`) para restablecer altas de usuarios desde settings/superadmin.
+- Fundación DB de canal online en `supabase/migrations/20260301213000_068_online_store_foundation.sql`: nuevas tablas `storefront_*` y `online_orders*`, slugs públicos en `orgs/branches`, y RPCs públicas `rpc_get_public_storefront_branches`, `rpc_get_public_storefront_products`, `rpc_create_online_order`, `rpc_get_online_order_tracking`.
 - Bucket de facturas proveedor agregado en `supabase/migrations/20260217221500_040_supplier_invoice_storage_bucket.sql` (`storage.buckets: supplier-invoices` + policies en `storage.objects` por `org_id` en path).
 - Smoke RLS automatizado agregado en `scripts/rls-smoke-tests.mjs` (ejecución: `npm run db:rls:smoke`).
 - CI hardening agrega ejecución automática de smoke RLS + smoke Playwright en `.github/workflows/ci-hardening.yml`.
@@ -89,6 +91,13 @@ Estado actual:
 | `supplier_payment_accounts`          | read/insert/update | read/insert/update | no                            | Cuentas de transferencia por proveedor                    |
 | `supplier_payables`                  | read/insert/update | read/insert/update | no                            | Cuenta por pagar por pedido (scope sucursal)              |
 | `supplier_payments`                  | read/insert/update | read/insert/update | no                            | Movimientos de pago proveedor                             |
+| `storefront_settings`                | read/insert/update | read/insert/update | read                          | Configuración de storefront por org                       |
+| `storefront_domains`                 | read/insert/update | read/insert/update | no                            | Dominios personalizados de tienda                         |
+| `online_orders`                      | read/insert/update | read/insert/update | read/insert/update (limitado) | Pedidos online por org/sucursal                           |
+| `online_order_items`                 | read/insert/update | read/insert/update | read/insert/update (limitado) | Ítems snapshot de pedido online                           |
+| `online_order_status_history`        | read/insert/update | read/insert/update | read/insert (limitado)        | Historial de estados de pedido online                     |
+| `online_order_tracking_tokens`       | read/insert/update | read/insert/update | read/insert/update (limitado) | Token público de tracking                                 |
+| `online_order_payment_proofs`        | read/insert/update | read/insert/update | read/insert/update (limitado) | Comprobantes de transferencia/QR                          |
 | `clients`                            | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo en branch asignada                                |
 | `client_special_orders`              | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo su branch                                         |
 | `client_special_order_items`         | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo su branch                                         |
@@ -135,6 +144,11 @@ Estado actual:
 - `rpc_upsert_data_import_row` -> solo OA/SA en org activa; registra o corrige filas de job.
 - `rpc_validate_data_import_job` -> solo OA/SA en org activa; valida filas y calcula conteos.
 - `rpc_apply_data_import_job` -> solo OA/SA en org activa; aplica filas válidas con upsert idempotente.
+- `rpc_get_public_storefront_branches` -> público (anon/authenticated), lectura acotada a org activa con storefront habilitado.
+- `rpc_get_public_storefront_products` -> público (anon/authenticated), lectura acotada a catálogo activo por slug org/sucursal.
+- `rpc_create_online_order` -> público (anon/authenticated), crea pedido online en estado `pending` con validación de stock.
+- `rpc_get_online_order_tracking` -> público (anon/authenticated), tracking por token activo/no expirado.
+- `rpc_set_online_order_status` -> autenticado miembro de org, con transiciones válidas y auditoría `online_order_status_set`.
 - `rpc_superadmin_create_org` -> solo SA global.
 - `rpc_superadmin_upsert_branch` -> solo SA global.
 - `rpc_superadmin_set_active_org` -> solo SA global.

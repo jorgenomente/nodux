@@ -5,6 +5,30 @@ import type { Database } from '@/types/supabase';
 
 const PUBLIC_PATHS = ['/landing', '/demo', '/login', '/logout', '/no-access'];
 const MARKETING_PATHS = ['/', '/landing', '/demo', '/demo/enter'];
+const STORE_FRONT_RESERVED_SEGMENTS = new Set([
+  'landing',
+  'demo',
+  'login',
+  'logout',
+  'no-access',
+  'dashboard',
+  'pos',
+  'cashbox',
+  'products',
+  'sales',
+  'expirations',
+  'suppliers',
+  'orders',
+  'clients',
+  'online-orders',
+  'settings',
+  'payments',
+  'onboarding',
+  'superadmin',
+  'api',
+  'o',
+  '_next',
+]);
 const APP_HOST = 'app.nodux.app';
 const CANONICAL_MARKETING_HOST = 'nodux.app';
 const MARKETING_HOSTS = new Set([CANONICAL_MARKETING_HOST, 'www.nodux.app']);
@@ -14,6 +38,7 @@ const STAFF_MODULE_ORDER = [
   'products_lookup',
   'clients',
   'expirations',
+  'online_orders',
 ];
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -23,12 +48,28 @@ const moduleToRoute: Record<string, string> = {
   products_lookup: '/products/lookup',
   clients: '/clients',
   expirations: '/expirations',
+  online_orders: '/online-orders',
 };
 
 const isPublicPath = (pathname: string) =>
   PUBLIC_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
+
+const isPublicTrackingPath = (pathname: string) => {
+  const segments = pathname.split('/').filter(Boolean);
+  return segments.length === 2 && segments[0] === 'o';
+};
+
+const isPublicStorefrontPath = (pathname: string) => {
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.length === 0 || segments.length > 2) return false;
+  if (STORE_FRONT_RESERVED_SEGMENTS.has(segments[0])) return false;
+  return true;
+};
+
+const isPublicStorefrontApiPath = (pathname: string) =>
+  pathname === '/api/storefront/order';
 
 const isMarketingPath = (pathname: string) =>
   MARKETING_PATHS.some(
@@ -85,6 +126,7 @@ const isStaffAllowedPath = (pathname: string) => {
     pathname.startsWith('/cashbox') ||
     pathname.startsWith('/products/lookup') ||
     pathname.startsWith('/clients') ||
+    pathname.startsWith('/online-orders') ||
     pathname.startsWith('/expirations') ||
     pathname.startsWith('/no-access')
   );
@@ -161,6 +203,9 @@ export async function proxy(request: NextRequest) {
   if (!user) {
     if (pathname === '/login') return response;
     if (isPublicPath(pathname)) return response;
+    if (isPublicTrackingPath(pathname)) return response;
+    if (isPublicStorefrontPath(pathname)) return response;
+    if (isPublicStorefrontApiPath(pathname)) return response;
     if (isServerAction) return response;
     return NextResponse.redirect(new URL('/login', request.url));
   }
@@ -221,6 +266,10 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isPublicPath(pathname)) {
+    return response;
+  }
+
+  if (isPublicTrackingPath(pathname) || isPublicStorefrontPath(pathname)) {
     return response;
   }
 

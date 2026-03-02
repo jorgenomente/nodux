@@ -304,7 +304,22 @@ Ruta pública adicional (institucional, fuera del flujo operativo MVP):
 
 ---
 
-## 8) Regla final
+## 8) Rutas Post-MVP en progreso
+
+- `/:orgSlug` (storefront público por org)
+- `/:orgSlug/:branchSlug` (storefront público por sucursal)
+- `/o/:trackingToken` (tracking público)
+- `/online-orders` (operación interna de pedidos online)
+
+Contratos asociados:
+
+- `docs/docs-app-screens-online-storefront-public.md`
+- `docs/docs-app-screens-online-order-tracking.md`
+- `docs/docs-app-screens-online-orders.md`
+
+---
+
+## 9) Regla final
 
 Si una pantalla:
 

@@ -16,9 +16,48 @@ type BranchRow = {
   ticket_header_text: string | null;
   ticket_footer_text: string | null;
   fiscal_ticket_note_text: string | null;
+  ticket_paper_width_mm: number | null;
+  ticket_margin_top_mm: number | null;
+  ticket_margin_right_mm: number | null;
+  ticket_margin_bottom_mm: number | null;
+  ticket_margin_left_mm: number | null;
+  ticket_font_size_px: number | null;
+  ticket_line_height: number | null;
 };
 
 const MAX_PRINTABLE_CHARS_PER_LINE = 32;
+const DEFAULT_PRINT_SETTINGS = {
+  ticket_paper_width_mm: 80,
+  ticket_margin_top_mm: 2,
+  ticket_margin_right_mm: 2,
+  ticket_margin_bottom_mm: 2,
+  ticket_margin_left_mm: 2,
+  ticket_font_size_px: 12,
+  ticket_line_height: 1.35,
+} as const;
+
+const parseNumberInRange = (
+  value: FormDataEntryValue | null,
+  options: { min: number; max: number; fallback: number },
+) => {
+  const parsed = Number(String(value ?? '').trim());
+  if (!Number.isFinite(parsed)) return options.fallback;
+  if (parsed < options.min) return options.min;
+  if (parsed > options.max) return options.max;
+  return parsed;
+};
+
+const resolveNumber = (
+  value: number | null,
+  fallback: number,
+  options: { min: number; max: number },
+) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  if (parsed < options.min) return options.min;
+  if (parsed > options.max) return options.max;
+  return parsed;
+};
 
 const getContext = async () => {
   const session = await getOrgAdminSession();
@@ -43,7 +82,7 @@ export default async function SettingsTicketsPage({
   const { data: branchesData } = await context.supabase
     .from('branches' as never)
     .select(
-      'id, name, ticket_header_text, ticket_footer_text, fiscal_ticket_note_text',
+      'id, name, ticket_header_text, ticket_footer_text, fiscal_ticket_note_text, ticket_paper_width_mm, ticket_margin_top_mm, ticket_margin_right_mm, ticket_margin_bottom_mm, ticket_margin_left_mm, ticket_font_size_px, ticket_line_height',
     )
     .eq('org_id', context.orgId)
     .eq('is_active', true)
@@ -78,6 +117,61 @@ export default async function SettingsTicketsPage({
     const fiscalTicketNoteText = String(
       formData.get('fiscal_ticket_note_text') ?? '',
     ).trim();
+    const ticketPaperWidthMm = parseNumberInRange(
+      formData.get('ticket_paper_width_mm'),
+      {
+        min: 48,
+        max: 80,
+        fallback: DEFAULT_PRINT_SETTINGS.ticket_paper_width_mm,
+      },
+    );
+    const ticketMarginTopMm = parseNumberInRange(
+      formData.get('ticket_margin_top_mm'),
+      {
+        min: 0,
+        max: 20,
+        fallback: DEFAULT_PRINT_SETTINGS.ticket_margin_top_mm,
+      },
+    );
+    const ticketMarginRightMm = parseNumberInRange(
+      formData.get('ticket_margin_right_mm'),
+      {
+        min: 0,
+        max: 20,
+        fallback: DEFAULT_PRINT_SETTINGS.ticket_margin_right_mm,
+      },
+    );
+    const ticketMarginBottomMm = parseNumberInRange(
+      formData.get('ticket_margin_bottom_mm'),
+      {
+        min: 0,
+        max: 20,
+        fallback: DEFAULT_PRINT_SETTINGS.ticket_margin_bottom_mm,
+      },
+    );
+    const ticketMarginLeftMm = parseNumberInRange(
+      formData.get('ticket_margin_left_mm'),
+      {
+        min: 0,
+        max: 20,
+        fallback: DEFAULT_PRINT_SETTINGS.ticket_margin_left_mm,
+      },
+    );
+    const ticketFontSizePx = Math.round(
+      parseNumberInRange(formData.get('ticket_font_size_px'), {
+        min: 8,
+        max: 24,
+        fallback: DEFAULT_PRINT_SETTINGS.ticket_font_size_px,
+      }),
+    );
+    const ticketLineHeight = parseNumberInRange(
+      formData.get('ticket_line_height'),
+      {
+        min: 1,
+        max: 2.5,
+        fallback: DEFAULT_PRINT_SETTINGS.ticket_line_height,
+      },
+    );
 
     if (!branchId) {
       redirect('/settings/tickets?result=invalid');
@@ -89,6 +183,13 @@ export default async function SettingsTicketsPage({
         ticket_header_text: ticketHeaderText || null,
         ticket_footer_text: ticketFooterText || null,
         fiscal_ticket_note_text: fiscalTicketNoteText || null,
+        ticket_paper_width_mm: ticketPaperWidthMm,
+        ticket_margin_top_mm: ticketMarginTopMm,
+        ticket_margin_right_mm: ticketMarginRightMm,
+        ticket_margin_bottom_mm: ticketMarginBottomMm,
+        ticket_margin_left_mm: ticketMarginLeftMm,
+        ticket_font_size_px: ticketFontSizePx,
+        ticket_line_height: ticketLineHeight,
       } as never)
       .eq('org_id', auth.orgId)
       .eq('id', branchId);
@@ -208,6 +309,45 @@ export default async function SettingsTicketsPage({
                     headerInitial={selectedBranch.ticket_header_text ?? ''}
                     footerInitial={selectedBranch.ticket_footer_text ?? ''}
                     fiscalInitial={selectedBranch.fiscal_ticket_note_text ?? ''}
+                    printSettingsInitial={{
+                      ticket_paper_width_mm: resolveNumber(
+                        selectedBranch.ticket_paper_width_mm,
+                        DEFAULT_PRINT_SETTINGS.ticket_paper_width_mm,
+                        { min: 48, max: 80 },
+                      ),
+                      ticket_margin_top_mm: resolveNumber(
+                        selectedBranch.ticket_margin_top_mm,
+                        DEFAULT_PRINT_SETTINGS.ticket_margin_top_mm,
+                        { min: 0, max: 20 },
+                      ),
+                      ticket_margin_right_mm: resolveNumber(
+                        selectedBranch.ticket_margin_right_mm,
+                        DEFAULT_PRINT_SETTINGS.ticket_margin_right_mm,
+                        { min: 0, max: 20 },
+                      ),
+                      ticket_margin_bottom_mm: resolveNumber(
+                        selectedBranch.ticket_margin_bottom_mm,
+                        DEFAULT_PRINT_SETTINGS.ticket_margin_bottom_mm,
+                        { min: 0, max: 20 },
+                      ),
+                      ticket_margin_left_mm: resolveNumber(
+                        selectedBranch.ticket_margin_left_mm,
+                        DEFAULT_PRINT_SETTINGS.ticket_margin_left_mm,
+                        { min: 0, max: 20 },
+                      ),
+                      ticket_font_size_px: Math.round(
+                        resolveNumber(
+                          selectedBranch.ticket_font_size_px,
+                          DEFAULT_PRINT_SETTINGS.ticket_font_size_px,
+                          { min: 8, max: 24 },
+                        ),
+                      ),
+                      ticket_line_height: resolveNumber(
+                        selectedBranch.ticket_line_height,
+                        DEFAULT_PRINT_SETTINGS.ticket_line_height,
+                        { min: 1, max: 2.5 },
+                      ),
+                    }}
                   />
 
                   <button

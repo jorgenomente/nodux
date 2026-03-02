@@ -16,6 +16,7 @@ const NAV_LINKS = [
   { href: '/onboarding', label: 'Onboarding' },
   { href: '/orders/calendar', label: 'Calendario' },
   { href: '/clients', label: 'Clientes' },
+  { href: '/online-orders', label: 'Online Orders' },
   { href: '/settings', label: 'Configuracion' },
   { href: '/settings/audit-log', label: 'Auditoria' },
 ];

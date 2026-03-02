@@ -23,6 +23,13 @@ type BranchOption = {
   ticket_header_text: string | null;
   ticket_footer_text: string | null;
   fiscal_ticket_note_text: string | null;
+  ticket_paper_width_mm: number | null;
+  ticket_margin_top_mm: number | null;
+  ticket_margin_right_mm: number | null;
+  ticket_margin_bottom_mm: number | null;
+  ticket_margin_left_mm: number | null;
+  ticket_font_size_px: number | null;
+  ticket_line_height: number | null;
 };
 
 const STAFF_MODULE_ORDER = [
@@ -31,6 +38,7 @@ const STAFF_MODULE_ORDER = [
   'products_lookup',
   'clients',
   'expirations',
+  'online_orders',
 ] as const;
 const moduleToRoute: Record<string, string> = {
   pos: '/pos',
@@ -38,6 +46,7 @@ const moduleToRoute: Record<string, string> = {
   products_lookup: '/products/lookup',
   clients: '/clients',
   expirations: '/expirations',
+  online_orders: '/online-orders',
 };
 
 const resolveStaffHome = (
@@ -112,7 +121,7 @@ export default async function PosPage({
     const { data: branchRows } = await supabase
       .from('branches' as never)
       .select(
-        'id, name, ticket_header_text, ticket_footer_text, fiscal_ticket_note_text',
+        'id, name, ticket_header_text, ticket_footer_text, fiscal_ticket_note_text, ticket_paper_width_mm, ticket_margin_top_mm, ticket_margin_right_mm, ticket_margin_bottom_mm, ticket_margin_left_mm, ticket_font_size_px, ticket_line_height',
       )
       .eq('org_id', orgId)
       .eq('is_active', true)
@@ -126,7 +135,7 @@ export default async function PosPage({
     const { data: branchRows } = await supabase
       .from('branches' as never)
       .select(
-        'id, name, ticket_header_text, ticket_footer_text, fiscal_ticket_note_text',
+        'id, name, ticket_header_text, ticket_footer_text, fiscal_ticket_note_text, ticket_paper_width_mm, ticket_margin_top_mm, ticket_margin_right_mm, ticket_margin_bottom_mm, ticket_margin_left_mm, ticket_font_size_px, ticket_line_height',
       )
       .eq('org_id', orgId)
       .eq('is_active', true)

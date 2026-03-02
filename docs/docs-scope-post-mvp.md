@@ -54,6 +54,19 @@ Idea → Epic → Lote → Código.
 
 ---
 
+## Categoría 6 — Canal online (ecommerce conectado a stock)
+
+- Tienda online pública por organización (slug y opcional por sucursal)
+- Catálogo público con precio, stock y foto de producto
+- Pedidos online con retiro en tienda
+- Estado operativo de pedido online (pendiente, confirmado, guardado/listo, entregado)
+- Link único público para tracking del pedido
+- Comprobante de pago por transferencia/QR adjunto por cliente
+- WhatsApp asistido y/o automático para notificaciones al cliente
+- Dominio personalizado por tienda (CNAME o redirect)
+
+---
+
 ## Regla de oro Post-MVP
 
 - Nada de esto bloquea el MVP

@@ -108,6 +108,7 @@ Ultima actualizacion: 2026-03-01 15:38
 - `/sales` y `/sales/[saleId]` agregan acciones operativas `Imprimir ticket` (copia no fiscal) y `Emitir factura` para ventas previas no facturadas.
 - `/settings/branches` agrega plantilla de impresión por sucursal (`ticket_header_text`, `ticket_footer_text`, `fiscal_ticket_note_text`) y POS + `/sales/[saleId]/ticket` pasan a usar esa configuración al imprimir.
 - Se separa la gestión en `/settings/tickets` para centralizar edición de impresión, diferenciando ticket no fiscal vs leyenda fiscal de prueba con guía operativa de formato 80mm.
+- `/settings/tickets` agrega configuración fina de layout por sucursal (ancho en mm, márgenes, tamaño de fuente e interlineado) y POS + `/sales/[saleId]/ticket` usan esos parámetros en CSS de impresión para corregir tickets recortados/descentrados según impresora.
 - Dashboard agrega KPIs de facturación diaria: monto/cantidad facturado, no facturado y porcentaje facturado sobre ventas del día.
 - `/sales` ahora incluye acceso directo a `/sales/statistics`, con análisis por período/sucursal: top y bottom de productos, relevancia de proveedores y tendencias por día/semana/mes.
 - `/sales/statistics` separa la analítica en dos desplegables independientes (`Ventas de artículos` y `Proveedores y pagos`) para consultar por separado rendimiento comercial vs pagos/deuda/frecuencia de proveedores.
@@ -131,6 +132,10 @@ Ultima actualizacion: 2026-03-01 15:38
 ## Post-MVP ya registrado
 
 - Pagina para movimiento de stock entre sucursales (transferencias masivas).
+- Canal de tienda online conectado a stock NODUX (storefront público por org/sucursal, pedidos online, tracking por link único y gestión interna en `/online-orders`), documentado en `docs/docs-modules-online-store.md` y contratos de pantalla asociados.
+- Fundación DB del canal online aplicada en migración `20260301213000_068_online_store_foundation.sql`: slugs en `orgs/branches`, `products.image_url`, tablas `storefront_*` y `online_orders*`, vista `v_online_orders_admin` y RPCs públicas/internas de storefront/tracking/estado.
+- UI pública inicial del canal online implementada: selector de sucursal por org (`/:orgSlug`), catálogo + carrito + checkout (`/:orgSlug/:branchSlug`) y tracking público por token (`/o/:trackingToken`), con endpoint `POST /api/storefront/order` para crear pedidos online vía RPC.
+- UI interna inicial de pedidos online implementada en `/online-orders` (OA/ST con módulo habilitado), con filtros por sucursal/estado/búsqueda y transición de estados vía `rpc_set_online_order_status`.
 - En `/onboarding`, el apply de importación ahora matchea productos existentes solo por `barcode`/`internal_code` (sin fallback por nombre) y la deduplicación previa del archivo sigue la misma regla para evitar merges ambiguos por nombre.
 - `/onboarding` incorpora edición masiva de productos con búsqueda/paginación server-side y aplicación por lote sobre seleccionados o todos los resultados filtrados; soporta patch de marca, proveedor primario/secundario, shelf life, precio proveedor y precio unitario.
 - Formularios de producto (alta/edición/resolvedor) y edición masiva en `/onboarding` incorporan opción `No aplica vencimiento`, que guarda `shelf_life_days=0`; en recepción de pedidos, `0` o valor vacío no generan batches automáticos de vencimiento.

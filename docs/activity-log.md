@@ -43,6 +43,59 @@ Se actualizó la documentación viva para dejar explícito que el catálogo de p
 
 **Commit:** N/A
 
+## 2026-03-01 17:18 -03 — Hotfix producción: `/settings/tickets` sin sucursales por migración faltante
+
+**Tipo:** infra/schema
+**Lote:** tickets-print-layout-controls
+**Descripción:** Se corrigió incidente en producción donde `/settings/tickets` no mostraba sucursales tras deploy UI. Causa raíz: faltaba aplicar en remoto la migración `20260301170200_067_branch_ticket_print_layout.sql` (columnas nuevas leídas por la pantalla). Se aplicó `supabase db push --linked --include-all --yes` y quedó sincronizado.
+
+**Archivos afectados:**
+
+- docs/activity-log.md
+
+**Tests:**
+
+- Producción: `npx supabase db push --linked --include-all --yes` OK (2026-03-01)
+
+**Commit:** N/A
+
+## 2026-03-01 16:52 -03 — Tickets: configuración de layout de impresión por sucursal
+
+**Tipo:** schema/ui/docs/tests
+**Lote:** tickets-print-layout-controls
+**Descripción:** Se agregó configuración de layout de ticket por sucursal para resolver cortes laterales en impresión térmica: ancho de papel, márgenes (superior/derecho/inferior/izquierdo), tamaño de fuente e interlineado. `/settings/tickets` ahora permite editar estos parámetros y POS + `/sales/[saleId]/ticket` aplican esos valores al CSS de impresión (`@page` + ancho real de contenido) para ajustar impresoras 80mm con offsets distintos.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260301170200_067_branch_ticket_print_layout.sql
+- app/settings/tickets/page.tsx
+- app/settings/tickets/TicketTemplateEditors.tsx
+- app/pos/page.tsx
+- app/pos/PosClient.tsx
+- app/sales/[saleId]/ticket/page.tsx
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/docs-app-screens-settings-tickets.md
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-app-screens-sale-ticket.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-01)
+- npm run build OK (2026-03-01)
+- npm run db:reset OK (2026-03-01)
+- Verificación objetos DB OK (`branches` y `v_branches_admin` exponen campos de layout de impresión)
+- npm run db:rls:smoke FAIL inicial (faltaba data demo tras reset)
+- npm run db:seed:demo OK (2026-03-01)
+- npm run db:rls:smoke OK (allow/deny verificado)
+- Producción: `npx vercel --prod` OK (alias `https://nodux.app`)
+
+**Commit:** N/A
+
 ## 2026-02-27 14:50 -03 — POS/Sales: ventas facturadas vs no facturadas + ticket no fiscal
 
 **Tipo:** feature
@@ -7241,6 +7294,131 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 
 - npm run lint OK (2026-03-01)
 - npm run build OK (2026-03-01)
+
+**Commit:** N/A
+
+## 2026-03-01 21:03 -03 — Post-MVP: base documental de tienda online conectada a stock
+
+**Tipo:** docs/decision
+**Lote:** postmvp-online-store-foundation-docs
+**Descripción:** Se aterrizó formalmente la iniciativa de tienda online conectada a NODUX como alcance Post-MVP: rutas públicas por slug de organización/sucursal, consola interna de pedidos online, tracking público por token, estados operativos de pedido y lineamientos para WhatsApp/pagos con comprobante. Se definieron contratos de módulo y pantallas para ejecución por fases sin contaminar el scope MVP actual.
+
+**Archivos afectados:**
+
+- docs/docs-scope-post-mvp.md
+- docs/docs-roadmap.md
+- docs/docs-app-sitemap.md
+- docs/docs-modules-online-store.md
+- docs/docs-app-screens-online-storefront-public.md
+- docs/docs-app-screens-online-orders.md
+- docs/docs-app-screens-online-order-tracking.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- No aplica (lote docs-only).
+
+**Commit:** N/A
+
+## 2026-03-01 21:21 -03 — Post-MVP: fundación DB de tienda online (slugs, pedidos online, tracking)
+
+**Tipo:** schema/docs/tests/decision
+**Lote:** postmvp-online-store-db-foundation
+**Descripción:** Se implementó la fundación de datos para canal online conectado a stock NODUX: slugs públicos por organización/sucursal, configuración de storefront, dominios personalizados, tablas de pedidos online con historial/tokens/comprobantes, vista de gestión `v_online_orders_admin` y RPCs públicas para storefront/checkout/tracking junto con RPC autenticada para transición de estado. También se incorporó `products.image_url` para soportar foto representativa en catálogo online. Se agregó hardening de slugs con triggers (`trg_orgs_set_storefront_slug`, `trg_branches_set_storefront_slug`) para que seeds/altas nuevas no queden sin slug.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260301213000_068_online_store_foundation.sql
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/docs-modules-online-store.md
+- docs/docs-app-screens-online-storefront-public.md
+- docs/docs-app-screens-online-orders.md
+- docs/docs-app-screens-online-order-tracking.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run db:reset` OK (2026-03-01, re-ejecutado tras hardening de slugs)
+- Verificación objetos DB OK: `storefront_settings`, `online_orders`, `v_online_orders_admin` existen
+- Select básico view principal OK: `select count(*) from public.v_online_orders_admin`
+- Verificación RPC pública OK: `rpc_get_public_storefront_branches(...)` devuelve 2 sucursales activas (Demo Org)
+- Verificación RLS mínima manual OK:
+  - ALLOW `authenticated` miembro org sobre `online_orders` (`allow_count=1`)
+  - DENY `authenticated` sin membresía sobre `online_orders` (`deny_count=0`)
+- `npm run lint` OK (2026-03-01)
+- `npm run build` OK (2026-03-01)
+
+**Commit:** N/A
+
+## 2026-03-01 21:30 -03 — Post-MVP: UI pública v1 de storefront + checkout + tracking
+
+**Tipo:** ui/docs/tests
+**Lote:** postmvp-online-store-public-ui-v1
+**Descripción:** Se implementó la primera iteración de UI pública del canal online sobre la base DB ya creada: selector de sucursal por slug de organización (`/:orgSlug`), catálogo con carrito y checkout (`/:orgSlug/:branchSlug`) y pantalla de tracking por token (`/o/:trackingToken`). Se agregó endpoint `POST /api/storefront/order` que invoca `rpc_create_online_order` y se ajustó `proxy.ts` para permitir acceso público a rutas/storefront API sin sesión.
+
+**Archivos afectados:**
+
+- app/[orgSlug]/page.tsx
+- app/[orgSlug]/[branchSlug]/page.tsx
+- app/[orgSlug]/[branchSlug]/StorefrontBranchClient.tsx
+- app/o/[trackingToken]/page.tsx
+- app/api/storefront/order/route.ts
+- proxy.ts
+- docs/docs-modules-online-store.md
+- docs/docs-app-screens-online-storefront-public.md
+- docs/docs-app-screens-online-order-tracking.md
+- docs/docs-app-sitemap.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-03-01) con warning conocido: `@next/next/no-img-element` en storefront de catálogo.
+- `npm run build` OK (2026-03-01)
+
+**Commit:** N/A
+
+## 2026-03-01 21:36 -03 — Post-MVP: UI interna v1 `/online-orders` + wiring de permisos Staff
+
+**Tipo:** ui/docs/tests
+**Lote:** postmvp-online-orders-internal-ui-v1
+**Descripción:** Se implementó la pantalla interna `/online-orders` para OA/ST (si módulo habilitado), con filtros por sucursal/estado/búsqueda, tarjetas de pedidos y transición de estados válidos mediante `rpc_set_online_order_status`. Además se extendió el wiring de navegación/permisos Staff para soportar `module_key=online_orders` (redirect home, guards en `proxy`, menú topbar y settings de permisos).
+
+**Archivos afectados:**
+
+- app/online-orders/page.tsx
+- app/page.tsx
+- app/pos/page.tsx
+- app/cashbox/page.tsx
+- app/products/lookup/page.tsx
+- app/clients/page.tsx
+- app/expirations/page.tsx
+- app/components/TopBar.tsx
+- app/settings/staff-permissions/page.tsx
+- app/[orgSlug]/[branchSlug]/StorefrontBranchClient.tsx
+- proxy.ts
+- docs/docs-modules-online-store.md
+- docs/docs-app-screens-online-orders.md
+- docs/docs-app-screens-index.md
+- docs/docs-app-sitemap.md
+- docs/docs-app-screens-settings-staff-permissions.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-03-01)
+- `npm run build` OK (2026-03-01)
 
 **Commit:** N/A
 

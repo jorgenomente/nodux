@@ -29,6 +29,7 @@ Definir, por sucursal:
 - texto de encabezado de ticket no fiscal
 - texto de pie de ticket no fiscal
 - leyenda de comprobante fiscal de prueba
+- layout de impresión (ancho de papel, márgenes, tamaño de texto, interlineado)
 
 UI
 
@@ -38,6 +39,14 @@ UI
   - `ticket_footer_text` (textarea)
 - Bloque `Comprobante fiscal de prueba`
   - `fiscal_ticket_note_text` (textarea)
+- Bloque `Configuración de impresión`
+  - `ticket_paper_width_mm` (number)
+  - `ticket_margin_top_mm` (number)
+  - `ticket_margin_right_mm` (number)
+  - `ticket_margin_bottom_mm` (number)
+  - `ticket_margin_left_mm` (number)
+  - `ticket_font_size_px` (number)
+  - `ticket_line_height` (number)
 - Bloque de guía visible de formato para impresión térmica 80mm:
   - texto plano
   - recomendación de ancho por línea
@@ -61,6 +70,13 @@ Tabla: `branches`
 - `ticket_header_text`
 - `ticket_footer_text`
 - `fiscal_ticket_note_text`
+- `ticket_paper_width_mm`
+- `ticket_margin_top_mm`
+- `ticket_margin_right_mm`
+- `ticket_margin_bottom_mm`
+- `ticket_margin_left_mm`
+- `ticket_font_size_px`
+- `ticket_line_height`
 - filtro: `org_id`, `is_active=true`
 
 Escritura
@@ -70,6 +86,13 @@ Tabla: `branches` (update por `id` + `org_id`)
 - `ticket_header_text`
 - `ticket_footer_text`
 - `fiscal_ticket_note_text`
+- `ticket_paper_width_mm`
+- `ticket_margin_top_mm`
+- `ticket_margin_right_mm`
+- `ticket_margin_bottom_mm`
+- `ticket_margin_left_mm`
+- `ticket_font_size_px`
+- `ticket_line_height`
 
 Integraciones de salida
 
@@ -79,6 +102,7 @@ Integraciones de salida
 Edge cases
 
 - Si la sucursal no tiene textos configurados, impresión usa layout base sin bloques adicionales.
+- Si la sucursal no tiene layout configurado, usar defaults operativos (80mm, márgenes 2mm, 12px, line-height 1.35).
 - Si no hay sucursales activas, mostrar estado vacío con mensaje explícito.
 
 Smoke tests
@@ -86,3 +110,4 @@ Smoke tests
 - TK-01: guardar encabezado/pie en sucursal A y validar impresión en `/pos`.
 - TK-02: cambiar a sucursal B con texto distinto y validar que no mezcla contenido.
 - TK-03: guardar leyenda fiscal de prueba y validar render en `/sales/[saleId]/ticket`.
+- TK-04: configurar margen izquierdo/derecho y validar que el ticket no se corte a la derecha.

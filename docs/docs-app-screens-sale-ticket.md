@@ -21,6 +21,14 @@ Permitir imprimir un ticket de venta como copia operativa no fiscal.
   - `ticket_header_text`
   - `ticket_footer_text`
   - `fiscal_ticket_note_text`
+- Aplicar layout de impresión de la sucursal:
+  - `ticket_paper_width_mm`
+  - `ticket_margin_top_mm`
+  - `ticket_margin_right_mm`
+  - `ticket_margin_bottom_mm`
+  - `ticket_margin_left_mm`
+  - `ticket_font_size_px`
+  - `ticket_line_height`
 - Lista de ítems (cantidad, precio, subtotal).
 - Totales (`subtotal`, `descuento`, `total`).
 - Estado fiscal de la venta (`facturada` / `no facturada`).

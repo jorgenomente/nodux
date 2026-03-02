@@ -17,6 +17,13 @@ type BranchOption = {
   ticket_header_text: string | null;
   ticket_footer_text: string | null;
   fiscal_ticket_note_text: string | null;
+  ticket_paper_width_mm: number | null;
+  ticket_margin_top_mm: number | null;
+  ticket_margin_right_mm: number | null;
+  ticket_margin_bottom_mm: number | null;
+  ticket_margin_left_mm: number | null;
+  ticket_font_size_px: number | null;
+  ticket_line_height: number | null;
 };
 
 type ProductCatalogItem = {
@@ -50,6 +57,15 @@ type TicketSnapshot = {
   ticketHeaderText?: string | null;
   ticketFooterText?: string | null;
   fiscalTicketNoteText?: string | null;
+  printConfig?: {
+    paperWidthMm?: number | null;
+    marginTopMm?: number | null;
+    marginRightMm?: number | null;
+    marginBottomMm?: number | null;
+    marginLeftMm?: number | null;
+    fontSizePx?: number | null;
+    lineHeight?: number | null;
+  };
   createdAtIso: string;
   items: Array<{
     name: string;
@@ -137,7 +153,64 @@ const escapeHtml = (value: string) =>
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
 
+const DEFAULT_TICKET_PRINT_CONFIG = {
+  paperWidthMm: 80,
+  marginTopMm: 2,
+  marginRightMm: 2,
+  marginBottomMm: 2,
+  marginLeftMm: 2,
+  fontSizePx: 12,
+  lineHeight: 1.35,
+} as const;
+
+const sanitizePrintConfig = (config?: TicketSnapshot['printConfig']) => {
+  const paperWidthMm = Number(config?.paperWidthMm);
+  const marginTopMm = Number(config?.marginTopMm);
+  const marginRightMm = Number(config?.marginRightMm);
+  const marginBottomMm = Number(config?.marginBottomMm);
+  const marginLeftMm = Number(config?.marginLeftMm);
+  const fontSizePx = Number(config?.fontSizePx);
+  const lineHeight = Number(config?.lineHeight);
+
+  const safePaperWidthMm = Number.isFinite(paperWidthMm)
+    ? Math.min(Math.max(paperWidthMm, 48), 80)
+    : DEFAULT_TICKET_PRINT_CONFIG.paperWidthMm;
+  const safeMarginTopMm = Number.isFinite(marginTopMm)
+    ? Math.min(Math.max(marginTopMm, 0), 20)
+    : DEFAULT_TICKET_PRINT_CONFIG.marginTopMm;
+  const safeMarginRightMm = Number.isFinite(marginRightMm)
+    ? Math.min(Math.max(marginRightMm, 0), 20)
+    : DEFAULT_TICKET_PRINT_CONFIG.marginRightMm;
+  const safeMarginBottomMm = Number.isFinite(marginBottomMm)
+    ? Math.min(Math.max(marginBottomMm, 0), 20)
+    : DEFAULT_TICKET_PRINT_CONFIG.marginBottomMm;
+  const safeMarginLeftMm = Number.isFinite(marginLeftMm)
+    ? Math.min(Math.max(marginLeftMm, 0), 20)
+    : DEFAULT_TICKET_PRINT_CONFIG.marginLeftMm;
+  const safeFontSizePx = Number.isFinite(fontSizePx)
+    ? Math.round(Math.min(Math.max(fontSizePx, 8), 24))
+    : DEFAULT_TICKET_PRINT_CONFIG.fontSizePx;
+  const safeLineHeight = Number.isFinite(lineHeight)
+    ? Math.min(Math.max(lineHeight, 1), 2.5)
+    : DEFAULT_TICKET_PRINT_CONFIG.lineHeight;
+
+  return {
+    paperWidthMm: safePaperWidthMm,
+    marginTopMm: safeMarginTopMm,
+    marginRightMm: safeMarginRightMm,
+    marginBottomMm: safeMarginBottomMm,
+    marginLeftMm: safeMarginLeftMm,
+    fontSizePx: safeFontSizePx,
+    lineHeight: safeLineHeight,
+  };
+};
+
 const openTicketPrintWindow = (ticket: TicketSnapshot) => {
+  const printConfig = sanitizePrintConfig(ticket.printConfig);
+  const contentWidthMm = Math.max(
+    printConfig.paperWidthMm - printConfig.marginLeftMm - printConfig.marginRightMm,
+    30,
+  );
   const rows = ticket.items
     .map(
       (item) => `
@@ -162,9 +235,9 @@ const openTicketPrintWindow = (ticket: TicketSnapshot) => {
   <meta charset="utf-8" />
   <title>${titleLabel} - NODUX</title>
   <style>
-    @page { size: 80mm auto; margin: 6mm; }
+    @page { size: ${printConfig.paperWidthMm}mm auto; margin: ${printConfig.marginTopMm}mm ${printConfig.marginRightMm}mm ${printConfig.marginBottomMm}mm ${printConfig.marginLeftMm}mm; }
     body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace; margin: 0; color: #111827; }
-    .ticket { width: 68mm; margin: 0 auto; font-size: 12px; line-height: 1.35; }
+    .ticket { width: ${contentWidthMm}mm; margin: 0; font-size: ${printConfig.fontSizePx}px; line-height: ${printConfig.lineHeight}; }
     .center { text-align: center; }
     .meta { color: #374151; margin: 2px 0; }
     .hr { border-top: 1px dashed #9ca3af; margin: 8px 0; }
@@ -824,6 +897,15 @@ export default function PosClient({
             ticketFooterText: activeBranchConfig?.ticket_footer_text ?? '',
             fiscalTicketNoteText:
               activeBranchConfig?.fiscal_ticket_note_text ?? '',
+            printConfig: {
+              paperWidthMm: activeBranchConfig?.ticket_paper_width_mm,
+              marginTopMm: activeBranchConfig?.ticket_margin_top_mm,
+              marginRightMm: activeBranchConfig?.ticket_margin_right_mm,
+              marginBottomMm: activeBranchConfig?.ticket_margin_bottom_mm,
+              marginLeftMm: activeBranchConfig?.ticket_margin_left_mm,
+              fontSizePx: activeBranchConfig?.ticket_font_size_px,
+              lineHeight: activeBranchConfig?.ticket_line_height,
+            },
           }
         : lastTicket;
 
@@ -1034,6 +1116,15 @@ export default function PosClient({
       ticketHeaderText: activeBranchConfig?.ticket_header_text ?? '',
       ticketFooterText: activeBranchConfig?.ticket_footer_text ?? '',
       fiscalTicketNoteText: activeBranchConfig?.fiscal_ticket_note_text ?? '',
+      printConfig: {
+        paperWidthMm: activeBranchConfig?.ticket_paper_width_mm,
+        marginTopMm: activeBranchConfig?.ticket_margin_top_mm,
+        marginRightMm: activeBranchConfig?.ticket_margin_right_mm,
+        marginBottomMm: activeBranchConfig?.ticket_margin_bottom_mm,
+        marginLeftMm: activeBranchConfig?.ticket_margin_left_mm,
+        fontSizePx: activeBranchConfig?.ticket_font_size_px,
+        lineHeight: activeBranchConfig?.ticket_line_height,
+      },
     });
     setCart([]);
     setIsSplitPayment(false);

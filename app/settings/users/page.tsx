@@ -35,6 +35,130 @@ type InviteUserRow = {
   invited_user_id?: string | null;
 };
 
+const findAuthUserIdByEmail = async (
+  admin: ReturnType<typeof createAdminSupabaseClient>,
+  email: string,
+): Promise<string | null> => {
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+    if (error) return null;
+    const users = data.users ?? [];
+    const user = users.find(
+      (candidate) =>
+        String(candidate.email ?? '').trim().toLowerCase() === email,
+    );
+    if (user?.id) return user.id;
+    if (users.length < 200) break;
+  }
+  return null;
+};
+
+const assignMembershipWithServiceRole = async ({
+  admin,
+  orgId,
+  actorUserId,
+  email,
+  role,
+  branchIds,
+  displayName,
+  userId,
+}: {
+  admin: ReturnType<typeof createAdminSupabaseClient>;
+  orgId: string;
+  actorUserId: string;
+  email: string;
+  role: 'org_admin' | 'staff';
+  branchIds: string[];
+  displayName: string;
+  userId?: string | null;
+}): Promise<{ userId: string } | { error: string }> => {
+  const resolvedUserId =
+    userId || (await findAuthUserIdByEmail(admin, email.toLowerCase()));
+  if (!resolvedUserId) {
+    return { error: 'auth_user_not_found' };
+  }
+
+  if (role === 'staff') {
+    const { data: validBranches, error: branchesError } = await admin
+      .from('branches')
+      .select('id')
+      .eq('org_id', orgId)
+      .eq('is_active', true)
+      .in('id', branchIds);
+    if (branchesError) return { error: branchesError.message };
+    if ((validBranches ?? []).length !== branchIds.length) {
+      return { error: 'invalid_branch_ids' };
+    }
+  }
+
+  const { error: orgUserError } = await admin.from('org_users').upsert(
+    {
+      org_id: orgId,
+      user_id: resolvedUserId,
+      role,
+      is_active: true,
+      display_name: displayName || null,
+    },
+    { onConflict: 'org_id,user_id' },
+  );
+  if (orgUserError) return { error: orgUserError.message };
+
+  const { error: deleteMembershipsError } = await admin
+    .from('branch_memberships')
+    .delete()
+    .eq('org_id', orgId)
+    .eq('user_id', resolvedUserId);
+  if (deleteMembershipsError) return { error: deleteMembershipsError.message };
+
+  if (role === 'staff' && branchIds.length > 0) {
+    const memberships = branchIds.map((branchId) => ({
+      org_id: orgId,
+      branch_id: branchId,
+      user_id: resolvedUserId,
+      is_active: true,
+    }));
+    const { error: insertMembershipsError } = await admin
+      .from('branch_memberships')
+      .upsert(memberships, { onConflict: 'org_id,branch_id,user_id' });
+    if (insertMembershipsError) return { error: insertMembershipsError.message };
+  }
+
+  await admin.from('audit_log').insert([
+    {
+      org_id: orgId,
+      actor_user_id: actorUserId,
+      action_key: 'user_invited',
+      entity_type: 'org_user',
+      entity_id: resolvedUserId,
+      metadata: {
+        source: 'settings_users_fallback',
+        email,
+        role,
+        branch_ids: role === 'staff' ? branchIds : [],
+      },
+    },
+    {
+      org_id: orgId,
+      actor_user_id: actorUserId,
+      action_key: 'user_membership_updated',
+      entity_type: 'org_user',
+      entity_id: resolvedUserId,
+      metadata: {
+        source: 'settings_users_fallback',
+        role,
+        is_active: true,
+        display_name: displayName || null,
+        branch_ids: role === 'staff' ? branchIds : [],
+      },
+    },
+  ]);
+
+  return { userId: resolvedUserId };
+};
+
 const roleLabel = (role: SettingsUserRow['role']) => {
   if (role === 'org_admin') return 'Org Admin';
   if (role === 'staff') return 'Staff';
@@ -136,6 +260,21 @@ export default async function SettingsUsersPage({
       },
     );
     if (inviteError) {
+      const fallback = await assignMembershipWithServiceRole({
+        admin,
+        orgId: auth.orgId,
+        actorUserId: auth.currentUserId,
+        email,
+        role,
+        branchIds: role === 'staff' ? branchIds : [],
+        displayName,
+        userId: createdUserId,
+      });
+      if ('userId' in fallback) {
+        revalidatePath('/settings/users');
+        revalidatePath('/settings/audit-log');
+        redirect('/settings/users?result=created');
+      }
       if (createdInAuth && createdUserId) {
         await admin.auth.admin.deleteUser(createdUserId);
       }
@@ -149,6 +288,7 @@ export default async function SettingsUsersPage({
         details: inviteError.details,
         hint: inviteError.hint,
         createError: message || null,
+        fallbackError: fallback.error,
       });
       redirect('/settings/users?result=membership_failed');
     }
@@ -182,6 +322,21 @@ export default async function SettingsUsersPage({
       },
     );
     if (membershipError) {
+      const fallback = await assignMembershipWithServiceRole({
+        admin,
+        orgId: auth.orgId,
+        actorUserId: auth.currentUserId,
+        email,
+        role,
+        branchIds: role === 'staff' ? branchIds : [],
+        displayName,
+        userId: invitedUserId,
+      });
+      if ('userId' in fallback) {
+        revalidatePath('/settings/users');
+        revalidatePath('/settings/audit-log');
+        redirect('/settings/users?result=created');
+      }
       if (createdInAuth && createdUserId) {
         await admin.auth.admin.deleteUser(createdUserId);
       }
@@ -195,6 +350,7 @@ export default async function SettingsUsersPage({
           code: membershipError.code,
           details: membershipError.details,
           hint: membershipError.hint,
+          fallbackError: fallback.error,
         },
       );
       redirect('/settings/users?result=membership_failed');

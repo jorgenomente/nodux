@@ -138,7 +138,8 @@ Una venta es un registro con:
 ### A8) Imprimir ticket (copia no fiscal)
 
 - Disponible con carrito cargado (antes de cobrar) o con la última venta registrada (después de cobrar).
-- El contenido usa plantilla de la sucursal activa (`ticket_header_text`, `ticket_footer_text`, `fiscal_ticket_note_text`) configurable desde `/settings/branches`.
+- El contenido usa plantilla de la sucursal activa (`ticket_header_text`, `ticket_footer_text`, `fiscal_ticket_note_text`) configurable desde `/settings/tickets`.
+- El layout de impresión usa parámetros de sucursal (`ticket_paper_width_mm`, `ticket_margin_*_mm`, `ticket_font_size_px`, `ticket_line_height`) para adaptar impresoras térmicas.
 - No reemplaza factura fiscal; es comprobante operativo interno.
 
 ### A7) Pedido especial (si aplica)

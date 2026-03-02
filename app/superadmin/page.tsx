@@ -50,6 +50,99 @@ type InviteUserRow = {
   invited_user_id?: string | null;
 };
 
+const findAuthUserIdByEmail = async (
+  admin: ReturnType<typeof createAdminSupabaseClient>,
+  email: string,
+): Promise<string | null> => {
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+    if (error) return null;
+    const users = data.users ?? [];
+    const user = users.find(
+      (candidate) =>
+        String(candidate.email ?? '').trim().toLowerCase() === email,
+    );
+    if (user?.id) return user.id;
+    if (users.length < 200) break;
+  }
+  return null;
+};
+
+const assignMembershipWithServiceRole = async ({
+  admin,
+  orgId,
+  actorUserId,
+  email,
+  role,
+  displayName,
+  userId,
+}: {
+  admin: ReturnType<typeof createAdminSupabaseClient>;
+  orgId: string;
+  actorUserId: string;
+  email: string;
+  role: 'org_admin' | 'staff';
+  displayName: string;
+  userId?: string | null;
+}): Promise<{ userId: string } | { error: string }> => {
+  const resolvedUserId =
+    userId || (await findAuthUserIdByEmail(admin, email.toLowerCase()));
+  if (!resolvedUserId) return { error: 'auth_user_not_found' };
+
+  const { error: orgUserError } = await admin.from('org_users').upsert(
+    {
+      org_id: orgId,
+      user_id: resolvedUserId,
+      role,
+      is_active: true,
+      display_name: displayName || null,
+    },
+    { onConflict: 'org_id,user_id' },
+  );
+  if (orgUserError) return { error: orgUserError.message };
+
+  const { error: clearMembershipsError } = await admin
+    .from('branch_memberships')
+    .delete()
+    .eq('org_id', orgId)
+    .eq('user_id', resolvedUserId);
+  if (clearMembershipsError) return { error: clearMembershipsError.message };
+
+  await admin.from('audit_log').insert([
+    {
+      org_id: orgId,
+      actor_user_id: actorUserId,
+      action_key: 'user_invited',
+      entity_type: 'org_user',
+      entity_id: resolvedUserId,
+      metadata: {
+        source: 'superadmin_create_org_admin_fallback',
+        email,
+        role,
+      },
+    },
+    {
+      org_id: orgId,
+      actor_user_id: actorUserId,
+      action_key: 'user_membership_updated',
+      entity_type: 'org_user',
+      entity_id: resolvedUserId,
+      metadata: {
+        source: 'superadmin_create_org_admin_fallback',
+        role,
+        is_active: true,
+        display_name: displayName || null,
+        branch_ids: [],
+      },
+    },
+  ]);
+
+  return { userId: resolvedUserId };
+};
+
 type SuperadminContextResult =
   | { status: 'ok'; context: SuperadminContext }
   | { status: 'no_user' }
@@ -402,6 +495,19 @@ export default async function SuperadminPage({
         },
       );
       if (inviteError) {
+        const fallback = await assignMembershipWithServiceRole({
+          admin,
+          orgId,
+          actorUserId: auth.userId,
+          email: ownerEmail,
+          role: 'org_admin',
+          displayName: ownerName,
+          userId: createdUserId,
+        });
+        if ('userId' in fallback) {
+          revalidatePath('/superadmin');
+          redirect(`/superadmin?org=${orgId}&result=owner_created`);
+        }
         if (createdInAuth && createdUserId) {
           await admin.auth.admin.deleteUser(createdUserId);
         }
@@ -412,6 +518,7 @@ export default async function SuperadminPage({
           code: inviteError.code,
           details: inviteError.details,
           hint: inviteError.hint,
+          fallbackError: fallback.error,
         });
         redirect(`/superadmin?org=${orgId}&result=owner_create_error`);
       }
@@ -449,6 +556,19 @@ export default async function SuperadminPage({
         },
       );
       if (membershipError) {
+        const fallback = await assignMembershipWithServiceRole({
+          admin,
+          orgId,
+          actorUserId: auth.userId,
+          email: ownerEmail,
+          role: 'org_admin',
+          displayName: ownerName,
+          userId: invitedUserId,
+        });
+        if ('userId' in fallback) {
+          revalidatePath('/superadmin');
+          redirect(`/superadmin?org=${orgId}&result=owner_created`);
+        }
         if (createdInAuth && createdUserId) {
           await admin.auth.admin.deleteUser(createdUserId);
         }
@@ -459,6 +579,7 @@ export default async function SuperadminPage({
           code: membershipError.code,
           details: membershipError.details,
           hint: membershipError.hint,
+          fallbackError: fallback.error,
         });
         redirect(`/superadmin?org=${orgId}&result=owner_create_error`);
       }

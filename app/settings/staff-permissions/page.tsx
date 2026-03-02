@@ -44,6 +44,10 @@ const MODULE_DEFINITIONS: Record<
     label: 'Vencimientos',
     description: 'Seguimiento y correccion de lotes proximos a vencer.',
   },
+  online_orders: {
+    label: 'Pedidos online',
+    description: 'Gestión operativa de pedidos entrantes desde storefront.',
+  },
 };
 
 const FALLBACK_MODULE_KEYS = Object.keys(MODULE_DEFINITIONS);
@@ -101,6 +105,7 @@ export default async function SettingsStaffPermissionsPage({
     revalidatePath('/products/lookup');
     revalidatePath('/clients');
     revalidatePath('/expirations');
+    revalidatePath('/online-orders');
     revalidatePath('/settings/audit-log');
 
     const nextScopeQuery = scopeBranch ? scopeBranch : 'org';

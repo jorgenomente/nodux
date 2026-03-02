@@ -44,6 +44,9 @@ export default async function Home() {
     if (firstEnabled?.module_key === 'expirations') {
       redirect('/expirations');
     }
+    if (firstEnabled?.module_key === 'online_orders') {
+      redirect('/online-orders');
+    }
     redirect('/pos');
   }
 
