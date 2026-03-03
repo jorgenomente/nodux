@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 import PageShell from '@/app/components/PageShell';
-import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
 
 export const dynamic = 'force-dynamic';
 
@@ -354,7 +355,7 @@ export default async function SalesStatisticsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const session = await getOrgAdminSession();
+  const session = await getOrgMemberSession();
   if (!session) {
     redirect('/login');
   }
@@ -364,6 +365,16 @@ export default async function SalesStatisticsPage({
 
   const supabase = session.supabase;
   const orgId = session.orgId;
+  const role = session.effectiveRole;
+
+  if (role === 'staff') {
+    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
+    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    if (!hasStaffModuleEnabled(resolvedModules, 'sales_statistics')) {
+      const home = resolveStaffHome(resolvedModules);
+      redirect(home);
+    }
+  }
 
   const { data: branchesData } = await supabase
     .from('branches')

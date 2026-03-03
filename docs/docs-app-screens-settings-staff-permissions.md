@@ -34,15 +34,24 @@ Permitir al Org Admin definir qué módulos puede ver/usar el Staff, con efecto 
 
 Identificador estable (string) para cada módulo habilitable.
 
-MVP module_keys recomendados:
+MVP module_keys listados en UI (habilitables/deshabilitables):
 
+- `dashboard`
 - `pos`
+- `sales`
+- `sales_statistics`
 - `cashbox`
+- `products`
 - `products_lookup`
+- `suppliers`
+- `orders`
+- `orders_calendar`
+- `payments`
 - `clients`
+- `expirations`
+- `onboarding`
 - `online_orders` (Post-MVP en progreso)
-- `orders` (opcional para staff en MVP; por defecto apagado)
-- (futuros): `products_manage`, `expirations_manage`, etc.
+- `settings`
 
 > Nota: para Staff conviene separar “lookup” vs “manage”.
 > En MVP, Staff típicamente NO gestiona catálogo.
@@ -120,6 +129,12 @@ Cada row:
 
 - Persistir cambio inmediatamente (optimistic UI opcional)
 - Mostrar toast “Actualizado”
+
+### A4) Toggle “Acceso completo staff (operativo)”
+
+- `module_key = '__full_access__'`
+- Cuando está activo, los módulos operativos staff quedan habilitados por defecto
+- Los toggles por módulo pasan a funcionar como exclusiones puntuales (denylist)
 
 ---
 
@@ -207,6 +222,11 @@ Efecto:
 - UPSERT en `staff_module_access`
   Output:
 - row actualizada
+
+Clave especial:
+
+- `module_key='__full_access__'` define baseline de habilitación para módulos staff operativos.
+- Si existe override explícito por módulo, ese override tiene prioridad.
 
 ---
 

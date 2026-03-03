@@ -6,7 +6,8 @@ import OrderDraftFiltersClient from '@/app/orders/OrderDraftFiltersClient';
 import OrderSuggestionsClient from '@/app/orders/OrderSuggestionsClient';
 import PageShell from '@/app/components/PageShell';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
 
 type SearchParams = {
   branch_id?: string;
@@ -207,7 +208,7 @@ export default async function OrdersPage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const session = await getOrgAdminSession();
+  const session = await getOrgMemberSession();
   if (!session) {
     redirect('/login');
   }
@@ -216,6 +217,16 @@ export default async function OrdersPage({
   }
   const supabase = session.supabase;
   const orgId = session.orgId;
+  const role = session.effectiveRole;
+
+  if (role === 'staff') {
+    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
+    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    if (!hasStaffModuleEnabled(resolvedModules, 'orders')) {
+      const home = resolveStaffHome(resolvedModules);
+      redirect(home);
+    }
+  }
 
   const { data: suppliers } = await supabase
     .from('suppliers')

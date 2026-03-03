@@ -7819,3 +7819,331 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run build OK (2026-03-02)
 
 **Commit:** N/A
+
+## 2026-03-02 19:37 -03 — UI: contexto global ORG + sucursal activa en TopBar
+
+**Tipo:** ui/docs/tests
+**Lote:** topbar-org-active-branch-context
+**Descripción:** Se extendió `TopBar` para mostrar contexto persistente de operación en todas las páginas autenticadas: nombre de `ORG` y `Sucursal activa`. Se añadió selector rápido de sucursal activa con persistencia en cookie (`nodux_active_branch_id`) mediante server action (`setActiveBranchAction`) para fijar el contexto visible globalmente.
+
+**Archivos afectados:**
+
+- app/components/TopBar.tsx
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-02)
+- npm run build OK (2026-03-02)
+
+**Commit:** N/A
+
+## 2026-03-02 19:40 -03 — UI: TopBar muestra usuario y restringe selector de sucursal para Staff
+
+**Tipo:** ui/docs/tests
+**Lote:** topbar-org-active-branch-context
+**Descripción:** Se ajustó `TopBar` para mostrar `Usuario` junto con `ORG` y `Sucursal activa`. Además, el selector global de sucursal activa ahora se oculta para `staff` y queda disponible únicamente para perfiles administrativos.
+
+**Archivos afectados:**
+
+- app/components/TopBar.tsx
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-02)
+- npm run build OK (2026-03-02)
+
+**Commit:** N/A
+
+## 2026-03-03 10:01 -03 — UI: staff permissions muestra todos los módulos actuales
+
+**Tipo:** ui/docs/tests
+**Lote:** settings-staff-permissions-all-modules
+**Descripción:** Se amplió el catálogo de módulos en `/settings/staff-permissions` para incluir todos los módulos actuales de la app (dashboard, ventas, estadísticas, proveedores, pedidos, calendario, pagos, onboarding, etc.) además de los ya existentes. Se definió orden de visualización estable y fallback para module keys extra creadas en DB.
+
+**Archivos afectados:**
+
+- app/settings/staff-permissions/page.tsx
+- docs/docs-app-screens-settings-staff-permissions.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-03)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A
+
+## 2026-03-03 12:03 -03 — TopBar: ocultar Configuración para staff
+
+**Tipo:** ui/docs/tests
+**Lote:** topbar-staff-settings-visibility
+**Descripción:** Se ajustó el filtrado de links visibles para `staff` en `TopBar` ocultando `/settings` además de `/settings/audit-log`, eliminando el acceso visible al grupo `Configuracion` en navegación superior.
+
+**Archivos afectados:**
+
+- app/components/TopBar.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-03)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A
+
+## 2026-03-03 12:00 -03 — TopBar: mover Pagos de Ventas a Operaciones
+
+**Tipo:** ui/docs/tests
+**Lote:** topbar-nav-grouping-adjustments
+**Descripción:** Se ajustó la agrupación del menú superior para ubicar `Pagos` dentro de `Operaciones` y retirarlo de `Ventas`, manteniendo el resto del agrupado sin cambios.
+
+**Archivos afectados:**
+
+- app/components/TopBar.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-03)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A
+
+## 2026-03-03 11:58 -03 — TopBar dropdowns: un solo menú abierto y cierre al navegar
+
+**Tipo:** ui/docs/tests
+**Lote:** topbar-nav-dropdown-behavior
+**Descripción:** Se extrajo la navegación agrupada a componente cliente `TopBarNav` para manejar estado de apertura. Ahora solo un dropdown puede estar abierto a la vez y los menús se cierran al hacer click en cualquier opción.
+
+**Archivos afectados:**
+
+- app/components/TopBar.tsx
+- app/components/TopBarNav.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-03)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A
+
+## 2026-03-03 11:54 -03 — TopBar: navegación agrupada por dominios con dropdowns
+
+**Tipo:** ui/docs/tests
+**Lote:** topbar-nav-grouping
+**Descripción:** Se reorganizó la navegación del `TopBar` en botones generales y menús desplegables (`Inicio`, `Ventas`, `Inventario`, `Operaciones`, `Tienda Online`, `Configuracion`) para simplificar la vista inicial. Se movió `Proveedores` al grupo `Operaciones` según definición funcional. Se mantiene el ocultamiento de `Auditoria` para staff.
+
+**Archivos afectados:**
+
+- app/components/TopBar.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-03)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A
+
+## 2026-03-03 10:10 -03 — Hotfix: staff `no-access` falso + logout disponible
+
+**Tipo:** ui/docs/tests
+**Lote:** staff-access-no-access-hotfix
+**Descripción:** Se corrigió la resolución de fallback de módulos para staff en rutas operativas (`/pos`, `/cashbox`, `/products/lookup`, `/clients`, `/expirations`, `/online-orders`) para ignorar `module_key` sin ruta conocida y evitar falsos `Sin acceso` al habilitar módulos nuevos. Además, `/no-access` incorpora botón `Cerrar sesión` para evitar bloqueo de salida.
+
+**Archivos afectados:**
+
+- app/page.tsx
+- app/no-access/page.tsx
+- app/pos/page.tsx
+- app/cashbox/page.tsx
+- app/products/lookup/page.tsx
+- app/clients/page.tsx
+- app/expirations/page.tsx
+- app/online-orders/page.tsx
+- docs/context-summary.md
+- docs/docs-app-screens-no-access.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-03)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A
+
+## 2026-03-03 10:17 -03 — Hotfix proxy: login staff no cae falsamente en `/no-access`
+
+**Tipo:** ui/docs/tests
+**Lote:** staff-access-no-access-hotfix
+**Descripción:** Se corrigió `resolveStaffHome` en `proxy.ts` (middleware de routing) para resolver home de staff solo con `module_key` que tienen ruta conocida en `moduleToRoute`, evitando redirección errónea a `/no-access` al habilitar módulos adicionales desde `/settings/staff-permissions`.
+
+**Archivos afectados:**
+
+- proxy.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-03)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A
+
+## 2026-03-03 10:45 -03 — Staff permissions: UI alineada a módulos staff operativos
+
+**Tipo:** ui/docs/tests
+**Lote:** staff-access-no-access-hotfix
+**Descripción:** Se ajustó `/settings/staff-permissions` para mostrar toggles únicamente de módulos staff con soporte operativo actual (`pos`, `cashbox`, `products_lookup`, `clients`, `expirations`, `online_orders`). Los `module_key` extra existentes en DB se informan en un bloque "sin efecto para staff" para evitar falsas expectativas de acceso.
+
+**Archivos afectados:**
+
+- app/settings/staff-permissions/page.tsx
+- docs/docs-app-screens-settings-staff-permissions.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-03)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A
+
+## 2026-03-03 10:54 -03 — Staff full access + denylist por módulo operativo
+
+**Tipo:** schema/ui/docs/tests
+**Lote:** staff-access-no-access-hotfix
+**Descripción:** Se implementó baseline de permisos staff con `module_key='__full_access__'`: cuando está habilitado activa por defecto módulos operativos staff (`pos`, `cashbox`, `products_lookup`, `clients`, `expirations`, `online_orders`) y los toggles por módulo actúan como exclusiones puntuales. Se actualizó `rpc_get_staff_effective_modules` para resolver prioridades (`branch override` > `org default` > `branch full access` > `org full access` > `false`) y se agregó UI de toggle para `Acceso completo staff (operativo)`.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260303102000_072_staff_full_access_effective_modules.sql
+- app/settings/staff-permissions/page.tsx
+- docs/context-summary.md
+- docs/docs-app-screens-settings-staff-permissions.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-03-03)
+- npm run lint OK (2026-03-03)
+- npm run build OK (2026-03-03)
+- smoke RPC local OK: `__full_access__=true` + `online_orders=false` => módulos efectivos habilitados/denegados según prioridad esperada.
+
+**Commit:** N/A
+
+## 2026-03-03 11:13 -03 — Staff permissions: listado completo de módulos + resolución efectiva ampliada
+
+**Tipo:** schema/ui/docs/tests
+**Lote:** staff-access-no-access-hotfix
+**Descripción:** Se restauró listado completo de módulos en `/settings/staff-permissions` con toggles para staff y se añadió baseline `__full_access__`. Se amplió `rpc_get_staff_effective_modules` para resolver permisos efectivos sobre todos los módulos listados (no solo subset operativo), manteniendo prioridad de overrides por sucursal/org.
+
+**Archivos afectados:**
+
+- app/settings/staff-permissions/page.tsx
+- supabase/migrations/20260303111000_073_staff_full_access_all_modules.sql
+- docs/docs-app-screens-settings-staff-permissions.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-03-03)
+- npm run lint OK (2026-03-03)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A
+
+## 2026-03-03 11:44 -03 — TopBar: ocultar botón Auditoría para staff
+
+**Tipo:** ui/docs/tests
+**Lote:** staff-nav-visibility-audit
+**Descripción:** Se ajustó `TopBar` para filtrar el link `/settings/audit-log` cuando `orgSession.effectiveRole === 'staff'`, manteniendo visible el resto de módulos. Se registró prompt y actividad del cambio.
+
+**Archivos afectados:**
+
+- app/components/TopBar.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-03)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A
+
+## 2026-03-03 11:25 -03 — Ruta por ruta: habilitación staff por módulos en proxy + páginas clave
+
+**Tipo:** ui/schema/docs/tests
+**Lote:** staff-route-by-route-access
+**Descripción:** Se amplió el enrutamiento staff en `proxy.ts` para resolver home y autorización de paths según módulos habilitados (`dashboard`, `sales`, `products`, `suppliers`, `orders`, `payments`, `onboarding`, `settings`, etc.). Se creó helper compartido `lib/auth/staff-modules.ts` y se aplicaron guards por módulo en páginas principales y detalles (`dashboard`, `sales`, `sales/statistics`, `products`, `suppliers`, `orders`, `orders/[orderId]`, `orders/calendar`, `payments`, `onboarding`, `sales/[saleId]`, `sales/[saleId]/ticket`, `settings`).
+
+**Archivos afectados:**
+
+- proxy.ts
+- lib/auth/staff-modules.ts
+- app/page.tsx
+- app/dashboard/page.tsx
+- app/sales/page.tsx
+- app/sales/statistics/page.tsx
+- app/sales/[saleId]/page.tsx
+- app/sales/[saleId]/ticket/page.tsx
+- app/products/page.tsx
+- app/suppliers/page.tsx
+- app/suppliers/[supplierId]/page.tsx
+- app/orders/page.tsx
+- app/orders/[orderId]/page.tsx
+- app/orders/calendar/page.tsx
+- app/payments/page.tsx
+- app/onboarding/page.tsx
+- app/settings/page.tsx
+- supabase/migrations/20260303102000_072_staff_full_access_effective_modules.sql
+- supabase/migrations/20260303111000_073_staff_full_access_all_modules.sql
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-03-03)
+- npm run lint OK (2026-03-03)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A
+
+## 2026-03-03 13:15 -03 — Fix infra: loop de redirección en storefront público `/:orgSlug`
+
+**Tipo:** infra/ui/docs/tests
+**Lote:** storefront-prod-redirect-loop-fix
+**Descripción:** Se corrigió `proxy.ts` para evitar colisión entre la ruta demo (`/demo`) y slugs públicos de storefront que empiezan con `demo` (ej. `/demo-org`). La regla previa usaba `startsWith('/demo')`, lo que generaba rebote entre `nodux.app` y `app.nodux.app` y terminaba en `ERR_TOO_MANY_REDIRECTS`. Además, se permitió explícitamente que rutas públicas de storefront (`/:orgSlug`, `/:orgSlug/:branchSlug`), tracking (`/o/:trackingToken`) y API pública de checkout (`/api/storefront/order`) permanezcan en host de marketing (`nodux.app`) para evitar redirects cruzados innecesarios.
+
+**Archivos afectados:**
+
+- proxy.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-03)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A

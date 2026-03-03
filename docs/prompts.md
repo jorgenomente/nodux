@@ -2850,3 +2850,148 @@ en https://app.nodux.app/login no se por que sucede
 
 **Prompt**
 en este momento http://localhost:3000/settings tienda onlime me sale deshabilitado. podemos agregar un boton donde se habiliten facilimente desde UI?
+
+## 2026-03-02 19:37 -03 — Top bar global con ORG y sucursal activa
+
+**Lote:** topbar-org-active-branch-context
+**Objetivo:** Mostrar en todas las pantallas autenticadas el contexto actual (`ORG` y `Sucursal activa`) y permitir cambiar la sucursal activa desde la barra superior.
+
+**Prompt**
+me gustaria agregar arriba al lado de donde dice NODUX algo que nos diga cual es la ORG en la que estamos y cual es la sucursal activa. es posible? Esto que quede visible en todas las paginas
+
+## 2026-03-02 19:40 -03 — Top bar: mostrar usuario logeado y ocultar selector en Staff
+
+**Lote:** topbar-org-active-branch-context
+**Objetivo:** Agregar nombre del usuario logeado en el contexto global del TopBar y ocultar el selector de sucursal activa para rol Staff.
+
+**Prompt**
+ademas de eso tambien el nombre del usuario que esta logeado. quitemos el selector global de sucursal en usuario staff
+
+## 2026-03-03 10:01 -03 — Staff permissions: mostrar todos los módulos actuales
+
+**Lote:** settings-staff-permissions-all-modules
+**Objetivo:** Ampliar `/settings/staff-permissions` para listar todos los módulos actuales de la app y permitir habilitar/deshabilitar cada uno.
+
+**Prompt**
+ahora vamos a trabajar sobre los permisos de staff. http://localhost:3000/settings/staff-permissions me gustaria que alli aparecieran todos los modulos actuales y la opcion de deshabilitarlos o habilitarlos, en este momento solo aparecen algunos
+
+## 2026-03-03 10:10 -03 — Bug staff sin acceso tras habilitar módulos + salida bloqueada
+
+**Lote:** staff-access-no-access-hotfix
+**Objetivo:** Corregir falso `Sin acceso` para staff cuando hay módulos adicionales habilitados y agregar salida (`logout`) desde `/no-access`.
+
+**Prompt**
+Intente usarlo, intente habilitar todos los modulos, intente entrar con una cuenta staff y me dice Sin acceso
+No tenés módulos habilitados. Contactá a tu administrador. lo peor es que nisiquiera puedo hacer logout
+
+## 2026-03-03 10:17 -03 — Fix redirect login staff en proxy
+
+**Lote:** staff-access-no-access-hotfix
+**Objetivo:** Corregir redirección post-login de staff en `proxy.ts` para que ignore módulos habilitados sin ruta operativa y no derive falsamente a `/no-access`.
+
+**Prompt**
+cuando hago log in me lleva a http://localhost:3000/no-access eso paso despues que habilite todos los modulos desde habilitar permiso a starff asi que debe estar relacionado con eso
+
+## 2026-03-03 10:45 -03 — Staff permissions: alinear UI a módulos realmente operativos
+
+**Lote:** staff-access-no-access-hotfix
+**Objetivo:** Evitar confusión en `/settings/staff-permissions` mostrando como toggles solo los módulos con soporte staff real y marcando el resto como sin efecto.
+
+**Prompt**
+vamos a trabajar sobre http://localhost:3000/settings/staff-permissions desde usuario admin y superadmin porque entiendo que ahora esten todos los modulos disponibles para habilitar y desahbilitar pero pareciera que no esta bien configurado todo. me llama la atencion que cuando estoy con admin me dice fuente: org_default pero cuando entro con palermo@demo.com hay muchos modulos a los que no tengo acceso entonces no se como arreglar esto.
+
+## 2026-03-03 10:54 -03 — Staff full access + exclusiones por módulo
+
+**Lote:** staff-access-no-access-hotfix
+**Objetivo:** Implementar modo de acceso completo para staff con capacidad de excluir módulos puntuales, y validar guard/routing módulo por módulo.
+
+**Prompt**
+entiendo. ahora necesitamos darle acceso a todos los modulos a staff porque el staff estara haciendo muchas actividades importantes. Yo quiero decidir a que no darle acceso, pero si quisiera darle acceso completo lo puedo hacer. que te parece?
+
+adelante. chequea modulo por modulo que todo este bien
+
+## 2026-03-03 11:13 -03 — Staff permissions: volver a listar todos los módulos
+
+**Lote:** staff-access-no-access-hotfix
+**Objetivo:** Mostrar nuevamente todos los módulos en `/settings/staff-permissions` con toggles de habilitar/deshabilitar para staff, incluyendo baseline `__full_access__`.
+
+**Prompt**
+cree un usuario staff se llama palermopc1@demo.com y cuando intento hacer click en los botones muchos de los botones no funcionan asi que decido logearme como admin http://localhost:3000/settings/staff-permissions y aqui no me salen listados todos los modulos, y justamente no estan listados a los que no puedo acceder desde staff. necesito que esten listados todos y que los pueda habilitar o deshabilitar para staff. se entiennde?
+
+## 2026-03-03 11:25 -03 — Revisión ruta por ruta de acceso staff
+
+**Lote:** staff-route-by-route-access
+**Objetivo:** Revisar y habilitar acceso staff módulo por módulo (routing + guards) para que permisos configurados en `/settings/staff-permissions` tengan efecto consistente en rutas principales.
+
+**Prompt**
+adalente si quiero revisemos ruta por ruta
+
+## 2026-03-03 11:44 -03 — Ocultar Auditoría para staff en TopBar
+
+**Lote:** staff-nav-visibility-audit
+**Objetivo:** Ocultar el acceso a `/settings/audit-log` en la navegación superior cuando el usuario efectivo es `staff`.
+
+**Prompt**
+ok perfecto. vamos a quitar ahora el boton de auditoria para que no sea visible por staff
+
+## 2026-03-03 11:54 -03 — TopBar agrupado con menús desplegables
+
+**Lote:** topbar-nav-grouping
+**Objetivo:** Reorganizar navegación superior en grupos desplegables para reducir complejidad visual y mover `Proveedores` al grupo `Operaciones`.
+
+**Prompt**
+ahora tenemos todos estos botones en el topbar Dashboard
+POS
+Ventas
+Estadisticas
+Caja
+Productos
+Lookup
+Vencimientos
+Proveedores
+Pedidos
+Pagos
+Onboarding
+Calendario
+Clientes
+Online Orders
+Configuracion
+Auditoria como me recomiendas agruparlos para crear botones generales y desplegables que contengan estos botones para que no sea algo tan complejo a simple vista y quede mas organizado? que piensas?
+
+me gusta, pero que proveedores quede en operaciones mejor que en inventario.
+
+## 2026-03-03 11:58 -03 — Dropdowns TopBar: un menú abierto a la vez
+
+**Lote:** topbar-nav-dropdown-behavior
+**Objetivo:** Corregir comportamiento de menús desplegables para que solo uno permanezca abierto y se cierre al seleccionar una opción.
+
+**Prompt**
+los menus no se cierran despues que les hago click deberia poder abrir uno a la vez porque ahora los puedo abrir todos los dropdown
+
+## 2026-03-03 12:00 -03 — Reubicar Pagos en grupo Operaciones
+
+**Lote:** topbar-nav-grouping-adjustments
+**Objetivo:** Mover `Pagos` desde el grupo `Ventas` al grupo `Operaciones` en la navegación agrupada del TopBar.
+
+**Prompt**
+en este momento pagos quedo en ventas vamos a moverlo a operaciones
+
+## 2026-03-03 12:03 -03 — Ocultar Configuración para staff en TopBar
+
+**Lote:** topbar-staff-settings-visibility
+**Objetivo:** Ocultar el botón/grupo de `Configuracion` en topbar para usuarios `staff`.
+
+**Prompt**
+vamos a ocultar tambien el boton de configuracion para los usuarios staff
+
+## 2026-03-03 13:15 -03 — Fix loop prod storefront (`demo-org`) por redirects cruzados
+
+**Lote:** storefront-prod-redirect-loop-fix
+**Objetivo:** Corregir bucle de redirección en producción al abrir storefront público por slug (`/:orgSlug`) cuando el slug comienza con `demo`.
+
+**Prompt**
+estoy tratando de abrir el online store desde prod y no abre me lleva a https://app.nodux.app/demo-org This page isn’t working
+nodux.app redirected you too many times.
+
+Try deleting your cookies.
+ERR_TOO_MANY_REDIRECTS no estoy seguro de que esta pasando

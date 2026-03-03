@@ -6,6 +6,14 @@ export default function NoAccessPage() {
         <p className="mt-2 text-sm text-zinc-500">
           No tenés módulos habilitados. Contactá a tu administrador.
         </p>
+        <form action="/logout" method="post" className="mt-5">
+          <button
+            type="submit"
+            className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            Cerrar sesión
+          </button>
+        </form>
       </div>
     </div>
   );

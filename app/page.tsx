@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 
+import { resolveStaffHome } from '@/lib/auth/staff-modules';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 export default async function Home() {
@@ -31,23 +32,10 @@ export default async function Home() {
     const { data: modules } = await supabase.rpc(
       'rpc_get_staff_effective_modules',
     );
-    const firstEnabled = (modules ?? []).find((module) => module.is_enabled);
-    if (firstEnabled?.module_key === 'cashbox') {
-      redirect('/cashbox');
-    }
-    if (firstEnabled?.module_key === 'products_lookup') {
-      redirect('/products/lookup');
-    }
-    if (firstEnabled?.module_key === 'clients') {
-      redirect('/clients');
-    }
-    if (firstEnabled?.module_key === 'expirations') {
-      redirect('/expirations');
-    }
-    if (firstEnabled?.module_key === 'online_orders') {
-      redirect('/online-orders');
-    }
-    redirect('/pos');
+    const home = resolveStaffHome(
+      (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>,
+    );
+    redirect(home);
   }
 
   redirect('/dashboard');

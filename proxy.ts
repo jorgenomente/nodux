@@ -33,22 +33,42 @@ const APP_HOST = 'app.nodux.app';
 const CANONICAL_MARKETING_HOST = 'nodux.app';
 const MARKETING_HOSTS = new Set([CANONICAL_MARKETING_HOST, 'www.nodux.app']);
 const STAFF_MODULE_ORDER = [
+  'dashboard',
   'pos',
+  'sales',
+  'sales_statistics',
   'cashbox',
+  'products',
   'products_lookup',
+  'suppliers',
+  'orders',
+  'orders_calendar',
+  'payments',
   'clients',
   'expirations',
+  'onboarding',
   'online_orders',
+  'settings',
 ];
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 const moduleToRoute: Record<string, string> = {
+  dashboard: '/dashboard',
   pos: '/pos',
+  sales: '/sales',
+  sales_statistics: '/sales/statistics',
   cashbox: '/cashbox',
+  products: '/products',
   products_lookup: '/products/lookup',
+  suppliers: '/suppliers',
+  orders: '/orders',
+  orders_calendar: '/orders/calendar',
+  payments: '/payments',
   clients: '/clients',
   expirations: '/expirations',
+  onboarding: '/onboarding',
   online_orders: '/online-orders',
+  settings: '/settings',
 };
 
 const isPublicPath = (pathname: string) =>
@@ -70,6 +90,12 @@ const isPublicStorefrontPath = (pathname: string) => {
 
 const isPublicStorefrontApiPath = (pathname: string) =>
   pathname === '/api/storefront/order';
+
+const isDemoPath = (pathname: string) =>
+  pathname === '/demo' || pathname.startsWith('/demo/');
+
+const isDemoEnterPath = (pathname: string) =>
+  pathname === '/demo/enter' || pathname.startsWith('/demo/enter/');
 
 const isMarketingPath = (pathname: string) =>
   MARKETING_PATHS.some(
@@ -98,38 +124,52 @@ const redirectToHost = (
   return NextResponse.redirect(url);
 };
 
-const resolveStaffHome = async (
-  supabase: ReturnType<typeof createServerClient<Database>>,
+const resolveStaffHome = (
+  modules: Array<{ module_key: string; is_enabled: boolean }>,
 ) => {
-  const { data: modules } = await supabase.rpc(
-    'rpc_get_staff_effective_modules',
-  );
-
   if (!modules || modules.length === 0) return '/no-access';
 
-  const enabled = modules
-    .filter((module) => module.is_enabled)
-    .sort(
-      (a, b) =>
-        STAFF_MODULE_ORDER.indexOf(a.module_key) -
-        STAFF_MODULE_ORDER.indexOf(b.module_key),
-    );
+  const enabled = modules.filter(
+    (module) => module.is_enabled && module.module_key in moduleToRoute,
+  );
 
   if (enabled.length === 0) return '/no-access';
+
+  const rank = (moduleKey: string) => {
+    const index = STAFF_MODULE_ORDER.indexOf(moduleKey);
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+  };
+
+  enabled.sort((a, b) => rank(a.module_key) - rank(b.module_key));
 
   return moduleToRoute[enabled[0].module_key] ?? '/no-access';
 };
 
-const isStaffAllowedPath = (pathname: string) => {
-  return (
-    pathname === '/pos' ||
-    pathname.startsWith('/cashbox') ||
-    pathname.startsWith('/products/lookup') ||
-    pathname.startsWith('/clients') ||
-    pathname.startsWith('/online-orders') ||
-    pathname.startsWith('/expirations') ||
-    pathname.startsWith('/no-access')
-  );
+const isStaffAllowedPath = (
+  pathname: string,
+  enabledModuleKeys: Set<string>,
+) => {
+  if (pathname.startsWith('/no-access')) return true;
+  if (pathname === '/') return true;
+
+  if (pathname.startsWith('/dashboard')) return enabledModuleKeys.has('dashboard');
+  if (pathname.startsWith('/pos')) return enabledModuleKeys.has('pos');
+  if (pathname.startsWith('/sales/statistics')) return enabledModuleKeys.has('sales_statistics');
+  if (pathname.startsWith('/sales')) return enabledModuleKeys.has('sales');
+  if (pathname.startsWith('/cashbox')) return enabledModuleKeys.has('cashbox');
+  if (pathname.startsWith('/products/lookup')) return enabledModuleKeys.has('products_lookup');
+  if (pathname.startsWith('/products')) return enabledModuleKeys.has('products');
+  if (pathname.startsWith('/suppliers')) return enabledModuleKeys.has('suppliers');
+  if (pathname.startsWith('/orders/calendar')) return enabledModuleKeys.has('orders_calendar');
+  if (pathname.startsWith('/orders')) return enabledModuleKeys.has('orders');
+  if (pathname.startsWith('/payments')) return enabledModuleKeys.has('payments');
+  if (pathname.startsWith('/clients')) return enabledModuleKeys.has('clients');
+  if (pathname.startsWith('/expirations')) return enabledModuleKeys.has('expirations');
+  if (pathname.startsWith('/onboarding')) return enabledModuleKeys.has('onboarding');
+  if (pathname.startsWith('/online-orders')) return enabledModuleKeys.has('online_orders');
+  if (pathname === '/settings') return enabledModuleKeys.has('settings');
+
+  return false;
 };
 
 const resolveUserIsPlatformAdmin = async (
@@ -156,7 +196,12 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL('/landing', request.url));
     }
 
-    if (!isMarketingPath(pathname)) {
+    if (
+      !isMarketingPath(pathname) &&
+      !isPublicStorefrontPath(pathname) &&
+      !isPublicTrackingPath(pathname) &&
+      !isPublicStorefrontApiPath(pathname)
+    ) {
       return redirectToHost(request, APP_HOST, pathname);
     }
   }
@@ -164,7 +209,9 @@ export async function proxy(request: NextRequest) {
   if (
     isAppHost &&
     (pathname.startsWith('/landing') ||
-      (pathname.startsWith('/demo') && !pathname.startsWith('/demo/enter')))
+      (isDemoPath(pathname) && !isDemoEnterPath(pathname)) ||
+      isPublicStorefrontPath(pathname) ||
+      isPublicTrackingPath(pathname))
   ) {
     return redirectToHost(request, 'nodux.app', pathname);
   }
@@ -255,10 +302,21 @@ export async function proxy(request: NextRequest) {
   }
 
   let homePath = '/dashboard';
+  let staffEnabledModules = new Set<string>();
   if (isSuperadmin) {
     homePath = '/superadmin';
   } else if (role === 'staff') {
-    homePath = await resolveStaffHome(supabase);
+    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
+    staffEnabledModules = new Set(
+      resolvedModules
+        .filter((module) => module.is_enabled)
+        .map((module) => module.module_key),
+    );
+    homePath = resolveStaffHome(resolvedModules);
   }
 
   if (pathname === '/login') {
@@ -282,7 +340,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (role === 'staff') {
-    if (!isStaffAllowedPath(pathname)) {
+    if (!isStaffAllowedPath(pathname, staffEnabledModules)) {
       if (isServerAction) return response;
       return NextResponse.redirect(new URL(homePath, request.url));
     }

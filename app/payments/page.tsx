@@ -6,7 +6,8 @@ import AmountInputAR from '@/app/components/AmountInputAR';
 import PageShell from '@/app/components/PageShell';
 import InvoiceImageField from '@/app/payments/InvoiceImageField';
 import PaymentAmountField from '@/app/payments/PaymentAmountField';
-import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
 
 type SearchParams = {
   branch_id?: string;
@@ -181,7 +182,7 @@ export default async function PaymentsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const session = await getOrgAdminSession();
+  const session = await getOrgMemberSession();
   if (!session) {
     redirect('/login');
   }
@@ -191,6 +192,16 @@ export default async function PaymentsPage({
 
   const supabase = session.supabase;
   const orgId = session.orgId;
+  const role = session.effectiveRole;
+
+  if (role === 'staff') {
+    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
+    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    if (!hasStaffModuleEnabled(resolvedModules, 'payments')) {
+      const home = resolveStaffHome(resolvedModules);
+      redirect(home);
+    }
+  }
 
   const { data: branchesData } = await supabase
     .from('branches')
@@ -360,7 +371,7 @@ export default async function PaymentsPage({
   const updatePayable = async (formData: FormData) => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) {
       redirect('/no-access');
     }
@@ -516,7 +527,7 @@ export default async function PaymentsPage({
   const registerPayment = async (formData: FormData) => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) {
       redirect('/no-access');
     }

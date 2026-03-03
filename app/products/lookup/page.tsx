@@ -25,21 +25,20 @@ const moduleToRoute: Record<string, string> = {
 const resolveStaffHome = (
   modules: Array<{ module_key: string; is_enabled: boolean }>,
 ) => {
-  const enabled = modules
-    .filter((module) => module.is_enabled)
-    .sort(
-      (a, b) =>
-        STAFF_MODULE_ORDER.indexOf(
-          a.module_key as (typeof STAFF_MODULE_ORDER)[number],
-        ) -
-        STAFF_MODULE_ORDER.indexOf(
-          b.module_key as (typeof STAFF_MODULE_ORDER)[number],
-        ),
+  const enabledKnown = modules.filter(
+    (module) => module.is_enabled && module.module_key in moduleToRoute,
+  );
+  if (enabledKnown.length === 0) return '/no-access';
+
+  const rank = (moduleKey: string) => {
+    const index = STAFF_MODULE_ORDER.indexOf(
+      moduleKey as (typeof STAFF_MODULE_ORDER)[number],
     );
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+  };
 
-  if (enabled.length === 0) return '/no-access';
-
-  return moduleToRoute[enabled[0].module_key] ?? '/no-access';
+  enabledKnown.sort((a, b) => rank(a.module_key) - rank(b.module_key));
+  return moduleToRoute[enabledKnown[0].module_key] ?? '/no-access';
 };
 
 type BranchOption = {

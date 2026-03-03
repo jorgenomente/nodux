@@ -7,7 +7,8 @@ import NewProductForm from '@/app/products/NewProductForm';
 import ProductListFilters from '@/app/products/ProductListFilters';
 import ProductListClient from '@/app/products/ProductListClient';
 import PageShell from '@/app/components/PageShell';
-import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
 import { fetchAllPages } from '@/lib/supabase/fetch-all-pages';
 
 type SupplierOption = {
@@ -56,7 +57,7 @@ export default async function ProductsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const session = await getOrgAdminSession();
+  const session = await getOrgMemberSession();
   if (!session) {
     redirect('/login');
   }
@@ -66,6 +67,15 @@ export default async function ProductsPage({
   }
   const supabase = session.supabase;
   const orgId = session.orgId;
+  const role = session.effectiveRole;
+  if (role === 'staff') {
+    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
+    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    if (!hasStaffModuleEnabled(resolvedModules, 'products')) {
+      const home = resolveStaffHome(resolvedModules);
+      redirect(home);
+    }
+  }
   const query = String(resolvedSearchParams.q ?? '').trim();
   const tokens = query
     .split(/\s+/)
@@ -268,7 +278,7 @@ export default async function ProductsPage({
   const createProduct = async (formData: FormData): Promise<void> => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
     const supabaseServer = actionSession.supabase;
     const name = String(formData.get('name') ?? '').trim();
@@ -391,7 +401,7 @@ export default async function ProductsPage({
   const updateProduct = async (formData: FormData): Promise<void> => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
     const supabaseServer = actionSession.supabase;
     const orgId = actionSession.orgId;
@@ -535,7 +545,7 @@ export default async function ProductsPage({
   const adjustStock = async (formData: FormData): Promise<void> => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
     const supabaseServer = actionSession.supabase;
     const orgId = actionSession.orgId;

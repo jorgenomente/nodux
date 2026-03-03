@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import PrintTicketButton from '@/app/sales/PrintTicketButton';
-import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
 
 export const dynamic = 'force-dynamic';
 
@@ -96,12 +97,21 @@ export default async function SaleTicketPage({
   params: Promise<{ saleId: string }>;
 }) {
   const resolvedParams = await params;
-  const session = await getOrgAdminSession();
+  const session = await getOrgMemberSession();
   if (!session) {
     redirect('/login');
   }
   if (!session.orgId) {
     redirect('/no-access');
+  }
+
+  if (session.effectiveRole === 'staff') {
+    const { data: modules } = await session.supabase.rpc('rpc_get_staff_effective_modules');
+    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    if (!hasStaffModuleEnabled(resolvedModules, 'sales')) {
+      const home = resolveStaffHome(resolvedModules);
+      redirect(home);
+    }
   }
 
   const { data: detailData } = await session.supabase

@@ -49,7 +49,7 @@ La app debe redirigir a `/no-access` cuando:
 
 ### CTA
 
-- No hay CTA (pantalla informativa).
+- `Cerrar sesión` (POST `/logout`) para salir cuando no hay acceso operativo.
 
 ---
 
@@ -76,6 +76,7 @@ La app debe redirigir a `/no-access` cuando:
 ## Reglas de negocio
 
 - Esta pantalla **no** ofrece navegación a otros módulos
+- Debe permitir cerrar sesión para evitar encierro del usuario
 - No debe exponer datos sensibles
 - No intenta “resolver” permisos automáticamente
 

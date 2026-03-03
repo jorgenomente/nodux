@@ -20,17 +20,32 @@ type ModuleAccessRow = {
   source_scope: string;
 };
 
-const MODULE_DEFINITIONS: Record<
-  string,
-  { label: string; description: string }
-> = {
+const STAFF_FULL_ACCESS_KEY = '__full_access__';
+
+const MODULE_DEFINITIONS: Record<string, { label: string; description: string }> = {
+  dashboard: {
+    label: 'Dashboard',
+    description: 'Resumen operativo del negocio para seguimiento diario.',
+  },
   pos: {
     label: 'POS',
     description: 'Registro de ventas rapidas y cobro desde caja.',
   },
+  sales: {
+    label: 'Ventas',
+    description: 'Historial y consulta de ventas realizadas.',
+  },
+  sales_statistics: {
+    label: 'Estadisticas',
+    description: 'Analitica comercial y tendencias de ventas.',
+  },
   cashbox: {
     label: 'Caja',
     description: 'Apertura, movimientos y cierre de caja por sucursal.',
+  },
+  products: {
+    label: 'Productos',
+    description: 'Gestion y consulta del catalogo de productos.',
   },
   products_lookup: {
     label: 'Consulta de precios',
@@ -44,13 +59,58 @@ const MODULE_DEFINITIONS: Record<
     label: 'Vencimientos',
     description: 'Seguimiento y correccion de lotes proximos a vencer.',
   },
+  suppliers: {
+    label: 'Proveedores',
+    description: 'Consulta de proveedores y su informacion operativa.',
+  },
+  orders: {
+    label: 'Pedidos',
+    description: 'Pedidos a proveedor y seguimiento de estado.',
+  },
+  orders_calendar: {
+    label: 'Calendario',
+    description: 'Agenda operativa de envios y recepciones de proveedores.',
+  },
+  payments: {
+    label: 'Pagos',
+    description: 'Registro y control de pagos a proveedores.',
+  },
+  onboarding: {
+    label: 'Onboarding',
+    description: 'Carga/importacion de datos maestros.',
+  },
   online_orders: {
     label: 'Pedidos online',
-    description: 'Gestión operativa de pedidos entrantes desde storefront.',
+    description: 'Gestion operativa de pedidos entrantes desde storefront.',
+  },
+  settings: {
+    label: 'Configuracion',
+    description: 'Acceso a configuraciones operativas del sistema.',
   },
 };
 
-const FALLBACK_MODULE_KEYS = Object.keys(MODULE_DEFINITIONS);
+const ALL_MODULE_KEYS = [
+  'dashboard',
+  'pos',
+  'sales',
+  'sales_statistics',
+  'cashbox',
+  'products',
+  'products_lookup',
+  'suppliers',
+  'orders',
+  'orders_calendar',
+  'payments',
+  'clients',
+  'expirations',
+  'onboarding',
+  'online_orders',
+  'settings',
+] as const;
+
+const FALLBACK_MODULE_KEYS = ALL_MODULE_KEYS.filter((moduleKey) =>
+  Boolean(MODULE_DEFINITIONS[moduleKey]),
+);
 
 const getOrgAdminContext = async () => {
   const session = await getOrgAdminSession();
@@ -133,12 +193,10 @@ export default async function SettingsStaffPermissionsPage({
     accessRows.map((row) => [row.module_key, row]),
   );
 
-  const moduleKeys = Array.from(
-    new Set([
-      ...FALLBACK_MODULE_KEYS,
-      ...accessRows.map((row) => row.module_key),
-    ]),
-  );
+  const moduleKeys = [...FALLBACK_MODULE_KEYS];
+  const fullAccessRow = accessByModule.get(STAFF_FULL_ACCESS_KEY);
+  const fullAccessEnabled = fullAccessRow?.is_enabled ?? false;
+  const fullAccessSource = fullAccessRow?.source_scope ?? 'none';
 
   return (
     <PageShell>
@@ -193,11 +251,57 @@ export default async function SettingsStaffPermissionsPage({
         </section>
 
         <section className="grid gap-3">
+          <form
+            action={setModuleAccess}
+            className="rounded-2xl border border-zinc-200 bg-white p-5"
+          >
+            <input type="hidden" name="module_key" value={STAFF_FULL_ACCESS_KEY} />
+            <input
+              type="hidden"
+              name="scope_branch_id"
+              value={scopeBranchId ?? ''}
+            />
+            <input
+              type="hidden"
+              name="is_enabled"
+              value={String(!fullAccessEnabled)}
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold text-zinc-900">
+                  Acceso completo staff (operativo)
+                </h2>
+                <p className="mt-1 text-sm text-zinc-600">
+                  Habilita por defecto todos los módulos operativos de staff.
+                  Luego puedes deshabilitar módulos puntuales debajo.
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Fuente: {fullAccessSource}
+                </p>
+              </div>
+              <button
+                type="submit"
+                className={`rounded px-3 py-2 text-sm font-semibold ${
+                  fullAccessEnabled
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-zinc-900 text-white'
+                }`}
+              >
+                {fullAccessEnabled ? 'Deshabilitar' : 'Habilitar'}
+              </button>
+            </div>
+          </form>
+
           {moduleKeys.map((moduleKey) => {
             const row = accessByModule.get(moduleKey);
-            const currentEnabled = row?.is_enabled ?? false;
+            const currentEnabled =
+              row?.is_enabled ?? fullAccessEnabled;
+            const resolvedSource =
+              row?.source_scope ??
+              (fullAccessEnabled ? `full_access(${fullAccessSource})` : 'none');
             const moduleMeta = MODULE_DEFINITIONS[moduleKey] ?? {
-              label: moduleKey,
+              label: moduleKey.replaceAll('_', ' '),
               description: 'Modulo sin descripcion.',
             };
 
@@ -228,7 +332,7 @@ export default async function SettingsStaffPermissionsPage({
                       {moduleMeta.description}
                     </p>
                     <p className="mt-1 text-xs text-zinc-500">
-                      Fuente: {row?.source_scope ?? 'none'}
+                      Fuente: {resolvedSource}
                     </p>
                   </div>
                   <button

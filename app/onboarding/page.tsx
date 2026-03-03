@@ -11,7 +11,8 @@ import PageShell from '@/app/components/PageShell';
 import OnboardingFormPendingState from '@/app/onboarding/OnboardingFormPendingState';
 import { PRODUCT_FORM_LABELS } from '@/app/products/product-form-contract';
 import ProductFormFieldsShared from '@/app/products/ProductFormFieldsShared';
-import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
 import { fetchAllPages } from '@/lib/supabase/fetch-all-pages';
 
 type SearchParams = {
@@ -1204,7 +1205,7 @@ export default async function OnboardingPage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const session = await getOrgAdminSession();
+  const session = await getOrgMemberSession();
   if (!session) {
     redirect('/login');
   }
@@ -1214,11 +1215,21 @@ export default async function OnboardingPage({
 
   const orgId = session.orgId;
   const supabase = session.supabase;
+  const role = session.effectiveRole;
+
+  if (role === 'staff') {
+    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
+    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    if (!hasStaffModuleEnabled(resolvedModules, 'onboarding')) {
+      const home = resolveStaffHome(resolvedModules);
+      redirect(home);
+    }
+  }
 
   const importCsv = async (formData: FormData): Promise<void> => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) {
       redirect('/no-access');
     }
@@ -1386,7 +1397,7 @@ export default async function OnboardingPage({
   const detectImportColumns = async (formData: FormData): Promise<void> => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) {
       redirect('/no-access');
     }
@@ -1471,7 +1482,7 @@ export default async function OnboardingPage({
   ): Promise<void> => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) {
       redirect('/no-access');
     }
@@ -1633,7 +1644,7 @@ export default async function OnboardingPage({
   const applyBulkProductPatch = async (formData: FormData): Promise<void> => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) {
       redirect('/no-access');
     }
@@ -1953,7 +1964,7 @@ export default async function OnboardingPage({
   const createBulkSupplier = async (formData: FormData): Promise<void> => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) {
       redirect('/no-access');
     }

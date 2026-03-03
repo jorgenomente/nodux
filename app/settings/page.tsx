@@ -4,7 +4,8 @@ import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
-import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
 
 const SETTINGS_LINKS = [
   {
@@ -41,7 +42,7 @@ const SETTINGS_LINKS = [
 ];
 
 export default async function SettingsPage() {
-  const session = await getOrgAdminSession();
+  const session = await getOrgMemberSession();
   if (!session) {
     redirect('/login');
   }
@@ -52,6 +53,16 @@ export default async function SettingsPage() {
 
   const supabase = session.supabase;
   const orgId = session.orgId;
+  const role = session.effectiveRole;
+
+  if (role === 'staff') {
+    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
+    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    if (!hasStaffModuleEnabled(resolvedModules, 'settings')) {
+      const home = resolveStaffHome(resolvedModules);
+      redirect(home);
+    }
+  }
   const requestHeaders = await headers();
   const forwardedProto = requestHeaders.get('x-forwarded-proto');
   const forwardedHost = requestHeaders.get('x-forwarded-host');
@@ -94,7 +105,7 @@ export default async function SettingsPage() {
   async function toggleStorefrontEnabledAction(formData: FormData) {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) {
       redirect('/login');
     }

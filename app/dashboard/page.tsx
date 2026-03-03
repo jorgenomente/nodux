@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation';
 
 import DashboardFiltersClient from '@/app/dashboard/DashboardFiltersClient';
 import PageShell from '@/app/components/PageShell';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
 
 type SearchParams = {
   branch_id?: string;
@@ -85,45 +86,24 @@ export default async function DashboardPage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getOrgMemberSession();
+  if (!session) {
     redirect('/login');
   }
 
-  const { data: isPlatformAdmin } = await supabase.rpc('is_platform_admin');
-  const { data: membership } = isPlatformAdmin
-    ? { data: null }
-    : await supabase
-        .from('org_users')
-        .select('org_id, role')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-  let orgId = '';
-  let canAccessDashboard = false;
-
-  if (isPlatformAdmin) {
-    const { data: activeOrgId } = await supabase.rpc('rpc_get_active_org_id');
-    if (typeof activeOrgId === 'string' && activeOrgId) {
-      orgId = activeOrgId;
-      canAccessDashboard = true;
-    } else {
-      redirect('/superadmin?result=active_org_invalid');
-    }
-  } else if (
-    membership?.org_id &&
-    (membership.role === 'org_admin' || membership.role === 'superadmin')
-  ) {
-    orgId = membership.org_id;
-    canAccessDashboard = true;
-  }
-
-  if (!canAccessDashboard || !orgId) {
+  const supabase = session.supabase;
+  if (!session.orgId) {
     redirect('/no-access');
+  }
+  const orgId = session.orgId;
+
+  if (session.effectiveRole === 'staff') {
+    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
+    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    if (!hasStaffModuleEnabled(resolvedModules, 'dashboard')) {
+      const home = resolveStaffHome(resolvedModules);
+      redirect(home);
+    }
   }
 
   const { data: branches } = await supabase

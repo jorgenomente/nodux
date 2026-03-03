@@ -5,7 +5,8 @@ import { revalidatePath } from 'next/cache';
 import PageShell from '@/app/components/PageShell';
 import SalePaymentCorrectionForm from '@/app/sales/SalePaymentCorrectionForm';
 import { formatOperationalPaymentMethod } from '@/lib/payments/catalog';
-import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
 
 export const dynamic = 'force-dynamic';
 
@@ -132,7 +133,7 @@ export default async function SaleDetailPage({
 }) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
-  const session = await getOrgAdminSession();
+  const session = await getOrgMemberSession();
   if (!session) {
     redirect('/login');
   }
@@ -142,6 +143,15 @@ export default async function SaleDetailPage({
 
   const supabase = session.supabase;
   const orgId = session.orgId;
+  const role = session.effectiveRole;
+  if (role === 'staff') {
+    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
+    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    if (!hasStaffModuleEnabled(resolvedModules, 'sales')) {
+      const home = resolveStaffHome(resolvedModules);
+      redirect(home);
+    }
+  }
 
   const saleId = resolvedParams.saleId;
   const { data: detailData } = await supabase
@@ -170,8 +180,8 @@ export default async function SaleDetailPage({
   const correctPaymentMethod = async (formData: FormData) => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
-    if (!actionSession?.orgId) {
+    const actionSession = await getOrgMemberSession();
+    if (!actionSession?.orgId || actionSession.effectiveRole === 'staff') {
       redirect('/no-access');
     }
 
@@ -235,8 +245,8 @@ export default async function SaleDetailPage({
   const markSaleAsInvoiced = async () => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
-    if (!actionSession?.orgId) {
+    const actionSession = await getOrgMemberSession();
+    if (!actionSession?.orgId || actionSession.effectiveRole === 'staff') {
       redirect('/no-access');
     }
 
@@ -387,7 +397,7 @@ export default async function SaleDetailPage({
             >
               Imprimir ticket
             </Link>
-            {!sale.is_invoiced ? (
+            {!sale.is_invoiced && role !== 'staff' ? (
               <form action={markSaleAsInvoiced}>
                 <button
                   type="submit"
@@ -474,11 +484,13 @@ export default async function SaleDetailPage({
                     </div>
                   </div>
 
-                  <SalePaymentCorrectionForm
-                    payment={payment}
-                    paymentDevices={paymentDevices}
-                    onSubmit={correctPaymentMethod}
-                  />
+                  {role !== 'staff' ? (
+                    <SalePaymentCorrectionForm
+                      payment={payment}
+                      paymentDevices={paymentDevices}
+                      onSubmit={correctPaymentMethod}
+                    />
+                  ) : null}
                 </article>
               ))}
             </div>

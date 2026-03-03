@@ -6,7 +6,8 @@ import { revalidatePath } from 'next/cache';
 import PageShell from '@/app/components/PageShell';
 import SupplierActions from '@/app/suppliers/SupplierActions';
 import SuppliersSearchInput from '@/app/suppliers/SuppliersSearchInput';
-import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
 
 type SearchParams = {
   q?: string;
@@ -54,7 +55,7 @@ export default async function SuppliersPage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const session = await getOrgAdminSession();
+  const session = await getOrgMemberSession();
   if (!session) {
     redirect('/login');
   }
@@ -63,6 +64,16 @@ export default async function SuppliersPage({
   }
   const supabase = session.supabase;
   const orgId = session.orgId;
+  const role = session.effectiveRole;
+
+  if (role === 'staff') {
+    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
+    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    if (!hasStaffModuleEnabled(resolvedModules, 'suppliers')) {
+      const home = resolveStaffHome(resolvedModules);
+      redirect(home);
+    }
+  }
 
   const query =
     typeof resolvedSearchParams.q === 'string'
@@ -88,7 +99,7 @@ export default async function SuppliersPage({
   const createSupplier = async (formData: FormData) => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
     const supabaseServer = actionSession.supabase;
     const orgId = actionSession.orgId;
@@ -167,7 +178,7 @@ export default async function SuppliersPage({
   const updateSupplier = async (formData: FormData) => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
     const supabaseServer = actionSession.supabase;
     const orgId = actionSession.orgId;

@@ -5,7 +5,8 @@ import { revalidatePath } from 'next/cache';
 
 import AmountInputAR from '@/app/components/AmountInputAR';
 import PageShell from '@/app/components/PageShell';
-import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,7 +120,7 @@ export default async function SalesPage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const session = await getOrgAdminSession();
+  const session = await getOrgMemberSession();
   if (!session) {
     redirect('/login');
   }
@@ -129,6 +130,16 @@ export default async function SalesPage({
 
   const supabase = session.supabase;
   const orgId = session.orgId;
+  const role = session.effectiveRole;
+
+  if (role === 'staff') {
+    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
+    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    if (!hasStaffModuleEnabled(resolvedModules, 'sales')) {
+      const home = resolveStaffHome(resolvedModules);
+      redirect(home);
+    }
+  }
 
   const { data: branchesData } = await supabase
     .from('branches')
@@ -220,8 +231,8 @@ export default async function SalesPage({
   const markSaleAsInvoiced = async (formData: FormData) => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
-    if (!actionSession?.orgId) {
+    const actionSession = await getOrgMemberSession();
+    if (!actionSession?.orgId || actionSession.effectiveRole === 'staff') {
       redirect('/no-access');
     }
 
@@ -630,7 +641,7 @@ export default async function SalesPage({
                           >
                             Imprimir ticket
                           </Link>
-                          {!sale.is_invoiced ? (
+                          {!sale.is_invoiced && role !== 'staff' ? (
                             <form action={markSaleAsInvoiced}>
                               <input type="hidden" name="sale_id" value={sale.sale_id} />
                               <button

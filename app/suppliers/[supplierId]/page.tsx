@@ -5,7 +5,8 @@ import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
 import NewProductForm from '@/app/products/NewProductForm';
-import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
 import { fetchAllPages } from '@/lib/supabase/fetch-all-pages';
 
 type SupplierDetailRow = {
@@ -73,7 +74,7 @@ export default async function SupplierDetailPage({
   params: Promise<{ supplierId: string }>;
 }) {
   const resolvedParams = await params;
-  const session = await getOrgAdminSession();
+  const session = await getOrgMemberSession();
   if (!session) {
     redirect('/login');
   }
@@ -82,6 +83,15 @@ export default async function SupplierDetailPage({
   }
   const supabase = session.supabase;
   const orgId = session.orgId;
+  const role = session.effectiveRole;
+  if (role === 'staff') {
+    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
+    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    if (!hasStaffModuleEnabled(resolvedModules, 'suppliers')) {
+      const home = resolveStaffHome(resolvedModules);
+      redirect(home);
+    }
+  }
 
   const supplierId = resolvedParams.supplierId;
   const { data: detailRows } = await supabase
@@ -158,7 +168,7 @@ export default async function SupplierDetailPage({
   const updateSupplier = async (formData: FormData) => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
     const supabaseServer = actionSession.supabase;
     const orgId = actionSession.orgId;
@@ -238,7 +248,7 @@ export default async function SupplierDetailPage({
   const updateSupplierProduct = async (formData: FormData) => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
     const supabaseServer = actionSession.supabase;
     const orgId = actionSession.orgId;
@@ -288,7 +298,7 @@ export default async function SupplierDetailPage({
   const removeSupplierProduct = async (formData: FormData) => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
     const supabaseServer = actionSession.supabase;
     const orgId = actionSession.orgId;
@@ -307,7 +317,7 @@ export default async function SupplierDetailPage({
   const createProductFromSupplier = async (formData: FormData) => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
     const supabaseServer = actionSession.supabase;
     const orgId = actionSession.orgId;
@@ -431,7 +441,7 @@ export default async function SupplierDetailPage({
   const upsertPaymentAccount = async (formData: FormData) => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
     const supabaseServer = actionSession.supabase;
     const orgId = actionSession.orgId;
@@ -464,7 +474,7 @@ export default async function SupplierDetailPage({
   const setPaymentAccountActive = async (formData: FormData) => {
     'use server';
 
-    const actionSession = await getOrgAdminSession();
+    const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
     const supabaseServer = actionSession.supabase;
     const orgId = actionSession.orgId;
