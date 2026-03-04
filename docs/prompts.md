@@ -3035,3 +3035,11 @@ ahora me dice imagen cargada pero no estoy seguro de si se aplico porque en la t
 
 **Prompt**
 No se pudo subir la imagen: new row violates row-level security policy
+
+## 2026-03-04 09:23 -03 — Auditoría superadmin: detectar fallas RLS en otros módulos
+
+**Lote:** superadmin-rls-cross-module-audit
+**Objetivo:** Revisar si el problema reportado para superadmin (errores RLS/Server Components) también existe en otros módulos/acciones, y corregir puntos críticos.
+
+**Prompt**
+podriamos chequear si existe este problema en algun otro modulo o alguna otra accion desde superadmin?

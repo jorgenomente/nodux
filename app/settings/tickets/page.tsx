@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import PageShell from '@/app/components/PageShell';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
 import TicketTemplateEditors from '@/app/settings/tickets/TicketTemplateEditors';
+import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
 type SearchParams = {
   branch_id?: string;
@@ -64,6 +65,7 @@ const getContext = async () => {
   if (!session?.orgId) return null;
   return {
     supabase: session.supabase,
+    admin: createAdminSupabaseClient(),
     orgId: session.orgId,
   };
 };
@@ -79,7 +81,7 @@ export default async function SettingsTicketsPage({
     redirect('/no-access');
   }
 
-  const { data: branchesData } = await context.supabase
+  const { data: branchesData } = await context.admin
     .from('branches' as never)
     .select(
       'id, name, ticket_header_text, ticket_footer_text, fiscal_ticket_note_text, ticket_paper_width_mm, ticket_margin_top_mm, ticket_margin_right_mm, ticket_margin_bottom_mm, ticket_margin_left_mm, ticket_font_size_px, ticket_line_height',
@@ -177,7 +179,7 @@ export default async function SettingsTicketsPage({
       redirect('/settings/tickets?result=invalid');
     }
 
-    const { error } = await auth.supabase
+    const { error } = await auth.admin
       .from('branches' as never)
       .update({
         ticket_header_text: ticketHeaderText || null,

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import PageShell from '@/app/components/PageShell';
 import PosClient from '@/app/pos/PosClient';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
 type PosDiscountPreferences = {
   cash_discount_enabled: boolean;
@@ -83,6 +84,9 @@ export default async function PosPage({
   }
 
   const supabase = session.supabase;
+  const dataClient = session.isPlatformAdmin
+    ? createAdminSupabaseClient()
+    : supabase;
   const role = session.effectiveRole;
   const orgId = session.orgId;
   const userId = session.userId;
@@ -117,7 +121,7 @@ export default async function PosPage({
       redirect('/no-access');
     }
 
-    const { data: branchRows } = await supabase
+    const { data: branchRows } = await dataClient
       .from('branches' as never)
       .select(
         'id, name, ticket_header_text, ticket_footer_text, fiscal_ticket_note_text, ticket_paper_width_mm, ticket_margin_top_mm, ticket_margin_right_mm, ticket_margin_bottom_mm, ticket_margin_left_mm, ticket_font_size_px, ticket_line_height',
@@ -131,7 +135,7 @@ export default async function PosPage({
       (branch) => Boolean(branch.id),
     );
   } else {
-    const { data: branchRows } = await supabase
+    const { data: branchRows } = await dataClient
       .from('branches' as never)
       .select(
         'id, name, ticket_header_text, ticket_footer_text, fiscal_ticket_note_text, ticket_paper_width_mm, ticket_margin_top_mm, ticket_margin_right_mm, ticket_margin_bottom_mm, ticket_margin_left_mm, ticket_font_size_px, ticket_line_height',
@@ -180,7 +184,7 @@ export default async function PosPage({
   const specialOrderMeta = specialOrderRows[0];
 
   const { data: onlineOrderRaw } = onlineOrderId
-    ? await supabase
+    ? await dataClient
         .from('online_orders' as never)
         .select(
           'id, org_id, branch_id, order_code, customer_name, status, payment_intent',
@@ -201,7 +205,7 @@ export default async function PosPage({
       }
     | null;
   const { data: onlineOrderItemsRaw } = onlineOrderMeta
-    ? await supabase
+    ? await dataClient
         .from('online_order_items' as never)
         .select(
           'product_id, product_name_snapshot, quantity, unit_price_snapshot',
@@ -239,7 +243,7 @@ export default async function PosPage({
   }
 
   const { data: initialProducts } = defaultBranchId
-    ? await supabase
+    ? await dataClient
         .from('v_pos_product_catalog')
         .select(
           'product_id, name, internal_code, barcode, sell_unit_type, uom, unit_price, stock_on_hand, is_active',
@@ -252,7 +256,7 @@ export default async function PosPage({
     : { data: [] };
 
   const { data: initialPaymentDevices } = defaultBranchId
-    ? await supabase
+    ? await dataClient
         .from('pos_payment_devices' as never)
         .select('id, device_name, provider')
         .eq('org_id', orgId)
@@ -261,7 +265,7 @@ export default async function PosPage({
         .order('device_name')
     : { data: [] };
 
-  const { data: preferencesRow } = await supabase
+  const { data: preferencesRow } = await dataClient
     .from('org_preferences')
     .select(
       'cash_discount_enabled, cash_discount_default_pct, employee_discount_enabled, employee_discount_default_pct, employee_discount_combinable_with_cash_discount',
@@ -278,7 +282,7 @@ export default async function PosPage({
   };
 
   const { data: initialEmployeeAccounts } = defaultBranchId
-    ? await supabase
+    ? await dataClient
         .from('employee_accounts' as never)
         .select('id, name')
         .eq('org_id', orgId)

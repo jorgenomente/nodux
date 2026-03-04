@@ -146,6 +146,30 @@ const removeProductImage = async ({
   }
 };
 
+const updateProductMetadata = async ({
+  orgId,
+  productId,
+  brand,
+  imageUrl,
+}: {
+  orgId: string;
+  productId: string;
+  brand: string;
+  imageUrl: string | null;
+}) => {
+  const admin = createAdminSupabaseClient();
+  const { error } = await admin
+    .from('products' as never)
+    .update({ brand: brand || null, image_url: imageUrl } as never)
+    .eq('org_id', orgId)
+    .eq('id', productId);
+  if (error) {
+    throw new Error(
+      `No se pudo guardar marca/imagen del producto: ${error.message}`,
+    );
+  }
+};
+
 export default async function ProductsPage({
   searchParams,
 }: {
@@ -453,15 +477,12 @@ export default async function ProductsPage({
     },
     );
     throwIfError(upsertProductError, 'No se pudo guardar el producto');
-    const { error: updateProductError } = await supabaseServer
-      .from('products' as never)
-      .update({ brand: brand || null, image_url: imageUrl } as never)
-      .eq('org_id', orgId)
-      .eq('id', productId);
-    throwIfError(
-      updateProductError,
-      'No se pudo actualizar marca/imagen del producto',
-    );
+    await updateProductMetadata({
+      orgId,
+      productId,
+      brand,
+      imageUrl,
+    });
 
     if (primarySupplierId) {
       const { error: upsertPrimarySupplierError } = await supabaseServer.rpc(
@@ -594,17 +615,19 @@ export default async function ProductsPage({
     }
 
     const parsedImage = parseImageDataUrl(imageDataUrlRaw);
+    const admin = createAdminSupabaseClient();
     const { data: currentProductRaw, error: currentProductError } =
-      await supabaseServer
-      .from('products' as never)
-      .select('image_url')
-      .eq('org_id', orgId)
-      .eq('id', productId)
-      .maybeSingle();
-    throwIfError(
-      currentProductError,
-      'No se pudo leer imagen actual del producto',
-    );
+      await admin
+        .from('products' as never)
+        .select('image_url')
+        .eq('org_id', orgId)
+        .eq('id', productId)
+        .maybeSingle();
+    if (currentProductError) {
+      throw new Error(
+        `No se pudo leer imagen actual del producto: ${currentProductError.message}`,
+      );
+    }
     const currentProduct = currentProductRaw as
       | { image_url?: string | null }
       | null;
@@ -640,15 +663,12 @@ export default async function ProductsPage({
     },
     );
     throwIfError(updateUpsertProductError, 'No se pudo actualizar el producto');
-    const { error: updateProductRowError } = await supabaseServer
-      .from('products' as never)
-      .update({ brand: brand || null, image_url: nextImageUrl } as never)
-      .eq('org_id', orgId)
-      .eq('id', productId);
-    throwIfError(
-      updateProductRowError,
-      'No se pudo guardar marca/imagen del producto',
-    );
+    await updateProductMetadata({
+      orgId,
+      productId,
+      brand,
+      imageUrl: nextImageUrl,
+    });
 
     if (safetyStockRaw !== '') {
       const safetyStock = Number(safetyStockRaw);

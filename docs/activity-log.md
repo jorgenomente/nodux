@@ -8261,3 +8261,26 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run build OK (2026-03-03)
 
 **Commit:** N/A
+
+## 2026-03-04 09:23 -03 — Hardening superadmin en modulos con writes directos
+
+**Tipo:** ui/docs/tests
+**Lote:** superadmin-rls-cross-module-audit
+**Descripcion:** Se audito el codigo para identificar acciones server-side que escribian tablas con policies RLS basadas en is_org_admin usando cliente de sesion, lo que falla para superadmin sin membresia en org_users. Se corrigieron settings/preferences, settings/branches, settings/tickets y la actualizacion de supplier_products en recepcion de ordenes para usar cliente admin (service_role) manteniendo autorizacion previa via getOrgAdminSession/getOrgMemberSession. Ademas, en /pos se cambio la lectura de ramas/preferencias/dispositivos/cuentas de empleado para que superadmin use cliente admin y no falle el render por RLS de lectura.
+
+**Archivos afectados:**
+
+- app/settings/preferences/page.tsx
+- app/settings/branches/page.tsx
+- app/settings/tickets/page.tsx
+- app/orders/[orderId]/page.tsx
+- app/pos/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-04)
+- npm run build OK (2026-03-04)
+
+**Commit:** N/A

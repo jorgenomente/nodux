@@ -6,6 +6,7 @@ import { headers } from 'next/headers';
 
 import PageShell from '@/app/components/PageShell';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
 type BranchRow = {
   branch_id: string;
@@ -36,6 +37,7 @@ const getOrgAdminContext = async () => {
   if (!session?.orgId) return null;
   return {
     supabase: session.supabase,
+    admin: createAdminSupabaseClient(),
     orgId: session.orgId,
     userId: session.userId,
   };
@@ -89,7 +91,7 @@ export default async function SettingsBranchesPage({
       redirect('/settings/branches?result=invalid');
     }
 
-    const { error: updateBranchError } = await auth.supabase
+    const { error: updateBranchError } = await auth.admin
       .from('branches' as never)
       .update({
         storefront_whatsapp_phone: storefrontWhatsappPhone || null,
@@ -132,7 +134,7 @@ export default async function SettingsBranchesPage({
     }
 
     if (deviceIdRaw) {
-      const { error } = await auth.supabase
+      const { error } = await auth.admin
         .from('pos_payment_devices' as never)
         .update({
           branch_id: branchId,
@@ -148,7 +150,7 @@ export default async function SettingsBranchesPage({
         redirect('/settings/branches?result=device-error');
       }
     } else {
-      const { error } = await auth.supabase
+      const { error } = await auth.admin
         .from('pos_payment_devices' as never)
         .insert({
           id: randomUUID(),
@@ -172,7 +174,7 @@ export default async function SettingsBranchesPage({
     redirect('/settings/branches?result=device-saved');
   };
 
-  const { data } = await context.supabase
+  const { data } = await context.admin
     .from('v_branches_admin' as never)
     .select('*')
     .eq('org_id', context.orgId)
@@ -187,13 +189,13 @@ export default async function SettingsBranchesPage({
   const host = forwardedHost || requestHeaders.get('host') || 'app.nodux.app';
   const protocol = forwardedProto || (host.includes('localhost') ? 'http' : 'https');
   const appBaseUrl = `${protocol}://${host}`;
-  const { data: orgRaw } = await context.supabase
+  const { data: orgRaw } = await context.admin
     .from('orgs')
     .select('storefront_slug')
     .eq('id', context.orgId)
     .maybeSingle();
   const orgSlug = (orgRaw as { storefront_slug: string | null } | null)?.storefront_slug ?? '';
-  const { data: devicesData } = await context.supabase
+  const { data: devicesData } = await context.admin
     .from('pos_payment_devices' as never)
     .select('id, org_id, branch_id, device_name, provider, is_active')
     .eq('org_id', context.orgId)

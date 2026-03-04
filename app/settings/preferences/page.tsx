@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
 type SearchParams = {
   result?: string;
@@ -59,7 +60,11 @@ const parseCashDenominationsInput = (raw: string): number[] | null => {
 const getOrgAdminContext = async () => {
   const session = await getOrgAdminSession();
   if (!session?.orgId) return null;
-  return { supabase: session.supabase, orgId: session.orgId };
+  return {
+    supabase: session.supabase,
+    admin: createAdminSupabaseClient(),
+    orgId: session.orgId,
+  };
 };
 
 export default async function SettingsPreferencesPage({
@@ -122,7 +127,7 @@ export default async function SettingsPreferencesPage({
       redirect('/settings/preferences?result=invalid');
     }
 
-    const { data: previousRow } = await auth.supabase
+    const { data: previousRow } = await auth.admin
       .from('org_preferences')
       .select(
         'critical_days, warning_days, allow_negative_stock, default_supplier_markup_pct, cash_discount_enabled, cash_discount_default_pct, employee_discount_enabled, employee_discount_default_pct, employee_discount_combinable_with_cash_discount, cash_denominations',
@@ -130,7 +135,7 @@ export default async function SettingsPreferencesPage({
       .eq('org_id', auth.orgId)
       .maybeSingle();
 
-    await auth.supabase.from('org_preferences').upsert({
+    await auth.admin.from('org_preferences').upsert({
       org_id: auth.orgId,
       critical_days: criticalDays,
       warning_days: warningDays,
@@ -179,7 +184,7 @@ export default async function SettingsPreferencesPage({
     redirect('/settings/preferences?result=saved');
   };
 
-  const { data: branchesData } = await context.supabase
+  const { data: branchesData } = await context.admin
     .from('branches')
     .select('id, name')
     .eq('org_id', context.orgId)
@@ -212,7 +217,7 @@ export default async function SettingsPreferencesPage({
       );
     }
 
-    const { data: existing } = await auth.supabase
+    const { data: existing } = await auth.admin
       .from('employee_accounts' as never)
       .select('id, is_active')
       .eq('org_id', auth.orgId)
@@ -225,12 +230,12 @@ export default async function SettingsPreferencesPage({
     } | null;
 
     if (existingAccount) {
-      await auth.supabase
+      await auth.admin
         .from('employee_accounts' as never)
         .update({ is_active: true } as never)
         .eq('id', existingAccount.id);
     } else {
-      await auth.supabase.from('employee_accounts' as never).insert({
+      await auth.admin.from('employee_accounts' as never).insert({
         org_id: auth.orgId,
         branch_id: branchId,
         name,
@@ -277,7 +282,7 @@ export default async function SettingsPreferencesPage({
       );
     }
 
-    const { data: updated } = await auth.supabase
+    const { data: updated } = await auth.admin
       .from('employee_accounts' as never)
       .update({ is_active: nextActive } as never)
       .eq('id', accountId)
@@ -309,7 +314,7 @@ export default async function SettingsPreferencesPage({
     );
   };
 
-  const { data: preferencesRow } = await context.supabase
+  const { data: preferencesRow } = await context.admin
     .from('org_preferences')
     .select(
       'org_id, critical_days, warning_days, allow_negative_stock, default_supplier_markup_pct, cash_discount_enabled, cash_discount_default_pct, employee_discount_enabled, employee_discount_default_pct, employee_discount_combinable_with_cash_discount, cash_denominations',
@@ -318,7 +323,7 @@ export default async function SettingsPreferencesPage({
     .maybeSingle();
 
   const { data: employeeAccountsData } = selectedEmployeeBranchId
-    ? await context.supabase
+    ? await context.admin
         .from('employee_accounts' as never)
         .select('id, name, is_active')
         .eq('org_id', context.orgId)

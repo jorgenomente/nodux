@@ -11,6 +11,7 @@ import InvoiceImageField from '@/app/payments/InvoiceImageField';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
 type OrderDetailRow = {
   order_id: string;
@@ -650,6 +651,7 @@ export default async function OrderDetailPage({
       });
     });
 
+    const admin = createAdminSupabaseClient();
     await Promise.all(
       itemsPayload.map(async (item) => {
         if (!item.product_id) return;
@@ -671,7 +673,7 @@ export default async function OrderDetailPage({
             ? 'secondary'
             : 'primary';
 
-        await supabaseServer.from('supplier_products').upsert(
+        await admin.from('supplier_products').upsert(
           {
             org_id: orgId,
             supplier_id: order.supplier_id,
