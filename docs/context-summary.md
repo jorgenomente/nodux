@@ -38,7 +38,7 @@ Ultima actualizacion: 2026-03-03 13:40
 - Se separa navegación por host en producción: `nodux.app` (landing pública) y `app.nodux.app` (login + app interna), evitando mezclar operación con marketing.
 - Canonical de marketing definido: `www.nodux.app` redirige a `nodux.app` para evitar duplicidad SEO.
 - UI actualizada: /products, /suppliers y /suppliers/[supplierId] con proveedores primario/secundario y safety stock.
-- `/products/lookup` pasa de placeholder a lookup operativo mobile-first para Staff/OA, con búsqueda por nombre en cualquier orden de palabras, límite de resultados (30) y visualización de precio + stock por sucursal.
+- `/products/lookup` pasa de placeholder a lookup operativo mobile-first para Staff/OA, con búsqueda por nombre en cualquier orden de palabras, lookup por `barcode` exacto, botón `Usar cámara` para escaneo desde dispositivo y fallback `Ingresar código` en navegadores sin soporte, límite de resultados (30) y visualización de precio + stock por sucursal.
 - Sugeridos simples en /orders usando ventas 30 dias + safety stock.
 - Productos con vencimiento aproximado (dias) y batches automaticos al recibir pedidos.
 - Ventas consumen batches FEFO (best-effort) para evitar alertas falsas.

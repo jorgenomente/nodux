@@ -3043,3 +3043,37 @@ No se pudo subir la imagen: new row violates row-level security policy
 
 **Prompt**
 podriamos chequear si existe este problema en algun otro modulo o alguna otra accion desde superadmin?
+
+## 2026-03-04 09:46 -03 — Documento explicativo de NODUX para Marketing
+
+**Lote:** docs-marketing-nodux-overview
+**Objetivo:** Crear un documento detallado para el departamento de marketing explicando qué es NODUX y sus funciones principales por módulo.
+
+**Prompt**
+crea un documento explicativo que me sirva para el departamento de marketing donde se explique que es NODUX y cada una de sus funciones se lo mas detallado posible
+
+## 2026-03-04 12:28 -03 — Lookup con cámara + búsqueda por código de barras
+
+**Lote:** products-lookup-camera-scan
+**Objetivo:** Agregar en `/products/lookup` un botón junto al buscador para escanear código de barras con cámara del dispositivo, autocompletar y buscar inmediatamente; además renombrar navegación `Lookup` a `Consulta de precios`.
+
+**Prompt**
+http://localhost:3000/products/lookup podriamos agregar un boton la lado de la barra de busqueda de producto donde yo pueda hacer click y utilizar la camara del dispositivo como lector de codigo de barra para que me coloque alli en producto el codigo de barra y me lo busque inmediatamente? Este buscador tambien debe encontrar productos segun su codigo de barras, revisa la documentacion necesaria
+
+Y despues cambia el nombre del boton de lookup a consulta de precios
+
+## 2026-03-04 12:36 -03 — Fallback sin BarcodeDetector en consulta de precios
+
+**Lote:** products-lookup-camera-scan
+**Objetivo:** Agregar fallback de ingreso manual de código de barras cuando el navegador no soporte escaneo por cámara, manteniendo búsqueda inmediata.
+
+**Prompt**
+ok adelante
+
+## 2026-03-04 14:02 -03 — Auditoría integral de seguridad + plan de hardening
+
+**Lote:** security-audit-2026-03-04
+**Objetivo:** Auditar el estado actual de seguridad de toda la app (app/API/DB/RLS/Storage/dependencias), identificar riesgos de ataque y documentar mejoras priorizadas.
+
+**Prompt**
+necesito hacer una auditoria de seguridad. Chequea toda la app y necesito que pienses en que instrumentos de seguridad debemos tener implementados para evitar ataques informaticos o intentos malisiosos de estresar la aplicacion o robar datos y tumbar servidores etc. Actua como experto en ciberseguridad y ayudame a hacer una auditoria sobre el estado actual del sistema y propon mejoras si son necesarias crea un doc nuevo con el resultado

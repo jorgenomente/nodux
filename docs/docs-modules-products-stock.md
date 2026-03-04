@@ -164,7 +164,7 @@ Cada movimiento:
 ## Edge cases
 
 - Producto con stock 0 → visible pero no vendible
-- Producto sin barcode → solo búsqueda por nombre
+- Producto sin barcode → sigue encontrable por nombre en `/products/lookup` (el escaneo por cámara aplica solo a productos con código)
 - Eliminación → NO (solo `is_active=false`)
 
 ---

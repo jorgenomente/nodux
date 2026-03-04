@@ -12,7 +12,7 @@ const NAV_LINKS = [
   { href: '/sales/statistics', label: 'Estadisticas' },
   { href: '/cashbox', label: 'Caja' },
   { href: '/products', label: 'Productos' },
-  { href: '/products/lookup', label: 'Lookup' },
+  { href: '/products/lookup', label: 'Consulta de precios' },
   { href: '/expirations', label: 'Vencimientos' },
   { href: '/suppliers', label: 'Proveedores' },
   { href: '/orders', label: 'Pedidos' },

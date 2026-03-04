@@ -8282,5 +8282,68 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 
 - npm run lint OK (2026-03-04)
 - npm run build OK (2026-03-04)
+- npx playwright test FAIL (2026-03-04) por `strict mode violation` en `e2e/smoke-pos.spec.ts` al resolver `getByRole('button', { name: 'Cobrar' })` con 2 matches (`Cobrar` y `Cobrar y facturar`).
+
+**Commit:** N/A
+
+## 2026-03-04 09:46 -03 — Documento explicativo de producto para Marketing
+
+**Tipo:** docs
+**Lote:** docs-marketing-nodux-overview
+**Descripción:** Se creó un documento de referencia comercial-técnica para Marketing que explica qué es NODUX, los problemas que resuelve, público objetivo, funciones por módulo (ventas, caja, productos/stock, vencimientos, proveedores, pedidos, pagos, clientes, dashboard, settings, onboarding y canal online) y mensajes clave para posicionamiento.
+
+**Archivos afectados:**
+
+- docs/docs-marketing-que-es-nodux.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- No aplica (cambio solo documentación)
+
+**Commit:** N/A
+
+## 2026-03-04 12:32 -03 — Consulta de precios: cámara para barcode + rename de navegación
+
+**Tipo:** ui/docs/tests
+**Lote:** products-lookup-camera-scan
+**Descripción:** Se mejoró `/products/lookup` con búsqueda por `barcode` exacto además de nombre por tokens, y se agregó entry point `Usar cámara` junto al buscador para escanear códigos de barras desde el dispositivo (autocompleta y dispara búsqueda inmediata). Además, se agregó fallback operativo `Ingresar código` para navegadores sin `BarcodeDetector`, con búsqueda inmediata por Enter/botón. También se renombró el label de navegación superior de `Lookup` a `Consulta de precios`. Se actualizaron contrato de pantalla, módulo de productos/stock, context summary y roadmap vivo para reflejar el comportamiento.
+
+**Archivos afectados:**
+
+- app/products/lookup/ProductsLookupClient.tsx
+- app/components/TopBar.tsx
+- docs/docs-app-screens-products-lookup.md
+- docs/docs-modules-products-stock.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-04)
+- npm run build OK (2026-03-04)
+- npx playwright test FAIL (2026-03-04) por `strict mode violation` en `e2e/smoke-pos.spec.ts` al resolver `getByRole('button', { name: 'Cobrar' })` con 2 matches (`Cobrar` y `Cobrar y facturar`).
+
+**Commit:** N/A
+
+## 2026-03-04 14:02 -03 — Auditoría de seguridad integral del sistema
+
+**Tipo:** docs/tests/decision
+**Lote:** security-audit-2026-03-04
+**Descripción:** Se realizó auditoría repo-aware de seguridad sobre app Next.js, rutas públicas/privadas, server actions, middleware/proxy, Supabase (RLS/RPC/Storage) y dependencias. Se generó informe nuevo con hallazgos por severidad, controles existentes, instrumentos de defensa recomendados y roadmap de remediación por fases.
+
+**Archivos afectados:**
+
+- docs/docs-security-audit-2026-03-04.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm audit --omit=dev (2026-03-04): FAIL con 1 dependencia vulnerable `high` (`xlsx`, GHSA-4r6h-8v6p-xvw6 y GHSA-5pgg-2g8v-p4x9)
+- No se ejecutó lint/build (lote docs-only)
 
 **Commit:** N/A
