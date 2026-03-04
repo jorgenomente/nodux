@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from 'react';
 
 import AmountInputAR from '@/app/components/AmountInputAR';
+import ProductImageField from '@/app/products/ProductImageField';
 import { PRODUCT_FORM_LABELS } from '@/app/products/product-form-contract';
 
 const sellUnitOptions = ['unit', 'weight', 'bulk'] as const;
@@ -29,6 +30,8 @@ type FieldNameMap = {
   primarySupplierSku: string;
   secondarySupplierId: string;
   safetyStock: string;
+  imageDataUrl?: string;
+  removeImage?: string;
 };
 
 type DefaultValueMap = {
@@ -46,6 +49,7 @@ type DefaultValueMap = {
   primarySupplierSku?: string;
   secondarySupplierId?: string;
   safetyStock?: number | string;
+  imageUrl?: string | null;
 };
 
 type Props = {
@@ -56,6 +60,7 @@ type Props = {
   compact?: boolean;
   includeHelper?: boolean;
   lockPrimarySupplier?: boolean;
+  includeImageField?: boolean;
 };
 
 const currencyFormatter = new Intl.NumberFormat('es-AR', {
@@ -71,6 +76,7 @@ export default function ProductFormFieldsShared({
   compact = false,
   includeHelper = true,
   lockPrimarySupplier = false,
+  includeImageField = true,
 }: Props) {
   const brandSuggestionsListId = useId();
   const [primarySupplierId, setPrimarySupplierId] = useState(
@@ -316,6 +322,14 @@ export default function ProductFormFieldsShared({
           </span>
         ) : null}
       </label>
+      {includeImageField ? (
+        <ProductImageField
+          inputName={fields.imageDataUrl ?? 'image_data_url'}
+          removeFlagName={fields.removeImage ?? 'remove_image'}
+          existingImageUrl={defaults?.imageUrl ?? null}
+          compact={compact}
+        />
+      ) : null}
     </>
   );
 }

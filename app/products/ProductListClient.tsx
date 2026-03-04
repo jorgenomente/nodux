@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+
 import ProductActions from '@/app/products/ProductActions';
 
 type StockByBranchItem = {
@@ -38,6 +40,7 @@ type ProductRow = {
   sell_unit_type: 'unit' | 'weight' | 'bulk' | null;
   uom: string | null;
   unit_price: number | null;
+  image_url: string | null;
   is_active: boolean | null;
   shelf_life_days: number | null;
   stock_total: number | null;
@@ -51,7 +54,7 @@ type Props = {
   supplierByProduct: Record<string, SupplierByProductEntry>;
   safetyStockGlobalByProduct: Record<string, number | null>;
   safetyStockByProduct: Record<string, SafetyStockByBranchItem[] | undefined>;
-  onUpdate: (formData: FormData) => void;
+  onUpdate: (formData: FormData) => Promise<void>;
 };
 
 const formatStockByBranch = (value: unknown) => {
@@ -116,6 +119,22 @@ export default function ProductListClient({
             <div key={product.product_id ?? product.name} className="px-6 py-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-2">
+                  <div className="w-fit rounded border border-zinc-200 p-1">
+                    {product.image_url ? (
+                      <Image
+                        src={product.image_url}
+                        alt={product.name ?? 'Producto'}
+                        width={64}
+                        height={64}
+                        unoptimized
+                        className="h-16 w-16 rounded object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-16 w-16 items-center justify-center rounded bg-zinc-100 text-[10px] font-semibold text-zinc-500 uppercase">
+                        Sin foto
+                      </div>
+                    )}
+                  </div>
                   <div>
                     <p className="text-sm font-semibold text-zinc-900">
                       {product.name}
@@ -166,6 +185,7 @@ export default function ProductListClient({
                         supplierByProduct[String(product.product_id)]?.primary
                           ?.supplier_price ?? null
                       }
+                      imageUrl={product.image_url ?? null}
                       isActive={Boolean(product.is_active)}
                       shelfLifeDays={
                         product.shelf_life_days == null

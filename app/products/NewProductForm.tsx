@@ -48,6 +48,8 @@ export default function NewProductForm({
           primarySupplierSku: 'primary_supplier_sku',
           secondarySupplierId: 'secondary_supplier_id',
           safetyStock: 'safety_stock',
+          imageDataUrl: 'image_data_url',
+          removeImage: 'remove_image',
         }}
       />
       <div className="md:col-span-2">

@@ -2995,3 +2995,43 @@ nodux.app redirected you too many times.
 
 Try deleting your cookies.
 ERR_TOO_MANY_REDIRECTS no estoy seguro de que esta pasando
+
+## 2026-03-03 14:12 -03 — Storefront compacto + upload imagen producto comprimida
+
+**Lote:** storefront-product-images-compressed-upload
+**Objetivo:** Mostrar más artículos por pantalla en storefront público y habilitar carga de imagen por producto en `/products` (alta/edición) con compresión previa para minimizar almacenamiento.
+
+**Prompt**
+exacto agamos eso y todas las imagenes que se suban deben ser primero comprimidas para que ocupen muy poco espacio y sean ligeras asi evitamos ocupar mucho espacio de almacenamiento
+
+## 2026-03-03 14:17 -03 — Soporte HEIC/HEIF en upload de imagen de producto
+
+**Lote:** storefront-product-images-compressed-upload
+**Objetivo:** Permitir carga de fotos HEIC/HEIF (iPhone) en `/products`, convirtiéndolas a JPG comprimido cuando el navegador soporte decodificación HEIC.
+
+**Prompt**
+podemos hacer posible que se soporten formatos como HEIC que se usan en iphone para subir la foto por mas que sea convertida a JPG para ahorrar espacio? intente subir una foto .heic y me decia que no se pudo
+
+## 2026-03-03 14:43 -03 — Fix edición producto se queda en "Guardando cambios..."
+
+**Lote:** storefront-product-images-compressed-upload
+**Objetivo:** Corregir flujo de submit en edición de producto para que espere la server action, refresque la vista y maneje errores sin quedar colgado.
+
+**Prompt**
+seleccione una imagen, en un producto y despues le di guardar cambios y me dice guardando cambios... pero no pasa mas nada
+
+## 2026-03-03 14:46 -03 — Persistencia imagen producto + preview en listado `/products`
+
+**Lote:** storefront-product-images-compressed-upload
+**Objetivo:** Garantizar que el guardado de imagen falle explícitamente si Storage falla y mostrar preview visible en cada tarjeta/fila de producto en `/products`.
+
+**Prompt**
+ahora me dice imagen cargada pero no estoy seguro de si se aplico porque en la tienda  no me aparece la imagen. podemos agregar tambien un pequeno preview de la imagen del producto en /products? en la tarjeta del articulo
+
+## 2026-03-03 15:04 -03 — Fix RLS upload imágenes producto en local
+
+**Lote:** storefront-product-images-compressed-upload
+**Objetivo:** Resolver error `new row violates row-level security policy` al subir imágenes de producto en local.
+
+**Prompt**
+No se pudo subir la imagen: new row violates row-level security policy

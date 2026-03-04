@@ -42,6 +42,7 @@ Estado actual:
 - Hotfix producción en `supabase/migrations/20260301170000_065_fix_rpc_invite_user_to_org_ambiguous_user_id.sql` y `supabase/migrations/20260301171500_066_fix_rpc_invite_user_to_org_out_param_conflict.sql`: se corrige error SQL `42702` en `rpc_invite_user_to_org` (ambigüedad `user_id`) para restablecer altas de usuarios desde settings/superadmin.
 - Fundación DB de canal online en `supabase/migrations/20260301213000_068_online_store_foundation.sql`: nuevas tablas `storefront_*` y `online_orders*`, slugs públicos en `orgs/branches`, y RPCs públicas `rpc_get_public_storefront_branches`, `rpc_get_public_storefront_products`, `rpc_create_online_order`, `rpc_get_online_order_tracking`.
 - Bucket de comprobantes online en `supabase/migrations/20260302101500_069_online_order_proofs_storage_bucket.sql`: `storage.buckets.online-order-proofs` + policies `online_order_proofs_*` en `storage.objects` (select para miembros de org, write admin/superadmin).
+- Bucket de imágenes de producto en `supabase/migrations/20260303134000_074_product_images_bucket_and_products_view_image.sql`: `storage.buckets.product-images` (público) + policies `product_images_*` en `storage.objects` (write/delete solo OA/SA por `org_id` en path).
 - Iteración checkout/tracking online en `supabase/migrations/20260302121000_070_online_store_checkout_tracking_iteration.sql`: checkout público requiere dirección y fija `pay_on_pickup`; WhatsApp de tienda configurable por sucursal (`branches.storefront_whatsapp_phone`).
 - Bucket de facturas proveedor agregado en `supabase/migrations/20260217221500_040_supplier_invoice_storage_bucket.sql` (`storage.buckets: supplier-invoices` + policies en `storage.objects` por `org_id` en path).
 - Smoke RLS automatizado agregado en `scripts/rls-smoke-tests.mjs` (ejecución: `npm run db:rls:smoke`).
@@ -93,6 +94,7 @@ Estado actual:
 | `supplier_payment_accounts`          | read/insert/update | read/insert/update | no                            | Cuentas de transferencia por proveedor                    |
 | `supplier_payables`                  | read/insert/update | read/insert/update | no                            | Cuenta por pagar por pedido (scope sucursal)              |
 | `supplier_payments`                  | read/insert/update | read/insert/update | no                            | Movimientos de pago proveedor                             |
+| `storage.objects` (`product-images`) | insert/update/delete | insert/update/delete | no                          | Imágenes de producto por org (`org_id/product_id.jpg`)    |
 | `storefront_settings`                | read/insert/update | read/insert/update | read                          | Configuración de storefront por org                       |
 | `storefront_domains`                 | read/insert/update | read/insert/update | no                            | Dominios personalizados de tienda                         |
 | `online_orders`                      | read/insert/update | read/insert/update | read/insert/update (limitado) | Pedidos online por org/sucursal                           |

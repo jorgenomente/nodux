@@ -51,6 +51,7 @@ Estado actual:
 - Fundación DB de tienda online (slugs públicos, storefront, pedidos online y tracking) en `supabase/migrations/20260301213000_068_online_store_foundation.sql` (`orgs.storefront_slug`, `branches.storefront_slug`, `products.image_url`, `storefront_settings`, `storefront_domains`, `online_orders*`, `v_online_orders_admin`, RPCs públicas de storefront/tracking y RPC de cambio de estado).
 - Bucket/policies de comprobantes de pedidos online en `supabase/migrations/20260302101500_069_online_order_proofs_storage_bucket.sql` (`online-order-proofs`).
 - Iteración checkout/tracking online en `supabase/migrations/20260302121000_070_online_store_checkout_tracking_iteration.sql` (`branches.storefront_whatsapp_phone`, `online_orders.customer_address`, checkout `pay_on_pickup` y tracking con ítems/total/datos cliente).
+- Imágenes de producto comprimidas y bucket dedicado en `supabase/migrations/20260303134000_074_product_images_bucket_and_products_view_image.sql` (`storage.buckets.product-images`, policies admin/superadmin y `v_products_admin.image_url`).
 - Hardening de RPCs de usuarios para preservar actor de auditoría en alta/edición de membresía en `supabase/migrations/20260301162000_064_users_membership_rpcs_auth_context.sql` (`rpc_invite_user_to_org`, `rpc_update_user_membership` como `security definer` con validación explícita de rol/org/sucursales).
 - Hotfix de `rpc_invite_user_to_org` por ambigüedad de `user_id` en producción en `supabase/migrations/20260301170000_065_fix_rpc_invite_user_to_org_ambiguous_user_id.sql` y `supabase/migrations/20260301171500_066_fix_rpc_invite_user_to_org_out_param_conflict.sql` (se elimina conflicto de OUT param y queda salida `invited_user_id`).
 - Onboarding de datos maestros (jobs/rows de importación + vista de pendientes + RPCs de importación) en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks`, `rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
@@ -351,6 +352,7 @@ Estado actual:
 - unique (`org_id`, `barcode`) where barcode is not null
 - Regla operativa de catálogo (2026-03-01): no duplicar `name` normalizado por org
   (trim + minúsculas). Hardening DB/RPC pendiente en lote dedicado.
+- Regla operativa de imágenes (2026-03-03): upload en UI se comprime a JPG liviano y se guarda en `product-images` con path estable `org_id/product_id.jpg`.
 
 ---
 

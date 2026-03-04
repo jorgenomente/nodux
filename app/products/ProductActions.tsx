@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import ProductFormFieldsShared from '@/app/products/ProductFormFieldsShared';
 
@@ -23,6 +24,7 @@ type EditPayload = {
   primarySupplierProductName: string;
   shelfLifeDays: string;
   safetyStock: string;
+  removeImage: boolean;
 };
 
 type SupplierOption = {
@@ -42,6 +44,7 @@ type Props = {
   uom: string;
   unitPrice: number;
   primarySupplierPrice: number | null;
+  imageUrl: string | null;
   isActive: boolean;
   shelfLifeDays: number | null;
   safetyStockValue: number | null;
@@ -51,7 +54,7 @@ type Props = {
   primarySupplierProductName: string;
   suppliers: SupplierOption[];
   brandSuggestions: string[];
-  onSubmit: (formData: FormData) => void;
+  onSubmit: (formData: FormData) => Promise<void>;
 };
 
 export default function ProductActions({
@@ -64,6 +67,7 @@ export default function ProductActions({
   uom,
   unitPrice,
   primarySupplierPrice,
+  imageUrl,
   isActive,
   shelfLifeDays,
   safetyStockValue,
@@ -75,8 +79,10 @@ export default function ProductActions({
   brandSuggestions,
   onSubmit,
 }: Props) {
+  const router = useRouter();
   const [notice, setNotice] = useState<Notice>(null);
   const [open, setOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const primaryOptions = suppliers.some(
     (supplier) => supplier.id === primarySupplierId,
   )
@@ -113,22 +119,41 @@ export default function ProductActions({
     );
     formData.append('edit_shelf_life_days', payload.shelfLifeDays);
     formData.append('edit_safety_stock', payload.safetyStock);
+    formData.append('remove_image', payload.removeImage ? 'true' : 'false');
+    formData.append('edit_image_data_url', '');
     return formData;
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
     setNotice({ tone: 'success', message: 'Guardando cambios...' });
-    onSubmit(formData);
+    setIsSaving(true);
+    try {
+      await onSubmit(formData);
+      router.refresh();
+      setNotice({ tone: 'success', message: 'Cambios guardados.' });
+      setOpen(false);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'No se pudieron guardar los cambios.';
+      setNotice({
+        tone: 'error',
+        message: errorMessage,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleToggle = () => {
+  const handleToggle = async () => {
+    if (isSaving) return;
     setNotice({
       tone: 'success',
       message: isActive ? 'Desactivando producto...' : 'Activando producto...',
     });
+    setIsSaving(true);
     const formData = buildFormData({
       productId,
       name,
@@ -147,8 +172,27 @@ export default function ProductActions({
       primarySupplierProductName,
       shelfLifeDays: shelfLifeDays == null ? '' : String(shelfLifeDays),
       safetyStock: safetyStockValue == null ? '' : String(safetyStockValue),
+      removeImage: false,
     });
-    onSubmit(formData);
+    try {
+      await onSubmit(formData);
+      router.refresh();
+      setNotice({
+        tone: 'success',
+        message: isActive ? 'Producto desactivado.' : 'Producto activado.',
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'No se pudo actualizar el estado del producto.';
+      setNotice({
+        tone: 'error',
+        message: errorMessage,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -157,6 +201,7 @@ export default function ProductActions({
         <button
           type="button"
           onClick={() => setOpen((prev) => !prev)}
+          disabled={isSaving}
           className="rounded border border-zinc-200 px-3 py-1 text-xs text-zinc-700"
         >
           {open ? 'Cerrar' : 'Editar'}
@@ -164,6 +209,7 @@ export default function ProductActions({
         <button
           type="button"
           onClick={handleToggle}
+          disabled={isSaving}
           className="rounded border border-zinc-200 px-3 py-1 text-xs text-zinc-700"
         >
           {isActive ? 'Desactivar' : 'Activar'}
@@ -195,6 +241,8 @@ export default function ProductActions({
               primarySupplierSku: 'primary_supplier_sku',
               secondarySupplierId: 'secondary_supplier_id',
               safetyStock: 'edit_safety_stock',
+              imageDataUrl: 'edit_image_data_url',
+              removeImage: 'remove_image',
             }}
             defaults={{
               name,
@@ -212,14 +260,16 @@ export default function ProductActions({
               primarySupplierSku,
               secondarySupplierId,
               safetyStock: safetyStockValue ?? '',
+              imageUrl,
             }}
           />
           <div className="flex flex-wrap items-center gap-2 md:col-span-3">
             <button
               type="submit"
+              disabled={isSaving}
               className="rounded bg-zinc-900 px-3 py-1 text-xs font-semibold text-white"
             >
-              Guardar cambios
+              {isSaving ? 'Guardando...' : 'Guardar cambios'}
             </button>
           </div>
         </form>

@@ -9,6 +9,7 @@ import ProductListClient from '@/app/products/ProductListClient';
 import PageShell from '@/app/components/PageShell';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { fetchAllPages } from '@/lib/supabase/fetch-all-pages';
 
 type SupplierOption = {
@@ -50,6 +51,100 @@ type SearchParams = {
 };
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
+const PRODUCT_IMAGES_BUCKET = 'product-images';
+
+const throwIfError = (
+  error: { message: string } | null,
+  context: string,
+): void => {
+  if (error) {
+    throw new Error(`${context}: ${error.message}`);
+  }
+};
+
+const ensureCanManageProductImages = async (
+  session: Awaited<ReturnType<typeof getOrgMemberSession>>,
+) => {
+  if (!session?.orgId) {
+    throw new Error('Sesión inválida.');
+  }
+
+  if (session.effectiveRole === 'org_admin') {
+    return;
+  }
+
+  if (session.effectiveRole === 'staff') {
+    const { data: modules } = await session.supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
+    if (hasStaffModuleEnabled(resolvedModules, 'products')) {
+      return;
+    }
+  }
+
+  throw new Error('No tienes permisos para editar imágenes de productos.');
+};
+
+const parseImageDataUrl = (dataUrlRaw: string) => {
+  const dataUrl = dataUrlRaw.trim();
+  if (!dataUrl) return null;
+  const matches = dataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
+  if (!matches) return null;
+  const contentType = matches[1] || 'image/jpeg';
+  const base64 = matches[2] || '';
+  if (!base64) return null;
+
+  return {
+    contentType,
+    buffer: Buffer.from(base64, 'base64'),
+  };
+};
+
+const uploadProductImage = async ({
+  orgId,
+  productId,
+  buffer,
+}: {
+  orgId: string;
+  productId: string;
+  buffer: Buffer;
+}) => {
+  const imagePath = `${orgId}/${productId}.jpg`;
+  const admin = createAdminSupabaseClient();
+  const { error: uploadError } = await admin.storage
+    .from(PRODUCT_IMAGES_BUCKET)
+    .upload(imagePath, buffer, {
+      upsert: true,
+      contentType: 'image/jpeg',
+      cacheControl: '31536000',
+    });
+  if (uploadError) {
+    throw new Error(`No se pudo subir la imagen: ${uploadError.message}`);
+  }
+  return admin.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(imagePath).data
+    .publicUrl;
+};
+
+const removeProductImage = async ({
+  orgId,
+  productId,
+}: {
+  orgId: string;
+  productId: string;
+}) => {
+  const imagePath = `${orgId}/${productId}.jpg`;
+  const admin = createAdminSupabaseClient();
+  const { error } = await admin.storage
+    .from(PRODUCT_IMAGES_BUCKET)
+    .remove([imagePath]);
+  if (error) {
+    throw new Error(`No se pudo quitar la imagen: ${error.message}`);
+  }
+};
 
 export default async function ProductsPage({
   searchParams,
@@ -280,6 +375,7 @@ export default async function ProductsPage({
 
     const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
+    await ensureCanManageProductImages(actionSession);
     const supabaseServer = actionSession.supabase;
     const name = String(formData.get('name') ?? '').trim();
     const brand = String(formData.get('brand') ?? '').trim();
@@ -308,6 +404,7 @@ export default async function ProductsPage({
       formData.get('secondary_supplier_id') ?? '',
     ).trim();
     const safetyStockRaw = String(formData.get('safety_stock') ?? '').trim();
+    const imageDataUrlRaw = String(formData.get('image_data_url') ?? '');
 
     if (!name) return;
 
@@ -329,8 +426,20 @@ export default async function ProductsPage({
     const orgId = actionSession.orgId;
 
     const productId = randomUUID();
+    const parsedImage = parseImageDataUrl(imageDataUrlRaw);
+    let imageUrl: string | null = null;
 
-    await supabaseServer.rpc('rpc_upsert_product', {
+    if (parsedImage && parsedImage.buffer.byteLength > 0) {
+      imageUrl = await uploadProductImage({
+        orgId,
+        productId,
+        buffer: parsedImage.buffer,
+      });
+    }
+
+    const { error: upsertProductError } = await supabaseServer.rpc(
+      'rpc_upsert_product',
+      {
       p_product_id: productId,
       p_org_id: orgId,
       p_name: name,
@@ -341,15 +450,23 @@ export default async function ProductsPage({
       p_unit_price: unitPrice,
       p_is_active: true,
       p_shelf_life_days: shelfLifeDays,
-    });
-    await supabaseServer
+    },
+    );
+    throwIfError(upsertProductError, 'No se pudo guardar el producto');
+    const { error: updateProductError } = await supabaseServer
       .from('products' as never)
-      .update({ brand: brand || null } as never)
+      .update({ brand: brand || null, image_url: imageUrl } as never)
       .eq('org_id', orgId)
       .eq('id', productId);
+    throwIfError(
+      updateProductError,
+      'No se pudo actualizar marca/imagen del producto',
+    );
 
     if (primarySupplierId) {
-      await supabaseServer.rpc('rpc_upsert_supplier_product', {
+      const { error: upsertPrimarySupplierError } = await supabaseServer.rpc(
+        'rpc_upsert_supplier_product',
+        {
         p_org_id: orgId,
         p_supplier_id: primarySupplierId,
         p_product_id: productId,
@@ -357,20 +474,32 @@ export default async function ProductsPage({
         p_supplier_product_name: primarySupplierProductName,
         p_relation_type: 'primary',
         p_supplier_price:
-          supplierPriceRaw === '' ? null : Number(supplierPriceRaw),
-      });
+          supplierPriceRaw === '' ? undefined : Number(supplierPriceRaw),
+      },
+      );
+      throwIfError(
+        upsertPrimarySupplierError,
+        'No se pudo guardar proveedor primario',
+      );
     }
 
     if (secondarySupplierId && secondarySupplierId !== primarySupplierId) {
-      await supabaseServer.rpc('rpc_upsert_supplier_product', {
+      const { error: upsertSecondarySupplierError } = await supabaseServer.rpc(
+        'rpc_upsert_supplier_product',
+        {
         p_org_id: orgId,
         p_supplier_id: secondarySupplierId,
         p_product_id: productId,
         p_supplier_sku: '',
         p_supplier_product_name: '',
         p_relation_type: 'secondary',
-        p_supplier_price: null,
-      });
+        p_supplier_price: undefined,
+      },
+      );
+      throwIfError(
+        upsertSecondarySupplierError,
+        'No se pudo guardar proveedor secundario',
+      );
     }
 
     if (safetyStockRaw !== '') {
@@ -384,12 +513,16 @@ export default async function ProductsPage({
 
         await Promise.all(
           (activeBranches ?? []).map((branch) =>
-            supabaseServer.rpc('rpc_set_safety_stock', {
-              p_org_id: orgId,
-              p_branch_id: branch.id,
-              p_product_id: productId,
-              p_safety_stock: safetyStock,
-            }),
+            supabaseServer
+              .rpc('rpc_set_safety_stock', {
+                p_org_id: orgId,
+                p_branch_id: branch.id,
+                p_product_id: productId,
+                p_safety_stock: safetyStock,
+              })
+              .then(({ error }) =>
+                throwIfError(error, 'No se pudo guardar stock mínimo'),
+              ),
           ),
         );
       }
@@ -403,6 +536,7 @@ export default async function ProductsPage({
 
     const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
+    await ensureCanManageProductImages(actionSession);
     const supabaseServer = actionSession.supabase;
     const orgId = actionSession.orgId;
     const productId = String(formData.get('product_id') ?? '').trim();
@@ -439,6 +573,8 @@ export default async function ProductsPage({
     const primarySupplierProductName = String(
       formData.get('primary_supplier_product_name') ?? '',
     ).trim();
+    const imageDataUrlRaw = String(formData.get('edit_image_data_url') ?? '');
+    const removeImage = formData.get('remove_image') === 'true';
 
     if (!productId || !name) return;
 
@@ -457,7 +593,40 @@ export default async function ProductsPage({
       return;
     }
 
-    await supabaseServer.rpc('rpc_upsert_product', {
+    const parsedImage = parseImageDataUrl(imageDataUrlRaw);
+    const { data: currentProductRaw, error: currentProductError } =
+      await supabaseServer
+      .from('products' as never)
+      .select('image_url')
+      .eq('org_id', orgId)
+      .eq('id', productId)
+      .maybeSingle();
+    throwIfError(
+      currentProductError,
+      'No se pudo leer imagen actual del producto',
+    );
+    const currentProduct = currentProductRaw as
+      | { image_url?: string | null }
+      | null;
+
+    let nextImageUrl = currentProduct?.image_url ?? null;
+
+    if (removeImage) {
+      await removeProductImage({ orgId, productId });
+      nextImageUrl = null;
+    }
+
+    if (parsedImage && parsedImage.buffer.byteLength > 0) {
+      nextImageUrl = await uploadProductImage({
+        orgId,
+        productId,
+        buffer: parsedImage.buffer,
+      });
+    }
+
+    const { error: updateUpsertProductError } = await supabaseServer.rpc(
+      'rpc_upsert_product',
+      {
       p_product_id: productId,
       p_org_id: orgId,
       p_name: name,
@@ -468,12 +637,18 @@ export default async function ProductsPage({
       p_unit_price: unitPrice,
       p_is_active: isActive,
       p_shelf_life_days: shelfLifeDays,
-    });
-    await supabaseServer
+    },
+    );
+    throwIfError(updateUpsertProductError, 'No se pudo actualizar el producto');
+    const { error: updateProductRowError } = await supabaseServer
       .from('products' as never)
-      .update({ brand: brand || null } as never)
+      .update({ brand: brand || null, image_url: nextImageUrl } as never)
       .eq('org_id', orgId)
       .eq('id', productId);
+    throwIfError(
+      updateProductRowError,
+      'No se pudo guardar marca/imagen del producto',
+    );
 
     if (safetyStockRaw !== '') {
       const safetyStock = Number(safetyStockRaw);
@@ -486,12 +661,16 @@ export default async function ProductsPage({
 
         await Promise.all(
           (activeBranches ?? []).map((branch) =>
-            supabaseServer.rpc('rpc_set_safety_stock', {
-              p_org_id: orgId,
-              p_branch_id: branch.id,
-              p_product_id: productId,
-              p_safety_stock: safetyStock,
-            }),
+            supabaseServer
+              .rpc('rpc_set_safety_stock', {
+                p_org_id: orgId,
+                p_branch_id: branch.id,
+                p_product_id: productId,
+                p_safety_stock: safetyStock,
+              })
+              .then(({ error }) =>
+                throwIfError(error, 'No se pudo actualizar stock mínimo'),
+              ),
           ),
         );
       }
@@ -503,7 +682,9 @@ export default async function ProductsPage({
         : '';
 
     if (primarySupplierId) {
-      await supabaseServer.rpc('rpc_upsert_supplier_product', {
+      const { error: updatePrimarySupplierError } = await supabaseServer.rpc(
+        'rpc_upsert_supplier_product',
+        {
         p_org_id: orgId,
         p_supplier_id: primarySupplierId,
         p_product_id: productId,
@@ -511,32 +692,58 @@ export default async function ProductsPage({
         p_supplier_product_name: primarySupplierProductName,
         p_relation_type: 'primary',
         p_supplier_price:
-          supplierPriceRaw === '' ? null : Number(supplierPriceRaw),
-      });
+          supplierPriceRaw === '' ? undefined : Number(supplierPriceRaw),
+      },
+      );
+      throwIfError(
+        updatePrimarySupplierError,
+        'No se pudo actualizar proveedor primario',
+      );
     } else {
-      await supabaseServer.rpc('rpc_remove_supplier_product_relation', {
+      const { error: removePrimarySupplierError } = await supabaseServer.rpc(
+        'rpc_remove_supplier_product_relation',
+        {
         p_org_id: orgId,
         p_product_id: productId,
         p_relation_type: 'primary',
-      });
+      },
+      );
+      throwIfError(
+        removePrimarySupplierError,
+        'No se pudo quitar proveedor primario',
+      );
     }
 
     if (secondarySupplierId) {
-      await supabaseServer.rpc('rpc_upsert_supplier_product', {
+      const { error: updateSecondarySupplierError } = await supabaseServer.rpc(
+        'rpc_upsert_supplier_product',
+        {
         p_org_id: orgId,
         p_supplier_id: secondarySupplierId,
         p_product_id: productId,
         p_supplier_sku: '',
         p_supplier_product_name: '',
         p_relation_type: 'secondary',
-        p_supplier_price: null,
-      });
+        p_supplier_price: undefined,
+      },
+      );
+      throwIfError(
+        updateSecondarySupplierError,
+        'No se pudo actualizar proveedor secundario',
+      );
     } else {
-      await supabaseServer.rpc('rpc_remove_supplier_product_relation', {
+      const { error: removeSecondarySupplierError } = await supabaseServer.rpc(
+        'rpc_remove_supplier_product_relation',
+        {
         p_org_id: orgId,
         p_product_id: productId,
         p_relation_type: 'secondary',
-      });
+      },
+      );
+      throwIfError(
+        removeSecondarySupplierError,
+        'No se pudo quitar proveedor secundario',
+      );
     }
 
     revalidatePath('/products');
@@ -572,6 +779,11 @@ export default async function ProductsPage({
 
   const visibleFrom = totalProducts === 0 ? 0 : pageFrom + 1;
   const visibleTo = Math.min(pageFrom + products.length, totalProducts);
+  const productsForList = products.map((product) => ({
+    ...product,
+    image_url:
+      (product as { image_url?: string | null }).image_url ?? null,
+  }));
   const buildProductsHref = (targetPage: number, targetPageSize?: number) => {
     const params = new URLSearchParams();
     if (query) params.set('q', query);
@@ -753,7 +965,7 @@ export default async function ProductsPage({
         </section>
 
         <ProductListClient
-          products={products}
+          products={productsForList}
           suppliers={suppliers}
           brandSuggestions={brandSuggestions}
           supplierByProduct={supplierByProductRecord}

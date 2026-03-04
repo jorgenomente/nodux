@@ -8147,3 +8147,117 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run build OK (2026-03-03)
 
 **Commit:** N/A
+
+## 2026-03-03 14:12 -03 — Storefront compacto + imágenes de producto comprimidas en `/products`
+
+**Tipo:** schema/ui/docs/tests
+**Lote:** storefront-product-images-compressed-upload
+**Descripción:** Se implementó carga de imagen de producto en `/products` (alta y edición) con compresión obligatoria en cliente a JPG liviano antes de subir a Storage. Las imágenes se guardan en bucket público `product-images` con path estable `org_id/product_id.jpg`, y se persiste `products.image_url` para consumo en storefront. Además, se compactó la grilla de cards en `/:orgSlug/:branchSlug` para mostrar más artículos por pantalla (menor padding, imagen cuadrada y más columnas en breakpoints). Se agregó soporte de imagen en `v_products_admin` para exponer `image_url` en la gestión interna.
+
+**Archivos afectados:**
+
+- app/[orgSlug]/[branchSlug]/StorefrontBranchClient.tsx
+- app/products/ProductImageField.tsx
+- app/products/ProductFormFieldsShared.tsx
+- app/products/NewProductForm.tsx
+- app/products/ProductActions.tsx
+- app/products/ProductListClient.tsx
+- app/products/page.tsx
+- app/onboarding/page.tsx
+- supabase/migrations/20260303134000_074_product_images_bucket_and_products_view_image.sql
+- docs/docs-app-screens-products.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-03-03)
+- npm run db:seed:demo OK (2026-03-03)
+- npm run db:rls:smoke OK (2026-03-03)
+- Verificación SQL local OK: bucket `product-images` existe (`public=true`, `file_size_limit=262144`) + `v_products_admin` expone `image_url`
+- npm run lint OK con 1 warning conocido (`@next/next/no-img-element` en `app/products/ProductListClient.tsx`)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A
+
+## 2026-03-03 14:17 -03 — Fix upload imágenes producto: soporte HEIC/HEIF (iPhone)
+
+**Tipo:** ui/docs/tests
+**Lote:** storefront-product-images-compressed-upload
+**Descripción:** Se reforzó `ProductImageField` para aceptar archivos `.heic/.heif` y convertirlos a JPG comprimido cuando el navegador soporta decodificación HEIC nativa (vía `createImageBitmap` o fallback `<img>`). Se mejoró el mensaje de error para navegadores sin codec HEIC, indicando formato compatible. Se mantiene compresión final a JPG liviano para ahorro de almacenamiento y carga rápida.
+
+**Archivos afectados:**
+
+- app/products/ProductImageField.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-03) con 1 warning conocido (`@next/next/no-img-element`)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A
+
+## 2026-03-03 14:43 -03 — Fix UX: edición de producto no queda colgada en "Guardando cambios..."
+
+**Tipo:** ui/docs/tests
+**Lote:** storefront-product-images-compressed-upload
+**Descripción:** Se corrigió `ProductActions` para esperar explícitamente la server action en `guardar` y `activar/desactivar`, con estado de carga (`isSaving`), manejo de error y `router.refresh()` al completar. Antes el submit disparaba la acción sin await y la UI podía quedar indefinidamente en "Guardando cambios..." sin feedback consistente.
+
+**Archivos afectados:**
+
+- app/products/ProductActions.tsx
+- app/products/ProductListClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-03) con 1 warning conocido (`@next/next/no-img-element`)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A
+
+## 2026-03-03 14:46 -03 — Fix persistencia imagen + preview en listado de productos
+
+**Tipo:** ui/docs/tests
+**Lote:** storefront-product-images-compressed-upload
+**Descripción:** Se reforzó el flujo de guardado de imagen en `/products` para que no silencie fallas de Storage: ahora, si `upload/remove` falla, la server action devuelve error y la UI no queda en falso positivo. Además, se agregó preview visible por producto en el listado (`/products`) con fallback `Sin foto` cuando no hay imagen.
+
+**Archivos afectados:**
+
+- app/products/page.tsx
+- app/products/ProductListClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-03)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A
+
+## 2026-03-03 15:04 -03 — Fix: upload imagen producto evita bloqueo RLS en Storage
+
+**Tipo:** ui/docs/tests
+**Lote:** storefront-product-images-compressed-upload
+**Descripción:** Se corrigió el flujo de upload/remove de imágenes de producto para ejecutarse con cliente admin (`service_role`) en server actions, manteniendo validación de rol `org_admin`/SA antes de operar. Esto evita rechazo por RLS de `storage.objects` en entorno local y mantiene control de permisos en aplicación. Se preserva persistencia de `products.image_url` y mensaje de error explícito.
+
+**Archivos afectados:**
+
+- app/products/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-03)
+- npm run build OK (2026-03-03)
+
+**Commit:** N/A

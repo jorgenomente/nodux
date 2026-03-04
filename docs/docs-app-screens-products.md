@@ -89,6 +89,7 @@ Campos mínimos:
 - sell_unit_type: unit | weight | bulk
 - uom (ej: kg)
 - unit_price (>= 0)
+- imagen de producto (opcional; upload comprimido a JPG liviano)
 - supplier_price (opcional, base para sugerencia)
 - is_active (default true)
 - vencimiento_aproximado_dias (opcional)
@@ -117,6 +118,7 @@ Reglas anti-duplicado (obligatorias):
 ### A2) Editar producto
 
 - mismos campos
+- permite reemplazar imagen o quitar imagen actual
 - no eliminar; solo `is_active=false`
 - stock_minimo editable desde listado (aplica a todas las sucursales activas)
 
@@ -171,6 +173,7 @@ Salida mínima por fila:
 - sell_unit_type
 - uom
 - unit_price
+- image_url
 - is_active
 - vencimiento_aproximado_dias
 - stock_total
@@ -218,6 +221,12 @@ RPC 4: `rpc_remove_supplier_product_relation(input)`
 RPC 5: `rpc_set_safety_stock(input)`
 
 - branch_id
+
+Storage (producto):
+
+- bucket: `product-images` (público, liviano)
+- path estable por archivo: `org_id/product_id.jpg`
+- upload desde UI comprime imagen antes de enviar para reducir almacenamiento/costo
 - product_id
 - safety_stock
 

@@ -231,7 +231,7 @@ export default function StorefrontBranchClient({
             />
           </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {filteredProducts.map((product) => {
               const quantityInCart = cart[product.product_id] ?? 0;
               const stockValue = Number(product.stock_on_hand);
@@ -242,15 +242,16 @@ export default function StorefrontBranchClient({
               return (
                 <article
                   key={product.product_id}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                  className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm"
                 >
-                  <div className="mb-3 aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-100">
+                  <div className="mb-2 aspect-square w-full overflow-hidden rounded-lg bg-slate-100">
                     {product.image_url ? (
                       <Image
                         src={product.image_url}
                         alt={product.product_name}
                         width={640}
                         height={480}
+                        unoptimized
                         className="h-full w-full object-cover"
                       />
                     ) : (
@@ -259,30 +260,30 @@ export default function StorefrontBranchClient({
                       </div>
                     )}
                   </div>
-                  <h2 className="line-clamp-2 text-sm font-semibold text-slate-900">
+                  <h2 className="line-clamp-2 text-xs font-semibold text-slate-900">
                     {product.product_name}
                   </h2>
-                  <p className="mt-1 text-lg font-semibold text-orange-700">
+                  <p className="mt-0.5 text-sm font-semibold text-orange-700">
                     ${Number(product.unit_price).toFixed(2)}
                   </p>
                   <p className="text-xs text-slate-600">Stock: {stockLabel}</p>
 
-                  <div className="mt-3 flex items-center gap-2">
+                  <div className="mt-2 flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => decrementItem(product.product_id)}
-                      className="h-9 w-9 rounded-lg border border-slate-300 text-lg font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="h-8 w-8 rounded-md border border-slate-300 text-base font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
                       disabled={quantityInCart === 0}
                     >
                       -
                     </button>
-                    <span className="w-8 text-center text-sm font-semibold">
+                    <span className="w-6 text-center text-xs font-semibold">
                       {quantityInCart}
                     </span>
                     <button
                       type="button"
                       onClick={() => incrementItem(product)}
-                      className="h-9 w-9 rounded-lg border border-orange-300 bg-orange-50 text-lg font-semibold text-orange-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="h-8 w-8 rounded-md border border-orange-300 bg-orange-50 text-base font-semibold text-orange-700 disabled:cursor-not-allowed disabled:opacity-40"
                       disabled={!product.is_available}
                     >
                       +

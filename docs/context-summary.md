@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-03-01 15:38
+Ultima actualizacion: 2026-03-03 13:40
 
 ## Estado general
 
@@ -135,6 +135,8 @@ Ultima actualizacion: 2026-03-01 15:38
 - Canal de tienda online conectado a stock NODUX (storefront público por org/sucursal, pedidos online, tracking por link único y gestión interna en `/online-orders`), documentado en `docs/docs-modules-online-store.md` y contratos de pantalla asociados.
 - Fundación DB del canal online aplicada en migración `20260301213000_068_online_store_foundation.sql`: slugs en `orgs/branches`, `products.image_url`, tablas `storefront_*` y `online_orders*`, vista `v_online_orders_admin` y RPCs públicas/internas de storefront/tracking/estado.
 - UI pública inicial del canal online implementada: selector de sucursal por org (`/:orgSlug`), catálogo + carrito + checkout (`/:orgSlug/:branchSlug`) y tracking público por token (`/o/:trackingToken`), con endpoint `POST /api/storefront/order` para crear pedidos online vía RPC.
+- Storefront público compacta cards de catálogo para mostrar más productos por pantalla en mobile/desktop (`/:orgSlug/:branchSlug`).
+- `/products` incorpora carga de imagen por producto (alta/edición) con compresión previa a JPG liviano; se guarda en Storage bucket público `product-images` y persiste `products.image_url`.
 - UI interna inicial de pedidos online implementada en `/online-orders` (OA/ST con módulo habilitado), con filtros por sucursal/estado/búsqueda y transición de estados vía `rpc_set_online_order_status`.
 - Comprobantes de pago online v1 implementados: carga pública desde `/o/:trackingToken` (archivo imagen) con persistencia en `online_order_payment_proofs` y revisión interna en `/online-orders` (aprobar/rechazar + nota), soportado por bucket privado `online-order-proofs` (migración `20260302101500_069_online_order_proofs_storage_bucket.sql`).
 - `/settings` ahora muestra sección "Tienda online" con estado de storefront (`is_enabled`), `orgSlug` y links públicos por org/sucursal para facilitar QA operativo sin abrir SQL/Studio.

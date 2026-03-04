@@ -1577,7 +1577,7 @@ export default async function OnboardingPage({
         p_supplier_product_name: primarySupplierProductName,
         p_relation_type: 'primary',
         p_supplier_price:
-          supplierPriceRaw === '' ? null : Number(supplierPriceRaw),
+          supplierPriceRaw === '' ? undefined : Number(supplierPriceRaw),
       });
     } else {
       await actionSupabase.rpc('rpc_remove_supplier_product_relation', {
@@ -1600,7 +1600,7 @@ export default async function OnboardingPage({
         p_supplier_sku: '',
         p_supplier_product_name: '',
         p_relation_type: 'secondary',
-        p_supplier_price: null,
+        p_supplier_price: undefined,
       });
     } else {
       await actionSupabase.rpc('rpc_remove_supplier_product_relation', {
@@ -1888,8 +1888,8 @@ export default async function OnboardingPage({
                   preservePrimary?.supplier_product_name ?? '',
                 p_relation_type: 'primary',
                 p_supplier_price: applySupplierPrice
-                  ? supplierPrice
-                  : (preservePrimary?.supplier_price ?? null),
+                  ? (supplierPrice ?? undefined)
+                  : (preservePrimary?.supplier_price ?? undefined),
               },
             );
             if (error) {
@@ -1912,7 +1912,7 @@ export default async function OnboardingPage({
                 p_supplier_product_name:
                   currentPrimary.supplier_product_name ?? '',
                 p_relation_type: 'primary',
-                p_supplier_price: supplierPrice,
+                p_supplier_price: supplierPrice ?? undefined,
               },
             );
             if (error) {
@@ -1931,7 +1931,7 @@ export default async function OnboardingPage({
                 p_supplier_sku: '',
                 p_supplier_product_name: '',
                 p_relation_type: 'secondary',
-                p_supplier_price: null,
+                p_supplier_price: undefined,
               },
             );
             if (error) {
@@ -2871,6 +2871,7 @@ export default async function OnboardingPage({
                             suppliers={suppliers}
                             brandSuggestions={brandSuggestions}
                             compact
+                            includeImageField={false}
                             fields={{
                               name: 'name',
                               brand: 'brand',
