@@ -89,6 +89,7 @@ Accion implementada en MVP:
   - todos los resultados filtrados
 - patch masivo de campos operativos:
   - marca
+  - compra por paquete (`purchase_by_pack` + `units_per_pack`)
   - proveedor primario
   - proveedor secundario
   - shelf life days
@@ -149,6 +150,11 @@ sin salir del flujo.
 Desde `/onboarding`, OA/SA puede filtrar productos y aplicar parches masivos
 sobre campos seleccionados, sin abrir formulario por fila.
 
+Regla de validacion para compra por paquete en edicion masiva:
+
+- si se aplica `purchase_by_pack=true`, `units_per_pack` debe ser entero > 1.
+- si se aplica `purchase_by_pack=false`, `units_per_pack` se limpia a `null`.
+
 ### A6) Exportar maestros
 
 El usuario descarga un snapshot actual para respaldo o migracion a otra
@@ -190,6 +196,8 @@ Salida minima:
 - `name`
 - `internal_code`
 - `barcode`
+- `purchase_by_pack`
+- `units_per_pack`
 - `unit_price`
 - `shelf_life_days`
 - `has_primary_supplier`

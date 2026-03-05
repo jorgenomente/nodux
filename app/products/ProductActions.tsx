@@ -13,6 +13,8 @@ type EditPayload = {
   brand: string;
   internalCode: string;
   barcode: string;
+  purchaseByPack: boolean;
+  unitsPerPack: string;
   sellUnitType: 'unit' | 'weight' | 'bulk';
   uom: string;
   unitPrice: string;
@@ -40,6 +42,8 @@ type Props = {
   brand: string | null;
   internalCode: string | null;
   barcode: string | null;
+  purchaseByPack: boolean;
+  unitsPerPack: number | null;
   sellUnitType: 'unit' | 'weight' | 'bulk';
   uom: string;
   unitPrice: number;
@@ -63,6 +67,8 @@ export default function ProductActions({
   brand,
   internalCode,
   barcode,
+  purchaseByPack,
+  unitsPerPack,
   sellUnitType,
   uom,
   unitPrice,
@@ -105,6 +111,10 @@ export default function ProductActions({
     formData.append('edit_brand', payload.brand);
     formData.append('edit_internal_code', payload.internalCode);
     formData.append('edit_barcode', payload.barcode);
+    if (payload.purchaseByPack) {
+      formData.append('edit_purchase_by_pack', 'on');
+    }
+    formData.append('edit_units_per_pack', payload.unitsPerPack);
     formData.append('edit_sell_unit_type', payload.sellUnitType);
     formData.append('edit_uom', payload.uom);
     formData.append('edit_unit_price', payload.unitPrice);
@@ -160,6 +170,8 @@ export default function ProductActions({
       brand: brand ?? '',
       internalCode: internalCode ?? '',
       barcode: barcode ?? '',
+      purchaseByPack,
+      unitsPerPack: unitsPerPack == null ? '' : String(unitsPerPack),
       sellUnitType,
       uom,
       unitPrice: String(unitPrice ?? 0),
@@ -231,6 +243,8 @@ export default function ProductActions({
               brand: 'edit_brand',
               internalCode: 'edit_internal_code',
               barcode: 'edit_barcode',
+              purchaseByPack: 'edit_purchase_by_pack',
+              unitsPerPack: 'edit_units_per_pack',
               sellUnitType: 'edit_sell_unit_type',
               uom: 'edit_uom',
               primarySupplierId: 'primary_supplier_id',
@@ -249,6 +263,8 @@ export default function ProductActions({
               brand: brand ?? '',
               internalCode: internalCode ?? '',
               barcode: barcode ?? '',
+              purchaseByPack,
+              unitsPerPack: unitsPerPack ?? '',
               sellUnitType,
               uom,
               primarySupplierId,

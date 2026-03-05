@@ -36,6 +36,8 @@ Campos clave:
 - brand (opcional)
 - internal_code (SKU interno)
 - barcode (opcional)
+- purchase_by_pack (bool, default false)
+- units_per_pack (int nullable, requerido si `purchase_by_pack=true`)
 - sell_unit_type: unit | weight | bulk
 - uom (unidad base, ej: kg)
 - unit_price (precio de venta actual)
@@ -73,6 +75,9 @@ Campos clave:
 
 - `quantity_on_hand` siempre en la unidad base
 - Conversión solo en UI (ej: g ↔ kg)
+- Si `purchase_by_pack=true`, la operación de pedidos muestra equivalencias en
+  paquetes (`unidades / units_per_pack`) pero la persistencia de stock/pedidos
+  sigue en unidades base.
 
 ### R3) Precio
 
@@ -102,8 +107,13 @@ Campos clave:
   - `internal_code`
   - `name` (normalizado: trim + minúsculas)
 - Estado actual:
-  - DB ya fuerza unicidad por `barcode` y `internal_code`.
-  - La unicidad por `name` queda definida como regla operativa obligatoria y debe endurecerse en lote DB/RPC de hardening.
+  - DB fuerza unicidad por `internal_code`.
+  - DB fuerza unicidad por `barcode` y `barcode` normalizado (solo dígitos) para evitar variantes con guiones/espacios.
+  - DB fuerza unicidad por `name` normalizado (trim + minúsculas + sin acentos/símbolos).
+  - UI en `/products` muestra sugerencias en tiempo real durante alta para detectar posibles duplicados antes de guardar.
+  - UI de alta refuerza consistencia de catálogo con:
+    - sugerencia de `internal_code` por botón `Generar` (requiere marca),
+    - sugerencias/alertas de `brand` para evitar variantes de la misma marca.
 
 ---
 

@@ -9,6 +9,8 @@ export const PRODUCT_FORM_LABELS = {
   supplierPrice: 'Precio proveedor',
   unitPrice: 'Precio unitario',
   shelfLifeDays: 'Vencimiento aproximado (dias)',
+  purchaseByPack: 'Se compra por paquete',
+  unitsPerPack: 'Unidades por paquete',
   supplierProductName: 'Nombre de articulo en proveedor (opcional)',
   supplierSku: 'SKU en proveedor (opcional)',
   secondarySupplier: 'Proveedor secundario',

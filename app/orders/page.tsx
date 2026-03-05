@@ -49,6 +49,8 @@ type SuggestionRow = {
   product_id: string;
   relation_type: 'primary' | 'secondary';
   product_name: string | null;
+  purchase_by_pack: boolean | null;
+  units_per_pack: number | null;
   stock_on_hand: number | null;
   safety_stock: number | null;
   avg_daily_sales_30d: number | null;

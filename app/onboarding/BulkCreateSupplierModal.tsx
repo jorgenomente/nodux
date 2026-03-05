@@ -70,6 +70,9 @@ const collectBulkDraftSnapshot = () => {
     applyShelfLifeDays: checked('apply_shelf_life_days'),
     bulkShelfLifeDays: byName('bulk_shelf_life_days')?.value ?? '',
     bulkShelfLifeNoApplies: checked('bulk_shelf_life_no_applies'),
+    applyPurchaseByPack: checked('apply_purchase_by_pack'),
+    bulkPurchaseByPack: checked('bulk_purchase_by_pack'),
+    bulkUnitsPerPack: byName('bulk_units_per_pack')?.value ?? '',
     applyUnitPrice: checked('apply_unit_price'),
     bulkUnitPrice: byName('bulk_unit_price')?.value ?? '',
   };

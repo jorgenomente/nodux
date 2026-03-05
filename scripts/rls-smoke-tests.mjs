@@ -119,10 +119,8 @@ try {
     .limit(1);
 
   assertOk(
-    !staffProductsError &&
-      Array.isArray(staffProducts) &&
-      staffProducts.length > 0,
-    'staff puede leer products de su org',
+    !staffProductsError && Array.isArray(staffProducts),
+    'staff puede consultar products de su org (aunque el catálogo esté vacío)',
   );
 
   const deniedCode = `RLS-DENY-${Date.now()}`;
@@ -161,6 +159,19 @@ try {
     'org_admin puede crear products',
   );
   insertedProductId = adminInsertData.id;
+
+  const { data: staffSeesAdminProduct, error: staffSeesAdminProductError } =
+    await staffClient
+      .from('products')
+      .select('id')
+      .eq('org_id', ORG_ID)
+      .eq('id', insertedProductId)
+      .maybeSingle();
+  assertOk(
+    !staffSeesAdminProductError &&
+      typeof staffSeesAdminProduct?.id === 'string',
+    'staff puede leer products creados en su org',
+  );
 
   const { error: adminSuperadminRpcError } = await adminClient.rpc(
     'rpc_superadmin_set_active_org',

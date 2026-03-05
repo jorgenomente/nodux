@@ -3077,3 +3077,45 @@ ok adelante
 
 **Prompt**
 necesito hacer una auditoria de seguridad. Chequea toda la app y necesito que pienses en que instrumentos de seguridad debemos tener implementados para evitar ataques informaticos o intentos malisiosos de estresar la aplicacion o robar datos y tumbar servidores etc. Actua como experto en ciberseguridad y ayudame a hacer una auditoria sobre el estado actual del sistema y propon mejoras si son necesarias crea un doc nuevo con el resultado
+
+## 2026-03-05 10:42 -03 — Anti-duplicado productos en alta con sugerencias en tiempo real
+
+**Lote:** products-create-dedupe-hardening
+**Objetivo:** Evitar creación de productos duplicados en `/products` durante alta, combinando hardening DB/RPC (nombre/código) y sugerencias/alertas en el input de nombre.
+
+**Prompt**
+me gustaria trabajar sobre /products en el formulario de nuevo producto. estaba pensando si habia una manera de evitar la creacion de productos duplicados con diferente nombre, para evitar eso se me ocurre que al momento de escribir el nombre del articulo, en ese input se debe consultar los articulos que ya tenemos y dar sugeridos en el desplegable de los articulos que ya existen, como si fuera un buscador, esto es por ejemplo si yo quiero agregar alfajor blanco jorgito 50g y otra persona piensa que es nuevo y no existe no agrege jorgito alfajor blanco 50g. en teoria tiene nombres distintos pero me gustaria fijarme en el momento de la creacion que hay otro producto que quizas coincide con la creacion del producto y puedo darme cuenta de que ya ha sido registrado y evitamos que haya productos duplicados. De que manera piensas que podemos hacer esto? De igual manera el codigo de barras aqui juega un factor importante ya que no deberia repetirse, pero hay productos que no tienen codigo de barras y se corre ese riesgo.
+
+excelente me gusta adelante
+
+## 2026-03-05 11:18 -03 — Corrección smoke RLS (`db:rls:smoke`) tras hardening productos
+
+**Lote:** products-create-dedupe-hardening
+**Objetivo:** Dejar `npm run db:rls:smoke` en verde corrigiendo una asunción frágil del test sobre catálogo inicial no vacío.
+
+**Prompt**
+excelente vamos con 1
+
+## 2026-03-05 11:31 -03 — Generador de código interno + sugerencias anti-duplicado de marca
+
+**Lote:** products-create-dedupe-hardening
+**Objetivo:** En el formulario de alta de producto, agregar botón `Generar` en `Código interno` con lógica basada en `Marca` y reforzar prevención de marcas duplicadas por variaciones.
+
+**Prompt**
+me gustaria ademas en este mismo formulario en donde dice   codigo interno que justo en ese input que haya un pequeno boton que diga generar, esto es para generar un codigo interno de articulo que tenga sentido. Se me ocurre que los productos de X marca tengan un codigo de producto muy similar entonces quizas se puede tomar el dato que esta en marca como referencia para generar, es necesario llenar el input marca para poder usar este boton de generar codigo interno. para el input de marca debemos usar una logica similar a la de nombre de articulo para evitar que hayan marcas duplicadas que cambien por alguna palabra o letra y no haya confusion o se vean varias marcas que en realidad representan a la misma marca
+
+## 2026-03-05 12:06 -03 — Carga de datos de prueba y ajuste de seed por unicidad normalizada
+
+**Lote:** products-create-dedupe-hardening
+**Objetivo:** Insertar datos de prueba luego del hardening anti-duplicado; corregir script de seed demo para deduplicar productos por nombre normalizado y evitar conflicto con `products_org_name_normalized_uq`.
+
+**Prompt**
+vamos a insertar ahora datos de prueba
+
+## 2026-03-05 13:20 -03 — Compra por paquete conectada en productos, orders y onboarding
+
+**Lote:** products-create-dedupe-hardening
+**Objetivo:** Agregar configuración de compra por paquete en productos y propagar equivalencias operativas a `/orders`, `/orders/[orderId]` y edición masiva en `/onboarding`.
+
+**Prompt**
+excelente. hay una cosa mas que me gustaria agregar que es un poco mas compleja asi que voy a necesitar que seas muy cuidadoso. Hay productos que al proveedor se compran por cajas, no por unidad. entonces aqui en el formulario de producto debemos agregar un check marck que diga se compra por paquete y al activarlo debe activarse un input que diga unidades por paquete. esto lo que me permite es que al momento de yo hacer el pedido al proveeedor no pida 24 alfajores sino 2 cajas de 12 unidades. Las implicaciiones que esto tiene es que luego en /orders al crear un nuevo pedido debajo del input de cantidad a pedir deberia decirme un sugerido de acuerdo a las cantidades que vienen en el paquete, por ejemplo si el sugerido me da 6 y el paquete viene de a 3 unidades entonces el sugerido debajo del input deberia decir 2 paquetes. luego en /orders/id a la hora de confirmar la recepecion del producto debajo del input de cantidad recibida deberia tambien decirme cuantas cajas o paquetes son de acuerdo a esta configuracion. No se en que otro contexto esto es necesario que sea tomado en cuenta pero a eso me refiero que todo debe estar conectado y mantener la coherencia. chequea los docs que sean necesarios para que no se rompa nada. Ah ya, el onboarding en edicion masiva de productos tambien esta deberia ser una opcion a la que podemos agregar de forma masiva, si yo se que productos vienen en paquetes de 12, por ejemplo, los puedo seleccionar y deberia darme una opcion de aplicar viene en paquete de y el input de la cantidad siguiendo la misma logica de lo que ya existe en esa pantalla de /onboarding

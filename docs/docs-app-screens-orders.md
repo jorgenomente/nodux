@@ -90,6 +90,14 @@ Campos:
 - cantidades por item (default sugerido)
 - notas (opcional)
 
+Comportamiento adicional (compra por paquete):
+
+- si el producto está configurado con `purchase_by_pack=true`, debajo del input
+  de cantidad a pedir la UI muestra equivalencia sugerida en paquetes
+  (`suggested_qty / units_per_pack`) y equivalencia de lo cargado por el usuario.
+- la cantidad operativa sigue guardándose en unidades (`ordered_qty`), no en
+  paquetes.
+
 UI: la sección “Armar pedido” es colapsable para ahorrar espacio.
 
 Submit → crea order `draft` o `sent` según botón y redirige al listado con banner de resultado.
@@ -153,6 +161,8 @@ View: `v_supplier_product_suggestions(supplier_id, branch_id)`
 Salida mínima:
 
 - product_id, product_name
+- purchase_by_pack
+- units_per_pack
 - relation_type
 - stock_on_hand
 - safety_stock

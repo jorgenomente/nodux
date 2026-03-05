@@ -6,6 +6,8 @@ type ReceiveItem = {
   order_item_id: string;
   product_id: string;
   product_name: string | null;
+  purchase_by_pack: boolean;
+  units_per_pack: number | null;
   ordered_qty: number;
   default_received_qty: number;
   default_unit_cost: number;
@@ -29,6 +31,21 @@ const formatCurrency = (value: number) =>
     currency: 'ARS',
     maximumFractionDigits: 2,
   }).format(value);
+
+const formatPackageHint = ({
+  qty,
+  purchaseByPack,
+  unitsPerPack,
+}: {
+  qty: number;
+  purchaseByPack: boolean;
+  unitsPerPack: number | null;
+}) => {
+  if (!purchaseByPack || !unitsPerPack || unitsPerPack <= 1) return null;
+  const safeQty = Number.isFinite(qty) ? Math.max(0, qty) : 0;
+  const packages = Math.ceil(safeQty / unitsPerPack);
+  return `${packages} paquete${packages === 1 ? '' : 's'} (x${unitsPerPack})`;
+};
 
 export default function ReceiveItemsPricingClient({
   items,
@@ -185,6 +202,26 @@ export default function ReceiveItemsPricingClient({
                           : 'border-zinc-200'
                       }`}
                     />
+                    {formatPackageHint({
+                      qty: Number(
+                        receivedQtyByItem[item.order_item_id] ??
+                          item.default_received_qty,
+                      ),
+                      purchaseByPack: item.purchase_by_pack,
+                      unitsPerPack: item.units_per_pack,
+                    }) ? (
+                      <span className="mt-1 block text-[11px] text-zinc-500">
+                        Equivale a{' '}
+                        {formatPackageHint({
+                          qty: Number(
+                            receivedQtyByItem[item.order_item_id] ??
+                              item.default_received_qty,
+                          ),
+                          purchaseByPack: item.purchase_by_pack,
+                          unitsPerPack: item.units_per_pack,
+                        })}
+                      </span>
+                    ) : null}
                   </label>
                   <label className="text-xs text-zinc-600">
                     Precio proveedor (unitario)
@@ -266,6 +303,26 @@ export default function ReceiveItemsPricingClient({
                           : 'border-zinc-200'
                       }`}
                     />
+                    {formatPackageHint({
+                      qty: Number(
+                        receivedQtyByItem[item.order_item_id] ??
+                          item.default_received_qty,
+                      ),
+                      purchaseByPack: item.purchase_by_pack,
+                      unitsPerPack: item.units_per_pack,
+                    }) ? (
+                      <span className="mt-1 block text-[11px] text-zinc-500">
+                        Equivale a{' '}
+                        {formatPackageHint({
+                          qty: Number(
+                            receivedQtyByItem[item.order_item_id] ??
+                              item.default_received_qty,
+                          ),
+                          purchaseByPack: item.purchase_by_pack,
+                          unitsPerPack: item.units_per_pack,
+                        })}
+                      </span>
+                    ) : null}
                   </label>
                   <label className="text-xs text-zinc-600">
                     Precio proveedor (unitario)

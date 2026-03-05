@@ -6,6 +6,8 @@ type SuggestionRow = {
   product_id: string;
   relation_type: 'primary' | 'secondary';
   product_name: string | null;
+  purchase_by_pack: boolean | null;
+  units_per_pack: number | null;
   stock_on_hand: number | null;
   safety_stock: number | null;
   avg_daily_sales_30d: number | null;
@@ -48,6 +50,21 @@ const avgDaysForMode = (mode: Props['avgMode'], cycleDays: number): number => {
     default:
       return cycleDays;
   }
+};
+
+const formatPackageHint = ({
+  qty,
+  purchaseByPack,
+  unitsPerPack,
+}: {
+  qty: number;
+  purchaseByPack: boolean;
+  unitsPerPack: number | null;
+}) => {
+  if (!purchaseByPack || !unitsPerPack || unitsPerPack <= 1) return null;
+  const safeQty = Number.isFinite(qty) ? Math.max(0, qty) : 0;
+  const packages = Math.ceil(safeQty / unitsPerPack);
+  return `${packages} paquete${packages === 1 ? '' : 's'} (x${unitsPerPack})`;
 };
 
 export default function OrderSuggestionsClient({
@@ -337,9 +354,26 @@ export default function OrderSuggestionsClient({
                   supplierCost,
                   suggestedQty,
                   currentQtyRaw,
+                  currentQty,
                   currentUnitCostRaw,
                   subtotal,
                 } = renderRow(row);
+                const suggestedPackageHint = formatPackageHint({
+                  qty: suggestedQty,
+                  purchaseByPack: Boolean(row.purchase_by_pack),
+                  unitsPerPack:
+                    row.units_per_pack == null
+                      ? null
+                      : Number(row.units_per_pack),
+                });
+                const currentPackageHint = formatPackageHint({
+                  qty: currentQty,
+                  purchaseByPack: Boolean(row.purchase_by_pack),
+                  unitsPerPack:
+                    row.units_per_pack == null
+                      ? null
+                      : Number(row.units_per_pack),
+                });
 
                 return (
                   <tr key={row.product_id} className="border-t">
@@ -362,6 +396,14 @@ export default function OrderSuggestionsClient({
                         }
                         className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm"
                       />
+                      {suggestedPackageHint ? (
+                        <p className="mt-1 text-[11px] text-zinc-500">
+                          Sugerido en paquetes: {suggestedPackageHint}
+                          {currentPackageHint
+                            ? ` · Carga actual: ${currentPackageHint}`
+                            : ''}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2">{unitPrice.toFixed(2)}</td>
                     <td className="px-3 py-2">
@@ -401,9 +443,26 @@ export default function OrderSuggestionsClient({
               supplierCost,
               suggestedQty,
               currentQtyRaw,
+              currentQty,
               currentUnitCostRaw,
               subtotal,
             } = renderRow(row);
+            const suggestedPackageHint = formatPackageHint({
+              qty: suggestedQty,
+              purchaseByPack: Boolean(row.purchase_by_pack),
+              unitsPerPack:
+                row.units_per_pack == null
+                  ? null
+                  : Number(row.units_per_pack),
+            });
+            const currentPackageHint = formatPackageHint({
+              qty: currentQty,
+              purchaseByPack: Boolean(row.purchase_by_pack),
+              unitsPerPack:
+                row.units_per_pack == null
+                  ? null
+                  : Number(row.units_per_pack),
+            });
 
             return (
               <div
@@ -445,6 +504,14 @@ export default function OrderSuggestionsClient({
                       className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm"
                     />
                   </label>
+                  {suggestedPackageHint ? (
+                    <p className="text-[11px] text-zinc-500">
+                      Sugerido en paquetes: {suggestedPackageHint}
+                      {currentPackageHint
+                        ? ` · Carga actual: ${currentPackageHint}`
+                        : ''}
+                    </p>
+                  ) : null}
                   <div className="flex items-center justify-between">
                     <span>Precio venta</span>
                     <span>{unitPrice.toFixed(2)}</span>

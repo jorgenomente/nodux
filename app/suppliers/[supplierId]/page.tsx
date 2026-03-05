@@ -325,6 +325,8 @@ export default async function SupplierDetailPage({
     const brand = String(formData.get('brand') ?? '').trim();
     const internalCode = String(formData.get('internal_code') ?? '').trim();
     const barcode = String(formData.get('barcode') ?? '').trim();
+    const purchaseByPack = formData.get('purchase_by_pack') === 'on';
+    const unitsPerPackRaw = String(formData.get('units_per_pack') ?? '').trim();
     const sellUnitType = String(formData.get('sell_unit_type') ?? 'unit') as
       | 'unit'
       | 'weight'
@@ -365,6 +367,17 @@ export default async function SupplierDetailPage({
     ) {
       return;
     }
+    const unitsPerPack = purchaseByPack
+      ? Number.parseInt(unitsPerPackRaw, 10)
+      : null;
+    if (
+      purchaseByPack &&
+      (unitsPerPackRaw === '' ||
+        Number.isNaN(unitsPerPack ?? Number.NaN) ||
+        Number(unitsPerPack) <= 1)
+    ) {
+      return;
+    }
 
     const productId = randomUUID();
 
@@ -382,7 +395,13 @@ export default async function SupplierDetailPage({
     });
     await supabaseServer
       .from('products' as never)
-      .update({ brand: brand || null } as never)
+      .update(
+        {
+          brand: brand || null,
+          purchase_by_pack: purchaseByPack,
+          units_per_pack: purchaseByPack ? unitsPerPack : null,
+        } as never,
+      )
       .eq('org_id', orgId)
       .eq('id', productId);
 

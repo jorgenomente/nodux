@@ -54,6 +54,14 @@ const randFloat = (min, max, decimals = 2) => {
   return Math.round((Math.random() * (max - min) + min) * factor) / factor;
 };
 const roundCurrency = (value) => Number(value.toFixed(2));
+const normalizeProductName = (value) =>
+  String(value ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 const suppliersSeed = [
   {
@@ -423,22 +431,38 @@ const isoDateFromOffset = (offsetDays) => {
     is_active: true,
   }));
 
+  const mergedProducts = [...productsSeed, ...smokeProductsSeed];
+  const dedupedProductsByName = new Map();
+  mergedProducts.forEach((product) => {
+    const key = normalizeProductName(product.name);
+    if (!key) return;
+    const previous = dedupedProductsByName.get(key);
+    if (!previous) {
+      dedupedProductsByName.set(key, product);
+      return;
+    }
+    const previousIsSmoke = String(previous.internal_code).startsWith('SMOKE-');
+    const currentIsSmoke = String(product.internal_code).startsWith('SMOKE-');
+    if (!previousIsSmoke && currentIsSmoke) {
+      dedupedProductsByName.set(key, product);
+    }
+  });
+  const dedupedProductsSeed = Array.from(dedupedProductsByName.values());
+
   const { data: existingProducts } = await supabase
     .from('products')
     .select('id, internal_code')
     .eq('org_id', ORG_ID)
     .in(
       'internal_code',
-      [...productsSeed, ...smokeProductsSeed].map(
-        (product) => product.internal_code,
-      ),
+      dedupedProductsSeed.map((product) => product.internal_code),
     );
 
   const productIdByCode = new Map(
     (existingProducts ?? []).map((row) => [row.internal_code, row.id]),
   );
 
-  const products = [...productsSeed, ...smokeProductsSeed].map((product) => ({
+  const products = dedupedProductsSeed.map((product) => ({
     id:
       productIdByCode.get(product.internal_code) ?? product.id ?? randomUUID(),
     org_id: ORG_ID,

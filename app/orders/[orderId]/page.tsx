@@ -32,6 +32,8 @@ type OrderDetailRow = {
   order_item_id: string | null;
   product_id: string | null;
   product_name: string | null;
+  purchase_by_pack?: boolean | null;
+  units_per_pack?: number | null;
   ordered_qty: number | null;
   received_qty: number | null;
   unit_cost: number | null;
@@ -64,6 +66,8 @@ type SuggestionRow = {
   product_id: string;
   relation_type: 'primary' | 'secondary';
   product_name: string | null;
+  purchase_by_pack: boolean | null;
+  units_per_pack: number | null;
   stock_on_hand: number | null;
   safety_stock: number | null;
   avg_daily_sales_30d: number | null;
@@ -246,6 +250,8 @@ export default async function OrderDetailPage({
       product_id: item.product_id,
       relation_type: 'primary',
       product_name: item.product_name,
+      purchase_by_pack: item.purchase_by_pack ?? null,
+      units_per_pack: item.units_per_pack ?? null,
       stock_on_hand: null,
       safety_stock: null,
       avg_daily_sales_30d: null,
@@ -992,6 +998,9 @@ export default async function OrderDetailPage({
         order_item_id: item.order_item_id,
         product_id: productId,
         product_name: item.product_name,
+        purchase_by_pack: Boolean(item.purchase_by_pack),
+        units_per_pack:
+          item.units_per_pack == null ? null : Number(item.units_per_pack),
         ordered_qty: Number(item.ordered_qty ?? 0),
         default_received_qty:
           order.status === 'received'

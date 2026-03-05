@@ -44,6 +44,17 @@ type SafetyStockRow = {
   branches?: { name: string | null } | null;
 };
 
+type ProductCatalogRow = {
+  id: string;
+  name: string;
+  brand: string | null;
+  internal_code: string | null;
+  barcode: string | null;
+  purchase_by_pack: boolean | null;
+  units_per_pack: number | null;
+  is_active: boolean;
+};
+
 type SearchParams = {
   q?: string;
   page?: string;
@@ -60,6 +71,35 @@ const throwIfError = (
   if (error) {
     throw new Error(`${context}: ${error.message}`);
   }
+};
+
+const normalizeProductName = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const mapProductUpsertError = (error: { message?: string; code?: string }) => {
+  const message = String(error.message ?? '').toLowerCase();
+  if (error.code === '23505' || message.includes('duplicate key')) {
+    if (message.includes('products_org_barcode_normalized_uq')) {
+      return 'Ya existe otro producto con ese código de barras (normalizado).';
+    }
+    if (message.includes('products_org_name_normalized_uq')) {
+      return 'Ya existe otro producto con un nombre equivalente.';
+    }
+    if (message.includes('products_org_internal_code_uq')) {
+      return 'Ya existe otro producto con ese código interno.';
+    }
+    if (message.includes('products_org_barcode_uq')) {
+      return 'Ya existe otro producto con ese código de barras.';
+    }
+    return 'Ya existe un producto duplicado en este catálogo.';
+  }
+  return error.message ?? 'No se pudo guardar el producto.';
 };
 
 const ensureCanManageProductImages = async (
@@ -151,16 +191,27 @@ const updateProductMetadata = async ({
   productId,
   brand,
   imageUrl,
+  purchaseByPack,
+  unitsPerPack,
 }: {
   orgId: string;
   productId: string;
   brand: string;
   imageUrl: string | null;
+  purchaseByPack: boolean;
+  unitsPerPack: number | null;
 }) => {
   const admin = createAdminSupabaseClient();
   const { error } = await admin
     .from('products' as never)
-    .update({ brand: brand || null, image_url: imageUrl } as never)
+    .update(
+      {
+        brand: brand || null,
+        image_url: imageUrl,
+        purchase_by_pack: purchaseByPack,
+        units_per_pack: purchaseByPack ? unitsPerPack : null,
+      } as never,
+    )
     .eq('org_id', orgId)
     .eq('id', productId);
   if (error) {
@@ -254,7 +305,7 @@ export default async function ProductsPage({
     suppliersResult,
     supplierProductsResult,
     safetyStockResult,
-    productsForAdjust,
+    productsCatalogRaw,
     brandsForSuggestions,
   ] = await Promise.all([
     supabase
@@ -289,12 +340,13 @@ export default async function ProductsPage({
       (from, to) =>
         supabase
           .from('products' as never)
-          .select('id, name')
+          .select(
+            'id, name, brand, internal_code, barcode, purchase_by_pack, units_per_pack, is_active',
+          )
           .eq('org_id', orgId)
-          .eq('is_active', true)
           .order('name')
           .range(from, to),
-      { label: 'products_page_products_for_adjust' },
+      { label: 'products_page_products_catalog' },
     ),
     fetchAllPages(
       (from, to) =>
@@ -310,6 +362,10 @@ export default async function ProductsPage({
   ]);
 
   const branches = branchesResult.data ?? [];
+  const productsCatalog = (productsCatalogRaw as ProductCatalogRow[]).filter(
+    (product) => product.id && product.name,
+  );
+  const productsForAdjust = productsCatalog.filter((product) => product.is_active);
   const suppliers = ((suppliersResult.data ?? []) as SupplierOption[]).filter(
     (supplier) => supplier.id && supplier.name,
   );
@@ -405,6 +461,8 @@ export default async function ProductsPage({
     const brand = String(formData.get('brand') ?? '').trim();
     const internalCode = String(formData.get('internal_code') ?? '').trim();
     const barcode = String(formData.get('barcode') ?? '').trim();
+    const purchaseByPack = formData.get('purchase_by_pack') === 'on';
+    const unitsPerPackRaw = String(formData.get('units_per_pack') ?? '').trim();
     const sellUnitType = String(formData.get('sell_unit_type') ?? 'unit') as
       | 'unit'
       | 'weight'
@@ -430,13 +488,19 @@ export default async function ProductsPage({
     const safetyStockRaw = String(formData.get('safety_stock') ?? '').trim();
     const imageDataUrlRaw = String(formData.get('image_data_url') ?? '');
 
-    if (!name) return;
+    if (!name) {
+      throw new Error('El nombre del producto es obligatorio.');
+    }
 
     const unitPrice = Number(unitPriceRaw);
-    if (Number.isNaN(unitPrice) || unitPrice < 0) return;
+    if (Number.isNaN(unitPrice) || unitPrice < 0) {
+      throw new Error('El precio unitario debe ser mayor o igual a 0.');
+    }
     if (supplierPriceRaw !== '') {
       const supplierPrice = Number(supplierPriceRaw);
-      if (Number.isNaN(supplierPrice) || supplierPrice < 0) return;
+      if (Number.isNaN(supplierPrice) || supplierPrice < 0) {
+        throw new Error('El precio proveedor debe ser mayor o igual a 0.');
+      }
     }
     const shelfLifeDays =
       shelfLifeRaw === '' ? null : Number.parseInt(shelfLifeRaw, 10);
@@ -444,10 +508,30 @@ export default async function ProductsPage({
       shelfLifeDays !== null &&
       (Number.isNaN(shelfLifeDays) || shelfLifeDays < 0)
     ) {
-      return;
+      throw new Error('Vencimiento aproximado inválido.');
+    }
+    const unitsPerPack = purchaseByPack
+      ? Number.parseInt(unitsPerPackRaw, 10)
+      : null;
+    if (
+      purchaseByPack &&
+      (unitsPerPackRaw === '' ||
+        Number.isNaN(unitsPerPack ?? Number.NaN) ||
+        Number(unitsPerPack) <= 1)
+    ) {
+      throw new Error('Unidades por paquete debe ser un entero mayor a 1.');
     }
 
     const orgId = actionSession.orgId;
+    const normalizedName = normalizeProductName(name);
+    const nameDuplicate = productsCatalog.find(
+      (product) => normalizeProductName(product.name) === normalizedName,
+    );
+    if (nameDuplicate) {
+      throw new Error(
+        `Ya existe un producto similar por nombre: ${nameDuplicate.name}.`,
+      );
+    }
 
     const productId = randomUUID();
     const parsedImage = parseImageDataUrl(imageDataUrlRaw);
@@ -476,12 +560,16 @@ export default async function ProductsPage({
       p_shelf_life_days: shelfLifeDays,
     },
     );
-    throwIfError(upsertProductError, 'No se pudo guardar el producto');
+    if (upsertProductError) {
+      throw new Error(mapProductUpsertError(upsertProductError));
+    }
     await updateProductMetadata({
       orgId,
       productId,
       brand,
       imageUrl,
+      purchaseByPack,
+      unitsPerPack,
     });
 
     if (primarySupplierId) {
@@ -567,6 +655,10 @@ export default async function ProductsPage({
       formData.get('edit_internal_code') ?? '',
     ).trim();
     const barcode = String(formData.get('edit_barcode') ?? '').trim();
+    const purchaseByPack = formData.get('edit_purchase_by_pack') === 'on';
+    const unitsPerPackRaw = String(
+      formData.get('edit_units_per_pack') ?? '',
+    ).trim();
     const sellUnitType = String(
       formData.get('edit_sell_unit_type') ?? 'unit',
     ) as 'unit' | 'weight' | 'bulk';
@@ -597,13 +689,19 @@ export default async function ProductsPage({
     const imageDataUrlRaw = String(formData.get('edit_image_data_url') ?? '');
     const removeImage = formData.get('remove_image') === 'true';
 
-    if (!productId || !name) return;
+    if (!productId || !name) {
+      throw new Error('Producto inválido para edición.');
+    }
 
     const unitPrice = Number(unitPriceRaw);
-    if (Number.isNaN(unitPrice) || unitPrice < 0) return;
+    if (Number.isNaN(unitPrice) || unitPrice < 0) {
+      throw new Error('El precio unitario debe ser mayor o igual a 0.');
+    }
     if (supplierPriceRaw !== '') {
       const supplierPrice = Number(supplierPriceRaw);
-      if (Number.isNaN(supplierPrice) || supplierPrice < 0) return;
+      if (Number.isNaN(supplierPrice) || supplierPrice < 0) {
+        throw new Error('El precio proveedor debe ser mayor o igual a 0.');
+      }
     }
     const shelfLifeDays =
       shelfLifeRaw === '' ? null : Number.parseInt(shelfLifeRaw, 10);
@@ -611,7 +709,18 @@ export default async function ProductsPage({
       shelfLifeDays !== null &&
       (Number.isNaN(shelfLifeDays) || shelfLifeDays < 0)
     ) {
-      return;
+      throw new Error('Vencimiento aproximado inválido.');
+    }
+    const unitsPerPack = purchaseByPack
+      ? Number.parseInt(unitsPerPackRaw, 10)
+      : null;
+    if (
+      purchaseByPack &&
+      (unitsPerPackRaw === '' ||
+        Number.isNaN(unitsPerPack ?? Number.NaN) ||
+        Number(unitsPerPack) <= 1)
+    ) {
+      throw new Error('Unidades por paquete debe ser un entero mayor a 1.');
     }
 
     const parsedImage = parseImageDataUrl(imageDataUrlRaw);
@@ -662,12 +771,16 @@ export default async function ProductsPage({
       p_shelf_life_days: shelfLifeDays,
     },
     );
-    throwIfError(updateUpsertProductError, 'No se pudo actualizar el producto');
+    if (updateUpsertProductError) {
+      throw new Error(mapProductUpsertError(updateUpsertProductError));
+    }
     await updateProductMetadata({
       orgId,
       productId,
       brand,
       imageUrl: nextImageUrl,
+      purchaseByPack,
+      unitsPerPack,
     });
 
     if (safetyStockRaw !== '') {
@@ -843,6 +956,14 @@ export default async function ProductsPage({
             <NewProductForm
               suppliers={suppliers}
               brandSuggestions={brandSuggestions}
+              productNameSuggestions={productsCatalog.map((product) => ({
+                product_id: product.id,
+                name: product.name,
+                brand: product.brand,
+                barcode: product.barcode,
+                internal_code: product.internal_code,
+                is_active: product.is_active,
+              }))}
               onSubmit={createProduct}
             />
           </details>
@@ -868,18 +989,11 @@ export default async function ProductsPage({
                   required
                 >
                   <option value="">Selecciona</option>
-                  {productsForAdjust
-                    .filter((product) =>
-                      Boolean((product as { id?: string }).id),
-                    )
-                    .map((product) => (
-                      <option
-                        key={String((product as { id?: string }).id)}
-                        value={String((product as { id?: string }).id)}
-                      >
-                        {String((product as { name?: string }).name ?? '')}
-                      </option>
-                    ))}
+                  {productsForAdjust.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className="text-sm font-medium text-zinc-700">

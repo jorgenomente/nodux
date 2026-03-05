@@ -8347,3 +8347,137 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - No se ejecutó lint/build (lote docs-only)
 
 **Commit:** N/A
+
+## 2026-03-05 10:42 -03 — Hardening anti-duplicado en alta de productos (`/products`)
+
+**Tipo:** schema/ui/docs/tests
+**Lote:** products-create-dedupe-hardening
+**Descripción:** Se implementó prevención de duplicados en el formulario `Nuevo producto` con sugerencias en tiempo real por nombre y alertas por coincidencia de `name`, `barcode` e `internal_code`. En DB se agregó hardening anti-duplicado por organización con columnas generadas `name_normalized` y `barcode_normalized` + índices únicos, y se ajustó `rpc_upsert_product` para normalizar códigos vacíos a `null`.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260305113000_075_products_dedupe_hardening.sql
+- app/products/NewProductForm.tsx
+- app/products/ProductFormFieldsShared.tsx
+- app/products/page.tsx
+- docs/docs-app-screens-products.md
+- docs/docs-modules-products-stock.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-03-05)
+- npm run lint OK (2026-03-05)
+- npm run build OK (2026-03-05)
+- npm run db:rls:smoke FAIL (2026-03-05): `staff puede leer products de su org` (pendiente investigar baseline de smoke)
+
+**Commit:** N/A
+
+## 2026-03-05 11:18 -03 — Fix smoke RLS: lectura de products con catálogo vacío
+
+**Tipo:** tests/docs
+**Lote:** products-create-dedupe-hardening
+**Descripción:** Se corrigió `scripts/rls-smoke-tests.mjs` para no asumir que existe al menos 1 producto al iniciar el smoke tras `db:reset`. Ahora valida que staff puede consultar `products` aunque el catálogo esté vacío y agrega validación explícita de lectura de un producto creado por admin dentro del mismo test.
+
+**Archivos afectados:**
+
+- scripts/rls-smoke-tests.mjs
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:rls:smoke OK (2026-03-05)
+- npm run lint OK (2026-03-05)
+
+**Commit:** N/A
+
+## 2026-03-05 11:31 -03 — Formulario productos: botón Generar código interno + alertas de marca
+
+**Tipo:** ui/docs/tests
+**Lote:** products-create-dedupe-hardening
+**Descripción:** Se actualizó el formulario compartido de productos para incorporar botón `Generar` en `Código interno`, que propone un código consistente usando `brand` + `name` con secuencia incremental y evita colisiones con códigos existentes. La acción exige `brand` cargada. Además, `brand` pasa a lógica controlada con alertas de marca exacta/parecida para reducir duplicados por variaciones de escritura.
+
+**Archivos afectados:**
+
+- app/products/ProductFormFieldsShared.tsx
+- docs/docs-app-screens-products.md
+- docs/docs-modules-products-stock.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-05)
+- npm run build OK (2026-03-05)
+
+**Commit:** N/A
+
+## 2026-03-05 12:06 -03 — Seed demo compatible con unicidad por nombre normalizado
+
+**Tipo:** infra/tests/docs
+**Lote:** products-create-dedupe-hardening
+**Descripción:** Al intentar cargar datos de prueba, el seed falló por `duplicate key` en `products_org_name_normalized_uq` (productos semánticamente duplicados). Se corrigió `scripts/seed-demo-data.js` para deduplicar catálogo por `name` normalizado y priorizar productos `SMOKE-*` cuando hay colisión. Luego se ejecutó carga completa de datos de prueba con éxito.
+
+**Archivos afectados:**
+
+- scripts/seed-demo-data.js
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:seed:all OK (2026-03-05)
+- npm run lint OK (2026-03-05)
+
+**Commit:** N/A
+
+## 2026-03-05 13:20 -03 — Compra por paquete en productos + coherencia en orders/onboarding
+
+**Tipo:** schema/ui/docs/tests
+**Lote:** products-create-dedupe-hardening
+**Descripción:** Se incorporó configuración operativa de compra por paquete en catálogo (`purchase_by_pack`, `units_per_pack`) con validación DB/UI. En `/products` se agregó checkbox + input condicionado. En `/orders` y `/orders/[orderId]` se muestra equivalencia en paquetes debajo de cantidad a pedir/recibir cuando aplica. En `/onboarding` (edición masiva + resolvedor de incompletos) se agregó soporte para aplicar esta configuración en lote. Se actualizaron vistas DB y contratos de pantalla/módulos para mantener consistencia end-to-end.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260305130500_076_products_purchase_pack_and_orders_views.sql
+- app/products/product-form-contract.ts
+- app/products/ProductFormFieldsShared.tsx
+- app/products/NewProductForm.tsx
+- app/products/ProductActions.tsx
+- app/products/ProductListClient.tsx
+- app/products/page.tsx
+- app/orders/page.tsx
+- app/orders/OrderSuggestionsClient.tsx
+- app/orders/[orderId]/page.tsx
+- app/orders/ReceiveItemsPricingClient.tsx
+- app/onboarding/page.tsx
+- app/onboarding/BulkCreateSupplierModal.tsx
+- app/suppliers/[supplierId]/page.tsx
+- docs/docs-app-screens-products.md
+- docs/docs-app-screens-orders.md
+- docs/docs-app-screens-order-detail.md
+- docs/docs-app-screens-onboarding.md
+- docs/docs-modules-products-stock.md
+- docs/docs-modules-supplier-orders.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-03-05)
+- npm run lint OK (2026-03-05)
+- npm run build OK (2026-03-05)
+- npm run db:seed:all OK (2026-03-05)
+- npm run db:rls:smoke OK (2026-03-05)
+
+**Commit:** N/A

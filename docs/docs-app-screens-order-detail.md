@@ -55,6 +55,12 @@ Columnas:
 - diferencia (computed)
 - acciones: remover (solo draft)
 
+Comportamiento adicional (compra por paquete):
+
+- en recepción/control, si un producto tiene `purchase_by_pack=true`, debajo de
+  `received_qty` se muestra equivalencia en paquetes usando `units_per_pack`.
+- el dato persistido continúa siendo `received_qty` en unidades.
+
 ### Footer / Summary
 
 - Conteo items
@@ -175,8 +181,10 @@ Salida:
   - controlled_by_name, controlled_by_user_id, controlled_by_user_name
 - items[]:
   - order_item_id
-  - product_id, product_name
-  - ordered_qty
+- product_id, product_name
+- purchase_by_pack
+- units_per_pack
+- ordered_qty
   - received_qty
   - unit_cost (optional)
   - supplier_price (lookup auxiliar para default en UI)

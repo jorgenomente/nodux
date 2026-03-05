@@ -175,6 +175,9 @@ En detalle de pedido (`/orders/[orderId]`), el estado `draft` usa edición batch
 - Sugerido = promedio ventas 30 días \* ciclo + safety_stock - stock_on_hand
 - El ciclo se calcula por `order_frequency` (mensual = 30 días)
 - Se recomienda mostrar sugerido como ayuda, no obligatorio
+- Si producto `purchase_by_pack=true`, la UI muestra equivalencia sugerida en
+  paquetes (`suggested_qty / units_per_pack`) y equivalencia de cantidad cargada.
+  Persistencia sigue en unidades.
 
 ### R7) Pedidos especiales de clientes (MVP)
 

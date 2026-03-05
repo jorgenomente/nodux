@@ -86,6 +86,8 @@ Campos mínimos:
 - brand (opcional)
 - internal_code (opcional, recomendado)
 - barcode (opcional)
+- purchase_by_pack (checkbox, default false)
+- units_per_pack (entero > 1, requerido solo si `purchase_by_pack=true`)
 - sell_unit_type: unit | weight | bulk
 - uom (ej: kg)
 - unit_price (>= 0)
@@ -113,7 +115,18 @@ Reglas anti-duplicado (obligatorias):
 - No crear si ya existe producto en la org con el mismo `internal_code`.
 - No crear si ya existe producto en la org con el mismo `name` normalizado
   (trim + minúsculas), aunque no tenga códigos.
+- En alta, mientras se escribe `name`, la UI consulta catálogo existente y muestra
+  sugerencias/alertas de coincidencia para prevenir duplicados semánticos.
 - La UI debe informar el conflicto y ofrecer abrir/editar el producto existente.
+- En `internal_code`, la UI ofrece botón `Generar` para sugerir código consistente
+  a partir de `brand` + `name` (si `brand` está vacío no genera).
+- En `brand`, la UI muestra alertas/sugerencias de marcas existentes o parecidas
+  para reducir duplicados por variaciones ortográficas.
+- Configuración de compra proveedor:
+  - si `purchase_by_pack=true`, `units_per_pack` debe ser entero > 1.
+  - si `purchase_by_pack=false`, `units_per_pack` debe quedar `null`.
+  - esta configuración impacta sugeridos y recepción en `/orders` y
+    `/orders/[orderId]` (equivalencia unidades <-> paquetes).
 
 ### A2) Editar producto
 
@@ -170,6 +183,8 @@ Salida mínima por fila:
 - brand
 - internal_code
 - barcode
+- purchase_by_pack
+- units_per_pack
 - sell_unit_type
 - uom
 - unit_price

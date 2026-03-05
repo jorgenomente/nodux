@@ -52,6 +52,8 @@ Estado actual:
 - Bucket/policies de comprobantes de pedidos online en `supabase/migrations/20260302101500_069_online_order_proofs_storage_bucket.sql` (`online-order-proofs`).
 - Iteración checkout/tracking online en `supabase/migrations/20260302121000_070_online_store_checkout_tracking_iteration.sql` (`branches.storefront_whatsapp_phone`, `online_orders.customer_address`, checkout `pay_on_pickup` y tracking con ítems/total/datos cliente).
 - Imágenes de producto comprimidas y bucket dedicado en `supabase/migrations/20260303134000_074_product_images_bucket_and_products_view_image.sql` (`storage.buckets.product-images`, policies admin/superadmin y `v_products_admin.image_url`).
+- Hardening anti-duplicado de catálogo en `supabase/migrations/20260305113000_075_products_dedupe_hardening.sql` (`products.name_normalized`, `products.barcode_normalized`, índices únicos por org y normalización de códigos vacíos en `rpc_upsert_product`).
+- Compra por paquete en productos y propagación a contratos de pedidos/onboarding en `supabase/migrations/20260305130500_076_products_purchase_pack_and_orders_views.sql` (`products.purchase_by_pack`, `products.units_per_pack`, check de consistencia y rebuild de `v_products_admin`, `v_products_incomplete_admin`, `v_supplier_product_suggestions`, `v_order_detail_admin`).
 - Hardening de RPCs de usuarios para preservar actor de auditoría en alta/edición de membresía en `supabase/migrations/20260301162000_064_users_membership_rpcs_auth_context.sql` (`rpc_invite_user_to_org`, `rpc_update_user_membership` como `security definer` con validación explícita de rol/org/sucursales).
 - Hotfix de `rpc_invite_user_to_org` por ambigüedad de `user_id` en producción en `supabase/migrations/20260301170000_065_fix_rpc_invite_user_to_org_ambiguous_user_id.sql` y `supabase/migrations/20260301171500_066_fix_rpc_invite_user_to_org_out_param_conflict.sql` (se elimina conflicto de OUT param y queda salida `invited_user_id`).
 - Onboarding de datos maestros (jobs/rows de importación + vista de pendientes + RPCs de importación) en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks`, `rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
@@ -338,6 +340,10 @@ Estado actual:
 - `brand` (text, nullable)
 - `internal_code` (text, nullable)
 - `barcode` (text, nullable)
+- `name_normalized` (text, generated stored)
+- `barcode_normalized` (text, generated stored solo dígitos)
+- `purchase_by_pack` (boolean, default false)
+- `units_per_pack` (int, nullable)
 - `sell_unit_type` (sell_unit_type)
 - `uom` (text)
 - `unit_price` (numeric)
@@ -350,8 +356,13 @@ Estado actual:
 
 - unique (`org_id`, `internal_code`) where internal_code is not null
 - unique (`org_id`, `barcode`) where barcode is not null
-- Regla operativa de catálogo (2026-03-01): no duplicar `name` normalizado por org
-  (trim + minúsculas). Hardening DB/RPC pendiente en lote dedicado.
+- unique (`org_id`, `name_normalized`) where name_normalized is not null
+- unique (`org_id`, `barcode_normalized`) where barcode_normalized is not null
+- check `products_purchase_pack_consistency_ck`:
+  - `purchase_by_pack=false` => `units_per_pack is null`
+  - `purchase_by_pack=true` => `units_per_pack > 1`
+- `rpc_upsert_product` normaliza `internal_code` y `barcode` vacíos a `null` para
+  evitar colisiones por string vacío.
 - Regla operativa de imágenes (2026-03-03): upload en UI se comprime a JPG liviano y se guarda en `product-images` con path estable `org_id/product_id.jpg`.
 
 ---

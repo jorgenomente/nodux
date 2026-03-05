@@ -237,6 +237,9 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - acciones rapidas para completar proveedor primario, shelf_life_days y datos de pago
 - exportes maestros CSV para respaldo y portabilidad
 - hardening anti-duplicado de catálogo por org (barcode/internal_code/name normalizado)
+- compra por paquete en productos (configuración + equivalencias operativas en pedidos y recepción)
+
+**Estado**: EN PROGRESO
 
 ---
 
@@ -340,4 +343,6 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - 2026-03-04: `/products/lookup` agrega búsqueda por `barcode` exacto y entry point de escaneo con cámara (`Usar cámara`) para autocompletar y buscar al instante en sucursal activa, con fallback `Ingresar código` en navegadores sin `BarcodeDetector`.
 - 2026-02-27: `/demo` evoluciona a demo interactiva con login automático (`POST /demo/enter`) y guard de solo lectura para usuario demo vía `DEMO_READONLY_EMAILS`.
 - 2026-02-27: POS divide cierre de venta en `Cobrar` y `Cobrar y facturar`; ventas agregan estado fiscal (`is_invoiced`/`invoiced_at`), `/sales` y detalle habilitan `Emitir factura` + `Imprimir ticket` (copia no fiscal), y dashboard suma KPIs de facturación diaria (facturado/no facturado + % facturado).
-- 2026-03-01: decisión de catálogo global por org explicitada en docs + política anti-duplicado obligatoria para productos (`barcode`, `internal_code`, `name` normalizado). Queda pendiente hardening DB/RPC para unicidad por nombre.
+- 2026-03-01: decisión de catálogo global por org explicitada en docs + política anti-duplicado obligatoria para productos (`barcode`, `internal_code`, `name` normalizado).
+- 2026-03-05: hardening anti-duplicado aplicado en DB/RPC y UI de `/products`: unicidad por `name_normalized` y `barcode_normalized`, normalización de códigos vacíos a `null` en `rpc_upsert_product`, y sugerencias/alertas en tiempo real en alta de producto.
+- 2026-03-05: productos agrega configuración `se compra por paquete` + `unidades por paquete`; `/orders` y `/orders/[orderId]` muestran equivalencias en paquetes, y `/onboarding` permite aplicar esta configuración en edición masiva.

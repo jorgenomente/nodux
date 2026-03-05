@@ -39,6 +39,8 @@ Ultima actualizacion: 2026-03-03 13:40
 - Canonical de marketing definido: `www.nodux.app` redirige a `nodux.app` para evitar duplicidad SEO.
 - UI actualizada: /products, /suppliers y /suppliers/[supplierId] con proveedores primario/secundario y safety stock.
 - `/products/lookup` pasa de placeholder a lookup operativo mobile-first para Staff/OA, con búsqueda por nombre en cualquier orden de palabras, lookup por `barcode` exacto, botón `Usar cámara` para escaneo desde dispositivo y fallback `Ingresar código` en navegadores sin soporte, límite de resultados (30) y visualización de precio + stock por sucursal.
+- `/products` refuerza anti-duplicado en alta: sugerencias en tiempo real por nombre, alertas de posible duplicado por nombre/código interno/barcode y bloqueo de guardado ante match exacto; DB endurecida con `name_normalized` y `barcode_normalized` únicos por org.
+- Productos incorpora configuración de compra proveedor por paquete (`purchase_by_pack`, `units_per_pack`); `/orders` y `/orders/[orderId]` muestran equivalencias en paquetes al pedir/recibir y `/onboarding` permite aplicar esta configuración en edición masiva.
 - Sugeridos simples en /orders usando ventas 30 dias + safety stock.
 - Productos con vencimiento aproximado (dias) y batches automaticos al recibir pedidos.
 - Ventas consumen batches FEFO (best-effort) para evitar alertas falsas.

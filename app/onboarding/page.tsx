@@ -86,6 +86,8 @@ type ProductRow = {
   brand: string | null;
   internal_code: string | null;
   barcode: string | null;
+  purchase_by_pack: boolean | null;
+  units_per_pack: number | null;
   sell_unit_type: 'unit' | 'weight' | 'bulk' | null;
   uom: string | null;
   unit_price: number | null;
@@ -136,6 +138,8 @@ type BulkProductRow = {
   brand: string | null;
   internal_code: string | null;
   barcode: string | null;
+  purchase_by_pack: boolean | null;
+  units_per_pack: number | null;
   unit_price: number | null;
   shelf_life_days: number | null;
   is_active: boolean | null;
@@ -154,6 +158,9 @@ type BulkDraftState = {
   applyShelfLifeDays?: boolean;
   bulkShelfLifeDays?: string;
   bulkShelfLifeNoApplies?: boolean;
+  applyPurchaseByPack?: boolean;
+  bulkPurchaseByPack?: boolean;
+  bulkUnitsPerPack?: string;
   applyUnitPrice?: boolean;
   bulkUnitPrice?: string;
 };
@@ -1494,6 +1501,8 @@ export default async function OnboardingPage({
     const brand = String(formData.get('brand') ?? '').trim();
     const internalCode = String(formData.get('internal_code') ?? '').trim();
     const barcode = String(formData.get('barcode') ?? '').trim();
+    const purchaseByPack = formData.get('purchase_by_pack') === 'on';
+    const unitsPerPackRaw = String(formData.get('units_per_pack') ?? '').trim();
     const sellUnitType = String(formData.get('sell_unit_type') ?? 'unit') as
       | 'unit'
       | 'weight'
@@ -1549,6 +1558,19 @@ export default async function OnboardingPage({
         '/onboarding?resolver=products_incomplete_info&result=invalid&message=resolver_shelf_life',
       );
     }
+    const unitsPerPack = purchaseByPack
+      ? Number.parseInt(unitsPerPackRaw, 10)
+      : null;
+    if (
+      purchaseByPack &&
+      (unitsPerPackRaw === '' ||
+        Number.isNaN(unitsPerPack ?? Number.NaN) ||
+        Number(unitsPerPack) <= 1)
+    ) {
+      redirect(
+        '/onboarding?resolver=products_incomplete_info&result=invalid&message=resolver_units_per_pack',
+      );
+    }
 
     await actionSupabase.rpc('rpc_upsert_product', {
       p_product_id: productId,
@@ -1564,7 +1586,13 @@ export default async function OnboardingPage({
     });
     await actionSupabase
       .from('products' as never)
-      .update({ brand: brand || null } as never)
+      .update(
+        {
+          brand: brand || null,
+          purchase_by_pack: purchaseByPack,
+          units_per_pack: purchaseByPack ? unitsPerPack : null,
+        } as never,
+      )
       .eq('org_id', actionOrgId)
       .eq('id', productId);
 
@@ -1700,6 +1728,8 @@ export default async function OnboardingPage({
     const applySecondarySupplier =
       formData.get('apply_secondary_supplier') === 'on';
     const applyShelfLifeDays = formData.get('apply_shelf_life_days') === 'on';
+    const applyPurchaseByPack =
+      formData.get('apply_purchase_by_pack') === 'on';
     const applySupplierPrice = formData.get('apply_supplier_price') === 'on';
     const applyUnitPrice = formData.get('apply_unit_price') === 'on';
 
@@ -1708,6 +1738,7 @@ export default async function OnboardingPage({
       !applyPrimarySupplier &&
       !applySecondarySupplier &&
       !applyShelfLifeDays &&
+      !applyPurchaseByPack &&
       !applySupplierPrice &&
       !applyUnitPrice
     ) {
@@ -1771,6 +1802,25 @@ export default async function OnboardingPage({
         '/onboarding?result=invalid&message=bulk_shelf_life_invalid#bulk-products',
       );
     }
+    const bulkPurchaseByPack =
+      formData.get('bulk_purchase_by_pack') === 'on';
+    const bulkUnitsPerPackRaw = String(
+      formData.get('bulk_units_per_pack') ?? '',
+    ).trim();
+    const bulkUnitsPerPack = bulkPurchaseByPack
+      ? Number.parseInt(bulkUnitsPerPackRaw, 10)
+      : null;
+    if (
+      applyPurchaseByPack &&
+      bulkPurchaseByPack &&
+      (bulkUnitsPerPackRaw === '' ||
+        Number.isNaN(bulkUnitsPerPack ?? Number.NaN) ||
+        Number(bulkUnitsPerPack) <= 1)
+    ) {
+      redirect(
+        '/onboarding?result=invalid&message=bulk_units_per_pack_invalid#bulk-products',
+      );
+    }
 
     const supplierPriceRaw = String(
       formData.get('bulk_supplier_price') ?? '',
@@ -1808,6 +1858,10 @@ export default async function OnboardingPage({
     }
     if (applyShelfLifeDays) {
       productPatch.shelf_life_days = shelfLifeDays;
+    }
+    if (applyPurchaseByPack) {
+      productPatch.purchase_by_pack = bulkPurchaseByPack;
+      productPatch.units_per_pack = bulkPurchaseByPack ? bulkUnitsPerPack : null;
     }
     if (applyUnitPrice) {
       productPatch.unit_price = unitPrice;
@@ -2159,7 +2213,7 @@ export default async function OnboardingPage({
   let resolverRowsQuery = supabase
     .from('v_products_incomplete_admin' as never)
     .select(
-      'id, name, brand, internal_code, barcode, sell_unit_type, uom, unit_price, shelf_life_days, has_primary_supplier, missing_primary_supplier, missing_shelf_life, missing_identifier',
+      'id, name, brand, internal_code, barcode, purchase_by_pack, units_per_pack, sell_unit_type, uom, unit_price, shelf_life_days, has_primary_supplier, missing_primary_supplier, missing_shelf_life, missing_identifier',
     )
     .eq('org_id', orgId)
     .order('name')
@@ -2180,7 +2234,7 @@ export default async function OnboardingPage({
   let bulkRowsQuery = supabase
     .from('products' as never)
     .select(
-      'id, name, brand, internal_code, barcode, unit_price, shelf_life_days, is_active',
+      'id, name, brand, internal_code, barcode, purchase_by_pack, units_per_pack, unit_price, shelf_life_days, is_active',
     )
     .eq('org_id', orgId)
     .order('name')
@@ -2491,10 +2545,14 @@ export default async function OnboardingPage({
       'Proveedor primario y secundario no pueden ser el mismo.',
     bulk_shelf_life_invalid:
       'Vencimiento aproximado inválido. Debe ser entero >= 0 o marcar "No aplica vencimiento".',
+    bulk_units_per_pack_invalid:
+      'Unidades por paquete inválido. Debe ser entero > 1 cuando se compra por paquete.',
     bulk_supplier_price_invalid:
       'Precio proveedor inválido. Debe ser numérico y >= 0.',
     bulk_unit_price_invalid:
       'Precio unitario inválido. Debe ser numérico y >= 0.',
+    resolver_units_per_pack:
+      'Unidades por paquete inválido. Debe ser entero > 1 cuando se compra por paquete.',
     bulk_supplier_name_required: 'Nombre de proveedor requerido.',
     bulk_supplier_payment_terms_invalid:
       'Plazo de pago inválido. Debe ser entero >= 0.',
@@ -2877,6 +2935,8 @@ export default async function OnboardingPage({
                               brand: 'brand',
                               internalCode: 'internal_code',
                               barcode: 'barcode',
+                              purchaseByPack: 'purchase_by_pack',
+                              unitsPerPack: 'units_per_pack',
                               sellUnitType: 'sell_unit_type',
                               uom: 'uom',
                               primarySupplierId: 'primary_supplier_id',
@@ -2894,6 +2954,10 @@ export default async function OnboardingPage({
                               brand: product.brand ?? '',
                               internalCode: product.internal_code ?? '',
                               barcode: product.barcode ?? '',
+                              purchaseByPack: Boolean(
+                                product.purchase_by_pack ?? false,
+                              ),
+                              unitsPerPack: product.units_per_pack ?? '',
                               sellUnitType: product.sell_unit_type ?? 'unit',
                               uom: product.uom ?? 'unit',
                               primarySupplierId:
@@ -2980,7 +3044,8 @@ export default async function OnboardingPage({
           </div>
           <p className="mt-1 text-xs text-zinc-600">
             Buscá artículos, seleccioná en lote y aplicá solo los campos que
-            querés completar (marca, proveedores, vencimiento y precios).
+            querés completar (marca, proveedores, vencimiento, precios y compra
+            por paquete).
           </p>
 
           <form method="get" className="mt-3 grid gap-2 md:grid-cols-4">
@@ -3034,6 +3099,7 @@ export default async function OnboardingPage({
                     <th className="px-2 py-2">Marca</th>
                     <th className="px-2 py-2">Código</th>
                     <th className="px-2 py-2">Barcode</th>
+                    <th className="px-2 py-2">Compra</th>
                     <th className="px-2 py-2 text-right">P. venta</th>
                     <th className="px-2 py-2 text-right">Venc. días</th>
                     <th className="px-2 py-2">Proveedor primario</th>
@@ -3043,7 +3109,7 @@ export default async function OnboardingPage({
                 <tbody>
                   {bulkProducts.length === 0 ? (
                     <tr>
-                      <td className="px-2 py-3 text-zinc-500" colSpan={9}>
+                      <td className="px-2 py-3 text-zinc-500" colSpan={10}>
                         No hay productos para este filtro.
                       </td>
                     </tr>
@@ -3072,6 +3138,11 @@ export default async function OnboardingPage({
                         </td>
                         <td className="px-2 py-2 text-zinc-700">
                           {product.barcode ?? '-'}
+                        </td>
+                        <td className="px-2 py-2 text-zinc-700">
+                          {product.purchase_by_pack
+                            ? `Paquete x ${product.units_per_pack ?? '?'}`
+                            : 'Unidad'}
                         </td>
                         <td className="px-2 py-2 text-right text-zinc-700">
                           {product.unit_price ?? 0}
@@ -3256,6 +3327,39 @@ export default async function OnboardingPage({
                     />
                     No aplica vencimiento (usar 0)
                   </label>
+                </div>
+              </div>
+
+              <div className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 md:grid-cols-[260px_1fr] md:items-center">
+                <label className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+                  <input
+                    type="checkbox"
+                    name="apply_purchase_by_pack"
+                    defaultChecked={Boolean(bulkDraftState?.applyPurchaseByPack)}
+                  />
+                  Aplicar compra por paquete
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm text-zinc-700">
+                    <input
+                      type="checkbox"
+                      name="bulk_purchase_by_pack"
+                      defaultChecked={Boolean(bulkDraftState?.bulkPurchaseByPack)}
+                    />
+                    Se compra por paquete
+                  </label>
+                  <input
+                    type="number"
+                    name="bulk_units_per_pack"
+                    min="2"
+                    step="1"
+                    placeholder="Ej: 12"
+                    defaultValue={bulkDraftState?.bulkUnitsPerPack ?? ''}
+                    className="w-full rounded-lg border border-zinc-300 px-2 py-2 text-sm"
+                  />
+                  <p className="text-xs text-zinc-500">
+                    Solo se usa cuando “Se compra por paquete” está activo.
+                  </p>
                 </div>
               </div>
             </div>

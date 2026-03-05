@@ -37,6 +37,8 @@ type ProductRow = {
   brand?: string | null;
   internal_code: string | null;
   barcode: string | null;
+  purchase_by_pack?: boolean | null;
+  units_per_pack?: number | null;
   sell_unit_type: 'unit' | 'weight' | 'bulk' | null;
   uom: string | null;
   unit_price: number | null;
@@ -144,6 +146,12 @@ export default function ProductListClient({
                       {product.barcode || 'Sin barcode'}
                     </p>
                     <p className="text-xs text-zinc-500">
+                      Compra proveedor:{' '}
+                      {product.purchase_by_pack
+                        ? `Paquete x ${product.units_per_pack ?? '?'}`
+                        : 'Por unidad'}
+                    </p>
+                    <p className="text-xs text-zinc-500">
                       Marca: {product.brand || 'Sin marca'}
                     </p>
                   </div>
@@ -173,6 +181,12 @@ export default function ProductListClient({
                       brand={product.brand ?? ''}
                       internalCode={product.internal_code ?? null}
                       barcode={product.barcode ?? null}
+                      purchaseByPack={Boolean(product.purchase_by_pack)}
+                      unitsPerPack={
+                        product.units_per_pack == null
+                          ? null
+                          : Number(product.units_per_pack)
+                      }
                       sellUnitType={
                         (product.sell_unit_type ?? 'unit') as
                           | 'unit'
