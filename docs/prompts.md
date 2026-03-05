@@ -12,6 +12,14 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-03-05 14:54 -03 — Landing: alineacion con docs marketing (13/14/15)
+
+**Lote:** landing-marketing-architecture-v2
+**Objetivo:** Revisar nuevos docs de `docs/Marketing` y redisenar `/landing` con foco en narrativa de categoria, brand voice y conversion a demo.
+
+**Prompt**
+acabo de agregar una carpeta a docs que se llama marketing. necesito que los revises y despues me ayudes y que tomes los docs que nos ayuden a mejorar la landing page. el 13, 14, 15 principalmente pero puedes tomar toda la info que consideras necesaria para modificar la landing actual
+
 ## 2026-03-02 17:46 -03 — Online orders: detalle de ítems y cobro en POS
 
 **Lote:** online-store-iteration-checkout-whatsapp-tracking
@@ -3119,3 +3127,19 @@ vamos a insertar ahora datos de prueba
 
 **Prompt**
 excelente. hay una cosa mas que me gustaria agregar que es un poco mas compleja asi que voy a necesitar que seas muy cuidadoso. Hay productos que al proveedor se compran por cajas, no por unidad. entonces aqui en el formulario de producto debemos agregar un check marck que diga se compra por paquete y al activarlo debe activarse un input que diga unidades por paquete. esto lo que me permite es que al momento de yo hacer el pedido al proveeedor no pida 24 alfajores sino 2 cajas de 12 unidades. Las implicaciiones que esto tiene es que luego en /orders al crear un nuevo pedido debajo del input de cantidad a pedir deberia decirme un sugerido de acuerdo a las cantidades que vienen en el paquete, por ejemplo si el sugerido me da 6 y el paquete viene de a 3 unidades entonces el sugerido debajo del input deberia decir 2 paquetes. luego en /orders/id a la hora de confirmar la recepecion del producto debajo del input de cantidad recibida deberia tambien decirme cuantas cajas o paquetes son de acuerdo a esta configuracion. No se en que otro contexto esto es necesario que sea tomado en cuenta pero a eso me refiero que todo debe estar conectado y mantener la coherencia. chequea los docs que sean necesarios para que no se rompa nada. Ah ya, el onboarding en edicion masiva de productos tambien esta deberia ser una opcion a la que podemos agregar de forma masiva, si yo se que productos vienen en paquetes de 12, por ejemplo, los puedo seleccionar y deberia darme una opcion de aplicar viene en paquete de y el input de la cantidad siguiendo la misma logica de lo que ya existe en esa pantalla de /onboarding
+
+## 2026-03-05 15:20 -03 — Fix duplicate key al cambiar proveedor primario en productos
+
+**Lote:** products-create-dedupe-hardening
+**Objetivo:** Resolver error `supplier_products_org_id_supplier_id_product_id_key` al promover un proveedor ya asociado como secundario hacia primario para el mismo producto.
+
+**Prompt**
+estoy intentado cambiar el proveedor primario de un producto Alfajor chocolate blanco a proveedor seed caja y me dice No se pudo actualizar proveedor primario: duplicate key value violates unique constraint "supplier_products_org_id_supplier_id_product_id_key" puedes chequear que esta pasando?
+
+## 2026-03-05 12:07 -03 — Carga de artículos de prueba (seed demo)
+
+**Lote:** products-create-dedupe-hardening
+**Objetivo:** Insertar artículos y datos operativos de prueba para validar flujos de catálogo/pedidos.
+
+**Prompt**
+agrega articulos de prueba

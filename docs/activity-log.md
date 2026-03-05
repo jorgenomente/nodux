@@ -18,6 +18,30 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-03-05 14:54 -03 — Landing v2: arquitectura marketing y conversion a demo
+
+**Tipo:** ux
+**Lote:** landing-marketing-architecture-v2
+**Alcance:** frontend, docs, tests
+
+**Resumen**
+Se rediseño `/landing` tomando como fuente principal `docs/Marketing/13`, `14` y `15` (mas narrativa/posicionamiento complementario), pasando de una landing corta a una arquitectura completa de conversion: hero de categoria, problema retail, caos operativo, cambio de perspectiva (Retail Operating System), capacidades, comercio unificado, beneficios, credibilidad y cierre con CTA principal a demo.
+
+**Archivos**
+
+- app/landing/page.tsx
+- docs/docs-app-screens-landing.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-03-05)
+- `npm run build` OK (2026-03-05)
+
+**Commit:** N/A
+
 ## 2026-03-01 21:45 -03 — PM-2 v1: comprobantes online (tracking público + revisión interna)
 
 **Tipo:** feature
@@ -8479,5 +8503,43 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 - npm run build OK (2026-03-05)
 - npm run db:seed:all OK (2026-03-05)
 - npm run db:rls:smoke OK (2026-03-05)
+
+**Commit:** N/A
+
+## 2026-03-05 15:20 -03 — Fix duplicate key al cambiar proveedor primario
+
+**Tipo:** schema/docs/tests
+**Lote:** products-create-dedupe-hardening
+**Descripción:** Se corrigió `rpc_upsert_supplier_product` para soportar promoción/democión de proveedor entre `primary` y `secondary` cuando es el mismo proveedor-producto. Antes, al actualizar la relación por tipo, podía colisionar con la unicidad `(org_id, supplier_id, product_id)` y fallar con `duplicate key`. Ahora la RPC limpia primero la relación opuesta del mismo proveedor-producto y luego ejecuta el upsert.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260305152000_077_fix_supplier_product_promote_same_supplier.sql
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-03-05)
+- npm run db:rls:smoke OK (2026-03-05)
+
+**Commit:** N/A
+
+## 2026-03-05 12:07 -03 — Seed demo: artículos de prueba
+
+**Tipo:** infra
+**Lote:** products-create-dedupe-hardening
+**Descripción:** Se ejecutó carga de datos demo para agregar artículos de prueba y dataset operativo en local.
+
+**Archivos afectados:**
+
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- npm run db:seed:demo OK (2026-03-05)
 
 **Commit:** N/A

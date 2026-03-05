@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-03-03 13:40
+Ultima actualizacion: 2026-03-05 14:54
 
 ## Estado general
 
@@ -32,6 +32,7 @@ Ultima actualizacion: 2026-03-03 13:40
 
 ## Estado reciente
 
+- `/landing` fue redisenada segun arquitectura de marketing (docs 13/14/15): narrativa completa Problema -> Categoria -> Solucion -> Beneficios -> CTA, con foco en conversion a demo y posicionamiento `Retail Operating System`.
 - Nueva ruta pública `/landing` implementada para explicar qué es NODUX (propuesta de valor, módulos core y CTA a login/demo) sin interferir con el flujo autenticado.
 - Nueva ruta pública `/demo` implementada como recorrido seguro de producto (solo lectura y datos ficticios), accesible desde `/landing`.
 - `/demo` agrega entrypoint `Probar demo interactiva`: login automático con cuenta demo de entorno y bloqueo de escritura para ese usuario (modo solo lectura en `proxy`).

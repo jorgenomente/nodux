@@ -34,25 +34,61 @@ Explicar que es NODUX, para quien esta pensado y guiar a una accion comercial
 
 ### Hero
 
-- Propuesta de valor clara de NODUX.
-- CTA principal: `Empezar ahora` -> `/login`.
-- CTA secundaria: `Ver demo publica` -> `/demo` (incluye entrypoint a demo interactiva).
-- CTA comercial: `Solicitar demo` (mailto en MVP).
+- Headline: `El sistema operativo de tu tienda`.
+- Subheadline orientado a control operativo (ventas, inventario, caja, compras).
+- CTA principal: `Solicitar demo` (mailto en MVP).
+- CTA secundaria: `Ver como funciona` -> `/demo`.
+- CTA terciaria: `Empezar ahora` -> `https://app.nodux.app/login` (o `/login` en entorno local).
+- Visual de flujo operativo conectado (Mercancia -> Inventario -> Ventas -> Caja -> Compras -> Pagos -> Reposicion).
 
-### Problema -> Solucion
+### Problema del retail + caos operativo
 
-- 3 bullets de dolores operativos que NODUX resuelve.
+- Bloques de dolores concretos del retail:
+  - inventario que no coincide
+  - vencimientos detectados tarde
+  - pedidos improvisados
+  - cierres de caja confusos
+  - canal online desconectado
+  - falta de visibilidad multi-sucursal
 
-### Modulos clave
+### Cambio de perspectiva / categoria
 
-- Ventas/Caja
-- Stock/Vencimientos
-- Compras/Proveedores
+- Introducir categoria: `Retail Operating System`.
+- Mensaje clave: no es otro POS ni un ERP; es infraestructura operativa conectada.
 
-### Cierre
+### Que hace NODUX (modulos)
+
+- Ventas + POS
+- Inventario y vencimientos
+- Caja auditable
+- Compras y proveedores
+- Control multi-sucursal
+- Tienda online conectada
+
+### Comercio unificado
+
+- Explicar flujo BOPIS (cliente -> tienda online -> sucursal -> pedido listo -> retiro).
+
+### Beneficios operativos
+
+- Traducir modulos a resultados:
+  - menos vencidos
+  - menos quiebres/sobrestock
+  - compras basadas en datos
+  - caja trazable
+  - mas control para el dueno
+
+### Credibilidad
+
+- Reforzar origen en operacion real de tiendas retail.
+- Mantener tono de autoridad practica, no lenguaje SaaS abstracto.
+
+### Cierre / conversion
 
 - Reafirmar enfoque DB-first / RLS-first.
-- CTA final a login/demo.
+- CTA final principal: `Solicitar demo`.
+- CTA final secundaria: `Hablar con el fundador`.
+- CTA final adicional: `Ver demo publica`.
 
 ---
 
@@ -95,12 +131,17 @@ Explicar que es NODUX, para quien esta pensado y guiar a una accion comercial
 1. Abrir `/landing` sin sesion.
 2. Ver contenido completo y CTAs visibles.
 
-### LP-02: CTA login
+### LP-02: CTA principal de conversion
 
-1. Click en `Empezar ahora`.
-2. Navega a `/login`.
+1. Click en `Solicitar demo`.
+2. Abre `mailto:hola@nodux.app` con asunto de demo.
 
-### LP-03: acceso con sesion activa
+### LP-03: CTA demo publica
+
+1. Click en `Ver como funciona` o `Ver demo publica`.
+2. Navega a `/demo`.
+
+### LP-04: acceso con sesion activa
 
 1. Estar autenticado.
 2. Abrir `/landing` por URL directa.
