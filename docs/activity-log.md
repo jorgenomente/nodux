@@ -42,6 +42,27 @@ Se rediseño `/landing` tomando como fuente principal `docs/Marketing/13`, `14` 
 
 **Commit:** N/A
 
+## 2026-03-05 16:10 -03 — DB push remoto: preflight anti-duplicados en productos
+
+**Tipo:** db
+**Lote:** products-create-dedupe-hardening
+**Alcance:** db, docs
+
+**Resumen**
+`npx supabase db push` remoto quedo bloqueado por duplicados historicos de productos al crear el indice unico `products_org_name_normalized_uq` en migracion `075`. Se agrego migracion preflight `074` para normalizar y resolver duplicados antes de endurecer constraints: renombra nombres duplicados (manteniendo filas) y limpia barcode en duplicados secundarios. Luego se aplicaron exitosamente `074`, `075`, `076` y `077` en remoto.
+
+**Archivos**
+
+- supabase/migrations/20260305112000_074_products_dedupe_preflight.sql
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npx supabase db push --yes` OK (2026-03-05)
+
+**Commit:** N/A
+
 ## 2026-03-01 21:45 -03 — PM-2 v1: comprobantes online (tracking público + revisión interna)
 
 **Tipo:** feature

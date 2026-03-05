@@ -20,6 +20,14 @@ Formato sugerido:
 **Prompt**
 acabo de agregar una carpeta a docs que se llama marketing. necesito que los revises y despues me ayudes y que tomes los docs que nos ayuden a mejorar la landing page. el 13, 14, 15 principalmente pero puedes tomar toda la info que consideras necesaria para modificar la landing actual
 
+## 2026-03-05 16:10 -03 — DB push remoto bloqueado por duplicados en productos
+
+**Lote:** products-create-dedupe-hardening
+**Objetivo:** Desbloquear `npx supabase db push` remoto creando preflight de deduplicación previa a índices únicos de `name_normalized`/`barcode_normalized`.
+
+**Prompt**
+ok tambien vamos a hacer el npx supabase db push
+
 ## 2026-03-02 17:46 -03 — Online orders: detalle de ítems y cobro en POS
 
 **Lote:** online-store-iteration-checkout-whatsapp-tracking
