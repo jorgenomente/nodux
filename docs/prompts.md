@@ -3407,3 +3407,11 @@ depuremos el runner live
 
 **Prompt**
 implementemos render del comprobante.
+
+## 2026-03-09 13:55 -03 — ARCA UX: mejora visual del comprobante fiscal
+
+**Lote:** arca-lote-4j-fiscal-invoice-ux
+**Objetivo:** Mejorar la legibilidad del comprobante fiscal mostrando un emisor legible, QR visible y composición visual más clara.
+
+**Prompt**
+sigamos con el sublote UX

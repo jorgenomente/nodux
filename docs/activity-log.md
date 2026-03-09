@@ -41,6 +41,27 @@ Se creó `docs/ARCA/activity-log.md` como bitácora específica del módulo fisc
 
 **Commit:** N/A
 
+## 2026-03-09 13:55 -03 — ARCA UX: mejora visual del comprobante fiscal
+
+**Tipo:** ui/tests/docs
+**Lote:** arca-lote-4j-fiscal-invoice-ux
+**Descripción:** Se mejoró la experiencia visual de `/sales/[saleId]/invoice`: ahora resuelve un emisor legible con fallback por rol, genera un QR visible con la librería `qrcode`, reordena el contenido en bloques de emisión/validación/totales y deja el payload QR colapsado bajo demanda.
+
+**Archivos afectados:**
+
+- app/sales/[saleId]/invoice/page.tsx
+- package.json
+- package-lock.json
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Commit:** N/A
+
 ## 2026-03-09 13:05 -03 — ARCA render MVP: cierre de render_pending y visualización del comprobante
 
 **Tipo:** schema/backend/ui/docs/tests

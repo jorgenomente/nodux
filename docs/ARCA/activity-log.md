@@ -51,6 +51,30 @@ Se corrigieron referencias internas hacia `docs/ARCA/...`, se limpiaron envoltor
 **Estado:** DONE
 **Commit:** N/A
 
+## 2026-03-09 13:55 -03 — Lote 4J UX: mejora visual del comprobante fiscal
+
+**Lote:** arca-lote-4j-fiscal-invoice-ux
+**Tipo:** ui/tests/docs
+**Objetivo:** Mejorar la presentación del comprobante fiscal ya renderizado sin cambiar el pipeline fiscal.
+
+**Resumen**
+La pantalla `/sales/[saleId]/invoice` ahora muestra una composición más clara para operación y reimpresión: header con bloque de comprobante, secciones separadas de emisión y validación fiscal, totales más legibles y QR visible generado localmente con `qrcode`. También se resolvió el problema de `Emitido por` cuando `v_sale_detail_admin.created_by_name` trae UUID, usando `org_users` como fallback y, si no hay `display_name`, una etiqueta por rol.
+
+**Archivos**
+- app/sales/[saleId]/invoice/page.tsx
+- package.json
+- package-lock.json
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Validación**
+- `npm run lint`: OK
+- `npm run build`: OK
+
+**Estado:** DONE
+**Commit:** N/A
+
 ## 2026-03-09 13:05 -03 — Lote 4I render MVP: cierre de render_pending y comprobante visible
 
 **Lote:** arca-lote-4i-fiscal-render-mvp
