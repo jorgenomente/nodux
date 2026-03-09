@@ -18,6 +18,7 @@ Auditar ventas de forma rápida para control operativo de caja.
 - Ver desglose de cobros por medio.
 - Acceder al detalle y corrección auditada del cobro.
 - Emitir factura para ventas no facturadas.
+  Esto debe encolar un `invoice_job` fiscal en ambiente `prod` y no puede ejecutarse desde el flujo `Cobrar` simple.
 - Imprimir ticket no fiscal de cualquier venta.
 
 ## UI
@@ -56,6 +57,7 @@ Cada fila muestra:
 - estado fiscal + fecha de facturación (si aplica)
 - total
 - acciones: “Ver detalle”, “Imprimir ticket”, “Emitir factura” (si no facturada)
+  `Emitir factura` debe usar `rpc_enqueue_sale_fiscal_invoice(..., p_environment='prod', ...)` y luego actualizar el estado visible de la venta.
 
 ## Data Contract
 

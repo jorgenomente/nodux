@@ -228,7 +228,7 @@ export default async function SalesPage({
       ? resolvedSearchParams.notice
       : '';
 
-  const markSaleAsInvoiced = async (formData: FormData) => {
+  const emitSaleInvoice = async (formData: FormData) => {
     'use server';
 
     const actionSession = await getOrgMemberSession();
@@ -241,12 +241,31 @@ export default async function SalesPage({
       redirect('/sales?notice=invoice_missing_sale');
     }
 
+    const { error: enqueueError } = await actionSession.supabase.rpc(
+      'rpc_enqueue_sale_fiscal_invoice' as never,
+      {
+        p_org_id: actionSession.orgId,
+        p_sale_id: saleId,
+        p_environment: 'prod',
+        p_cbte_tipo: 11,
+        p_doc_tipo: 99,
+        p_doc_nro: 0,
+        p_source: 'sales_list_emit_invoice',
+      } as never,
+    );
+
+    if (enqueueError) {
+      redirect(
+        `/sales?notice=invoice_error:${encodeURIComponent(enqueueError.message)}`,
+      );
+    }
+
     const { error } = await actionSession.supabase.rpc(
       'rpc_mark_sale_invoiced' as never,
       {
         p_org_id: actionSession.orgId,
         p_sale_id: saleId,
-        p_source: 'sales_list',
+        p_source: 'sales_list_emit_invoice',
       } as never,
     );
 
@@ -258,7 +277,7 @@ export default async function SalesPage({
       redirect(`/sales?notice=invoice_error:${encodeURIComponent(error.message)}`);
     }
 
-    redirect('/sales?notice=invoice_marked');
+    redirect('/sales?notice=invoice_queued');
   };
 
   let query = supabase
@@ -351,9 +370,9 @@ export default async function SalesPage({
         </header>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-4">
-          {notice === 'invoice_marked' ? (
+          {notice === 'invoice_queued' ? (
             <div className="mb-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              Venta marcada como facturada.
+              Facturación fiscal iniciada. La venta quedó encolada para procesamiento.
             </div>
           ) : null}
           {notice === 'invoice_missing_sale' ? (
@@ -642,7 +661,7 @@ export default async function SalesPage({
                             Imprimir ticket
                           </Link>
                           {!sale.is_invoiced && role !== 'staff' ? (
-                            <form action={markSaleAsInvoiced}>
+                            <form action={emitSaleInvoice}>
                               <input type="hidden" name="sale_id" value={sale.sale_id} />
                               <button
                                 type="submit"

@@ -242,7 +242,7 @@ export default async function SaleDetailPage({
     redirect(`/sales/${saleId}?notice=payment_corrected`);
   };
 
-  const markSaleAsInvoiced = async () => {
+  const emitSaleInvoice = async () => {
     'use server';
 
     const actionSession = await getOrgMemberSession();
@@ -250,12 +250,31 @@ export default async function SaleDetailPage({
       redirect('/no-access');
     }
 
+    const { error: enqueueError } = await actionSession.supabase.rpc(
+      'rpc_enqueue_sale_fiscal_invoice' as never,
+      {
+        p_org_id: actionSession.orgId,
+        p_sale_id: saleId,
+        p_environment: 'prod',
+        p_cbte_tipo: 11,
+        p_doc_tipo: 99,
+        p_doc_nro: 0,
+        p_source: 'sale_detail_emit_invoice',
+      } as never,
+    );
+
+    if (enqueueError) {
+      redirect(
+        `/sales/${saleId}?notice=invoice_error:${encodeURIComponent(enqueueError.message)}`,
+      );
+    }
+
     const { error } = await actionSession.supabase.rpc(
       'rpc_mark_sale_invoiced' as never,
       {
         p_org_id: actionSession.orgId,
         p_sale_id: saleId,
-        p_source: 'sale_detail',
+        p_source: 'sale_detail_emit_invoice',
       } as never,
     );
 
@@ -269,7 +288,7 @@ export default async function SaleDetailPage({
       );
     }
 
-    redirect(`/sales/${saleId}?notice=invoice_marked`);
+    redirect(`/sales/${saleId}?notice=invoice_queued`);
   };
 
   const notice =
@@ -308,9 +327,19 @@ export default async function SaleDetailPage({
             Método de pago corregido y auditado.
           </p>
         ) : null}
+        {notice === 'invoice_queued' ? (
+          <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            Facturación fiscal iniciada. La venta quedó encolada para procesamiento.
+          </p>
+        ) : null}
         {notice === 'missing_fields' ? (
           <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
             Completa método y motivo para aplicar la corrección.
+          </p>
+        ) : null}
+        {notice.startsWith('invoice_error:') ? (
+          <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            {decodeURIComponent(notice.replace('invoice_error:', ''))}
           </p>
         ) : null}
         {notice.startsWith('error:') ? (
@@ -318,18 +347,6 @@ export default async function SaleDetailPage({
             Error: {decodeURIComponent(notice.replace('error:', ''))}
           </p>
         ) : null}
-        {notice === 'invoice_marked' ? (
-          <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-            Venta marcada como facturada.
-          </p>
-        ) : null}
-        {notice.startsWith('invoice_error:') ? (
-          <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            Error al facturar:{' '}
-            {decodeURIComponent(notice.replace('invoice_error:', ''))}
-          </p>
-        ) : null}
-
         <section className="grid gap-3 md:grid-cols-4">
           <article className="rounded-xl border border-zinc-200 bg-white p-4">
             <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
@@ -398,7 +415,7 @@ export default async function SaleDetailPage({
               Imprimir ticket
             </Link>
             {!sale.is_invoiced && role !== 'staff' ? (
-              <form action={markSaleAsInvoiced}>
+              <form action={emitSaleInvoice}>
                 <button
                   type="submit"
                   className="rounded border border-emerald-300 px-3 py-2 text-sm text-emerald-700"

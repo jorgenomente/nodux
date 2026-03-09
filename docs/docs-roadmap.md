@@ -3,7 +3,7 @@
 Este documento ordena el trabajo en fases logicas para avanzar el MVP de forma consistente.
 Debe actualizarse cada vez que se complete una fase o se cambie el plan.
 
-Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
+Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada, Fase 7 en progreso) + **track fiscal ARCA post-MVP activo**.
 
 ---
 
@@ -240,6 +240,97 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada).
 - compra por paquete en productos (configuración + equivalencias operativas en pedidos y recepción)
 
 **Estado**: EN PROGRESO
+
+---
+
+## Track paralelo post-MVP — ARCA / Facturación fiscal
+
+**Objetivo**: preparar la base técnica de facturación electrónica AFIP / ARCA sin contaminar el scope del MVP operativo actual.
+
+**Regla**:
+
+- este track corre en paralelo como preparación post-MVP
+- no redefine el alcance del MVP en `docs/docs-scope-mvp.md`
+- no habilita UI/rollout operativo hasta completar homologación end-to-end
+
+### ARCA-0 — Baseline y freeze
+
+**Estado**: COMPLETA
+
+**Notas**:
+
+- baseline/freeze documentado en `docs/ARCA/operations/afip-arca-lote-0-baseline-freeze.md`
+- índice maestro y bitácora específica ARCA creados
+
+### ARCA-1 — DB core fiscal
+
+**Estado**: COMPLETA
+
+**Notas**:
+
+- migraciones reales portadas en `supabase/migrations/20260308220000_078_fiscal_core.sql`
+- helpers/RPC fiscales portados en `supabase/migrations/20260308221500_079_fiscal_helpers_and_rpc.sql`
+- `npm run db:reset` y smoke RLS mínimos validados al cierre del lote
+
+### ARCA-2 — Worker runtime base
+
+**Estado**: COMPLETA
+
+**Notas**:
+
+- runtime inicial implementado en `lib/fiscal/*`
+- incluye tipos compartidos, logger, wrappers RPC, loaders y resolución de credenciales/POS
+- todavía sin WSAA/WSFE real, sin render real y sin reconciliación externa
+
+### ARCA-3 — Homologación backend end-to-end
+
+**Estado**: EN PROGRESO
+
+**Incluye**:
+
+- WSAA real (TRA, firma, cache de TA, renovación)
+- WSFEv1 real (`FECAESolicitar` + normalización de respuesta)
+- clasificación de errores y paso correcto a `authorized` / `rejected` / `pending_reconcile`
+- puente interno `sale -> sale_document -> invoice_job`
+- validación de homologación sin mezclar UI pública
+
+**Notas**:
+
+- WSAA real, capa WSFE y puente `sale -> sale_document -> invoice_job` ya implementados
+- homologación sigue bloqueada por `cms.cert.untrusted` en WSAA
+- producción quedó validada en modo seguro (`WSAA + FEDummy`)
+- backend incorpora `prod-safe` para cortar antes de `FECAESolicitar` y evitar emisión real accidental
+- gate org-wide `org_preferences.fiscal_prod_enqueue_enabled` agregado para controlar enqueue `prod` desde operación
+
+### ARCA-4 — Render y reconciliación mínima
+
+**Estado**: PENDIENTE
+
+**Incluye**:
+
+- QR fiscal
+- PDF básico
+- ticket térmico básico
+- persistencia de artefactos
+- cierre de `render_pending`
+- reconciliación automática mínima para `pending_reconcile`
+
+### ARCA-5 — Onboarding/configuración fiscal operativa
+
+**Estado**: EN PROGRESO
+
+**Incluye**:
+
+- carga segura de credenciales por tenant/ambiente
+- configuración de puntos de venta
+- pruebas operativas de homologación
+- gates de activación por tenant/sucursal
+
+**Notas**:
+
+- `/settings/fiscal` ya permite cargar `.crt/.key`, cifrar private key y guardar `fiscal_credentials`
+- `/settings/fiscal` también configura `points_of_sale` por sucursal/ambiente
+- todavía faltan pruebas guiadas desde la UI y activación operativa completa por tenant
 
 ---
 

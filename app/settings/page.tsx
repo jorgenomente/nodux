@@ -25,6 +25,12 @@ const SETTINGS_LINKS = [
       'Configurar plantillas por sucursal para ticket no fiscal y comprobante fiscal de prueba.',
   },
   {
+    href: '/settings/fiscal',
+    title: 'Facturacion fiscal',
+    description:
+      'Asociar certificado fiscal de la ORG y configurar puntos de venta por sucursal.',
+  },
+  {
     href: '/settings/staff-permissions',
     title: 'Permisos de staff',
     description: 'Habilitar o deshabilitar modulos para personal operativo.',

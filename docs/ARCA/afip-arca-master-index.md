@@ -24,6 +24,7 @@ Objetivos:
 ```text
 docs/ARCA/
   afip-arca-master-index.md
+  activity-log.md
 
   architecture/
     afip-arca-fiscal-service.md
@@ -42,6 +43,10 @@ docs/ARCA/
     afip-arca-reconciliation-playbook.md
     afip-arca-testing-strategy.md
     afip-arca-codex-task-prompts.md
+
+  operations/
+    afip-arca-lote-0-baseline-freeze.md
+    fiscal-onboarding-playbook.md
 
   architecture/modelo de implementacion.md              (legacy)
   configuracion fiscal.md                               (legacy)
@@ -66,6 +71,7 @@ docs/ARCA/
 12. `docs/ARCA/implementation/afip-arca-reconciliation-playbook.md`
 13. `docs/ARCA/implementation/afip-arca-testing-strategy.md`
 14. `docs/ARCA/implementation/afip-arca-codex-task-prompts.md`
+15. `docs/ARCA/operations/afip-arca-lote-0-baseline-freeze.md`
 
 ---
 
@@ -73,6 +79,7 @@ docs/ARCA/
 
 | Tema | Documento canónico |
 | --- | --- |
+| Historial por lote (ARCA) | `docs/ARCA/activity-log.md` |
 | Arquitectura general | `docs/ARCA/architecture/afip-arca-fiscal-service.md` |
 | Modelo de datos | `docs/ARCA/architecture/afip-arca-data-model.md` |
 | Máquina de estados | `docs/ARCA/architecture/afip-arca-state-machine.md` |
@@ -86,6 +93,8 @@ docs/ARCA/
 | Reconciliación | `docs/ARCA/implementation/afip-arca-reconciliation-playbook.md` |
 | Testing | `docs/ARCA/implementation/afip-arca-testing-strategy.md` |
 | Prompts de ejecución | `docs/ARCA/implementation/afip-arca-codex-task-prompts.md` |
+| Baseline y freeze | `docs/ARCA/operations/afip-arca-lote-0-baseline-freeze.md` |
+| Onboarding operativo | `docs/ARCA/operations/fiscal-onboarding-playbook.md` |
 
 ---
 

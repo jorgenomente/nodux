@@ -315,6 +315,14 @@ const buildProducts = (supplierIndex) => {
   return catalog.items.map((item, idx) => {
     const suffix = String(idx + 1).padStart(2, '0');
     const jitter = randFloat(-0.08, 0.08, 2);
+    const packUnits =
+      supplierIndex === 0 && idx === 5
+        ? 10
+        : supplierIndex === 1 && idx <= 3
+          ? 6
+          : supplierIndex === 2 && idx >= 3 && idx <= 4
+            ? 12
+            : null;
     return {
       name: item.name,
       internal_code: `${catalog.prefix}-${suffix}`,
@@ -322,6 +330,8 @@ const buildProducts = (supplierIndex) => {
       sell_unit_type: 'unit',
       uom: 'unit',
       unit_price: Number((item.base_price * (1 + jitter)).toFixed(2)),
+      purchase_by_pack: packUnits != null,
+      units_per_pack: packUnits,
       shelf_life_days: item.shelf_life_days,
       is_active: true,
     };
@@ -340,6 +350,178 @@ const isoDateFromOffset = (offsetDays) => {
   date.setDate(date.getDate() + offsetDays);
   return date.toISOString().slice(0, 10);
 };
+
+const sliceProductsForScenario = (products, startIndex = 0, count = 4) => {
+  if (!Array.isArray(products) || products.length === 0) return [];
+  return Array.from({ length: Math.min(count, products.length) }, (_, idx) => {
+    return products[(startIndex + idx) % products.length];
+  });
+};
+
+const purchaseOrderSeeds = [
+  {
+    label: 'borrador-palermo-cafe',
+    supplierIndex: 0,
+    branchId: BRANCH_A,
+    status: 'draft',
+    daysAgo: 0,
+    expectedReceiveOffsetDays: 1,
+    note: '[SEED COMPRA] Palermo borrador de cafeteria para ajustar sugeridos',
+    productOffset: 0,
+    itemCount: 4,
+    baseQty: 4,
+  },
+  {
+    label: 'borrador-caballito-yerba',
+    supplierIndex: 1,
+    branchId: BRANCH_B,
+    status: 'draft',
+    daysAgo: 1,
+    expectedReceiveOffsetDays: 3,
+    note: '[SEED COMPRA] Caballito borrador para revisar compra por paquete',
+    productOffset: 1,
+    itemCount: 4,
+    baseQty: 5,
+  },
+  {
+    label: 'enviado-palermo-chocolate',
+    supplierIndex: 2,
+    branchId: BRANCH_A,
+    status: 'sent',
+    daysAgo: 1,
+    expectedReceiveOffsetDays: 2,
+    note: '[SEED COMPRA] Palermo pedido enviado listo para recepcion',
+    productOffset: 0,
+    itemCount: 5,
+    baseQty: 6,
+    payableScenario: {
+      invoiceMultiplier: 1.01,
+      dueOffsetDays: 3,
+      method: 'transfer',
+      note: 'Transferencia pendiente, vencimiento proximo',
+      paymentSlices: [],
+    },
+  },
+  {
+    label: 'enviado-caballito-cafe-vencido',
+    supplierIndex: 0,
+    branchId: BRANCH_B,
+    status: 'sent',
+    daysAgo: 4,
+    expectedReceiveOffsetDays: -1,
+    note: '[SEED COMPRA] Caballito pedido enviado con recepcion vencida',
+    productOffset: 2,
+    itemCount: 4,
+    baseQty: 7,
+    payableScenario: {
+      invoiceMultiplier: 1.03,
+      dueOffsetDays: -2,
+      method: 'transfer',
+      note: 'Factura vencida pendiente de pago',
+      paymentSlices: [],
+    },
+  },
+  {
+    label: 'recibido-palermo-yerba',
+    supplierIndex: 1,
+    branchId: BRANCH_A,
+    status: 'received',
+    daysAgo: 5,
+    expectedReceiveOffsetDays: 0,
+    note: '[SEED COMPRA] Palermo recepcion parcial para terminar control',
+    productOffset: 0,
+    itemCount: 5,
+    baseQty: 8,
+    receiveVariance: -1,
+    payableScenario: {
+      invoiceMultiplier: 1,
+      dueOffsetDays: 5,
+      method: 'cash',
+      note: 'Pago parcial en efectivo registrado',
+      paymentSlices: [0.45],
+    },
+  },
+  {
+    label: 'recibido-caballito-chocolate',
+    supplierIndex: 2,
+    branchId: BRANCH_B,
+    status: 'received',
+    daysAgo: 7,
+    expectedReceiveOffsetDays: -2,
+    note: '[SEED COMPRA] Caballito recepcion completa pendiente de conciliar',
+    productOffset: 2,
+    itemCount: 4,
+    baseQty: 5,
+    receiveVariance: 0,
+    payableScenario: {
+      invoiceMultiplier: 0.99,
+      dueOffsetDays: 6,
+      method: 'transfer',
+      note: 'Transferencia pendiente luego de recepcion completa',
+      paymentSlices: [],
+    },
+  },
+  {
+    label: 'controlado-palermo-cafe-parcial',
+    supplierIndex: 0,
+    branchId: BRANCH_A,
+    status: 'reconciled',
+    daysAgo: 10,
+    expectedReceiveOffsetDays: -4,
+    note: '[SEED COMPRA] Palermo controlado con pago parcial por transferencia',
+    productOffset: 4,
+    itemCount: 4,
+    baseQty: 6,
+    receiveVariance: 1,
+    payableScenario: {
+      invoiceMultiplier: 1.02,
+      dueOffsetDays: 2,
+      method: 'transfer',
+      note: 'Pago parcial via transferencia',
+      paymentSlices: [0.5],
+    },
+  },
+  {
+    label: 'controlado-caballito-yerba-pagado',
+    supplierIndex: 1,
+    branchId: BRANCH_B,
+    status: 'reconciled',
+    daysAgo: 12,
+    expectedReceiveOffsetDays: -6,
+    note: '[SEED COMPRA] Caballito controlado y pagado en efectivo',
+    productOffset: 3,
+    itemCount: 5,
+    baseQty: 7,
+    receiveVariance: 0,
+    payableScenario: {
+      invoiceMultiplier: 1,
+      dueOffsetDays: -1,
+      method: 'cash',
+      note: 'Factura cerrada en efectivo',
+      paymentSlices: [1],
+    },
+  },
+  {
+    label: 'controlado-palermo-chocolate-vencido',
+    supplierIndex: 2,
+    branchId: BRANCH_A,
+    status: 'reconciled',
+    daysAgo: 16,
+    expectedReceiveOffsetDays: -10,
+    note: '[SEED COMPRA] Palermo controlado historico con saldo vencido',
+    productOffset: 1,
+    itemCount: 4,
+    baseQty: 9,
+    receiveVariance: -2,
+    payableScenario: {
+      invoiceMultiplier: 1.04,
+      dueOffsetDays: -5,
+      method: 'transfer',
+      note: 'Saldo pendiente vencido para pruebas de /payments',
+      paymentSlices: [0.35],
+    },
+  },
+];
 
 (async () => {
   const { data: adminRow, error: adminError } = await supabase
@@ -472,6 +654,8 @@ const isoDateFromOffset = (offsetDays) => {
     sell_unit_type: product.sell_unit_type,
     uom: product.uom,
     unit_price: product.unit_price,
+    purchase_by_pack: Boolean(product.purchase_by_pack),
+    units_per_pack: product.purchase_by_pack ? product.units_per_pack : null,
     shelf_life_days: product.shelf_life_days,
     is_active: product.is_active,
   }));
@@ -513,6 +697,7 @@ const isoDateFromOffset = (offsetDays) => {
       supplier_sku: `SKU-${product.internal_code}`,
       supplier_product_name: `${product.name} (${entry.supplier.name})`,
       relation_type: 'primary',
+      supplier_price: roundCurrency(Number(product.unit_price ?? 0) * 0.68),
     })),
   );
 
@@ -524,6 +709,7 @@ const isoDateFromOffset = (offsetDays) => {
       supplier_sku: `SKU-${product.internal_code}`,
       supplier_product_name: `${product.name} (${entry.supplier.name})`,
       relation_type: 'primary',
+      supplier_price: roundCurrency(Number(product.unit_price ?? 0) * 0.7),
     })),
   );
 
@@ -659,94 +845,19 @@ const isoDateFromOffset = (offsetDays) => {
     );
   if (deleteOrdersError) throw deleteOrdersError;
 
-  const orderSeeds = [
-    {
-      status: 'draft',
-      daysAgo: 1,
-      expectedReceiveOffsetDays: 2,
-      note: 'Reposicion de granos para barra',
-    },
-    {
-      status: 'draft',
-      daysAgo: 5,
-      expectedReceiveOffsetDays: 7,
-      note: 'Pedido base para gondola de yerbas',
-    },
-    {
-      status: 'sent',
-      daysAgo: 2,
-      expectedReceiveOffsetDays: 4,
-      note: 'Pedido enviado para chocolates fin de semana',
-    },
-    {
-      status: 'sent',
-      daysAgo: 7,
-      expectedReceiveOffsetDays: -1,
-      note: 'Pedido demorado por logistica',
-    },
-    {
-      status: 'sent',
-      daysAgo: 3,
-      expectedReceiveOffsetDays: 1,
-      note: 'Pedido enviado pendiente de pago por transferencia',
-    },
-    {
-      status: 'sent',
-      daysAgo: 11,
-      expectedReceiveOffsetDays: -2,
-      note: 'Pedido enviado con fecha de recepcion vencida',
-    },
-    {
-      status: 'received',
-      daysAgo: 4,
-      expectedReceiveOffsetDays: 0,
-      note: 'Recepcion parcial de insumos de cafeteria',
-    },
-    {
-      status: 'reconciled',
-      daysAgo: 9,
-      expectedReceiveOffsetDays: -3,
-      note: 'Pedido controlado y listo para pago total',
-    },
-    {
-      status: 'reconciled',
-      daysAgo: 13,
-      expectedReceiveOffsetDays: -8,
-      note: 'Pedido controlado con vencimiento ya superado',
-    },
-    {
-      status: 'received',
-      daysAgo: 6,
-      expectedReceiveOffsetDays: -2,
-      note: 'Recepcion reciente pendiente de completar pago',
-    },
-    {
-      status: 'received',
-      daysAgo: 8,
-      expectedReceiveOffsetDays: -1,
-      note: 'Recepcion completa con pago transfer pendiente',
-    },
-    {
-      status: 'reconciled',
-      daysAgo: 15,
-      expectedReceiveOffsetDays: -9,
-      note: 'Controlado historico con saldo pendiente',
-    },
-  ];
-
   const orderPayload = [];
   const orderItemsPayload = [];
+  const payableScenarioByOrderId = new Map();
 
-  orderSeeds.forEach((seed, idx) => {
-    const supplier = suppliers[idx % suppliers.length];
-    const branchId = idx % 2 === 0 ? BRANCH_A : BRANCH_B;
+  purchaseOrderSeeds.forEach((seed, idx) => {
+    const supplier = suppliers[seed.supplierIndex % suppliers.length];
     const orderId = randomUUID();
     const createdAt = daysAgo(seed.daysAgo, rand(8, 18), rand(0, 59));
 
     orderPayload.push({
       id: orderId,
       org_id: ORG_ID,
-      branch_id: branchId,
+      branch_id: seed.branchId,
       supplier_id: supplier.id,
       status: seed.status,
       notes: seed.note,
@@ -771,21 +882,30 @@ const isoDateFromOffset = (offsetDays) => {
       expected_receive_on: isoDateFromOffset(seed.expectedReceiveOffsetDays),
     });
 
+    if (seed.payableScenario) {
+      payableScenarioByOrderId.set(orderId, seed.payableScenario);
+    }
+
     const supplierProducts = productsBySupplier.find(
       (entry) => entry.supplier.id === supplier.id,
     );
     const items = supplierProducts
-      ? supplierProducts.products.slice(0, 5)
-      : products.slice(0, 5);
+      ? sliceProductsForScenario(
+          supplierProducts.products,
+          seed.productOffset,
+          seed.itemCount,
+        )
+      : sliceProductsForScenario(products, seed.productOffset, seed.itemCount);
 
-    items.forEach((product) => {
-      const orderedQty = rand(2, 15);
+    items.forEach((product, itemIdx) => {
+      const orderedQty = seed.baseQty + itemIdx * 2 + (idx % 2);
       const receivedQty =
         seed.status === 'received' || seed.status === 'reconciled'
-          ? Math.max(orderedQty + rand(-2, 1), 1)
+          ? Math.max(orderedQty + (seed.receiveVariance ?? 0) - (itemIdx % 2), 1)
           : 0;
       const baseUnitCost =
-        Number(product.unit_price ?? 0) * randFloat(0.5, 0.82, 2);
+        Number(product.unit_price ?? 0) *
+        (0.62 + (seed.supplierIndex * 0.04 + itemIdx * 0.03));
       orderItemsPayload.push({
         id: randomUUID(),
         org_id: ORG_ID,
@@ -866,89 +986,30 @@ const isoDateFromOffset = (offsetDays) => {
     ]),
   );
 
+  const payableOrderIds = Array.from(payableScenarioByOrderId.keys());
+
   const { data: payablesData, error: payablesError } = await supabase
     .from('supplier_payables')
     .select('id, order_id, supplier_id, branch_id, estimated_amount')
     .eq('org_id', ORG_ID)
-    .in(
-      'supplier_id',
-      suppliers.map((supplier) => supplier.id),
-    )
+    .in('order_id', payableOrderIds)
     .order('created_at', { ascending: true });
   if (payablesError) throw payablesError;
-
-  const payableScenarios = [
-    {
-      invoiceMultiplier: 1.02,
-      dueOffsetDays: -2,
-      status: 'pending',
-      method: 'transfer',
-      note: 'Pendiente por transferencia vencida',
-      paymentSlices: [],
-    },
-    {
-      invoiceMultiplier: 1.01,
-      dueOffsetDays: 1,
-      status: 'pending',
-      method: 'transfer',
-      note: 'Pendiente por transferencia con vencimiento inmediato',
-      paymentSlices: [],
-    },
-    {
-      invoiceMultiplier: 1.04,
-      dueOffsetDays: 5,
-      status: 'pending',
-      method: 'transfer',
-      note: 'Pendiente por transferencia a 5 dias',
-      paymentSlices: [],
-    },
-    {
-      invoiceMultiplier: 1.01,
-      dueOffsetDays: 2,
-      status: 'partial',
-      method: 'transfer',
-      note: 'Pago parcial via transferencia',
-      paymentSlices: [0.4],
-    },
-    {
-      invoiceMultiplier: 1.0,
-      dueOffsetDays: 4,
-      status: 'partial',
-      method: 'cash',
-      note: 'Pago parcial en efectivo',
-      paymentSlices: [0.5],
-    },
-    {
-      invoiceMultiplier: 1.0,
-      dueOffsetDays: 12,
-      status: 'paid',
-      method: 'transfer',
-      note: 'Pago completo por transferencia',
-      paymentSlices: [0.5, 0.5],
-    },
-    {
-      invoiceMultiplier: 0.98,
-      dueOffsetDays: -4,
-      status: 'paid',
-      method: 'cash',
-      note: 'Factura cerrada en efectivo',
-      paymentSlices: [1],
-    },
-  ];
 
   const supplierPaymentsPayload = [];
   for (let idx = 0; idx < (payablesData ?? []).length; idx += 1) {
     const payable = payablesData[idx];
-    const scenario = payableScenarios[idx % payableScenarios.length];
+    const scenario = payableScenarioByOrderId.get(payable.order_id);
+    if (!scenario) continue;
     const invoiceAmount = roundCurrency(
       Number(payable.estimated_amount ?? 0) * scenario.invoiceMultiplier,
     );
-    const paidAmount =
-      scenario.status === 'pending'
-        ? 0
-        : scenario.status === 'partial'
-          ? roundCurrency(invoiceAmount * scenario.paymentSlices[0])
-          : invoiceAmount;
+    const paymentSlices = Array.isArray(scenario.paymentSlices)
+      ? scenario.paymentSlices
+      : [];
+    const paidAmount = roundCurrency(
+      invoiceAmount * paymentSlices.reduce((acc, slice) => acc + slice, 0),
+    );
     const outstandingAmount = roundCurrency(
       Math.max(invoiceAmount - paidAmount, 0),
     );
@@ -979,9 +1040,9 @@ const isoDateFromOffset = (offsetDays) => {
     if (paidAmount <= 0) continue;
 
     let remaining = paidAmount;
-    scenario.paymentSlices.forEach((slice, paymentIdx) => {
+    paymentSlices.forEach((slice, paymentIdx) => {
       const amount =
-        paymentIdx === scenario.paymentSlices.length - 1
+        paymentIdx === paymentSlices.length - 1
           ? roundCurrency(remaining)
           : roundCurrency(paidAmount * slice);
       remaining = roundCurrency(Math.max(remaining - amount, 0));
@@ -1220,7 +1281,11 @@ const isoDateFromOffset = (offsetDays) => {
   console.log('- Smoke special orders:', specialOrdersSeed.length);
   console.log('- Expiration batches:', expirationBatchesPayload.length);
   console.log('- Sales:', salesPayload.length);
-  console.log('- Orders:', orderPayload.length);
+  console.log('- Purchase orders:', orderPayload.length);
+  console.log(
+    '- Purchase pack products:',
+    products.filter((product) => product.purchase_by_pack).length,
+  );
 })().catch((err) => {
   console.error(err);
   process.exit(1);

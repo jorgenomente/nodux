@@ -18,6 +18,566 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-03-08 21:55 -03 — ARCA: creación de bitácora por lote dentro del módulo
+
+**Tipo:** docs
+**Lote:** arca-lote-0-kickoff
+**Alcance:** docs
+
+**Resumen**
+Se creó `docs/ARCA/activity-log.md` como bitácora específica del módulo fiscal para registrar cambios por lote y preservar contexto técnico acumulado. Se agregó plantilla de registro, backfill mínimo de lotes ARCA recientes y cierre documental de `arca-lote-0-kickoff`. Además, se creó el documento operativo `docs/ARCA/operations/afip-arca-lote-0-baseline-freeze.md` con freeze de alcance, checklist de precondiciones y gates de salida para habilitar Lote 1 de DB. También se actualizó el índice maestro ARCA para incluir tanto la bitácora como el documento de baseline.
+
+**Archivos**
+
+- docs/ARCA/activity-log.md
+- docs/ARCA/afip-arca-master-index.md
+- docs/ARCA/operations/afip-arca-lote-0-baseline-freeze.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- No aplica (`docs-only`).
+
+**Commit:** N/A
+
+## 2026-03-09 09:40 -03 — ARCA QA local: reintento con certificado AFIP emitido
+
+**Tipo:** infra/tests
+**Lote:** arca-qa-local-homo-002
+**Descripción:** Se validó el nuevo material de homologación en `docs/ARCA/certificados/homo` (`noduxhomo.crt` + `privada_homo.key`), se actualizó la fila local de `fiscal_credentials`, se encoló un nuevo `invoice_job` y se reejecutó el worker end-to-end contra WSAA/WSFE de homologación.
+
+**Archivos afectados:**
+
+- docs/ARCA/certificados/homo/noduxhomo.crt
+- docs/ARCA/certificados/homo/privada_homo.key
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests / comandos:**
+
+- `openssl x509 -in docs/ARCA/certificados/homo/noduxhomo.crt -noout -subject -issuer -dates -fingerprint -sha256 -modulus` OK (2026-03-09)
+- `openssl rsa -in docs/ARCA/certificados/homo/privada_homo.key -noout -modulus` OK (2026-03-09)
+- `node -e "... client.rpc('rpc_enqueue_sale_fiscal_invoice', ...) ..."` OK (2026-03-09) -> `invoice_job_id=9b98c72b-0676-4529-bb87-f3a4f0cb2522`
+- `npx tsx -e "... runFiscalWorkerOnce(...)"` OK (2026-03-09) -> job reservado con `cbte_nro=5`, luego fallo `FISCAL_WSAA_AUTH_REJECTED`
+- `FEDummy` previo en WSFE homologación: OK (`AppServer=OK`, `DbServer=OK`, `AuthServer=OK`)
+
+**Resultado:**
+
+- El certificado nuevo coincide con la privada y ahora reporta emisor `CN=Computadores, O=AFIP, C=AR`.
+- Fingerprint SHA-256: `3D:34:DE:83:A7:F7:9F:01:CB:AD:49:A1:1B:D0:0D:71:B3:FF:B2:C5:20:C7:E0:A7:CF:A1:24:F5:E4:B3:FF:0C`.
+- WSAA homologación sigue rechazando el CMS con fault `cms.cert.untrusted` / `Certificado no emitido por AC de confianza`.
+- El bloqueo continúa fuera de NODUX: revisar alta/relación efectiva del certificado y servicio `wsfe` en ARCA homologación.
+
+**Commit:** N/A
+
+## 2026-03-09 09:48 -03 — ARCA QA producción: autenticación y conectividad segura
+
+**Tipo:** infra/tests
+**Lote:** arca-qa-prod-safe-001
+**Descripción:** Se ejecutó una prueba segura contra endpoints de producción con `docs/ARCA/certificados/arca-certificado.crt` y `docs/ARCA/certificados/privada.key`, reutilizando el flujo interno de `buildTra` + firma CMS + `loginCms`, y se verificó conectividad a `WSFE FEDummy` sin emitir comprobantes reales.
+
+**Archivos afectados:**
+
+- docs/ARCA/certificados/arca-certificado.crt
+- docs/ARCA/certificados/privada.key
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests / comandos:**
+
+- `openssl x509 -in docs/ARCA/certificados/arca-certificado.crt -noout -subject -issuer -dates -fingerprint -sha256` OK (2026-03-09)
+- `npx tsx` script ad-hoc usando `buildTra`, `signTra` y `submitFEDummy` contra producción: OK (2026-03-09)
+
+**Resultado:**
+
+- WSAA producción: `HTTP 200`, `loginCmsReturn` presente, `token` presente, `sign` presente
+- Expiración TA: `2026-03-09T22:07:49.641-03:00`
+- WSFE producción `FEDummy`: `AppServer=OK`, `DbServer=OK`, `AuthServer=OK`
+- No se ejecutó `FECAESolicitar`; no se emitieron comprobantes reales
+
+**Commit:** N/A
+
+## 2026-03-09 09:55 -03 — ARCA backend: modo prod-safe
+
+**Tipo:** backend/docs/tests
+**Lote:** arca-lote-3f-prod-safe-mode
+**Descripción:** Se incorporó un modo explícito `prod-safe` en el worker fiscal para jobs del ambiente `prod`. En este modo el pipeline resuelve credenciales, autentica WSAA, ejecuta `FEDummy` contra WSFE y corta antes de `FECAESolicitar`, dejando el job en `pending_reconcile` con evidencia técnica para evitar emisión real accidental.
+
+**Archivos afectados:**
+
+- lib/fiscal/shared/fiscal-types.ts
+- lib/fiscal/worker/run-worker.ts
+- lib/fiscal/worker/process-invoice-job.ts
+- docs/prompts.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Resultado:**
+
+- Nuevo `executionMode='prod-safe'` disponible en `runFiscalWorkerOnce`
+- `processInvoiceJob` ahora bloquea emisión real en `prod-safe`
+- si `FEDummy` responde, el job pasa a `pending_reconcile` con `last_error_code=FISCAL_PROD_SAFE_STOP_BEFORE_FECAE`
+- si `prod-safe` se usa fuera de `prod`, el job falla con `FISCAL_PROD_SAFE_REQUIRES_PROD_ENV`
+
+**Commit:** N/A
+
+## 2026-03-09 10:12 -03 — ARCA QA producción: worker en modo prod-safe
+
+**Tipo:** infra/tests
+**Lote:** arca-qa-prod-safe-002
+**Descripción:** Se configuró un contexto `prod` local en Supabase (credencial fiscal + punto de venta), se encoló un `invoice_job` productivo de prueba y se ejecutó el worker con `executionMode='prod-safe'` para validar el pipeline completo sin emitir comprobantes reales.
+
+**Archivos afectados:**
+
+- docs/ARCA/certificados/arca-certificado.crt
+- docs/ARCA/certificados/privada.key
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests / comandos:**
+
+- `node -e "... rpc_enqueue_sale_fiscal_invoice(... p_environment: 'prod' ...)"` OK (2026-03-09) -> `invoice_job_id=190c25b9-ffd9-4e57-a2f0-ff7f2c075f03`
+- `npx tsx -e "... runFiscalWorkerOnce({ dryRun: false, executionMode: 'prod-safe' }) ..."` OK (2026-03-09)
+- verificación SQL del job final: OK (2026-03-09)
+
+**Resultado:**
+
+- el worker reservó `cbte_nro=1` para `prod`, `pto_vta=2`, `cbte_tipo=11`
+- WSAA producción renovó TA correctamente
+- `FEDummy` devolvió `AppServer=OK`, `DbServer=OK`, `AuthServer=OK`
+- el job quedó en `pending_reconcile` con `last_error_code=FISCAL_PROD_SAFE_STOP_BEFORE_FECAE`
+- no se ejecutó `FECAESolicitar`; no se emitió ningún comprobante real
+
+**Commit:** N/A
+
+## 2026-03-09 10:20 -03 — ARCA DB/UI: gate de enqueue productivo
+
+**Tipo:** schema/ui/docs/tests
+**Lote:** arca-lote-3g-prod-enqueue-gate
+**Descripción:** Se agregó un gate explícito org-wide para permitir encolar jobs fiscales `prod`. La migración `082_fiscal_prod_enqueue_gate.sql` incorpora `org_preferences.fiscal_prod_enqueue_enabled` y endurece `rpc_enqueue_sale_fiscal_invoice` para rechazar ambiente `prod` cuando el flag está apagado. Además se expuso el toggle en `/settings/preferences`.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260309102000_082_fiscal_prod_enqueue_gate.sql
+- app/settings/preferences/page.tsx
+- docs/prompts.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-app-screens-settings-preferences.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset` OK (2026-03-09)
+- `npm run db:seed:demo` OK (2026-03-09)
+- verificación SQL columna `org_preferences.fiscal_prod_enqueue_enabled`: OK (2026-03-09)
+- `node -e "... rpc_enqueue_sale_fiscal_invoice(... p_environment: 'prod' ...)"` con flag `false`: OK, deniega con `fiscal prod enqueue disabled`
+- `node -e "... rpc_enqueue_sale_fiscal_invoice(... p_environment: 'prod' ...)"` con flag `true`: OK, crea `invoice_job_id=6c776080-1198-4384-a15a-eeae632f0468`
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Resultado:**
+
+- `prod` ya no puede encolarse por accidente
+- el gate es visible y editable por OA/SA en `/settings/preferences`
+- el contrato DB-first queda alineado con operación: primero habilitación org-wide, luego enqueue, luego worker `prod-safe` o `live`
+
+**Commit:** N/A
+
+## 2026-03-09 10:34 -03 — ARCA wiring operativo: cobrar y facturar / emitir factura
+
+**Tipo:** ui/docs/tests
+**Lote:** arca-lote-3h-sales-pos-fiscal-trigger
+**Descripción:** Se conectaron los entrypoints operativos correctos al pipeline fiscal productivo. `Cobrar y facturar` en POS y `Emitir factura` en `/sales` y `/sales/[saleId]` ahora encolan `rpc_enqueue_sale_fiscal_invoice(..., p_environment='prod', ...)` antes de marcar la venta como facturada. `Cobrar` solo no fue modificado y queda fuera del flujo fiscal.
+
+**Archivos afectados:**
+
+- app/pos/PosClient.tsx
+- app/sales/page.tsx
+- app/sales/[saleId]/page.tsx
+- docs/prompts.md
+- docs/context-summary.md
+- docs/docs-app-screens-sales.md
+- docs/docs-app-screens-sale-detail.md
+- docs/docs-app-screens-staff-pos.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+- prueba RPC local equivalente a `Emitir factura`: OK (2026-03-09)
+  - `rpc_enqueue_sale_fiscal_invoice(..., p_environment='prod', ...)` -> `already_existed=true`
+  - `rpc_mark_sale_invoiced(...)` -> venta `is_invoiced=true`
+
+**Resultado:**
+
+- sólo `Cobrar y facturar` y `Emitir factura` disparan enqueue fiscal
+- `Cobrar` solo sigue registrando la venta sin iniciar facturación
+- `/sales` y `/sales/[saleId]` muestran notice `invoice_queued` al iniciar facturación
+- el wiring usa el gate `org_preferences.fiscal_prod_enqueue_enabled` agregado en el lote previo
+
+**Commit:** N/A
+
+## 2026-03-09 10:48 -03 — ARCA onboarding interno: settings fiscal
+
+**Tipo:** ui/backend/docs/tests
+**Lote:** arca-lote-4a-settings-fiscal-onboarding
+**Descripción:** Se agregó la pantalla interna `/settings/fiscal` para asociar el certificado fiscal de la ORG activa por ambiente (`homo` / `prod`), cifrar la private key antes de persistirla en `fiscal_credentials` y configurar `points_of_sale` por sucursal. También se incorporó el helper de cifrado AES-256-GCM `encrypt-private-key.ts` y se enlazó la ruta desde el hub de settings.
+
+**Archivos afectados:**
+
+- app/settings/page.tsx
+- app/settings/fiscal/page.tsx
+- lib/fiscal/auth/encrypt-private-key.ts
+- docs/prompts.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/docs-app-sitemap.md
+- docs/docs-app-screens-index.md
+- docs/docs-app-screens-settings-fiscal.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Resultado:**
+
+- existe `/settings/fiscal` en la app
+- la asociación ORG -> certificado/private key queda gestionada por `fiscal_credentials.tenant_id`
+- la private key ya no necesita cargarse manualmente en SQL para onboarding normal
+- los puntos de venta fiscales quedan configurables por sucursal/ambiente desde UI interna
+
+**Commit:** N/A
+
+## 2026-03-09 11:02 -03 — ARCA DX local: bootstrap automático de key maestra
+
+**Tipo:** backend/docs/tests
+**Lote:** arca-lote-4b-fiscal-local-encryption-bootstrap
+**Descripción:** Se agregó un bootstrap automático sólo para desarrollo local cuando falta `FISCAL_ENCRYPTION_MASTER_KEY`. El módulo fiscal ahora genera una key maestra estable, la persiste en `.nodux-secrets/fiscal-encryption-dev.json` (ignorado por git) y la reutiliza tanto para cifrar como para descifrar private keys. En producción la variable de entorno sigue siendo obligatoria.
+
+**Archivos afectados:**
+
+- lib/fiscal/auth/get-encryption-config.ts
+- lib/fiscal/auth/encrypt-private-key.ts
+- lib/fiscal/auth/decrypt-private-key.ts
+- .gitignore
+- docs/prompts.md
+- docs/context-summary.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Resultado:**
+
+- ya no hace falta crear manualmente `FISCAL_ENCRYPTION_MASTER_KEY` para desarrollo local
+- el secreto local queda persistido fuera de git
+- producción sigue endurecida: sin env explícita, falla
+
+**Commit:** N/A
+
+## 2026-03-09 11:16 -03 — ARCA UI: conflicto explícito de punto de venta
+
+**Tipo:** ui/docs/tests
+**Lote:** arca-lote-4c-fiscal-pos-conflict-message
+**Descripción:** Se refinó `/settings/fiscal` para distinguir errores de credencial vs errores de punto de venta y, en particular, informar explícitamente cuando un `pto_vta` ya está asignado a otra sucursal. Además, en la DB local de demo se movió `prod / 00002` desde Palermo a Caballito para alinear la prueba con el contexto operativo actual del usuario.
+
+**Archivos afectados:**
+
+- app/settings/fiscal/page.tsx
+- docs/docs-app-screens-settings-fiscal.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests / comandos:**
+
+- verificación SQL previa: `prod / 00002` estaba en `Sucursal Palermo`
+- update SQL local: `prod / 00002` movido a `Sucursal Caballito`
+- `npm run lint` OK (2026-03-09)
+
+**Resultado:**
+
+- la UI ahora puede mostrar `El punto de venta 0002 ya está asignado a Sucursal X`
+- el mensaje de error del bloque PV ya no menciona `.crt/.key`
+- en el entorno local actual, `prod / 00002` quedó asignado a `Sucursal Caballito`
+
+**Commit:** N/A
+
+## 2026-03-09 09:10 -03 — ARCA QA local: FEDummy OK, WSAA sigue rechazando certificado
+
+**Tipo:** backend/tests/docs
+**Lote:** arca-qa-local-homo-002
+**Descripción:** Se alineó el constructor de TRA al esquema manual de integradores (`generationTime = now - 5m`, `expirationTime = now + 5m`) y se agregó soporte `FEDummy` en el cliente WSFE para aislar conectividad de homologación. La prueba real con el certificado de `docs/ARCA/certificados/homo` mostró que `WSAA` sigue respondiendo `cms.cert.untrusted`, mientras que `FEDummy` en `https://wswhomo.afip.gov.ar/wsfev1/service.asmx` devuelve `AppServer=OK`, `DbServer=OK`, `AuthServer=OK`. Con esto queda confirmado que la conectividad a WSFE homologación es correcta y el bloqueo persistente está acotado al certificado/relación de confianza en WSAA.
+
+**Archivos afectados:**
+
+- lib/fiscal/auth/build-tra.ts
+- lib/fiscal/wsfe/wsfe-client.ts
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-09)
+- npm run build OK (2026-03-09)
+- WSAA manual-like (timeout 30s) -> fault `cms.cert.untrusted`
+- WSFE `FEDummy` -> `AppServer=OK`, `DbServer=OK`, `AuthServer=OK`
+
+**Commit:** N/A
+
+## 2026-03-08 22:53 -03 — ARCA QA local: hotfix de reserva + diagnóstico real WSAA homologación
+
+**Tipo:** schema/backend/tests/docs
+**Lote:** arca-qa-local-homo-001
+**Descripción:** Se ejecutó una prueba local end-to-end de encolado fiscal y worker contra el stack Supabase local usando el certificado real ubicado en `docs/ARCA/certificados`. Durante la ejecución apareció un bug SQL en `fn_fiscal_reserve_sequence` (`42702` por `tenant_id` ambiguo), que se corrigió con la migración hotfix `20260309014000_081_fix_fiscal_reserve_sequence_ambiguous_tenant.sql` y parche del archivo fuente `079`. Luego se validó el flujo de worker con `points_of_sale` locales, `fiscal_credentials` cargadas para homologación y ejecución real contra WSAA. El primer intento quedó clasificado como `FISCAL_WSAA_TIMEOUT`; tras extender timeout a 30s, AFIP respondió `cms.cert.untrusted` / `Certificado no emitido por AC de confianza`, confirmando que el bloqueo actual ya no es de código sino del certificado/AC aceptada por homologación.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260308221500_079_fiscal_helpers_and_rpc.sql
+- supabase/migrations/20260309014000_081_fix_fiscal_reserve_sequence_ambiguous_tenant.sql
+- lib/fiscal/worker/process-invoice-job.ts
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests:**
+
+- npm run db:reset OK (2026-03-08)
+- npm run db:seed:demo OK (2026-03-08)
+- npm run lint OK (2026-03-08)
+- npm run build OK (2026-03-08)
+- RPC `rpc_enqueue_sale_fiscal_invoice` OK sobre venta demo
+- Worker fiscal local:
+  - intento 1 -> `FISCAL_WSAA_TIMEOUT`
+  - intento 2 -> WSAA SOAP fault `cms.cert.untrusted`
+
+**Commit:** N/A
+
+## 2026-03-08 22:29 -03 — ARCA DB/backend: puente venta -> invoice_job y ejecución WSFE desde worker
+
+**Tipo:** schema/backend/docs/tests
+**Lote:** arca-lote-3e-sale-to-job-bridge
+**Descripción:** Se implementó el primer puente funcional entre ventas y el pipeline fiscal ARCA. En DB se agregó la migración `20260308224500_080_fiscal_enqueue_sale_invoice_and_failed.sql` con `rpc_enqueue_sale_fiscal_invoice` para crear `sale_documents` + `invoice_jobs` desde una venta existente y persistir `requested_payload_json` normalizado (MVP simple: Factura C / consumidor final / ARS). También se agregó `fn_fiscal_mark_job_failed` para cerrar errores terminales del worker. En backend se extendió el worker para leer `requested_payload_json`, construir `FECAESolicitar`, invocar WSFE, marcar `authorized` / `rejected` / `pending_reconcile` / `failed` según resultado, y se agregaron wrappers RPC asociados.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260308224500_080_fiscal_enqueue_sale_invoice_and_failed.sql
+- lib/fiscal/rpc/types.ts
+- lib/fiscal/rpc/mark-failed.ts
+- lib/fiscal/rpc/enqueue-sale-invoice.ts
+- lib/fiscal/worker/poll-pending-jobs.ts
+- lib/fiscal/worker/poll-reconcile-jobs.ts
+- lib/fiscal/worker/process-invoice-job.ts
+- lib/fiscal/shared/fiscal-types.ts
+- lib/fiscal/wsfe/build-fecae-request.ts
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-08)
+- npm run build OK (2026-03-08)
+
+**Commit:** N/A
+
+## 2026-03-08 22:20 -03 — ARCA backend: capa WSFE reusable (builder + cliente + normalizador)
+
+**Tipo:** backend
+**Lote:** arca-lote-3d-wsfe-foundation
+**Descripción:** Se implementó la capa WSFE reusable en `lib/fiscal/wsfe/*`: tipos de request fiscal compartidos, builder de `FECAESolicitar`, mapeo de errores/rechazos, normalizador de respuesta SOAP y cliente WSFE por SOAP para homologación/producción. Este lote no conecta todavía WSFE al worker porque el schema actual aún no define de forma completa el contrato de entrada fiscal desde ventas/`invoice_jobs`; el gap siguiente es armar ese payload normalizado o persistirlo correctamente antes de invocar WSFE.
+
+**Archivos afectados:**
+
+- lib/fiscal/shared/fiscal-types.ts
+- lib/fiscal/wsfe/build-fecae-request.ts
+- lib/fiscal/wsfe/map-afip-errors.ts
+- lib/fiscal/wsfe/normalize-wsfe-response.ts
+- lib/fiscal/wsfe/wsfe-client.ts
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-08)
+
+**Commit:** N/A
+
+## 2026-03-08 22:16 -03 — ARCA backend: descifrado AES-256-GCM y WSAA conectado al worker
+
+**Tipo:** backend
+**Lote:** arca-lote-3c-worker-wsaa-wiring
+**Descripción:** Se agregó descifrado de `encrypted_private_key` bajo AES-256-GCM con validación de `encryption_key_reference` y key maestra por entorno. La utilidad soporta payload JSON o delimitado (`iv:tag:ciphertext`) y permite fallback a PEM plano sólo si se habilita explícitamente por entorno. Luego se conectó `getOrRefreshWsaaTicket` dentro de `processInvoiceJob`, de modo que el worker ya ejecuta secuencia -> mark authorizing -> WSAA -> log de contexto listo antes de caer en `pending_reconcile` por ausencia de WSFE.
+
+**Archivos afectados:**
+
+- lib/fiscal/auth/decrypt-private-key.ts
+- lib/fiscal/worker/process-invoice-job.ts
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-08)
+
+**Commit:** N/A
+
+## 2026-03-08 22:13 -03 — ARCA backend: cache y cliente WSAA con persistencia mínima
+
+**Tipo:** backend
+**Lote:** arca-lote-3b-wsaa-client-cache
+**Descripción:** Se agregó la siguiente capa de autenticación fiscal: cache en memoria de TA por `tenant/environment/cuit/service`, cliente WSAA por SOAP y persistencia mínima de metadata en `fiscal_credentials` (`last_ta_obtained_at`, `ta_expires_at`). La firma CMS quedó resuelta con `openssl` vía proceso hijo para evitar sumar dependencias pesadas. Este lote asume `privateKeyPem` ya resuelta por el caller; el descifrado seguro de `encrypted_private_key` queda pendiente como siguiente pieza antes de conectar el worker extremo a extremo.
+
+**Archivos afectados:**
+
+- lib/fiscal/shared/fiscal-types.ts
+- lib/fiscal/auth/wsaa-cache.ts
+- lib/fiscal/auth/wsaa-client.ts
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-08)
+
+**Commit:** N/A
+
+## 2026-03-08 22:10 -03 — ARCA backend: base WSAA para autenticación fiscal
+
+**Tipo:** backend
+**Lote:** arca-lote-3a-wsaa-foundation
+**Descripción:** Se inició ARCA-3 con la base de autenticación WSAA. Se agregaron tipos compartidos para TRA/CMS firmado y dos utilidades backend en `lib/fiscal/auth`: `build-tra` para generar el XML `loginTicketRequest` con ventana temporal segura y `sign-tra` para encapsular la firma CMS mediante un adapter inyectable. El objetivo es fijar la frontera correcta de autenticación sin simular una firma real ni introducir todavía el cliente SOAP de WSAA/WSFE.
+
+**Archivos afectados:**
+
+- lib/fiscal/shared/fiscal-types.ts
+- lib/fiscal/auth/build-tra.ts
+- lib/fiscal/auth/sign-tra.ts
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests:**
+
+- npm run lint OK (2026-03-08)
+
+**Commit:** N/A
+
+## 2026-03-08 22:07 -03 — ARCA docs: alineación de roadmap general y contexto vivo
+
+**Tipo:** docs
+**Lote:** arca-roadmap-alignment-001
+**Descripción:** Se formalizó ARCA como track paralelo post-MVP dentro del roadmap general para eliminar la contradicción entre el alcance MVP y el estado real del repo. También se actualizó `context-summary` para reflejar qué lotes fiscales están completos (baseline, DB core, worker base), qué gaps siguen abiertos (WSAA/WSFE, render, reconciliación, creación de jobs desde ventas) y cuál es el siguiente entregable recomendado: homologación backend end-to-end sin tocar UI.
+
+**Archivos afectados:**
+
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests:**
+
+- N/A (lote docs-only)
+
+**Commit:** N/A
+
+## 2026-03-08 21:54 -03 — ARCA Lote 1 DB-only: migraciones fiscales portadas y validadas
+
+**Tipo:** db
+**Lote:** arca-lote-1-db-core
+**Alcance:** db, docs
+
+**Resumen**
+Se portó el núcleo fiscal ARCA a migraciones reales de Supabase, incorporando tablas/RLS base y funciones RPC de secuencia/estados en `supabase/migrations`. Luego se resolvieron incompatibilidades SQL detectadas durante `db:reset` (policies con `if not exists` y defaults intermedios en firma de función), y se completó la validación local con reset OK y prueba mínima de RLS.
+
+**Archivos**
+
+- supabase/migrations/20260308220000_078_fiscal_core.sql
+- supabase/migrations/20260308221500_079_fiscal_helpers_and_rpc.sql
+- docs/ARCA/activity-log.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- Verificación estática de SQL: OK (tablas y funciones esperadas presentes).
+- `npm run db:reset` OK (2026-03-08)
+- RLS mínima fiscal:
+  - `service_role` insert permitido en `fiscal_credentials`
+  - `authenticated` insert denegado por RLS en `fiscal_credentials`
+
+**Commit:** N/A
+
+## 2026-03-08 22:03 -03 — ARCA Lote 2 backend-only: runtime base del worker fiscal
+
+**Tipo:** backend
+**Lote:** arca-lote-2-worker-base
+**Alcance:** backend, docs, tests
+
+**Resumen**
+Se implementó el runtime base del módulo fiscal en backend (`lib/fiscal/*`) sin tocar UI: tipos compartidos, logger con redacción de secretos, wrappers RPC para transiciones fiscales, loaders de jobs (`pending`/`pending_reconcile`), resolver de credenciales y orquestador `runFiscalWorkerOnce`. El lote deja preparado el terreno para integrar WSAA/WSFE y reconciliación real en el siguiente ciclo.
+
+**Archivos**
+
+- lib/fiscal/shared/fiscal-types.ts
+- lib/fiscal/shared/redact-secrets.ts
+- lib/fiscal/shared/fiscal-logger.ts
+- lib/fiscal/rpc/client.ts
+- lib/fiscal/rpc/types.ts
+- lib/fiscal/rpc/reserve-sequence.ts
+- lib/fiscal/rpc/mark-authorizing.ts
+- lib/fiscal/rpc/mark-authorized.ts
+- lib/fiscal/rpc/mark-rejected.ts
+- lib/fiscal/rpc/mark-pending-reconcile.ts
+- lib/fiscal/rpc/mark-render-completed.ts
+- lib/fiscal/worker/poll-pending-jobs.ts
+- lib/fiscal/worker/poll-reconcile-jobs.ts
+- lib/fiscal/worker/resolve-credentials.ts
+- lib/fiscal/worker/process-invoice-job.ts
+- lib/fiscal/worker/process-reconcile-job.ts
+- lib/fiscal/worker/run-worker.ts
+- docs/ARCA/activity-log.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-03-08)
+- `npm run build` OK (2026-03-08)
+
+**Commit:** N/A
+
 ## 2026-03-08 21:40 -03 — ARCA docs: normalización canónica post-auditoría
 
 **Tipo:** docs
@@ -8649,5 +9209,27 @@ Se aplico una optimizacion de bajo riesgo para reducir latencia de navegacion en
 
 - `npm run lint` OK (2026-03-05)
 - `npm run build` OK (2026-03-05)
+
+**Commit:** N/A
+
+## 2026-03-08 22:21 -03 — Seed demo: playground de compras y pagos
+
+**Tipo:** infra/docs/tests
+**Lote:** seed-demo-purchase-playground
+**Descripción:** Se reforzó `scripts/seed-demo-data.js` para crear escenarios determinísticos de compras de prueba por sucursal/proveedor, con estados `draft`/`sent`/`received`/`reconciled`, cuentas por pagar y pagos parciales/totales. Además, parte del catálogo demo quedó marcado con `purchase_by_pack` y `units_per_pack` para validar compra por paquete en `/orders`.
+
+**Archivos afectados:**
+
+- scripts/seed-demo-data.js
+- docs/docs-demo-users.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `node --check scripts/seed-demo-data.js` OK (2026-03-08)
+- `npm run db:seed:demo` OK (2026-03-08)
+- `npm run lint` OK (2026-03-08)
+- `npm run build` BLOCKED (2026-03-08) por error TypeScript preexistente en `lib/fiscal/auth/wsaa-client.ts:182` (`params.context` puede ser `undefined`)
 
 **Commit:** N/A

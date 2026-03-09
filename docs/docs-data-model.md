@@ -55,6 +55,8 @@ Estado actual:
 - Hardening anti-duplicado de catálogo en `supabase/migrations/20260305113000_075_products_dedupe_hardening.sql` (`products.name_normalized`, `products.barcode_normalized`, índices únicos por org y normalización de códigos vacíos en `rpc_upsert_product`).
 - Compra por paquete en productos y propagación a contratos de pedidos/onboarding en `supabase/migrations/20260305130500_076_products_purchase_pack_and_orders_views.sql` (`products.purchase_by_pack`, `products.units_per_pack`, check de consistencia y rebuild de `v_products_admin`, `v_products_incomplete_admin`, `v_supplier_product_suggestions`, `v_order_detail_admin`).
 - Fix de promoción de relación proveedor-producto en `supabase/migrations/20260305152000_077_fix_supplier_product_promote_same_supplier.sql`: `rpc_upsert_supplier_product` elimina relación previa del mismo proveedor con tipo opuesto antes de upsert para evitar conflicto de unicidad `(org_id, supplier_id, product_id)`.
+- Base operativa del puente fiscal venta -> job en `supabase/migrations/20260308224500_080_fiscal_enqueue_sale_invoice_and_failed.sql`: agrega `rpc_enqueue_sale_fiscal_invoice` para crear `sale_documents` + `invoice_jobs` con `requested_payload_json` normalizado desde una venta existente, y `fn_fiscal_mark_job_failed` para errores terminales del worker fiscal.
+- Gate org-wide para enqueue fiscal productivo en `supabase/migrations/20260309102000_082_fiscal_prod_enqueue_gate.sql`: agrega `org_preferences.fiscal_prod_enqueue_enabled` y endurece `rpc_enqueue_sale_fiscal_invoice` para rechazar ambiente `prod` si ese flag está desactivado.
 - Hardening de RPCs de usuarios para preservar actor de auditoría en alta/edición de membresía en `supabase/migrations/20260301162000_064_users_membership_rpcs_auth_context.sql` (`rpc_invite_user_to_org`, `rpc_update_user_membership` como `security definer` con validación explícita de rol/org/sucursales).
 - Hotfix de `rpc_invite_user_to_org` por ambigüedad de `user_id` en producción en `supabase/migrations/20260301170000_065_fix_rpc_invite_user_to_org_ambiguous_user_id.sql` y `supabase/migrations/20260301171500_066_fix_rpc_invite_user_to_org_out_param_conflict.sql` (se elimina conflicto de OUT param y queda salida `invited_user_id`).
 - Onboarding de datos maestros (jobs/rows de importación + vista de pendientes + RPCs de importación) en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks`, `rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
@@ -239,6 +241,7 @@ Estado actual:
 - `critical_days` (int)
 - `warning_days` (int)
 - `allow_negative_stock` (boolean)
+- `fiscal_prod_enqueue_enabled` (boolean, default false)
 - `default_supplier_markup_pct` (numeric 0..1000, default 40)
 - `cash_discount_enabled` (boolean)
 - `cash_discount_default_pct` (numeric 0..100)

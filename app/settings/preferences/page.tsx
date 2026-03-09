@@ -16,6 +16,7 @@ type PreferencesRow = {
   critical_days: number;
   warning_days: number;
   allow_negative_stock: boolean;
+  fiscal_prod_enqueue_enabled: boolean;
   default_supplier_markup_pct: number;
   cash_discount_enabled: boolean;
   cash_discount_default_pct: number;
@@ -89,6 +90,8 @@ export default async function SettingsPreferencesPage({
     const criticalDays = Number(String(formData.get('critical_days') ?? '0'));
     const warningDays = Number(String(formData.get('warning_days') ?? '0'));
     const allowNegativeStock = formData.get('allow_negative_stock') === 'on';
+    const fiscalProdEnqueueEnabled =
+      formData.get('fiscal_prod_enqueue_enabled') === 'on';
     const cashDiscountEnabled = formData.get('cash_discount_enabled') === 'on';
     const defaultSupplierMarkupPct = Number(
       String(formData.get('default_supplier_markup_pct') ?? '40'),
@@ -130,7 +133,7 @@ export default async function SettingsPreferencesPage({
     const { data: previousRow } = await auth.admin
       .from('org_preferences')
       .select(
-        'critical_days, warning_days, allow_negative_stock, default_supplier_markup_pct, cash_discount_enabled, cash_discount_default_pct, employee_discount_enabled, employee_discount_default_pct, employee_discount_combinable_with_cash_discount, cash_denominations',
+        'critical_days, warning_days, allow_negative_stock, fiscal_prod_enqueue_enabled, default_supplier_markup_pct, cash_discount_enabled, cash_discount_default_pct, employee_discount_enabled, employee_discount_default_pct, employee_discount_combinable_with_cash_discount, cash_denominations',
       )
       .eq('org_id', auth.orgId)
       .maybeSingle();
@@ -140,6 +143,7 @@ export default async function SettingsPreferencesPage({
       critical_days: criticalDays,
       warning_days: warningDays,
       allow_negative_stock: allowNegativeStock,
+      fiscal_prod_enqueue_enabled: fiscalProdEnqueueEnabled,
       default_supplier_markup_pct: defaultSupplierMarkupPct,
       cash_discount_enabled: cashDiscountEnabled,
       cash_discount_default_pct: cashDiscountDefaultPct,
@@ -162,6 +166,7 @@ export default async function SettingsPreferencesPage({
           critical_days: criticalDays,
           warning_days: warningDays,
           allow_negative_stock: allowNegativeStock,
+          fiscal_prod_enqueue_enabled: fiscalProdEnqueueEnabled,
           default_supplier_markup_pct: defaultSupplierMarkupPct,
           cash_discount_enabled: cashDiscountEnabled,
           cash_discount_default_pct: cashDiscountDefaultPct,
@@ -317,7 +322,7 @@ export default async function SettingsPreferencesPage({
   const { data: preferencesRow } = await context.admin
     .from('org_preferences')
     .select(
-      'org_id, critical_days, warning_days, allow_negative_stock, default_supplier_markup_pct, cash_discount_enabled, cash_discount_default_pct, employee_discount_enabled, employee_discount_default_pct, employee_discount_combinable_with_cash_discount, cash_denominations',
+      'org_id, critical_days, warning_days, allow_negative_stock, fiscal_prod_enqueue_enabled, default_supplier_markup_pct, cash_discount_enabled, cash_discount_default_pct, employee_discount_enabled, employee_discount_default_pct, employee_discount_combinable_with_cash_discount, cash_denominations',
     )
     .eq('org_id', context.orgId)
     .maybeSingle();
@@ -336,6 +341,7 @@ export default async function SettingsPreferencesPage({
     critical_days: 3,
     warning_days: 7,
     allow_negative_stock: true,
+    fiscal_prod_enqueue_enabled: false,
     default_supplier_markup_pct: 40,
     cash_discount_enabled: true,
     cash_discount_default_pct: 10,
@@ -420,6 +426,22 @@ export default async function SettingsPreferencesPage({
               />
               Permitir stock negativo (modo operativo)
             </label>
+
+            <div className="grid gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <label className="flex items-center gap-2 text-sm font-medium text-amber-900">
+                <input
+                  type="checkbox"
+                  name="fiscal_prod_enqueue_enabled"
+                  defaultChecked={preferences.fiscal_prod_enqueue_enabled}
+                />
+                Permitir encolar facturación fiscal en producción
+              </label>
+              <p className="text-xs text-amber-800">
+                Gate operativo para crear `invoice_jobs` en ambiente `prod`.
+                No emite comprobantes por sí solo. La emisión real sigue
+                controlada por el worker y sus modos de ejecución.
+              </p>
+            </div>
 
             <div className="grid gap-1 rounded-xl border border-zinc-200 p-4">
               <label

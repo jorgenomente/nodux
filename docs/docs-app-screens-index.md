@@ -236,13 +236,19 @@ Ruta pública adicional (institucional, fuera del flujo operativo MVP):
     - Módulo: Tickets e impresión
     - Propósito: configurar plantilla de ticket por sucursal
 
-28. `/settings/preferences`
+28. `/settings/fiscal`
+    - Roles: OA (SA en soporte)
+    - Tipo: Secondary
+    - Módulo: Facturación fiscal
+    - Propósito: asociar certificado fiscal de la ORG y configurar puntos de venta por ambiente/sucursal
+
+29. `/settings/preferences`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Preferencias
     - Propósito: parámetros simples (alertas, UX)
 
-29. `/settings/audit-log`
+30. `/settings/audit-log`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Auditoría
@@ -252,13 +258,13 @@ Ruta pública adicional (institucional, fuera del flujo operativo MVP):
 
 ## 6) Pagos y Superadmin (Primary)
 
-30. `/payments`
+31. `/payments`
     - Roles: OA
     - Tipo: Primary
     - Módulo: Pagos a proveedor
     - Propósito: gestionar cuentas por pagar y registrar pagos por sucursal
 
-31. `/superadmin`
+32. `/superadmin`
     - Roles: SA
     - Tipo: Primary
     - Módulo: SaaS Admin
@@ -294,6 +300,7 @@ Ruta pública adicional (institucional, fuera del flujo operativo MVP):
 - `/settings/users`
 - `/settings/branches`
 - `/settings/tickets`
+- `/settings/fiscal`
 - `/settings/preferences`
 - `/settings/audit-log`
 - `/superadmin`

@@ -108,6 +108,7 @@ Subrutas:
 - `/settings/users`
 - `/settings/branches`
 - `/settings/tickets`
+- `/settings/fiscal`
 - `/settings/staff-permissions`
 - `/settings/preferences`
 - `/settings/audit-log`
@@ -203,6 +204,7 @@ Rutas post-MVP planeadas (NO implementar en MVP):
 - `/settings/users`
 - `/settings/branches`
 - `/settings/tickets`
+- `/settings/fiscal`
 - `/settings/staff-permissions`
 - `/settings/preferences`
 - `/settings/audit-log`

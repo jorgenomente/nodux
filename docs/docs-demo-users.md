@@ -25,6 +25,8 @@ Password comun: `prueba123`
 - Reset recomendado (DB + seed): `npm run db:reset`
 - Seed completo reusable (usuarios + datos operativos MVP): `npm run db:seed:all`
 - Seed solo datos operativos (requiere usuarios/org ya creados): `npm run db:seed:demo`
+  - incluye escenarios de compras de prueba en `/orders` y `/payments`
+  - incluye productos demo con `purchase_by_pack` para validar compra por paquete
 - Seed escenario caja de hoy (ventas + pedido `sent` con items para controlar + pago proveedor cash para validar `/cashbox`): `npm run db:seed:cashbox`
 
 ## Demo interactiva pública (landing)

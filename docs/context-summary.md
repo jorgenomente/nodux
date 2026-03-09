@@ -1,12 +1,13 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-03-05 14:54
+Ultima actualizacion: 2026-03-09 09:55
 
 ## Estado general
 
 - MVP activo con enfoque DB-first / RLS-first y contratos de pantalla por view/RPC.
 - Modulos implementados en ruta: POS, Productos/Stock, Vencimientos, Proveedores, Pedidos, Clientes, Dashboard, Settings completo y Audit Log.
 - Auditoria (audit log) visible solo para OA/SA.
+- ARCA/facturación fiscal permanece fuera del MVP operativo, pero ya existe un track post-MVP activo con base DB y backend inicial en preparación para homologación.
 
 ## Decisiones recientes (clave)
 
@@ -16,6 +17,22 @@ Ultima actualizacion: 2026-03-05 14:54
 - Productos con stock 0 deben seguir visibles (no ocultar en POS ni en catalogo).
 - Catálogo de productos es único por org; stock se mantiene por sucursal.
 - Política anti-duplicado de productos definida para la org: no duplicar `barcode`, `internal_code` ni `name` normalizado (trim + minúsculas). La unicidad por nombre queda pendiente de hardening DB/RPC.
+- Track fiscal ARCA formalizado como línea paralela post-MVP: primero DB/worker backend, luego homologación end-to-end, render y recién después onboarding/UI operativa.
+
+## Estado ARCA / fiscal
+
+- Documentación canónica centralizada en `docs/ARCA/afip-arca-master-index.md`.
+- Lote 0 completado: baseline/freeze y reglas de ejecución seguras.
+- Lote 1 completado: migraciones fiscales reales (`078_fiscal_core`, `079_fiscal_helpers_and_rpc`) con reset local validado.
+- Lote 2 completado: runtime base del worker fiscal en `lib/fiscal/*` con wrappers RPC, polling de jobs y resolución de credenciales/POS.
+- Lote 3 parcial completado: WSAA real, capa WSFE, puente `sale -> sale_document -> invoice_job`, y prueba segura en producción (`WSAA + FEDummy`) validada.
+- Gate operativo org-wide para enqueue `prod` disponible en `org_preferences.fiscal_prod_enqueue_enabled`, visible en `/settings/preferences`.
+- Onboarding fiscal interno inicial disponible en `/settings/fiscal`: carga `.crt/.key`, cifra private key y configura puntos de venta por sucursal/ambiente.
+- En desarrollo local, el cifrado fiscal ya puede bootstrapear su key maestra automáticamente en archivo ignorado si falta `FISCAL_ENCRYPTION_MASTER_KEY`; en producción sigue siendo obligatoria por entorno.
+- Modo backend `prod-safe` disponible para jobs `prod`: autentica WSAA, ejecuta `FEDummy` y corta antes de `FECAESolicitar`, dejando el job en `pending_reconcile` con evidencia.
+- Bloqueo vigente: homologación sigue rechazando certificado en WSAA (`cms.cert.untrusted`), mientras producción autentica correctamente.
+- Gap actual: falta habilitar emisión real controlada (`FECAESolicitar` en prod), render real, reconciliación automática real y onboarding/UI operativa.
+- Siguiente lote recomendado: conectar credenciales `prod` al worker en modo `prod-safe`, validar operaciones con jobs `prod` y recién después abrir emisión real con confirmación explícita.
 
 ## Proveedores y pedidos (MVP)
 
@@ -106,9 +123,9 @@ Ultima actualizacion: 2026-03-05 14:54
 - Proveedores ahora tienen `% ganancia sugerida` por defecto (`40%`) para pricing y `/products` muestra sugerencia de `precio unitario` desde `precio proveedor` + `%` del proveedor primario.
 - `supplier_price` ahora queda persistido por relación en `supplier_products`; editar producto/proveedor actualiza ese valor y permite trazabilidad del cambio de costo proveedor junto al precio sugerido.
 - Nuevo módulo de historial de ventas en `/sales` y detalle en `/sales/[saleId]` con filtros por monto, método, hora e ítems.
-- POS separa cierre en dos acciones: `Cobrar` (venta no facturada) y `Cobrar y facturar` (venta facturada).
+- POS separa cierre en dos acciones: `Cobrar` (venta no facturada, sin enqueue fiscal) y `Cobrar y facturar` (inicia enqueue fiscal).
 - `sales` incorpora estado fiscal (`is_invoiced`, `invoiced_at`) y RPC `rpc_mark_sale_invoiced` para facturación diferida.
-- `/sales` y `/sales/[saleId]` agregan acciones operativas `Imprimir ticket` (copia no fiscal) y `Emitir factura` para ventas previas no facturadas.
+- `/sales` y `/sales/[saleId]` agregan acciones operativas `Imprimir ticket` (copia no fiscal) y `Emitir factura` para ventas previas no facturadas; esos entrypoints encolan job fiscal `prod`.
 - `/settings/branches` agrega plantilla de impresión por sucursal (`ticket_header_text`, `ticket_footer_text`, `fiscal_ticket_note_text`) y POS + `/sales/[saleId]/ticket` pasan a usar esa configuración al imprimir.
 - Se separa la gestión en `/settings/tickets` para centralizar edición de impresión, diferenciando ticket no fiscal vs leyenda fiscal de prueba con guía operativa de formato 80mm.
 - `/settings/tickets` agrega configuración fina de layout por sucursal (ancho en mm, márgenes, tamaño de fuente e interlineado) y POS + `/sales/[saleId]/ticket` usan esos parámetros en CSS de impresión para corregir tickets recortados/descentrados según impresora.

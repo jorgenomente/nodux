@@ -12,6 +12,38 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-03-08 22:03 -03 — ARCA Lote 2 backend-only: runtime base worker fiscal
+
+**Lote:** arca-lote-2-worker-base
+**Objetivo:** Continuar implementación con backend-only para dejar worker fiscal base sin tocar UI.
+
+**Prompt**
+ok continuemos
+
+## 2026-03-08 21:54 -03 — ARCA Lote 1 DB-only: port de migraciones fiscales
+
+**Lote:** arca-lote-1-db-core
+**Objetivo:** Avanzar a implementación DB-only del núcleo fiscal ARCA en migraciones reales.
+
+**Prompt**
+ok avancemos
+
+## 2026-03-08 21:51 -03 — ARCA Lote 0: baseline/freeze de arranque
+
+**Lote:** arca-lote-0-kickoff
+**Objetivo:** Iniciar ejecución controlada con documentación de baseline, freeze de alcance y criterios de salida antes de tocar DB/worker.
+
+**Prompt**
+adlenate
+
+## 2026-03-08 21:55 -03 — ARCA: bitácora por lote dentro del módulo fiscal
+
+**Lote:** arca-lote-0-kickoff
+**Objetivo:** Crear un `activity-log` específico dentro de `docs/ARCA` para resumir cambios por lote y preservar contexto del módulo fiscal.
+
+**Prompt**
+Si, ademas necesito dentro de ARCA un activity log que resuman los cambios que se hicieron en cada lote para que sirva de contexto en caso de que se nos acabe el contexto. empecemos
+
 ## 2026-03-08 21:40 -03 — ARCA docs: auditoría integral y normalización canónica
 
 **Lote:** arca-docs-audit-100
@@ -241,6 +273,50 @@ falta ahora tambien hacer los cambios en /products en este momento no se cuantos
 
 **Lote:** products-pagination-search-count
 **Objetivo:** Extender la mejora de `/products` agregando navegación numerada por páginas y actualización automática del buscador sin submit manual.
+
+**Prompt**
+ok adelante
+
+## 2026-03-08 22:16 -03 — ARCA Lote 3C backend-only: descifrado de private key + WSAA en worker
+
+**Lote:** arca-lote-3c-worker-wsaa-wiring
+**Objetivo:** Conectar la autenticación WSAA al worker fiscal resolviendo el descifrado seguro de `encrypted_private_key` sin implementar todavía WSFE.
+
+**Prompt**
+ok sigamos
+
+## 2026-03-09 09:10 -03 — ARCA QA local: TRA manual-like + FEDummy
+
+**Lote:** arca-qa-local-homo-002
+**Objetivo:** Alinear el TRA al flujo manual (`-5m/+5m`) y probar `FEDummy` para aislar WSFE de WSAA en homologación.
+
+**Prompt**
+en el codigo se estan siguiendo estos pasos? esto es un copiar y pegar de la verificacion obviamente tu toma los datos que necesites y comparalos con el proceso interno nada mas para verificar que todo esta bien.
+
+ok intentanlo
+
+ok. he agregado en certificados una carpeta que se llama homo con credenciales de homologacion. usemos eso y provemos
+
+## 2026-03-08 22:20 -03 — ARCA Lote 3D backend-only: capa WSFE reusable
+
+**Lote:** arca-lote-3d-wsfe-foundation
+**Objetivo:** Implementar builder, cliente y normalizador WSFE desacoplados del worker mientras se define el contrato de entrada fiscal desde ventas.
+
+**Prompt**
+ok continuemos
+
+## 2026-03-08 22:13 -03 — ARCA Lote 3B backend-only: cache y cliente WSAA
+
+**Lote:** arca-lote-3b-wsaa-client-cache
+**Objetivo:** Continuar ARCA-3 con cache de TA y cliente WSAA realista, manteniendo fuera de alcance el descifrado de private key y WSFE.
+
+**Prompt**
+adelante
+
+## 2026-03-08 22:10 -03 — ARCA Lote 3A backend-only: base WSAA (TRA + signing contract)
+
+**Lote:** arca-lote-3a-wsaa-foundation
+**Objetivo:** Iniciar ARCA-3 con la base de autenticación WSAA, creando el constructor de TRA y la frontera de firma por adapter sin tocar UI ni WSFE todavía.
 
 **Prompt**
 ok adelante
@@ -3179,3 +3255,105 @@ normalmente la pagina tarda poco menos de 2 segundos en cambiar de pagina al nav
 Crees que podemos optimizar esto sin romper nada?
 
 bueno avancemos
+
+## 2026-03-08 22:07 -03 — ARCA: formalización de roadmap y siguiente lote
+
+**Lote:** arca-roadmap-alignment-001
+**Objetivo:** Alinear el roadmap general y el contexto vivo con el estado real de ARCA para habilitar el siguiente lote técnico sin contradicción documental.
+
+**Prompt**
+chequea todos los documentos en ARCA leelos detalladamente y verifica cual es el plan de implementacion y lo que ya se ha realizado y lo que esta pendiente. dame un resumen y dime como continuamos
+
+ok adelante
+
+## 2026-03-08 22:21 -03 — Seed demo: compras de prueba para QA operativo
+
+**Lote:** seed-demo-purchase-playground
+**Objetivo:** Agregar datos de prueba coherentes para validar compras a proveedor, pagos y compra por paquete en el entorno demo local.
+
+**Prompt**
+agrega datos de prueba para hacer unas compras de prueba
+
+## 2026-03-08 22:29 -03 — ARCA Lote 3E DB/backend: puente venta -> invoice_job + worker WSFE
+
+**Lote:** arca-lote-3e-sale-to-job-bridge
+**Objetivo:** Crear el puente DB/backend que encola una factura fiscal desde una venta existente, persiste `requested_payload_json` y permite al worker consumir WSFE cuando ese contrato existe.
+
+**Prompt**
+ok adelante
+
+ok continuemos
+
+## 2026-03-08 22:53 -03 — ARCA QA local: homologación con certificado real + hotfix de reserva
+
+**Lote:** arca-qa-local-homo-001
+**Objetivo:** Ejecutar el flujo local contra WSAA/WSFE con certificado real de homologación, corregir errores detectados en runtime y capturar el bloqueo real de emisión.
+
+**Prompt**
+ok hagamos eso
+
+ok mi CUIT es 2095885192 y ya he agregado una carpeta que se llama certificados que tiene la info que me pides. supongo que esto lo pruebas con el endpoint de homologacion https://wsaahomo.afip.gov.ar/ws/services/LoginCms
+
+ok sigamos
+
+## 2026-03-09 09:40 -03 — ARCA QA local: reintento con certificado AFIP emitido
+
+**Lote:** arca-qa-local-homo-002
+**Objetivo:** Revalidar WSAA/WSFE con el nuevo certificado de homologación emitido por AFIP cargado en `docs/ARCA/certificados/homo`.
+
+**Prompt**
+ok he actualizado los certificados en /homo intentemos nuevamente con esta informacion
+
+## 2026-03-09 09:48 -03 — ARCA QA producción: autenticación y conectividad segura
+
+**Lote:** arca-qa-prod-safe-001
+**Objetivo:** Verificar el flujo seguro en producción con el certificado real (`WSAA` + `WSFE FEDummy`) sin emitir comprobantes reales.
+
+**Prompt**
+hagamos algo prueba esta vez el flujo en PRODUCCION con el endpoint de produccion utilizando los archivos dentor de certificados. eso deberia funcionar porque ayer me funciono manualmente desde la terminal. si eso funciona entonces seguimos avanzando y dejamos este entorno de homologacion para despues
+
+## 2026-03-09 09:55 -03 — ARCA backend: modo prod-safe
+
+**Lote:** arca-lote-3f-prod-safe-mode
+**Objetivo:** Implementar un modo backend `prod-safe` que autentique en producción, ejecute `FEDummy` y corte antes de `FECAESolicitar` para evitar emisión real accidental.
+
+**Prompt**
+ok hagamos eso continuemos
+
+## 2026-03-09 10:20 -03 — ARCA DB/UI: gate de enqueue productivo
+
+**Lote:** arca-lote-3g-prod-enqueue-gate
+**Objetivo:** Agregar un gate explícito por organización para permitir encolar jobs fiscales `prod`, visible en preferencias y exigido por `rpc_enqueue_sale_fiscal_invoice`.
+
+**Prompt**
+ok adelante
+
+## 2026-03-09 10:34 -03 — ARCA wiring operativo: cobrar y facturar / emitir factura
+
+**Lote:** arca-lote-3h-sales-pos-fiscal-trigger
+**Objetivo:** Conectar los entrypoints operativos correctos para que sólo `Cobrar y facturar` y `Emitir factura` encolen el job fiscal, manteniendo `Cobrar` solo fuera del flujo.
+
+**Prompt**
+solo para confirmar, el flujo de facturacion se activa solo cuando le doy cobrar y facturar o desde /sales emitir factura, correcto? cobrar solo no deberia inicira este flujo
+
+ok sigamos
+
+## 2026-03-09 11:02 -03 — ARCA DX local: bootstrap automático de key maestra
+
+**Lote:** arca-lote-4b-fiscal-local-encryption-bootstrap
+**Objetivo:** Automatizar el bootstrap de cifrado fiscal en desarrollo local cuando falta `FISCAL_ENCRYPTION_MASTER_KEY`, manteniendo producción explícita.
+
+**Prompt**
+no podemos hacer un flujo para que todo esto se haga automatico?
+
+## 2026-03-09 11:16 -03 — ARCA UI: conflicto explícito de punto de venta
+
+**Lote:** arca-lote-4c-fiscal-pos-conflict-message
+**Objetivo:** Mejorar `/settings/fiscal` para informar explícitamente cuando un `pto_vta` ya está asignado a otra sucursal y ajustar el demo local moviendo `00002` a Caballito.
+
+**Prompt**
+hay algo que no entiendo y es que ya hice lo de Guardar credencial Produccion pero cuando le doy Guardar PV Produccion y me dice 
+Revisa los datos cargados. Se requiere CUIT válido, certificado `.crt/.pem`, private key `.key/.pem` y punto de venta positivo. No estoy seguro si tengo que volver a cargar todo si en teoria ya esta cargado y guardado. puedes chequqear que ambas secciones especialmente la de punto de venta no me requiera cargar nuevamente los datos arriba ya que en teoria ya estan cargados y percistidos? esa seccion deberia ser solo para asignar punto de venta pero me dice esto 
+Revisa los datos cargados. Se requiere CUIT válido, certificado `.crt/.pem`, private key `.key/.pem` y punto de venta positivo.
+
+ok para estos casos entonces el mensaje Revisa el punto de venta fiscal. Debes elegir una sucursal válida, cargar un `pto_vta` positivo y usar un estado permitido. deberia decir ya se esta usando este punto de venta en otra sucursal. y si vamos a moverlo a caballito asi queda todo ahi

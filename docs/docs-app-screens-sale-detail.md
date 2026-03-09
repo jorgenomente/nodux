@@ -51,6 +51,7 @@ Auditar una venta puntual, corregir método de pago cuando hubo error operativo 
 
 - Botón “Imprimir ticket” (copia no fiscal)
 - Botón “Emitir factura” si la venta aún no está facturada
+  Debe encolar el job fiscal en ambiente `prod`; no es equivalente al ticket no fiscal.
 
 ## Data Contract
 

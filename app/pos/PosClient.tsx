@@ -1119,20 +1119,40 @@ export default function PosClient({
     let isInvoiced = false;
 
     if (mode === 'charge_and_invoice' && saleId) {
-      const { error: invoiceError } = await supabase.rpc(
-        'rpc_mark_sale_invoiced' as never,
+      const { error: enqueueError } = await supabase.rpc(
+        'rpc_enqueue_sale_fiscal_invoice' as never,
         {
           p_org_id: orgId,
           p_sale_id: saleId,
-          p_source: 'pos_checkout',
+          p_environment: 'prod',
+          p_cbte_tipo: 11,
+          p_doc_tipo: 99,
+          p_doc_nro: 0,
+          p_source: 'pos_charge_and_invoice',
         } as never,
       );
-      if (invoiceError) {
+
+      if (enqueueError) {
         setErrorMessage(
-          'Venta cobrada, pero no pudimos marcarla como facturada. Puedes emitir la factura desde Ventas.',
+          'Venta cobrada, pero no pudimos iniciar la facturación fiscal. Puedes reintentar desde Ventas.',
         );
       } else {
-        isInvoiced = true;
+        const { error: invoiceError } = await supabase.rpc(
+          'rpc_mark_sale_invoiced' as never,
+          {
+            p_org_id: orgId,
+            p_sale_id: saleId,
+            p_source: 'pos_charge_and_invoice',
+          } as never,
+        );
+
+        if (invoiceError) {
+          setErrorMessage(
+            'Venta cobrada y job fiscal encolado, pero no pudimos actualizar el estado visible de facturación.',
+          );
+        } else {
+          isInvoiced = true;
+        }
       }
     }
 

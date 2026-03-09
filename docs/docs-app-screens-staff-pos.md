@@ -133,7 +133,7 @@ Una venta es un registro con:
   - stock suficiente (si política de stock lo exige)
 - Ejecuta RPC server-authoritative (ver Data Contract)
 - Muestra “Venta realizada” + recibo simple (pantalla/modal) + opción “Nueva venta”
-- Si usa “Cobrar y facturar”, la venta queda marcada como facturada.
+- Si usa “Cobrar y facturar”, la venta debe iniciar el flujo fiscal (enqueue `prod`) y luego reflejar estado facturado visible.
 - Si usa “Cobrar”, queda no facturada y puede facturarse después desde `/sales`.
 
 ### A8) Imprimir ticket (copia no fiscal)
@@ -153,6 +153,7 @@ Una venta es un registro con:
 
 - Si se ingresa con `online_order_id`, el POS precarga ítems snapshot del pedido online.
 - El cajero completa cobro normal (`Cobrar` o `Cobrar y facturar`).
+  `Cobrar` solo no debe iniciar el flujo fiscal.
 - Tras venta exitosa, se intenta avanzar estado del pedido online hasta `delivered`.
 
 ---
