@@ -398,6 +398,7 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada, Fase 7 e
 - 2026-02-16: alta de org se completa end-to-end desde `/superadmin` (incluye OA inicial con password) y SA puede abrir `/dashboard` de la org activa.
 - 2026-02-16: se agrega creación de OA inicial para org existente desde `/superadmin` y se extiende contexto SA de org activa a módulos core del MVP.
 - 2026-02-16: hardening DB de alta org SA para exigir OA inicial en `rpc_superadmin_create_org` (alta atómica sin org huérfana).
+- 2026-03-09: se materializa `superadmin -> org_admin` en todas las orgs via migración `20260309173000_085_superadmin_org_membership_materialization.sql`, incluyendo backfill y trigger al crear org, para eliminar drift de permisos en flujos que dependen de `org_users`.
 - 2026-02-16: cierre Fase 6 con smoke RLS automatizado y CI hardening (Supabase local + seed + lint/build + smoke E2E).
 - 2026-02-16: se agrega descuento en efectivo en POS (porcentaje fijo desde preferencias), validación estricta en DB y métricas de efectivo/descuento en dashboard.
 - 2026-02-16: POS incorpora pagos divididos (split payments) con desglose `sale_payments`, compatibilidad backward en `rpc_create_sale` y métricas de efectivo basadas en cobros reales.

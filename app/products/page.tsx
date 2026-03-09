@@ -236,6 +236,9 @@ export default async function ProductsPage({
     redirect('/no-access');
   }
   const supabase = session.supabase;
+  const dataClient = session.isPlatformAdmin
+    ? createAdminSupabaseClient()
+    : supabase;
   const orgId = session.orgId;
   const role = session.effectiveRole;
   if (role === 'staff') {
@@ -267,11 +270,11 @@ export default async function ProductsPage({
   );
   const page = Number.isFinite(requestedPage) ? Math.max(1, requestedPage) : 1;
 
-  let productsCountQuery = supabase
+  let productsCountQuery = dataClient
     .from('v_products_admin')
     .select('product_id', { count: 'exact', head: true })
     .eq('org_id', orgId);
-  let productsRowsQuery = supabase
+  let productsRowsQuery = dataClient
     .from('v_products_admin')
     .select('*')
     .eq('org_id', orgId)
@@ -308,20 +311,20 @@ export default async function ProductsPage({
     productsCatalogRaw,
     brandsForSuggestions,
   ] = await Promise.all([
-    supabase
+    dataClient
       .from('branches')
       .select('id, name')
       .eq('org_id', orgId)
       .eq('is_active', true)
       .order('name'),
-    supabase
+    dataClient
       .from('suppliers' as never)
       .select('id, name, is_active, default_markup_pct')
       .eq('org_id', orgId)
       .order('name'),
     productIds.length === 0
       ? Promise.resolve({ data: [] as SupplierProductRow[] })
-      : supabase
+      : dataClient
           .from('supplier_products' as never)
           .select(
             'product_id, supplier_id, relation_type, supplier_price, supplier_sku, supplier_product_name, suppliers(name)',
@@ -330,7 +333,7 @@ export default async function ProductsPage({
           .in('product_id', productIds),
     productIds.length === 0
       ? Promise.resolve({ data: [] as SafetyStockRow[] })
-      : supabase
+      : dataClient
           .from('stock_items')
           .select('product_id, safety_stock, branches(name)')
           .eq('org_id', orgId)
@@ -338,7 +341,7 @@ export default async function ProductsPage({
           .in('product_id', productIds),
     fetchAllPages(
       (from, to) =>
-        supabase
+        dataClient
           .from('products' as never)
           .select(
             'id, name, brand, internal_code, barcode, purchase_by_pack, units_per_pack, is_active',
@@ -350,7 +353,7 @@ export default async function ProductsPage({
     ),
     fetchAllPages(
       (from, to) =>
-        supabase
+        dataClient
           .from('products' as never)
           .select('brand')
           .eq('org_id', orgId)
@@ -456,7 +459,9 @@ export default async function ProductsPage({
     const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
     await ensureCanManageProductImages(actionSession);
-    const supabaseServer = actionSession.supabase;
+    const supabaseServer = actionSession.isPlatformAdmin
+      ? createAdminSupabaseClient()
+      : actionSession.supabase;
     const name = String(formData.get('name') ?? '').trim();
     const brand = String(formData.get('brand') ?? '').trim();
     const internalCode = String(formData.get('internal_code') ?? '').trim();
@@ -646,7 +651,9 @@ export default async function ProductsPage({
     const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
     await ensureCanManageProductImages(actionSession);
-    const supabaseServer = actionSession.supabase;
+    const supabaseServer = actionSession.isPlatformAdmin
+      ? createAdminSupabaseClient()
+      : actionSession.supabase;
     const orgId = actionSession.orgId;
     const productId = String(formData.get('product_id') ?? '').trim();
     const name = String(formData.get('edit_name') ?? '').trim();
@@ -887,7 +894,9 @@ export default async function ProductsPage({
 
     const actionSession = await getOrgMemberSession();
     if (!actionSession?.orgId) return;
-    const supabaseServer = actionSession.supabase;
+    const supabaseServer = actionSession.isPlatformAdmin
+      ? createAdminSupabaseClient()
+      : actionSession.supabase;
     const orgId = actionSession.orgId;
     const productId = String(formData.get('product_id') ?? '').trim();
     const branchId = String(formData.get('branch_id') ?? '').trim();

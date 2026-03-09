@@ -133,7 +133,7 @@ Una venta es un registro con:
   - stock suficiente (si política de stock lo exige)
 - Ejecuta RPC server-authoritative (ver Data Contract)
 - Muestra “Venta realizada” + recibo simple (pantalla/modal) + opción “Nueva venta”
-- Si usa “Cobrar y facturar”, la venta debe iniciar el flujo fiscal (enqueue `prod`) y luego reflejar estado facturado visible.
+- Si usa “Cobrar y facturar”, POS debe intentar completar el flujo fiscal (`enqueue prod` + worker live + render) dentro del mismo request. Si el comprobante queda listo, la UI debe informarlo de inmediato; si no termina dentro del timeout operativo, la venta puede devolverse como facturada con estado fiscal `En proceso`.
 - Si usa “Cobrar”, queda no facturada y puede facturarse después desde `/sales`.
 
 ### A8) Imprimir ticket (copia no fiscal)

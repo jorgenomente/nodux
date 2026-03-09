@@ -51,6 +51,32 @@ Se corrigieron referencias internas hacia `docs/ARCA/...`, se limpiaron envoltor
 **Estado:** DONE
 **Commit:** N/A
 
+## 2026-03-09 18:25 -03 — Lote 4R POS/ops: facturación síncrona con fallback asíncrono
+
+**Lote:** pos-fiscal-sync-with-async-fallback
+**Tipo:** backend/ui
+**Objetivo:** Reducir la espera presencial en POS haciendo que `Cobrar y facturar` intente completar autorización y render del comprobante dentro del mismo request, con fallback a cola sólo si ARCA tarda.
+
+**Resumen**
+Se unificó el checkout de POS en `app/api/pos/checkout/route.ts` para todos los roles. Cuando el modo es `charge_and_invoice`, el endpoint ahora crea la venta, encola el job fiscal, marca la venta como facturada y ejecuta `runFiscalWorkerOnce({ executionMode: 'live' })` dentro del mismo request. Luego consulta el estado fiscal por unos segundos; si el comprobante queda autorizado y renderizado, POS devuelve `Comprobante listo`. Si no termina dentro del timeout operativo, la venta vuelve igual como facturada, pero con fallback `Comprobante en proceso`.
+
+**Archivos**
+- app/api/pos/checkout/route.ts
+- app/pos/PosClient.tsx
+- app/pos/page.tsx
+- docs/context-summary.md
+- docs/docs-app-screens-staff-pos.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Validación**
+- `npm run lint`: OK.
+- `npm run build`: OK.
+- Validación manual productiva: ventas nuevas en `https://nodux.app/pos` completaron cobro con facturación y ambas terminaron procesadas correctamente.
+
+**Estado:** DONE
+**Commit:** N/A
+
 ## 2026-03-09 14:15 -03 — Lote 4K ops/infra: worker fiscal automatizado en producción
 
 **Lote:** arca-lote-4k-fiscal-prod-cron-worker
@@ -97,6 +123,131 @@ Se movieron los toggles `fiscal_prod_enqueue_enabled` y `fiscal_prod_live_enable
 - docs/ARCA/activity-log.md
 
 **Validación**
+- `npm run lint`: OK
+- `npm run build`: OK
+
+**Estado:** DONE
+**Commit:** N/A
+
+## 2026-03-09 15:50 -03 — Lote 4N ops/backend: trigger inmediato del worker fiscal
+
+**Lote:** arca-lote-4n-fiscal-immediate-trigger
+**Tipo:** backend/ui/docs/tests
+**Objetivo:** Procesar facturas productivas de forma casi inmediata aun con cron diario en Vercel Hobby.
+
+**Resumen**
+Se agregó `lib/fiscal/worker/trigger-worker.ts` para invocar la ruta interna protegida del worker con `CRON_SECRET`. Encima de eso se creó `POST /api/fiscal/trigger` como relay autenticado para requests originadas desde el browser/POS. El flujo `Cobrar y facturar` y ambas acciones `Emitir factura` ahora disparan el worker inmediatamente después del enqueue y del marcado visible de venta facturada. El cron diario en `vercel.json` queda como red de seguridad, no como mecanismo principal.
+
+**Archivos**
+- lib/fiscal/worker/trigger-worker.ts
+- app/api/fiscal/trigger/route.ts
+- app/pos/PosClient.tsx
+- app/sales/page.tsx
+- app/sales/[saleId]/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Validación**
+- `npm run lint`: OK
+- `npm run build`: OK
+
+**Estado:** DONE
+**Commit:** N/A
+
+## 2026-03-09 16:05 -03 — Lote 4O backend: signer WSAA sin OpenSSL CLI
+
+**Lote:** arca-lote-4o-wsaa-forge-signer
+**Tipo:** backend/docs/tests
+**Objetivo:** Hacer compatible la autenticación WSAA con Vercel serverless eliminando dependencia de `openssl`.
+
+**Resumen**
+Se reemplazó el signer CMS `OpenSslCmsSigner` por `ForgeCmsSigner` dentro de `wsaa-client.ts`, usando `node-forge` para generar el PKCS#7 firmado en memoria. Esto corrige el fallo observado en producción (`openssl: undefined symbol: SSL_get_srp_g`) al ejecutar `Probar WSAA + FEDummy` y además destraba la emisión real, ya que ambos flujos dependen del mismo `loginCms`.
+
+**Archivos**
+- lib/fiscal/auth/wsaa-client.ts
+- package.json
+- package-lock.json
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Validación**
+- `npm run lint`: OK
+- `npm run build`: OK
+
+**Estado:** DONE
+**Commit:** N/A
+
+## 2026-03-09 16:20 -03 — Lote 4P backend: transporte SOAP sin `fetch`
+
+**Lote:** arca-lote-4p-wsaa-wsfe-https-transport
+**Tipo:** backend/docs/tests
+**Objetivo:** Mejorar la estabilidad y el diagnóstico de WSAA/WSFE en Vercel serverless.
+
+**Resumen**
+Se reemplazó `fetch` por `node:https` en los clientes SOAP de WSAA y WSFE. Esto unifica el transporte con timeouts explícitos y evita el error genérico `fetch failed` observado en `Prueba segura Producción`. Además, `wsaa-client.ts` ahora emite `fiscalLogger.error('wsaa_request_failed', ...)` con el endpoint y el mensaje real de red/TLS si el request falla.
+
+**Archivos**
+- lib/fiscal/auth/wsaa-client.ts
+- lib/fiscal/wsfe/wsfe-client.ts
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Validación**
+- `npm run lint`: OK
+- `npm run build`: OK
+
+**Estado:** DONE
+**Commit:** N/A
+
+## 2026-03-09 16:35 -03 — Lote 4Q backend: compatibilidad TLS legacy AFIP
+
+**Lote:** arca-lote-4q-afip-tls-legacy-agent
+**Tipo:** backend/docs/tests
+**Objetivo:** Hacer compatible el handshake TLS con WSAA/WSFE productivos que todavía negocian parámetros DHE débiles.
+
+**Resumen**
+Se agregó `lib/fiscal/shared/afip-https-agent.ts` y ambos clientes SOAP (`wsaa-client.ts`, `wsfe-client.ts`) ahora usan un `https.Agent` dedicado para hosts AFIP/ARCA con `ciphers: DEFAULT@SECLEVEL=1`. El cambio queda acotado a esos endpoints para no relajar el resto del tráfico HTTPS de la app.
+
+**Archivos**
+- lib/fiscal/shared/afip-https-agent.ts
+- lib/fiscal/auth/wsaa-client.ts
+- lib/fiscal/wsfe/wsfe-client.ts
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Validación**
+- `npm run lint`: OK
+- `npm run build`: OK
+
+**Estado:** DONE
+**Commit:** N/A
+
+## 2026-03-09 17:20 -03 — Lote 4R platform/db: membresía automática de superadmin
+
+**Lote:** superadmin-auto-org-membership-materialization
+**Tipo:** db/docs/tests
+**Objetivo:** Eliminar el borde de autorización entre `platform_admins` y RPCs que aún validan `org_users`.
+
+**Resumen**
+Se agregó una capa DB para materializar a todos los superadmins globales como `org_admin` en cada ORG. La migración hace backfill sobre orgs existentes y define un trigger `after insert` para nuevas organizaciones. Esto reduce fricción operativa en flujos como POS, fiscal y settings donde todavía conviven validaciones por `is_platform_admin()` y por membresía explícita de `org_users`.
+
+**Archivos**
+- supabase/migrations/20260309173000_085_superadmin_org_membership_materialization.sql
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Validación**
+- `npm run db:reset`: OK
+- verificación SQL de backfill y trigger: OK
 - `npm run lint`: OK
 - `npm run build`: OK
 

@@ -41,6 +41,56 @@ Se creó `docs/ARCA/activity-log.md` como bitácora específica del módulo fisc
 
 **Commit:** N/A
 
+## 2026-03-09 18:25 -03 — POS fiscal: intento síncrono con fallback asíncrono
+
+**Tipo:** backend/ui/docs/tests
+**Lote:** pos-fiscal-sync-with-async-fallback
+**Descripción:** Se movió el checkout de POS a un camino server-side único para todos los roles y `Cobrar y facturar` ahora intenta completar la facturación fiscal en el mismo request: crea la venta, encola el job fiscal, marca la venta facturada, ejecuta `runFiscalWorkerOnce({ executionMode: 'live' })` y espera brevemente a que el comprobante quede listo. Si el render no completa dentro del timeout operativo, la respuesta cae a modo asíncrono y la UI muestra `Comprobante en proceso`.
+
+**Archivos afectados:**
+
+- app/api/pos/checkout/route.ts
+- app/pos/PosClient.tsx
+- app/pos/page.tsx
+- docs/context-summary.md
+- docs/docs-app-screens-staff-pos.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Commit:** N/A
+
+## 2026-03-09 18:10 -03 — Superadmin DB: auto-membresía org-wide materializada
+
+**Tipo:** schema/docs/tests
+**Lote:** superadmin-auto-org-membership-materialization
+**Descripción:** Se agregó la migración `20260309173000_085_superadmin_org_membership_materialization.sql` para materializar automáticamente a cada `platform_admin` dentro de `org_users` como `org_admin` en todas las orgs existentes y nuevas. También se ajustó `scripts/seed-users.js` para poblar `platform_admins` en el entorno demo local y se actualizaron los docs vivos de modelo, RLS, contexto y roadmap.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260309173000_085_superadmin_org_membership_materialization.sql
+- scripts/seed-users.js
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset` OK (2026-03-09)
+- `psql ... select * from public.platform_admins` OK (2026-03-09)
+- `psql ... insert into public.orgs ...` + `select ... from public.org_users` OK (trigger materializa `org_admin` en org nueva) (2026-03-09)
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Commit:** N/A
+
 ## 2026-03-09 14:15 -03 — ARCA ops: automatización productiva con Vercel Cron
 
 **Tipo:** backend/infra/docs/tests
@@ -84,6 +134,173 @@ Se creó `docs/ARCA/activity-log.md` como bitácora específica del módulo fisc
 
 **Tests / comandos:**
 
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Commit:** N/A
+
+## 2026-03-09 15:20 -03 — Hardening superadmin: `/products` sin RLS implícito
+
+**Tipo:** fix/docs/tests
+**Lote:** superadmin-products-rls-hardening
+**Descripción:** Se corrigió `/products` para que, cuando el usuario es `superadmin`, las lecturas y escrituras usen `service_role` después del guard de autorización, igual que en `/pos` y otros módulos ya endurecidos. Antes, la página y sus server actions seguían usando el cliente de sesión en tablas/RPCs con RLS basada en membresía `org_users`, lo que podía romper el render en producción al editar un producto.
+
+**Archivos afectados:**
+
+- app/products/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Commit:** N/A
+
+## 2026-03-09 15:35 -03 — ARCA ops: cron diario compatible con Vercel Hobby
+
+**Tipo:** infra/docs
+**Lote:** arca-lote-4m-vercel-hobby-cron-downgrade
+**Descripción:** Se ajustó `vercel.json` para pasar de un cron cada 5 minutos a un cron diario (`0 3 * * *`), ya que Vercel Hobby rechaza frecuencias superiores a una vez por día. El worker automático sigue disponible, pero la operación productiva queda limitada hasta mover el proyecto a un plan Pro o a otro scheduler.
+
+**Archivos afectados:**
+
+- vercel.json
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npx vercel --prod --yes` pendiente de reintento tras el ajuste
+
+**Commit:** N/A
+
+## 2026-03-09 15:50 -03 — ARCA ops: trigger inmediato del worker fiscal
+
+**Tipo:** backend/ui/docs/tests
+**Lote:** arca-lote-4n-fiscal-immediate-trigger
+**Descripción:** Se agregó un disparo inmediato del worker fiscal al encolar facturación desde POS y desde `Emitir factura` en ventas, reutilizando la ruta interna protegida con `CRON_SECRET`. Se expuso un relay autenticado `POST /api/fiscal/trigger` para el caso browser/POS y se creó un helper server-side compartido. Con esto, el cron diario de Vercel Hobby queda sólo como fallback.
+
+**Archivos afectados:**
+
+- lib/fiscal/worker/trigger-worker.ts
+- app/api/fiscal/trigger/route.ts
+- app/pos/PosClient.tsx
+- app/sales/page.tsx
+- app/sales/[saleId]/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Commit:** N/A
+
+## 2026-03-09 16:05 -03 — ARCA fix prod: signer WSAA sin OpenSSL CLI
+
+**Tipo:** backend/docs/tests
+**Lote:** arca-lote-4o-wsaa-forge-signer
+**Descripción:** Se reemplazó la firma CMS basada en `openssl cms -sign` por una implementación Node pura usando `node-forge` dentro de `lib/fiscal/auth/wsaa-client.ts`. El cambio elimina la dependencia del binario `openssl` del runtime serverless de Vercel, que estaba fallando con `undefined symbol: SSL_get_srp_g` y bloqueaba tanto la prueba segura `WSAA + FEDummy` como la emisión real.
+
+**Archivos afectados:**
+
+- lib/fiscal/auth/wsaa-client.ts
+- package.json
+- package-lock.json
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Commit:** N/A
+
+## 2026-03-09 16:20 -03 — ARCA fix prod: transporte SOAP sin `fetch`
+
+**Tipo:** backend/docs/tests
+**Lote:** arca-lote-4p-wsaa-wsfe-https-transport
+**Descripción:** Se reemplazó el transporte SOAP basado en `fetch` por `node:https` para WSAA y WSFE (`FEDummy` y `FECAESolicitar`). En Vercel serverless, `fetch` estaba devolviendo errores genéricos `fetch failed` sin trazabilidad útil; con `https` ahora tenemos timeouts explícitos, errores de socket/TLS más concretos y un camino más estable para integraciones SOAP fiscales.
+
+**Archivos afectados:**
+
+- lib/fiscal/auth/wsaa-client.ts
+- lib/fiscal/wsfe/wsfe-client.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Commit:** N/A
+
+## 2026-03-09 16:35 -03 — ARCA fix prod: agent HTTPS legacy para AFIP
+
+**Tipo:** backend/docs/tests
+**Lote:** arca-lote-4q-afip-tls-legacy-agent
+**Descripción:** Se agregó un `https.Agent` específico para hosts AFIP/ARCA (`wsaa*` y `wsfe*`) con `ciphers: DEFAULT@SECLEVEL=1`. Esto baja el nivel de seguridad OpenSSL sólo para esos endpoints y evita el error `dh key too small` observado en `Prueba segura Producción` desde Vercel serverless.
+
+**Archivos afectados:**
+
+- lib/fiscal/shared/afip-https-agent.ts
+- lib/fiscal/auth/wsaa-client.ts
+- lib/fiscal/wsfe/wsfe-client.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Commit:** N/A
+
+## 2026-03-09 16:55 -03 — POS fix prod: checkout server-side conserva auth del superadmin
+
+**Tipo:** fix/docs/tests
+**Lote:** pos-superadmin-checkout-auth-context-fix
+**Descripción:** Se corrigió `app/api/pos/checkout/route.ts` para ejecutar `rpc_create_sale` con `session.supabase` en vez de `service_role`. El endpoint server-side sigue sirviendo para el flujo de POS de `superadmin`, pero ahora preserva `auth.uid()` y el contexto de plataforma que la función SQL necesita para autorizar la venta.
+
+**Archivos afectados:**
+
+- app/api/pos/checkout/route.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Commit:** N/A
+
+## 2026-03-09 17:20 -03 — Superadmin DB: membresía automática en todas las ORG
+
+**Tipo:** schema/docs/tests
+**Lote:** superadmin-auto-org-membership-materialization
+**Descripción:** Se agregó una migración para materializar a todos los `platform_admins` como `org_admin` dentro de `org_users` para cada ORG existente y futura. La solución incorpora un helper `fn_sync_platform_admin_memberships_for_org(uuid)`, un trigger `after insert on orgs` y backfill sobre organizaciones ya creadas. Con esto, los RPCs que todavía se apoyan en `org_users` dejan de devolver `not authorized` para superadmin.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260309173000_085_superadmin_org_membership_materialization.sql
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset` OK (2026-03-09)
+- verificación SQL backfill/trigger superadmin en `org_users`: OK (2026-03-09)
 - `npm run lint` OK (2026-03-09)
 - `npm run build` OK (2026-03-09)
 

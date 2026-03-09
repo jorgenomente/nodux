@@ -1,10 +1,8 @@
-import { writeFile, mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { request as httpsRequest } from 'node:https';
+import * as forge from 'node-forge';
 
 import { fiscalLogger } from '@/lib/fiscal/shared/fiscal-logger';
+import { getAfipHttpsAgent } from '@/lib/fiscal/shared/afip-https-agent';
 import type {
   WsaaContext,
   WsaaTra,
@@ -18,8 +16,6 @@ import {
   setCachedWsaaTicket,
 } from '@/lib/fiscal/auth/wsaa-cache';
 import { signTra, type WsaaSignerAdapter } from '@/lib/fiscal/auth/sign-tra';
-
-const execFileAsync = promisify(execFile);
 
 const DEFAULT_WSAA_TIMEOUT_MS = 10000;
 const DEFAULT_RENEW_BEFORE_SECONDS = 60 * 5;
@@ -88,66 +84,105 @@ const parseLoginCmsResponse = (soapXml: string, taxpayerCuit: string): WsaaConte
   };
 };
 
-const buildAbortSignal = (timeoutMs: number) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  return {
-    signal: controller.signal,
-    clear: () => clearTimeout(timeout),
-  };
+const postSoapXmlOverHttps = async (params: {
+  endpoint: string;
+  soapAction: string;
+  body: string;
+  timeoutMs: number;
+}) =>
+  new Promise<string>((resolve, reject) => {
+    const url = new URL(params.endpoint);
+    const req = httpsRequest(
+      {
+        protocol: url.protocol,
+        hostname: url.hostname,
+        port: url.port || (url.protocol === 'https:' ? 443 : 80),
+        path: `${url.pathname}${url.search}`,
+        method: 'POST',
+        agent: getAfipHttpsAgent(url.hostname),
+        headers: {
+          'content-type': 'text/xml; charset=utf-8',
+          SOAPAction: params.soapAction,
+          'content-length': Buffer.byteLength(params.body, 'utf8'),
+        },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk) => {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        });
+        res.on('end', () => {
+          const rawXml = Buffer.concat(chunks).toString('utf8');
+          const statusCode = res.statusCode ?? 0;
+          if (statusCode < 200 || statusCode >= 300) {
+            reject(
+              new Error(`WSAA HTTP ${statusCode}: ${rawXml.slice(0, 400)}`),
+            );
+            return;
+          }
+          resolve(rawXml);
+        });
+      },
+    );
+
+    req.setTimeout(params.timeoutMs, () => {
+      req.destroy(new Error('WSAA timeout'));
+    });
+    req.on('error', (error) => reject(error));
+    req.write(params.body);
+    req.end();
+  });
+
+const resolveForgePrivateKey = (privateKeyPem: string, passphrase?: string) => {
+  if (!passphrase) {
+    return forge.pki.privateKeyFromPem(privateKeyPem);
+  }
+
+  const decrypted =
+    forge.pki.decryptRsaPrivateKey(privateKeyPem, passphrase) ??
+    forge.pki.privateKeyFromPem(privateKeyPem);
+
+  return decrypted;
 };
 
-class OpenSslCmsSigner implements WsaaSignerAdapter {
+class ForgeCmsSigner implements WsaaSignerAdapter {
   async signCmsBase64(input: {
     traXml: string;
     certificatePem: string;
     privateKeyPem: string;
     passphrase?: string;
   }): Promise<string> {
-    const tempDir = await mkdtemp(join(tmpdir(), 'nodux-wsaa-'));
-    const traPath = join(tempDir, 'tra.xml');
-    const certPath = join(tempDir, 'certificate.pem');
-    const keyPath = join(tempDir, 'private-key.pem');
-    const outPath = join(tempDir, 'signed.cms');
+    const certificate = forge.pki.certificateFromPem(input.certificatePem);
+    const privateKey = resolveForgePrivateKey(
+      input.privateKeyPem,
+      input.passphrase,
+    );
 
-    try {
-      await writeFile(traPath, input.traXml, 'utf8');
-      await writeFile(certPath, input.certificatePem, 'utf8');
-      await writeFile(keyPath, input.privateKeyPem, 'utf8');
+    const signedData = forge.pkcs7.createSignedData();
+    signedData.content = forge.util.createBuffer(input.traXml, 'utf8');
+    signedData.addCertificate(certificate);
+    signedData.addSigner({
+      key: privateKey,
+      certificate,
+      digestAlgorithm: forge.pki.oids.sha256,
+      authenticatedAttributes: [
+        {
+          type: forge.pki.oids.contentType,
+          value: forge.pki.oids.data,
+        },
+        {
+          type: forge.pki.oids.messageDigest,
+        },
+        {
+          type: forge.pki.oids.signingTime,
+          value: new Date() as never,
+        },
+      ],
+    });
+    signedData.sign({ detached: false });
 
-      const args = [
-        'cms',
-        '-sign',
-        '-in',
-        traPath,
-        '-signer',
-        certPath,
-        '-inkey',
-        keyPath,
-        '-out',
-        outPath,
-        '-outform',
-        'DER',
-        '-nodetach',
-        '-binary',
-      ];
-
-      if (input.passphrase) {
-        args.push('-passin', `pass:${input.passphrase}`);
-      }
-
-      await execFileAsync('openssl', args);
-      const { stdout } = await execFileAsync('openssl', [
-        'base64',
-        '-A',
-        '-in',
-        outPath,
-      ]);
-
-      return stdout.trim();
-    } finally {
-      await rm(tempDir, { recursive: true, force: true });
-    }
+    const derBytes = forge.asn1.toDer(signedData.toAsn1()).getBytes();
+    return Buffer.from(derBytes, 'binary').toString('base64');
   }
 }
 
@@ -177,7 +212,6 @@ export const getOrRefreshWsaaTicket = async (params: {
   signer?: WsaaSignerAdapter;
   timeoutMs?: number;
   renewBeforeSeconds?: number;
-  fetchFn?: typeof fetch;
 }): Promise<WsaaContext> => {
   const renewBeforeSeconds =
     params.renewBeforeSeconds ?? DEFAULT_RENEW_BEFORE_SECONDS;
@@ -200,8 +234,7 @@ export const getOrRefreshWsaaTicket = async (params: {
 
   const timeoutMs =
     params.timeoutMs ?? Number(process.env.FISCAL_WSAA_TIMEOUT_MS || DEFAULT_WSAA_TIMEOUT_MS);
-  const fetchFn = params.fetchFn ?? fetch;
-  const signer = params.signer ?? new OpenSslCmsSigner();
+  const signer = params.signer ?? new ForgeCmsSigner();
   const tra: WsaaTra = buildTra({
     service: params.credentials.wsaa_service_name,
   });
@@ -214,23 +247,13 @@ export const getOrRefreshWsaaTicket = async (params: {
   });
 
   const endpoint = WSAA_ENDPOINTS[params.credentials.environment];
-  const abort = buildAbortSignal(timeoutMs);
-
   try {
-    const response = await fetchFn(endpoint, {
-      method: 'POST',
-      headers: {
-        'content-type': 'text/xml; charset=utf-8',
-        SOAPAction: SOAP_ACTION,
-      },
+    const soapXml = await postSoapXmlOverHttps({
+      endpoint,
+      soapAction: SOAP_ACTION,
       body: buildLoginCmsEnvelope(signed.cmsBase64),
-      signal: abort.signal,
+      timeoutMs,
     });
-
-    const soapXml = await response.text();
-    if (!response.ok) {
-      throw new Error(`WSAA HTTP ${response.status}: ${soapXml.slice(0, 400)}`);
-    }
 
     const ticket = parseLoginCmsResponse(
       soapXml,
@@ -257,7 +280,11 @@ export const getOrRefreshWsaaTicket = async (params: {
     });
 
     return ticket;
-  } finally {
-    abort.clear();
+  } catch (error) {
+    fiscalLogger.error('wsaa_request_failed', toWorkerContext(params.context), {
+      endpoint,
+      error: error instanceof Error ? error.message : 'Unknown WSAA error',
+    });
+    throw error;
   }
 };

@@ -3433,3 +3433,84 @@ listo ya las agregue en vercel seguimos
 
 **Prompt**
 vamos a mover los dos toggles de la facturacion fiscal desde /preferences a /fiscal en la parte inferior ya que esto tiene que ver mas con facturacion que con preferencias generales. he creado la clave de cron y tambien la desplegue en vercel
+
+## 2026-03-09 15:20 -03 — Hardening superadmin: edición de productos en producción
+
+**Lote:** superadmin-products-rls-hardening
+**Objetivo:** Corregir el error de render/Server Components al editar productos como superadmin en producción.
+
+**Prompt**
+acabo de entrar con mi cuenta de superadmin e intente cambiar el precio a un articulo para ponerle 20 pesos y asi ejecutar la prueba pero me sale este mensaje An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.
+
+## 2026-03-09 15:35 -03 — ARCA ops: ajuste de cron por límite Hobby
+
+**Lote:** arca-lote-4m-vercel-hobby-cron-downgrade
+**Objetivo:** Adaptar el cron fiscal productivo al límite del plan Hobby de Vercel para poder desplegar.
+
+**Prompt**
+creo que el problema tambien es que no habia ejecutado npx vercel --prod. lo puedes correr?
+
+dejemos cron diario si me lo permite
+
+## 2026-03-09 15:50 -03 — ARCA ops: trigger inmediato por venta con cron diario fallback
+
+**Lote:** arca-lote-4n-fiscal-immediate-trigger
+**Objetivo:** Evitar esperar al cron diario en Vercel Hobby disparando el worker fiscal inmediatamente después del enqueue de la venta.
+
+**Prompt**
+exacto hagamos eso tu recomendacion
+
+## 2026-03-09 16:05 -03 — ARCA fix prod: reemplazo de firma OpenSSL por signer Node puro
+
+**Lote:** arca-lote-4o-wsaa-forge-signer
+**Objetivo:** Eliminar la dependencia del binario `openssl` en runtime productivo para que `WSAA + FEDummy` y la emisión real funcionen en Vercel.
+
+**Prompt**
+ok ya registre los docs en prod y me dice La prueba segura no pudo completarse para Produccion: Command failed: openssl cms -sign -in /tmp/nodux-wsaa-TjJNe7/tra.xml -signer /tmp/nodux-wsaa-TjJNe7/certificate.pem -inkey /tmp/nodux-wsaa-TjJNe7/private-key.pem -out /tmp/nodux-wsaa-TjJNe7/signed.cms -outform DER -nodetach -binary openssl: symbol lookup error: openssl: undefined symbol: SSL_get_srp_g, version OPENSSL_3.0.0 al probar Probar WSAA + FEDummy
+
+## 2026-03-09 16:20 -03 — ARCA fix prod: transporte SOAP sin fetch en serverless
+
+**Lote:** arca-lote-4p-wsaa-wsfe-https-transport
+**Objetivo:** Evitar errores genéricos `fetch failed` en Vercel serverless reemplazando `fetch` por `node:https` en clientes SOAP fiscales.
+
+**Prompt**
+ahora me dice La prueba segura no pudo completarse para Produccion: fetch failed
+
+## 2026-03-09 16:35 -03 — ARCA fix prod: compatibilidad TLS legacy AFIP
+
+**Lote:** arca-lote-4q-afip-tls-legacy-agent
+**Objetivo:** Resolver el handshake TLS contra endpoints AFIP/ARCA que negocian parámetros DH débiles desde Vercel serverless.
+
+**Prompt**
+La prueba segura no pudo completarse para Produccion: write EPROTO C0C86A65B57F0000:error:0A00018A:SSL routines:tls_process_ske_dhe:dh key too small:ssl/statem/statem_clnt.c:2328:
+
+## 2026-03-09 16:55 -03 — POS fix prod: checkout server-side con auth real para superadmin
+
+**Lote:** pos-superadmin-checkout-auth-context-fix
+**Objetivo:** Corregir el checkout de POS para superadmin preservando `auth.uid()` al ejecutar `rpc_create_sale`.
+
+**Prompt**
+sigo el mismo error No pudimos registrar la venta.
+
+## 2026-03-09 17:20 -03 — Superadmin DB: materializar membresía org-wide automática
+
+**Lote:** superadmin-auto-org-membership-materialization
+**Objetivo:** Evitar fallos `not authorized` materializando a todos los platform admins como `org_admin` en cada ORG existente y nueva.
+
+**Prompt**
+"ok":false,"error":"not authorized","details":null,"hint":null,"code":"P0001"} No pudimos registrar la venta. no podemos simplemente agregar a superadmin como admin de todas las ORG asi nos evitamos este problema? siento que el problema es que no tiene la membresia? y que cada vez que yo cree una nueva ORG entocnes automaticamente las cuentas superadmin se agreguen como miembro
+
+excelente adelante
+
+## 2026-03-09 18:20 -03 — POS fiscal: emisión síncrona con fallback asíncrono
+
+**Lote:** pos-fiscal-sync-with-async-fallback
+**Objetivo:** Hacer que `Cobrar y facturar` intente emitir el comprobante dentro del mismo request de POS y sólo caiga a `En proceso` si ARCA tarda o no completa render a tiempo.
+
+**Prompt**
+de igual manera no deberia tardar tanto, piensa que estos son clientes que estan alli presentes y estan esperando su factura
+
+adelante
+
+mplementemos
+  facturacion sincrona con fallback asincrono

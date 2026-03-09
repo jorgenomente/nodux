@@ -1045,28 +1045,84 @@ export default function PosClient({
         : (paymentsPayload?.[0]?.payment_method ?? paymentMethod)
       : paymentMethod;
 
-    const { data, error } = await supabase.rpc(
-      'rpc_create_sale' as never,
-      {
-        p_org_id: orgId,
-        p_branch_id: activeBranchId,
-        p_payment_method: summaryPaymentMethod,
-        p_items: items,
-        p_special_order_id: specialOrderId ?? undefined,
-        p_close_special_order: closeSpecialOrder,
-        p_apply_cash_discount: !isSplitPayment && applyCashDiscount,
-        p_cash_discount_pct:
-          !isSplitPayment && applyCashDiscount ? cashDiscountPct : undefined,
-        p_payments: paymentsPayload,
-        p_apply_employee_discount: applyEmployeeDiscount,
-        p_employee_discount_pct: applyEmployeeDiscount
+    let data:
+      | { sale_id?: string | null; total?: number | null }
+      | Array<{ sale_id?: string | null; total?: number | null }>
+      | null = null;
+    let error:
+      | {
+          message: string;
+          details?: string | null;
+          hint?: string | null;
+          code?: string | null;
+        }
+      | null = null;
+    let fiscalErrorFromServer: string | null = null;
+    let fiscalSyncStatus:
+      | 'not_requested'
+      | 'processing'
+      | 'completed'
+      | 'failed' = 'not_requested';
+    let invoiceUrlFromServer: string | null = null;
+    let isInvoiced = false;
+    const response = await fetch('/api/pos/checkout', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        orgId,
+        branchId: activeBranchId,
+        paymentMethod: summaryPaymentMethod,
+        items,
+        specialOrderId: specialOrderId ?? null,
+        closeSpecialOrder,
+        applyCashDiscount: !isSplitPayment && applyCashDiscount,
+        cashDiscountPct:
+          !isSplitPayment && applyCashDiscount ? cashDiscountPct : null,
+        payments: paymentsPayload ?? null,
+        applyEmployeeDiscount,
+        employeeDiscountPct: applyEmployeeDiscount
           ? employeeDiscountPct
-          : undefined,
-        p_employee_account_id: applyEmployeeDiscount
-          ? employeeAccountId
-          : undefined,
-      } as never,
-    );
+          : null,
+        employeeAccountId: applyEmployeeDiscount ? employeeAccountId : null,
+        mode,
+      }),
+    });
+
+    const payload = (await response.json().catch(() => null)) as
+      | {
+          ok?: boolean;
+          saleId?: string;
+          total?: number;
+          isInvoiced?: boolean;
+          fiscalError?: string;
+          fiscalSyncStatus?: 'not_requested' | 'processing' | 'completed' | 'failed';
+          invoiceUrl?: string | null;
+          error?: string;
+          details?: string | null;
+          hint?: string | null;
+          code?: string | null;
+        }
+      | null;
+
+    if (!response.ok || !payload?.ok) {
+      error = {
+        message: payload?.error ?? 'No pudimos registrar la venta.',
+        details: payload?.details ?? null,
+        hint: payload?.hint ?? null,
+        code: payload?.code ?? null,
+      };
+    } else {
+      data = {
+        sale_id: payload.saleId ?? null,
+        total: payload.total ?? null,
+      };
+      fiscalErrorFromServer = payload.fiscalError ?? null;
+      fiscalSyncStatus = payload.fiscalSyncStatus ?? 'not_requested';
+      invoiceUrlFromServer = payload.invoiceUrl ?? null;
+      isInvoiced = Boolean(payload.isInvoiced);
+    }
 
     if (error) {
       const message = error.message.includes('insufficient stock')
@@ -1116,44 +1172,8 @@ export default function PosClient({
     } | null;
     const saleId = String(sale?.sale_id ?? '').trim();
     const totalAmount = Number(sale?.total ?? total);
-    let isInvoiced = false;
-
-    if (mode === 'charge_and_invoice' && saleId) {
-      const { error: enqueueError } = await supabase.rpc(
-        'rpc_enqueue_sale_fiscal_invoice' as never,
-        {
-          p_org_id: orgId,
-          p_sale_id: saleId,
-          p_environment: 'prod',
-          p_cbte_tipo: 11,
-          p_doc_tipo: 99,
-          p_doc_nro: 0,
-          p_source: 'pos_charge_and_invoice',
-        } as never,
-      );
-
-      if (enqueueError) {
-        setErrorMessage(
-          'Venta cobrada, pero no pudimos iniciar la facturación fiscal. Puedes reintentar desde Ventas.',
-        );
-      } else {
-        const { error: invoiceError } = await supabase.rpc(
-          'rpc_mark_sale_invoiced' as never,
-          {
-            p_org_id: orgId,
-            p_sale_id: saleId,
-            p_source: 'pos_charge_and_invoice',
-          } as never,
-        );
-
-        if (invoiceError) {
-          setErrorMessage(
-            'Venta cobrada y job fiscal encolado, pero no pudimos actualizar el estado visible de facturación.',
-          );
-        } else {
-          isInvoiced = true;
-        }
-      }
+    if (fiscalErrorFromServer) {
+      setErrorMessage(fiscalErrorFromServer);
     }
 
     if (onlineOrderId && onlineOrderStatus && onlineOrderStatus !== 'cancelled') {
@@ -1189,8 +1209,18 @@ export default function PosClient({
     }
 
     const fiscalStatusLabel = isInvoiced ? 'facturada' : 'no facturada';
+    const fiscalSuffix =
+      mode === 'charge_and_invoice' && isInvoiced
+        ? fiscalSyncStatus === 'completed'
+          ? ' Comprobante listo.'
+          : fiscalSyncStatus === 'processing'
+            ? ' Comprobante en proceso.'
+            : invoiceUrlFromServer
+              ? ' Factura disponible.'
+              : ''
+        : '';
     setSuccessMessage(
-      `Venta registrada. Total: ${formatCurrency(totalAmount)} (${fiscalStatusLabel}).`,
+      `Venta registrada. Total: ${formatCurrency(totalAmount)} (${fiscalStatusLabel}).${fiscalSuffix}`,
     );
     setLastTicket({
       branchName: activeBranchName,

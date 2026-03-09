@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
@@ -10,6 +11,7 @@ import {
 import SalePaymentCorrectionForm from '@/app/sales/SalePaymentCorrectionForm';
 import { formatOperationalPaymentMethod } from '@/lib/payments/catalog';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { triggerFiscalWorker } from '@/lib/fiscal/worker/trigger-worker';
 import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
 
 export const dynamic = 'force-dynamic';
@@ -295,6 +297,17 @@ export default async function SaleDetailPage({
     revalidatePath('/dashboard');
     revalidatePath('/sales');
     revalidatePath(`/sales/${saleId}`);
+
+    const requestHeaders = await headers();
+    const forwardedProto = requestHeaders.get('x-forwarded-proto');
+    const forwardedHost = requestHeaders.get('x-forwarded-host');
+    const host = forwardedHost || requestHeaders.get('host') || 'app.nodux.app';
+    const protocol = forwardedProto || (host.includes('localhost') ? 'http' : 'https');
+    await triggerFiscalWorker({
+      baseUrl: `${protocol}://${host}`,
+      executionMode: 'live',
+      batchSize: 5,
+    });
 
     if (error) {
       redirect(

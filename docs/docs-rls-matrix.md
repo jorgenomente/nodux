@@ -14,6 +14,7 @@ Estado actual:
 - `rpc_set_supplier_order_expected_receive_on` agregado en `supabase/migrations/20260213125000_030_audit_gaps_supplier_orders.sql` (sin cambios de policy; mantiene controles por org y estado en RPC).
 - Base superadmin plataforma agregada en `supabase/migrations/20260216115100_031_superadmin_platform_foundation.sql` (`platform_admins`, `user_active_orgs`, `is_platform_admin`, vistas/rpcs SA).
 - `rpc_superadmin_create_org` endurecida en `supabase/migrations/20260216124000_032_superadmin_create_org_owner_required.sql`: exige `owner_user_id` y garantiza membresía OA inicial (sin org huérfana).
+- Materialización automática SA -> OA en `supabase/migrations/20260309173000_085_superadmin_org_membership_materialization.sql`: cada `platform_admin` se sincroniza dentro de `org_users` como `org_admin` para toda org existente o nueva, reduciendo fallos de autorización en RPCs que leen membresía org-wide.
 - Descuento en efectivo POS + métricas dashboard agregados en `supabase/migrations/20260216150000_033_cash_discount_pos_dashboard_audit.sql` (validación estricta: descuento solo con `payment_method='cash'`).
 - Split payments POS agregados en `supabase/migrations/20260216163000_034_split_payments_enum.sql` y `supabase/migrations/20260216164000_035_split_payments_pos.sql` (`sale_payments`, `payment_method='mixed'` y cash metrics por cobro real).
 - Módulo caja por sucursal agregado en `supabase/migrations/20260216171000_036_cashbox_branch_sessions.sql` (`cash_sessions`, `cash_session_movements`, `v_cashbox_session_current` y RPCs de apertura/movimientos/cierre).
@@ -124,6 +125,7 @@ Estado actual:
 - Operaciones criticas (ventas, ajustes de stock, recepcion de pedidos) solo via RPC con validacion de rol, org, branch y modulo.
 - Helpers `is_org_member`, `is_org_admin` e `is_org_admin_or_superadmin` son `security definer` con `row_security = off` para evitar recursion en policies.
 - Helper `is_platform_admin` define scope global SA fuera de `org_users`.
+- Aunque `is_platform_admin` sigue definiendo el scope SA real, desde migración `085` los SA quedan además materializados en `org_users` como `org_admin` para compatibilidad con flujos heredados.
 - `audit_log` es append-only; solo OA/SA pueden leer; insercion solo via RPCs/triggers con `security definer`.
 
 ---

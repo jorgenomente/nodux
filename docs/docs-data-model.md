@@ -153,6 +153,11 @@ Estado actual:
 
 **Proposito**: membresia y rol dentro de la organizacion.
 
+**Notas operativas**:
+
+- Desde `supabase/migrations/20260309173000_085_superadmin_org_membership_materialization.sql`, todos los usuarios listados en `platform_admins` se materializan automaticamente en `org_users` como `org_admin` para cada org existente y nueva.
+- Esta materializacion evita drift de autorizacion en RPCs o vistas que todavia resuelven permisos desde `org_users`.
+
 **Campos clave**:
 
 - `id` (uuid, PK)
@@ -172,6 +177,11 @@ Estado actual:
 ### platform_admins
 
 **Proposito**: administradores globales de la plataforma (fuera del scope de una org).
+
+**Notas operativas**:
+
+- La tabla sigue siendo la fuente de verdad del scope global SA.
+- Adicionalmente, la migracion `20260309173000_085_superadmin_org_membership_materialization.sql` sincroniza esos usuarios dentro de `org_users` como `org_admin` en todas las orgs para compatibilidad operativa con flujos que verifican membresia org-wide.
 
 **Campos clave**:
 

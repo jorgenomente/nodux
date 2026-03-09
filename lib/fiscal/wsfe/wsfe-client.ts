@@ -1,5 +1,6 @@
 import { request as httpsRequest } from 'node:https';
 
+import { getAfipHttpsAgent } from '@/lib/fiscal/shared/afip-https-agent';
 import type {
   FiscalNormalizedResult,
   WsfeAuth,
@@ -13,15 +14,6 @@ const WSFE_ENDPOINTS = {
   homo: 'https://wswhomo.afip.gov.ar/wsfev1/service.asmx',
   prod: 'https://servicios1.afip.gov.ar/wsfev1/service.asmx',
 } as const;
-
-const buildAbortSignal = (timeoutMs: number) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  return {
-    signal: controller.signal,
-    clear: () => clearTimeout(timeout),
-  };
-};
 
 const renderIvaItems = (items?: WsfeFeCAERequest['feDetReq']['ivaItems']) => {
   if (!items?.length) return '';
@@ -128,6 +120,7 @@ const postSoapXmlOverHttps = async (params: {
         port: url.port || (url.protocol === 'https:' ? 443 : 80),
         path: `${url.pathname}${url.search}`,
         method: 'POST',
+        agent: getAfipHttpsAgent(url.hostname),
         headers: {
           'content-type': 'text/xml; charset=utf-8',
           SOAPAction: params.soapAction,
@@ -167,76 +160,46 @@ export const submitFECAESolicitar = async (params: {
   environment: 'homo' | 'prod';
   request: WsfeFeCAERequest;
   timeoutMs?: number;
-  fetchFn?: typeof fetch;
 }): Promise<{ normalized: FiscalNormalizedResult; rawXml: string }> => {
   const timeoutMs =
     params.timeoutMs ?? Number(process.env.FISCAL_WSFE_TIMEOUT_MS || DEFAULT_WSFE_TIMEOUT_MS);
-  const fetchFn = params.fetchFn ?? fetch;
-  const abort = buildAbortSignal(timeoutMs);
   const endpoint = WSFE_ENDPOINTS[params.environment];
 
-  try {
-    const response = await fetchFn(endpoint, {
-      method: 'POST',
-      headers: {
-        'content-type': 'text/xml; charset=utf-8',
-        SOAPAction: '"http://ar.gov.afip.dif.FEV1/FECAESolicitar"',
-      },
-      body: buildFeCAEEnvelope(params.request),
-      signal: abort.signal,
-    });
+  const rawXml = await postSoapXmlOverHttps({
+    endpoint,
+    soapAction: '"http://ar.gov.afip.dif.FEV1/FECAESolicitar"',
+    body: buildFeCAEEnvelope(params.request),
+    timeoutMs,
+  });
 
-    const rawXml = await response.text();
-    if (!response.ok) {
-      throw new Error(`WSFE HTTP ${response.status}: ${rawXml.slice(0, 400)}`);
-    }
-
-    return {
-      normalized: normalizeWsfeResponse(rawXml),
-      rawXml,
-    };
-  } finally {
-    abort.clear();
-  }
+  return {
+    normalized: normalizeWsfeResponse(rawXml),
+    rawXml,
+  };
 };
 
 export const submitFEDummy = async (params: {
   environment: 'homo' | 'prod';
   timeoutMs?: number;
-  fetchFn?: typeof fetch;
 }) => {
   const timeoutMs =
     params.timeoutMs ??
     Number(process.env.FISCAL_WSFE_TIMEOUT_MS || DEFAULT_WSFE_TIMEOUT_MS);
-  const fetchFn = params.fetchFn ?? fetch;
-  const abort = buildAbortSignal(timeoutMs);
   const endpoint = WSFE_ENDPOINTS[params.environment];
 
-  try {
-    const response = await fetchFn(endpoint, {
-      method: 'POST',
-      headers: {
-        'content-type': 'text/xml; charset=utf-8',
-        SOAPAction: '"http://ar.gov.afip.dif.FEV1/FEDummy"',
-      },
-      body: buildFEDummyEnvelope(),
-      signal: abort.signal,
-    });
+  const rawXml = await postSoapXmlOverHttps({
+    endpoint,
+    soapAction: '"http://ar.gov.afip.dif.FEV1/FEDummy"',
+    body: buildFEDummyEnvelope(),
+    timeoutMs,
+  });
 
-    const rawXml = await response.text();
-    if (!response.ok) {
-      throw new Error(`WSFE FEDummy HTTP ${response.status}: ${rawXml.slice(0, 400)}`);
-    }
-
-    return {
-      rawXml,
-      appServer: extractTagValue(rawXml, 'AppServer'),
-      dbServer: extractTagValue(rawXml, 'DbServer'),
-      authServer: extractTagValue(rawXml, 'AuthServer'),
-    };
-  } finally {
-    abort.clear();
-  }
+  return {
+    rawXml,
+    appServer: extractTagValue(rawXml, 'AppServer'),
+    dbServer: extractTagValue(rawXml, 'DbServer'),
+    authServer: extractTagValue(rawXml, 'AuthServer'),
+  };
 };
 
 export const submitFECompUltimoAutorizado = async (params: {

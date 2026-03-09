@@ -147,6 +147,17 @@ const password = 'prueba123';
     .upsert(orgUsers, { onConflict: 'org_id,user_id' });
   if (orgUsersError) throw orgUsersError;
 
+  const superadmin = users.find((u) => u.role === 'superadmin');
+  if (superadmin) {
+    const { error: platformAdminError } = await supabase
+      .from('platform_admins')
+      .upsert({
+        user_id: superadmin.realId,
+        created_by: superadmin.realId,
+      });
+    if (platformAdminError) throw platformAdminError;
+  }
+
   const staff = users.find((u) => u.role === 'staff');
   if (staff) {
     const { error: bmError } = await supabase.from('branch_memberships').upsert(

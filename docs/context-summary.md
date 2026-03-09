@@ -36,7 +36,8 @@ Ultima actualizacion: 2026-03-09 09:55
 - Bloqueo vigente: homologación sigue rechazando certificado en WSAA (`cms.cert.untrusted`), mientras producción autentica correctamente.
 - Emisión real controlada en producción ya validada: existe al menos una factura autorizada con CAE persistido.
 - Render MVP del comprobante fiscal ya implementado: el worker procesa `render_pending`, persiste `qr_payload_json` y rutas determinísticas (`/sales/[saleId]/invoice`), y cierra el job en `completed`.
-- Worker productivo automatizable en Vercel: existe `GET /api/internal/fiscal/worker` protegido por `CRON_SECRET` y `vercel.json` agenda un cron cada 5 minutos para drenar jobs fiscales sin shell manual.
+- Worker productivo automatizable en Vercel: existe `GET /api/internal/fiscal/worker` protegido por `CRON_SECRET` y `vercel.json` agenda un cron productivo para fallback sin shell manual.
+- En Vercel Hobby, el cron productivo quedó degradado a diario por límite del plan, pero la app ya dispara el worker inmediatamente después de encolar una venta facturable usando un relay autenticado; el cron queda sólo como fallback.
 - Gap actual: falta QR gráfico real, PDF binario/storage, ticket térmico serializado y reconciliación externa automática real.
 - Siguiente lote recomendado: pasar del render on-demand de la app a artefactos binarios reales (PDF/ticket/QR asset) y preparar impresión.
 
@@ -86,6 +87,7 @@ Ultima actualizacion: 2026-03-09 09:55
 - SA de plataforma puede abrir `/dashboard` usando la org activa (`rpc_get_active_org_id`).
 - SA de plataforma puede navegar módulos core (`/pos`, `/products`, `/suppliers`, `/orders`, `/orders/calendar`, `/clients`, `/expirations`, `/settings`) sobre la org activa.
 - Base DB de superadmin global multi-org implementada: `platform_admins`, `user_active_orgs`, vistas `v_superadmin_orgs`/`v_superadmin_org_detail` y RPCs para alta org/sucursal + org activa.
+- Desde la migracion `20260309173000_085_superadmin_org_membership_materialization.sql`, los `platform_admins` tambien se materializan automaticamente en `org_users` como `org_admin` para toda org existente y nueva, evitando errores `not authorized` en flujos que todavia validan membresia org-wide.
 - Alta de usuarios desde `/settings/users` para OA: crea cuenta con email + contraseña inicial sin validación por email (`email_confirm=true`) usando Admin API server-side; la contraseña solo puede restablecerla el admin (no visible en UI).
 - `/settings/users` gestiona solo roles `org_admin` y `staff`; superadmin queda fuera de creación/listado/edición en esta pantalla.
 - En `/settings/users`, el checklist de sucursales se muestra solo para `staff`; para `org_admin` se oculta y aplica acceso global por organización.
@@ -130,6 +132,7 @@ Ultima actualizacion: 2026-03-09 09:55
 - `supplier_price` ahora queda persistido por relación en `supplier_products`; editar producto/proveedor actualiza ese valor y permite trazabilidad del cambio de costo proveedor junto al precio sugerido.
 - Nuevo módulo de historial de ventas en `/sales` y detalle en `/sales/[saleId]` con filtros por monto, método, hora e ítems.
 - POS separa cierre en dos acciones: `Cobrar` (venta no facturada, sin enqueue fiscal) y `Cobrar y facturar` (inicia enqueue fiscal).
+- `Cobrar y facturar` ahora intenta completar la autorización/render fiscal dentro del mismo request de POS; si no llega a tiempo, cae a fallback asíncrono y la venta queda visible como comprobante `En proceso`.
 - `sales` incorpora estado fiscal (`is_invoiced`, `invoiced_at`) y RPC `rpc_mark_sale_invoiced` para facturación diferida.
 - `/sales` y `/sales/[saleId]` agregan acciones operativas `Imprimir ticket` (copia no fiscal) y `Emitir factura` para ventas previas no facturadas; esos entrypoints encolan job fiscal `prod`.
 - `/settings/branches` agrega plantilla de impresión por sucursal (`ticket_header_text`, `ticket_footer_text`, `fiscal_ticket_note_text`) y POS + `/sales/[saleId]/ticket` pasan a usar esa configuración al imprimir.
