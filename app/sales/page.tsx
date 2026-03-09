@@ -5,6 +5,10 @@ import { revalidatePath } from 'next/cache';
 
 import AmountInputAR from '@/app/components/AmountInputAR';
 import PageShell from '@/app/components/PageShell';
+import {
+  formatFiscalRenderStatus,
+  type SaleFiscalInvoiceRow,
+} from '@/app/sales/fiscal-document';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
 
@@ -318,6 +322,20 @@ export default async function SalesPage({
 
   const { data: salesData } = await query;
   const sales = (salesData ?? []) as SaleRow[];
+  const fiscalInvoices =
+    role !== 'staff' && sales.length > 0
+      ? (((await supabase
+          .from('v_sale_fiscal_invoice_admin' as never)
+          .select('*')
+          .eq('org_id', orgId)
+          .in(
+            'sale_id',
+            sales.map((sale) => sale.sale_id),
+          )).data ?? []) as SaleFiscalInvoiceRow[])
+      : [];
+  const fiscalInvoiceMap = new Map(
+    fiscalInvoices.map((invoice) => [invoice.sale_id, invoice]),
+  );
 
   const debugBaseQuery = supabase
     .from('sales')
@@ -589,8 +607,10 @@ export default async function SalesPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {sales.map((sale) => (
-                    <tr key={sale.sale_id} className="border-t border-zinc-100">
+                  {sales.map((sale) => {
+                    const fiscalInvoice = fiscalInvoiceMap.get(sale.sale_id) ?? null;
+                    return (
+                      <tr key={sale.sale_id} className="border-t border-zinc-100">
                       <td className="px-3 py-2">
                         {formatDateTime(sale.created_at)}
                       </td>
@@ -626,10 +646,19 @@ export default async function SalesPage({
                         </div>
                       </td>
                       <td className="px-3 py-2">
-                        {sale.is_invoiced ? (
+                        {fiscalInvoice ? (
                           <div className="text-xs">
                             <div className="inline-flex rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
-                              Facturada
+                              {formatFiscalRenderStatus(fiscalInvoice.render_status)}
+                            </div>
+                            <div className="mt-1 text-zinc-500">
+                              CAE: {fiscalInvoice.cae ?? '—'}
+                            </div>
+                          </div>
+                        ) : sale.is_invoiced ? (
+                          <div className="text-xs">
+                            <div className="inline-flex rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
+                              En proceso
                             </div>
                             <div className="mt-1 text-zinc-500">
                               {sale.invoiced_at
@@ -660,6 +689,14 @@ export default async function SalesPage({
                           >
                             Imprimir ticket
                           </Link>
+                          {fiscalInvoice ? (
+                            <Link
+                              href={`/sales/${sale.sale_id}/invoice`}
+                              className="rounded border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700"
+                            >
+                              Ver factura
+                            </Link>
+                          ) : null}
                           {!sale.is_invoiced && role !== 'staff' ? (
                             <form action={emitSaleInvoice}>
                               <input type="hidden" name="sale_id" value={sale.sale_id} />
@@ -673,8 +710,9 @@ export default async function SalesPage({
                           ) : null}
                         </div>
                       </td>
-                    </tr>
-                  ))}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

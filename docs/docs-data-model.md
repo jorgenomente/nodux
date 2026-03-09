@@ -57,6 +57,7 @@ Estado actual:
 - Fix de promoción de relación proveedor-producto en `supabase/migrations/20260305152000_077_fix_supplier_product_promote_same_supplier.sql`: `rpc_upsert_supplier_product` elimina relación previa del mismo proveedor con tipo opuesto antes de upsert para evitar conflicto de unicidad `(org_id, supplier_id, product_id)`.
 - Base operativa del puente fiscal venta -> job en `supabase/migrations/20260308224500_080_fiscal_enqueue_sale_invoice_and_failed.sql`: agrega `rpc_enqueue_sale_fiscal_invoice` para crear `sale_documents` + `invoice_jobs` con `requested_payload_json` normalizado desde una venta existente, y `fn_fiscal_mark_job_failed` para errores terminales del worker fiscal.
 - Gate org-wide para enqueue fiscal productivo en `supabase/migrations/20260309102000_082_fiscal_prod_enqueue_gate.sql`: agrega `org_preferences.fiscal_prod_enqueue_enabled` y endurece `rpc_enqueue_sale_fiscal_invoice` para rechazar ambiente `prod` si ese flag está desactivado.
+- Render MVP del comprobante fiscal en `supabase/migrations/20260309124500_084_fiscal_render_read_model.sql`: habilita lectura admin de `invoice_jobs` e `invoices`, crea la view `v_sale_fiscal_invoice_admin` y extiende `fn_fiscal_mark_job_failed` para tolerar fallos durante `render_pending`.
 - Hardening de RPCs de usuarios para preservar actor de auditoría en alta/edición de membresía en `supabase/migrations/20260301162000_064_users_membership_rpcs_auth_context.sql` (`rpc_invite_user_to_org`, `rpc_update_user_membership` como `security definer` con validación explícita de rol/org/sucursales).
 - Hotfix de `rpc_invite_user_to_org` por ambigüedad de `user_id` en producción en `supabase/migrations/20260301170000_065_fix_rpc_invite_user_to_org_ambiguous_user_id.sql` y `supabase/migrations/20260301171500_066_fix_rpc_invite_user_to_org_out_param_conflict.sql` (se elimina conflicto de OUT param y queda salida `invited_user_id`).
 - Onboarding de datos maestros (jobs/rows de importación + vista de pendientes + RPCs de importación) en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks`, `rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
@@ -251,6 +252,57 @@ Estado actual:
 - `employee_discount_combinable_with_cash_discount` (boolean)
 - `cash_denominations` (jsonb array de valores, configurable por org)
 - `created_at`, `updated_at`
+
+---
+
+## Modelo fiscal ARCA (estado actual)
+
+### invoice_jobs
+
+Cola técnica de autorización/render fiscal por venta.
+
+Campos clave adicionales de uso operativo:
+
+- `job_status` (`pending`, `reserved`, `authorizing`, `authorized`, `pending_reconcile`, `render_pending`, `completed`, `failed`)
+- `requested_payload_json`
+- `response_payload_json`
+- `cbte_nro`
+- `authorized_at`
+
+### invoices
+
+Factura fiscal persistida luego de `FECAESolicitar`.
+
+Campos clave:
+
+- `invoice_job_id`
+- `environment`
+- `pto_vta`, `cbte_tipo`, `cbte_nro`
+- `doc_tipo`, `doc_nro`
+- `currency`, `currency_rate`
+- `imp_total`, `imp_neto`, `imp_iva`, `imp_trib`, `imp_op_ex`, `imp_tot_conc`
+- `cae`, `cae_expires_at`
+- `result_status`
+- `qr_payload_json`
+- `pdf_storage_path`, `ticket_storage_path`
+
+### v_sale_fiscal_invoice_admin
+
+View admin para leer el comprobante fiscal real de una venta sin exponer escritura.
+
+Salida principal:
+
+- `sale_id`, `org_id`
+- `invoice_id`, `invoice_job_id`
+- `environment`
+- `pto_vta`, `cbte_tipo`, `cbte_nro`
+- `doc_tipo`, `doc_nro`
+- `currency`, `currency_rate`, `imp_total`
+- `cae`, `cae_expires_at`
+- `result_status`
+- `qr_payload_json`
+- `pdf_storage_path`, `ticket_storage_path`
+- `render_status`
 
 ---
 

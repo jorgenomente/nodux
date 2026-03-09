@@ -94,6 +94,7 @@ Navegación fija:
 - Pedido (detalle) → `/orders/[orderId]`
 - Venta (detalle) → `/sales/[saleId]`
 - Ticket venta (impresión) → `/sales/[saleId]/ticket`
+- Factura fiscal (impresión) → `/sales/[saleId]/invoice`
 - Estadísticas de ventas → `/sales/statistics`
 - Calendario de proveedores → `/orders/calendar`
 
@@ -197,6 +198,7 @@ Rutas post-MVP planeadas (NO implementar en MVP):
 - `/onboarding`
 - `/orders/[orderId]`
 - `/sales/[saleId]`
+- `/sales/[saleId]/invoice`
 - `/sales/[saleId]/ticket`
 - `/orders/calendar`
 - `/clients`

@@ -34,8 +34,10 @@ Ultima actualizacion: 2026-03-09 09:55
 - Modo backend `prod-safe` disponible para jobs `prod`: autentica WSAA, ejecuta `FEDummy` y corta antes de `FECAESolicitar`, dejando el job en `pending_reconcile` con evidencia.
 - Runbook operativo y comando estable disponibles para ejecutar el worker fiscal en modo `prod-safe`: `npm run fiscal:worker:prod-safe`.
 - Bloqueo vigente: homologación sigue rechazando certificado en WSAA (`cms.cert.untrusted`), mientras producción autentica correctamente.
-- Gap actual: falta habilitar emisión real controlada (`FECAESolicitar` en prod), render real, reconciliación automática real y onboarding/UI operativa.
-- Siguiente lote recomendado: conectar credenciales `prod` al worker en modo `prod-safe`, validar operaciones con jobs `prod` y recién después abrir emisión real con confirmación explícita.
+- Emisión real controlada en producción ya validada: existe al menos una factura autorizada con CAE persistido.
+- Render MVP del comprobante fiscal ya implementado: el worker procesa `render_pending`, persiste `qr_payload_json` y rutas determinísticas (`/sales/[saleId]/invoice`), y cierra el job en `completed`.
+- Gap actual: falta QR gráfico real, PDF binario/storage, ticket térmico serializado y reconciliación externa automática real.
+- Siguiente lote recomendado: pasar del render on-demand de la app a artefactos binarios reales (PDF/ticket/QR asset) y preparar impresión.
 
 ## Proveedores y pedidos (MVP)
 

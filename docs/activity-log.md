@@ -41,6 +41,48 @@ Se creó `docs/ARCA/activity-log.md` como bitácora específica del módulo fisc
 
 **Commit:** N/A
 
+## 2026-03-09 13:05 -03 — ARCA render MVP: cierre de render_pending y visualización del comprobante
+
+**Tipo:** schema/backend/ui/docs/tests
+**Lote:** arca-lote-4i-fiscal-render-mvp
+**Descripción:** Se implementó el render MVP del comprobante fiscal. La DB ahora expone `v_sale_fiscal_invoice_admin` con lectura segura OA/SA, el worker procesa jobs `render_pending`, construye `qr_payload_json`, persiste rutas determinísticas del comprobante (`/sales/[saleId]/invoice`) y cierra el job en `completed`. En la UI se agregó la pantalla `/sales/[saleId]/invoice` y se muestran acciones/estado real de factura en `/sales` y `/sales/[saleId]`.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260309124500_084_fiscal_render_read_model.sql
+- lib/fiscal/render/build-qr-payload.ts
+- lib/fiscal/worker/poll-render-jobs.ts
+- lib/fiscal/worker/process-render-job.ts
+- lib/fiscal/worker/run-worker.ts
+- scripts/fiscal-worker.ts
+- app/sales/PrintTicketButton.tsx
+- app/sales/fiscal-document.ts
+- app/sales/[saleId]/invoice/page.tsx
+- app/sales/page.tsx
+- app/sales/[saleId]/page.tsx
+- docs/docs-app-screens-sale-invoice.md
+- docs/docs-app-screens-index.md
+- docs/docs-app-sitemap.md
+- docs/docs-app-screens-sales.md
+- docs/docs-app-screens-sale-detail.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+- `npm run db:reset` OK (2026-03-09)
+- verificación DB: policies `invoices_select_*` y `invoice_jobs_select_*` OK
+- verificación DB: view `v_sale_fiscal_invoice_admin` creada con `security_invoker=true`
+
+**Commit:** N/A
+
 ## 2026-03-09 09:40 -03 — ARCA QA local: reintento con certificado AFIP emitido
 
 **Tipo:** infra/tests

@@ -52,6 +52,7 @@ Auditar una venta puntual, corregir método de pago cuando hubo error operativo 
 - Botón “Imprimir ticket” (copia no fiscal)
 - Botón “Emitir factura” si la venta aún no está facturada
   Debe encolar el job fiscal en ambiente `prod`; no es equivalente al ticket no fiscal.
+- Si existe factura fiscal, mostrar estado real (`render_pending/completed`) y acceso “Ver factura”.
 
 ## Data Contract
 
@@ -69,6 +70,7 @@ Salida mínima:
 - `subtotal_amount`, `discount_amount`, `discount_pct`, `cash_discount_amount`, `cash_discount_pct`, `employee_discount_applied`, `employee_discount_amount`, `employee_discount_pct`, `total_amount`
 - `items` (jsonb array)
 - `payments` (jsonb array)
+- lectura auxiliar opcional de `v_sale_fiscal_invoice_admin`
 
 ### Escritura
 

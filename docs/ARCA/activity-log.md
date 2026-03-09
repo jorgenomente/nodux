@@ -51,6 +51,50 @@ Se corrigieron referencias internas hacia `docs/ARCA/...`, se limpiaron envoltor
 **Estado:** DONE
 **Commit:** N/A
 
+## 2026-03-09 13:05 -03 — Lote 4I render MVP: cierre de render_pending y comprobante visible
+
+**Lote:** arca-lote-4i-fiscal-render-mvp
+**Tipo:** db/backend/ui/docs/tests
+**Objetivo:** Cerrar el pipeline mínimo posterior a autorización fiscal para que una factura emitida quede visible y reimprimible desde ventas.
+
+**Resumen**
+Se implementó la etapa MVP de render fiscal. El worker ahora consume `render_pending`, arma `qr_payload_json` a partir de la invoice autorizada y persiste rutas determinísticas del comprobante (`/sales/[saleId]/invoice` y variante `?format=ticket`) mediante `fn_fiscal_mark_render_completed`, dejando el job en `completed`. En paralelo se abrió un contrato de lectura seguro (`v_sale_fiscal_invoice_admin`) y una nueva pantalla imprimible de factura fiscal, visible desde `/sales` y `/sales/[saleId]`.
+
+**Archivos**
+- supabase/migrations/20260309124500_084_fiscal_render_read_model.sql
+- lib/fiscal/render/build-qr-payload.ts
+- lib/fiscal/worker/poll-render-jobs.ts
+- lib/fiscal/worker/process-render-job.ts
+- lib/fiscal/worker/run-worker.ts
+- scripts/fiscal-worker.ts
+- app/sales/PrintTicketButton.tsx
+- app/sales/fiscal-document.ts
+- app/sales/[saleId]/invoice/page.tsx
+- app/sales/page.tsx
+- app/sales/[saleId]/page.tsx
+- docs/docs-app-screens-sale-invoice.md
+- docs/docs-app-screens-index.md
+- docs/docs-app-sitemap.md
+- docs/docs-app-screens-sales.md
+- docs/docs-app-screens-sale-detail.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Validación**
+- `npm run lint`: OK
+- `npm run build`: OK
+- `npm run db:reset`: OK
+- `v_sale_fiscal_invoice_admin`: OK (`security_invoker=true`)
+- policies read admin sobre `invoices` e `invoice_jobs`: OK
+
+**Estado:** DONE
+**Commit:** N/A
+
 ## 2026-03-09 12:20 -03 — Lote 4H ops/backend: runner live estable y primera emisión real autorizada
 
 **Lote:** arca-lote-4h-fiscal-live-runner-fix

@@ -58,6 +58,7 @@ Cada fila muestra:
 - total
 - acciones: “Ver detalle”, “Imprimir ticket”, “Emitir factura” (si no facturada)
   `Emitir factura` debe usar `rpc_enqueue_sale_fiscal_invoice(..., p_environment='prod', ...)` y luego actualizar el estado visible de la venta.
+  Si la factura ya fue renderizada, debe aparecer además “Ver factura”.
 
 ## Data Contract
 
@@ -77,6 +78,7 @@ Salida mínima:
 - `payment_methods[]`
 - `cash_amount`, `card_amount`, `mercadopago_amount`, `other_amount`
 - `is_invoiced`, `invoiced_at`
+- lectura auxiliar opcional de `v_sale_fiscal_invoice_admin` para estado real del comprobante (`render_status`, `cae`, rutas)
 
 ## Seguridad (RLS)
 

@@ -3399,3 +3399,11 @@ sincronicemos la secuencia con ARCA
 
 **Prompt**
 depuremos el runner live
+
+## 2026-03-09 13:05 -03 — ARCA render MVP: cierre de render_pending y visualización del comprobante
+
+**Lote:** arca-lote-4i-fiscal-render-mvp
+**Objetivo:** Cerrar `render_pending -> completed`, persistir `qr_payload_json` y exponer la factura fiscal reimprimible desde `/sales`.
+
+**Prompt**
+implementemos render del comprobante.

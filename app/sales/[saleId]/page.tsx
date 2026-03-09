@@ -3,6 +3,10 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
+import {
+  formatFiscalRenderStatus,
+  type SaleFiscalInvoiceRow,
+} from '@/app/sales/fiscal-document';
 import SalePaymentCorrectionForm from '@/app/sales/SalePaymentCorrectionForm';
 import { formatOperationalPaymentMethod } from '@/lib/payments/catalog';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
@@ -168,6 +172,16 @@ export default async function SaleDetailPage({
   const sale = detailData as SaleDetailRow;
   const items = parseItems(sale.items);
   const payments = parsePayments(sale.payments);
+  const { data: fiscalInvoiceData } =
+    role !== 'staff'
+      ? await supabase
+          .from('v_sale_fiscal_invoice_admin' as never)
+          .select('*')
+          .eq('org_id', orgId)
+          .eq('sale_id', saleId)
+          .maybeSingle()
+      : { data: null };
+  const fiscalInvoice = (fiscalInvoiceData ?? null) as SaleFiscalInvoiceRow | null;
 
   const { data: paymentDevicesData } = await supabase
     .from('pos_payment_devices' as never)
@@ -407,6 +421,15 @@ export default async function SaleDetailPage({
           <p className="mt-1 text-sm text-zinc-500">
             El ticket es una copia no fiscal de la venta.
           </p>
+          {fiscalInvoice ? (
+            <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+              Factura fiscal {formatFiscalRenderStatus(fiscalInvoice.render_status).toLowerCase()}.
+              {' '}
+              CAE: {fiscalInvoice.cae ?? '—'} · Comprobante{' '}
+              {fiscalInvoice.pto_vta.toString().padStart(4, '0')}-
+              {String(fiscalInvoice.cbte_nro).padStart(8, '0')}
+            </div>
+          ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
             <Link
               href={`/sales/${saleId}/ticket`}
@@ -414,6 +437,14 @@ export default async function SaleDetailPage({
             >
               Imprimir ticket
             </Link>
+            {fiscalInvoice ? (
+              <Link
+                href={`/sales/${saleId}/invoice`}
+                className="rounded border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+              >
+                Ver factura
+              </Link>
+            ) : null}
             {!sale.is_invoiced && role !== 'staff' ? (
               <form action={emitSaleInvoice}>
                 <button
@@ -425,7 +456,7 @@ export default async function SaleDetailPage({
               </form>
             ) : (
               <span className="inline-flex items-center rounded bg-emerald-100 px-3 py-2 text-sm font-medium text-emerald-700">
-                Factura emitida
+                {fiscalInvoice ? 'Factura emitida' : 'Facturación iniciada'}
               </span>
             )}
           </div>

@@ -208,11 +208,17 @@ Ruta pública adicional (institucional, fuera del flujo operativo MVP):
     - Módulo: Ventas
     - Propósito: imprimir ticket no fiscal de una venta registrada
 
+25. `/sales/[saleId]/invoice`
+    - Roles: OA
+    - Tipo: Secondary
+    - Módulo: Ventas
+    - Propósito: visualizar e imprimir el comprobante fiscal autorizado
+
 ---
 
 ## 5) Settings (Org Admin / Superadmin)
 
-24. `/settings/staff-permissions`
+26. `/settings/staff-permissions`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Permisos Staff
