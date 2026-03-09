@@ -12,6 +12,22 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-03-08 21:40 -03 — ARCA docs: auditoría integral y normalización canónica
+
+**Lote:** arca-docs-audit-100
+**Objetivo:** Auditar `docs/ARCA` completo y corregir organización, coherencia, contradicciones de contrato y formato para dejar una fuente de verdad canónica y operable.
+
+**Prompt**
+Ok entonces haz los cambios necesarios para que todo este  al 100%
+
+## 2026-03-08 14:32 -03 — ARCA docs: limpieza de rutas y consolidación
+
+**Lote:** arca-docs-route-cleanup
+**Objetivo:** Corregir rutas internas en `docs/ARCA`, eliminar documento duplicado (`Plan pos serio.md`) y validar el contenido de `implementation/afip-arca-lote-1-homologacion-base.md`.
+
+**Prompt**
+si vamos a limpiar las rutas para que queden correctas ya que si fue copiado y pegado. vamos a liminar plan pos serio ya que el otro es mas completo y ya guarde la info en lote 1 para que la veas
+
 ## 2026-03-05 14:54 -03 — Landing: alineacion con docs marketing (13/14/15)
 
 **Lote:** landing-marketing-architecture-v2
@@ -3151,3 +3167,15 @@ estoy intentado cambiar el proveedor primario de un producto Alfajor chocolate b
 
 **Prompt**
 agrega articulos de prueba
+
+## 2026-03-05 15:19 -03 — Performance de navegacion entre pestañas (analisis + optimizacion segura)
+
+**Lote:** navigation-latency-low-risk-optimization
+**Objetivo:** Analizar por que la navegacion entre pestañas ronda ~2s y aplicar optimizaciones de bajo riesgo sin cambiar comportamiento funcional.
+
+**Prompt**
+normalmente la pagina tarda poco menos de 2 segundos en cambiar de pagina al naveegar por las pestanas, sabes si existe alguna manera de que esto sea mas rapido. no cambies ni escribas nada solo analiza y dime
+
+Crees que podemos optimizar esto sin romper nada?
+
+bueno avancemos

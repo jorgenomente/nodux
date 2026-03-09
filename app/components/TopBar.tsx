@@ -1,7 +1,6 @@
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
-import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getOrgSession } from '@/lib/auth/org-session';
 import TopBarNav from '@/app/components/TopBarNav';
 
@@ -79,26 +78,12 @@ export default async function TopBar() {
     revalidatePath('/', 'layout');
   }
 
-  const supabase = await createServerSupabaseClient();
   const orgSession = await getOrgSession();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let showSuperadminLink = false;
-  if (user) {
-    const { data: isPlatformAdmin } = await supabase.rpc('is_platform_admin');
-    if (isPlatformAdmin) {
-      showSuperadminLink = true;
-    } else {
-      const { data: membership } = await supabase
-        .from('org_users')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      showSuperadminLink = membership?.role === 'superadmin';
-    }
-  }
+  const supabase = orgSession?.supabase ?? null;
+  const user = orgSession?.user ?? null;
+  const showSuperadminLink = Boolean(
+    orgSession?.isPlatformAdmin || orgSession?.role === 'superadmin',
+  );
 
   const navLinks = showSuperadminLink
     ? [...NAV_LINKS, SUPERADMIN_LINK]
@@ -107,24 +92,30 @@ export default async function TopBar() {
   let orgName = 'Sin org activa';
   let branchOptions: BranchOption[] = [];
 
-  if (orgSession?.orgId) {
-    const { data: orgRaw } = await supabase
+  if (orgSession?.orgId && supabase) {
+    const orgPromise = supabase
       .from('orgs')
       .select('name')
       .eq('id', orgSession.orgId)
       .maybeSingle();
-    const orgData = orgRaw as { name: string } | null;
-    if (orgData?.name) {
-      orgName = orgData.name;
-    }
 
     if (orgSession.effectiveRole === 'staff') {
-      const { data: membershipsRaw } = await supabase
+      const membershipsPromise = supabase
         .from('branch_memberships')
         .select('branch_id')
         .eq('org_id', orgSession.orgId)
         .eq('user_id', orgSession.userId)
         .eq('is_active', true);
+
+      const [{ data: orgRaw }, { data: membershipsRaw }] = await Promise.all([
+        orgPromise,
+        membershipsPromise,
+      ]);
+      const orgData = orgRaw as { name: string } | null;
+      if (orgData?.name) {
+        orgName = orgData.name;
+      }
+
       const memberships = (membershipsRaw ?? []) as { branch_id: string }[];
       const branchIds = memberships
         .map((row) => row.branch_id)
@@ -141,12 +132,20 @@ export default async function TopBar() {
         branchOptions = (branchesRaw ?? []) as BranchOption[];
       }
     } else {
-      const { data: branchesRaw } = await supabase
+      const branchesPromise = supabase
         .from('branches')
         .select('id, name')
         .eq('org_id', orgSession.orgId)
         .eq('is_active', true)
         .order('name');
+      const [{ data: orgRaw }, { data: branchesRaw }] = await Promise.all([
+        orgPromise,
+        branchesPromise,
+      ]);
+      const orgData = orgRaw as { name: string } | null;
+      if (orgData?.name) {
+        orgName = orgData.name;
+      }
       branchOptions = (branchesRaw ?? []) as BranchOption[];
     }
   }
@@ -173,8 +172,12 @@ export default async function TopBar() {
       .filter((link): link is { href: string; label: string } => Boolean(link)),
   })).filter((group) => group.links.length > 0);
   const userLabel =
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
+    (typeof user?.user_metadata?.full_name === 'string'
+      ? user.user_metadata.full_name
+      : null) ||
+    (typeof user?.user_metadata?.name === 'string'
+      ? user.user_metadata.name
+      : null) ||
     user?.email ||
     'Sin usuario';
 

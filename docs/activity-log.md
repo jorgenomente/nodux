@@ -18,6 +18,70 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-03-08 21:40 -03 — ARCA docs: normalización canónica post-auditoría
+
+**Tipo:** docs
+**Lote:** arca-docs-audit-100
+**Alcance:** docs
+
+**Resumen**
+Se ejecutó una normalización integral de `docs/ARCA` para cerrar gaps detectados en auditoría: se rehizo el índice maestro en formato canónico y rutas reales (`docs/ARCA/...`), se alinearon contratos de estados con RPC (`pending_reconcile -> authorized | rejected | failed`), se corrigió el modelo de datos para reflejar `invoice_job_id` en `invoices`, se sanearon bloques markdown/fences rotos en docs operativos, se removió apéndice narrativo no-SQL del archivo `20260308134500_fiscal_helpers_and_rpc.sql` (ahora finaliza en `commit;`), y se dejaron `configuracion fiscal.md`, `implementacion nodux.md` y `architecture/modelo de implementacion.md` como `LEGACY / NO CANÓNICO` para evitar contradicción de fuente de verdad.
+
+**Archivos**
+
+- docs/ARCA/afip-arca-master-index.md
+- docs/ARCA/architecture/afip-arca-data-model.md
+- docs/ARCA/architecture/afip-arca-fiscal-service.md
+- docs/ARCA/architecture/afip-arca-security-and-secrets.md
+- docs/ARCA/architecture/afip-arca-state-machine.md
+- docs/ARCA/architecture/modelo de implementacion.md
+- docs/ARCA/configuracion fiscal.md
+- docs/ARCA/implementacion nodux.md
+- docs/ARCA/implementation/20260308134500_fiscal_helpers_and_rpc.sql
+- docs/ARCA/implementation/afip-arca-codex-task-prompts.md
+- docs/ARCA/implementation/afip-arca-reconciliation-playbook.md
+- docs/ARCA/implementation/afip-arca-render-pipeline.md
+- docs/ARCA/implementation/afip-arca-worker-error-catalog.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- No aplica (`docs-only`).
+- Validación documental ejecutada:
+  - sin rutas viejas `docs/architecture|docs/implementation`
+  - sin fences markdown desbalanceados en `docs/ARCA/**/*.md`
+  - SQL de referencia `20260308134500_fiscal_helpers_and_rpc.sql` finaliza en `commit;`
+
+**Commit:** N/A
+
+## 2026-03-08 14:32 -03 — ARCA docs: limpieza de rutas y consolidación
+
+**Tipo:** docs
+**Lote:** arca-docs-route-cleanup
+**Alcance:** docs
+
+**Resumen**
+Se normalizaron los documentos de `docs/ARCA` removiendo encabezados/envoltorios de copia (`# ... \`docs/architecture/...` y bloque externo ```md), se corrigieron referencias internas de rutas en `afip-arca-fiscal-service.md` a `docs/ARCA/...`, y se eliminó `docs/ARCA/Plan pos serio.md` por duplicidad de contenido frente al documento arquitectónico principal. También se verificó que `docs/ARCA/implementation/afip-arca-lote-1-homologacion-base.md` tenga contenido cargado.
+
+**Archivos**
+
+- docs/ARCA/architecture/afip-arca-data-model.md
+- docs/ARCA/architecture/afip-arca-fiscal-service.md
+- docs/ARCA/architecture/afip-arca-security-and-secrets.md
+- docs/ARCA/architecture/afip-arca-state-machine.md
+- docs/ARCA/architecture/afip-arca-wsaa-wsfev1-integration-contracts.md
+- docs/ARCA/implementation/afip-arca-lote-1-homologacion-base.md
+- docs/ARCA/Plan pos serio.md (eliminado)
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- No aplica (`docs-only`).
+
+**Commit:** N/A
+
 ## 2026-03-05 14:54 -03 — Landing v2: arquitectura marketing y conversion a demo
 
 **Tipo:** ux
@@ -8562,5 +8626,28 @@ Se implementó el módulo `/cashbox` con operación por sucursal: apertura de ca
 **Tests / comandos:**
 
 - npm run db:seed:demo OK (2026-03-05)
+
+**Commit:** N/A
+
+## 2026-03-05 15:19 -03 — Navegacion: reduccion de round-trips de sesion/topbar
+
+**Tipo:** refactor
+**Lote:** navigation-latency-low-risk-optimization
+**Alcance:** frontend, tests
+
+**Resumen**
+Se aplico una optimizacion de bajo riesgo para reducir latencia de navegacion entre pestañas sin cambiar reglas de negocio ni permisos: `getOrgSession` ahora se memoiza por request y `TopBar` deja de ejecutar consultas redundantes (auth/membership/platform-admin) reutilizando la sesion ya resuelta.
+
+**Archivos**
+
+- lib/auth/org-session.ts
+- app/components/TopBar.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests:**
+
+- `npm run lint` OK (2026-03-05)
+- `npm run build` OK (2026-03-05)
 
 **Commit:** N/A

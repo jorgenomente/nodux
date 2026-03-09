@@ -1,9 +1,17 @@
+import { cache } from 'react';
+
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 type UserRole = 'org_admin' | 'staff' | 'superadmin';
+type OrgSessionUser = {
+  id: string;
+  email: string | null;
+  user_metadata: Record<string, unknown> | null;
+};
 
 export type OrgSession = {
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>;
+  user: OrgSessionUser;
   userId: string;
   orgId: string | null;
   role: UserRole | null;
@@ -11,7 +19,7 @@ export type OrgSession = {
   isPlatformAdmin: boolean;
 };
 
-export const getOrgSession = async (): Promise<OrgSession | null> => {
+const getOrgSessionCached = cache(async (): Promise<OrgSession | null> => {
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -26,6 +34,16 @@ export const getOrgSession = async (): Promise<OrgSession | null> => {
     const { data: activeOrgId } = await supabase.rpc('rpc_get_active_org_id');
     return {
       supabase,
+      user: {
+        id: user.id,
+        email: user.email ?? null,
+        user_metadata:
+          user.user_metadata &&
+          typeof user.user_metadata === 'object' &&
+          !Array.isArray(user.user_metadata)
+            ? (user.user_metadata as Record<string, unknown>)
+            : null,
+      },
       userId: user.id,
       orgId: typeof activeOrgId === 'string' ? activeOrgId : null,
       role: 'superadmin',
@@ -43,6 +61,16 @@ export const getOrgSession = async (): Promise<OrgSession | null> => {
   if (!membership?.org_id || !membership.role) {
     return {
       supabase,
+      user: {
+        id: user.id,
+        email: user.email ?? null,
+        user_metadata:
+          user.user_metadata &&
+          typeof user.user_metadata === 'object' &&
+          !Array.isArray(user.user_metadata)
+            ? (user.user_metadata as Record<string, unknown>)
+            : null,
+      },
       userId: user.id,
       orgId: null,
       role: null,
@@ -55,13 +83,26 @@ export const getOrgSession = async (): Promise<OrgSession | null> => {
 
   return {
     supabase,
+    user: {
+      id: user.id,
+      email: user.email ?? null,
+      user_metadata:
+        user.user_metadata &&
+        typeof user.user_metadata === 'object' &&
+        !Array.isArray(user.user_metadata)
+          ? (user.user_metadata as Record<string, unknown>)
+          : null,
+    },
     userId: user.id,
     orgId: membership.org_id,
     role,
     effectiveRole: role === 'staff' ? 'staff' : 'org_admin',
     isPlatformAdmin: false,
   };
-};
+});
+
+export const getOrgSession = async (): Promise<OrgSession | null> =>
+  getOrgSessionCached();
 
 export const getOrgAdminSession = async () => {
   const session = await getOrgSession();
