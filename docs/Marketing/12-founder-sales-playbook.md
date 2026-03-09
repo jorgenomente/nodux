@@ -174,11 +174,11 @@ Duración ideal:
 
 Orden recomendado:
 
-1. POS y registro de ventas  
-2. inventario por sucursal  
-3. productos por vencer  
-4. sugerencias de compra  
-5. control de caja  
+1. POS y registro de ventas
+2. inventario por sucursal
+3. productos por vencer
+4. sugerencias de compra
+5. control de caja
 6. pedidos online con retiro en tienda
 
 El objetivo no es mostrar todo.

@@ -32,7 +32,13 @@ export async function POST(request: Request) {
   const customerPhone = payload.customerPhone?.trim();
   const customerAddress = payload.customerAddress?.trim();
 
-  if (!orgSlug || !branchSlug || !customerName || !customerPhone || !customerAddress) {
+  if (
+    !orgSlug ||
+    !branchSlug ||
+    !customerName ||
+    !customerPhone ||
+    !customerAddress
+  ) {
     return NextResponse.json(
       { error: 'Faltan datos obligatorios para crear el pedido.' },
       { status: 400 },
@@ -93,9 +99,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  const row = (Array.isArray(data) ? data[0] : null) as
-    | { online_order_id: string; order_code: string; tracking_token: string }
-    | null;
+  const row = (Array.isArray(data) ? data[0] : null) as {
+    online_order_id: string;
+    order_code: string;
+    tracking_token: string;
+  } | null;
 
   if (!row) {
     return NextResponse.json(

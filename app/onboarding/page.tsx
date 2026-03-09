@@ -12,7 +12,10 @@ import OnboardingFormPendingState from '@/app/onboarding/OnboardingFormPendingSt
 import { PRODUCT_FORM_LABELS } from '@/app/products/product-form-contract';
 import ProductFormFieldsShared from '@/app/products/ProductFormFieldsShared';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
-import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import {
+  hasStaffModuleEnabled,
+  resolveStaffHome,
+} from '@/lib/auth/staff-modules';
 import { fetchAllPages } from '@/lib/supabase/fetch-all-pages';
 
 type SearchParams = {
@@ -1225,8 +1228,13 @@ export default async function OnboardingPage({
   const role = session.effectiveRole;
 
   if (role === 'staff') {
-    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
-    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    const { data: modules } = await supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
     if (!hasStaffModuleEnabled(resolvedModules, 'onboarding')) {
       const home = resolveStaffHome(resolvedModules);
       redirect(home);
@@ -1586,13 +1594,11 @@ export default async function OnboardingPage({
     });
     await actionSupabase
       .from('products' as never)
-      .update(
-        {
-          brand: brand || null,
-          purchase_by_pack: purchaseByPack,
-          units_per_pack: purchaseByPack ? unitsPerPack : null,
-        } as never,
-      )
+      .update({
+        brand: brand || null,
+        purchase_by_pack: purchaseByPack,
+        units_per_pack: purchaseByPack ? unitsPerPack : null,
+      } as never)
       .eq('org_id', actionOrgId)
       .eq('id', productId);
 
@@ -1728,8 +1734,7 @@ export default async function OnboardingPage({
     const applySecondarySupplier =
       formData.get('apply_secondary_supplier') === 'on';
     const applyShelfLifeDays = formData.get('apply_shelf_life_days') === 'on';
-    const applyPurchaseByPack =
-      formData.get('apply_purchase_by_pack') === 'on';
+    const applyPurchaseByPack = formData.get('apply_purchase_by_pack') === 'on';
     const applySupplierPrice = formData.get('apply_supplier_price') === 'on';
     const applyUnitPrice = formData.get('apply_unit_price') === 'on';
 
@@ -1802,8 +1807,7 @@ export default async function OnboardingPage({
         '/onboarding?result=invalid&message=bulk_shelf_life_invalid#bulk-products',
       );
     }
-    const bulkPurchaseByPack =
-      formData.get('bulk_purchase_by_pack') === 'on';
+    const bulkPurchaseByPack = formData.get('bulk_purchase_by_pack') === 'on';
     const bulkUnitsPerPackRaw = String(
       formData.get('bulk_units_per_pack') ?? '',
     ).trim();
@@ -1861,7 +1865,9 @@ export default async function OnboardingPage({
     }
     if (applyPurchaseByPack) {
       productPatch.purchase_by_pack = bulkPurchaseByPack;
-      productPatch.units_per_pack = bulkPurchaseByPack ? bulkUnitsPerPack : null;
+      productPatch.units_per_pack = bulkPurchaseByPack
+        ? bulkUnitsPerPack
+        : null;
     }
     if (applyUnitPrice) {
       productPatch.unit_price = unitPrice;
@@ -3335,7 +3341,9 @@ export default async function OnboardingPage({
                   <input
                     type="checkbox"
                     name="apply_purchase_by_pack"
-                    defaultChecked={Boolean(bulkDraftState?.applyPurchaseByPack)}
+                    defaultChecked={Boolean(
+                      bulkDraftState?.applyPurchaseByPack,
+                    )}
                   />
                   Aplicar compra por paquete
                 </label>
@@ -3344,7 +3352,9 @@ export default async function OnboardingPage({
                     <input
                       type="checkbox"
                       name="bulk_purchase_by_pack"
-                      defaultChecked={Boolean(bulkDraftState?.bulkPurchaseByPack)}
+                      defaultChecked={Boolean(
+                        bulkDraftState?.bulkPurchaseByPack,
+                      )}
                     />
                     Se compra por paquete
                   </label>

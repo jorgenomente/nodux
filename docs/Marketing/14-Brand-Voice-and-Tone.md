@@ -217,7 +217,7 @@ NODUX conecta ventas, inventario, caja y compras en un solo sistema.
 
 La Voz del Fundador
 
-El origen de NODUX proviene de experiencia directa en tiendas retail. 
+El origen de NODUX proviene de experiencia directa en tiendas retail.
 
 01-product-narrative.md
 

@@ -87,10 +87,25 @@ const HeaderBar: React.FC<{ title: string; subtitle: string }> = ({
   subtitle,
 }) => {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+      }}
+    >
       <div>
-        <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1 }}>{title}</div>
-        <div style={{ marginTop: 6, fontSize: 20, color: "#475569", fontWeight: 600 }}>
+        <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1 }}>
+          {title}
+        </div>
+        <div
+          style={{
+            marginTop: 6,
+            fontSize: 20,
+            color: "#475569",
+            fontWeight: 600,
+          }}
+        >
           {subtitle}
         </div>
       </div>
@@ -113,32 +128,68 @@ const DashboardMobile: React.FC = () => {
       <HeaderBar title="Dashboard" subtitle="Sucursal A | Hoy" />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div style={cardBase}>
-          <div style={{ fontSize: 17, color: "#64748b", fontWeight: 700 }}>Ventas hoy</div>
-          <div style={{ marginTop: 8, fontSize: 29, fontWeight: 800 }}>$428.300</div>
-          <div style={{ marginTop: 6, fontSize: 16, color: "#475569" }}>26 ventas</div>
+          <div style={{ fontSize: 17, color: "#64748b", fontWeight: 700 }}>
+            Ventas hoy
+          </div>
+          <div style={{ marginTop: 8, fontSize: 29, fontWeight: 800 }}>
+            $428.300
+          </div>
+          <div style={{ marginTop: 6, fontSize: 16, color: "#475569" }}>
+            26 ventas
+          </div>
         </div>
         <div style={cardBase}>
-          <div style={{ fontSize: 17, color: "#64748b", fontWeight: 700 }}>Efectivo hoy</div>
-          <div style={{ marginTop: 8, fontSize: 29, fontWeight: 800 }}>$162.900</div>
-          <div style={{ marginTop: 6, fontSize: 16, color: "#475569" }}>11 ventas cash</div>
+          <div style={{ fontSize: 17, color: "#64748b", fontWeight: 700 }}>
+            Efectivo hoy
+          </div>
+          <div style={{ marginTop: 8, fontSize: 29, fontWeight: 800 }}>
+            $162.900
+          </div>
+          <div style={{ marginTop: 6, fontSize: 16, color: "#475569" }}>
+            11 ventas cash
+          </div>
         </div>
       </div>
       <div style={cardBase}>
         <div style={{ fontSize: 22, fontWeight: 800 }}>Alertas criticas</div>
-        <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between" }}>
-          <div style={{ fontSize: 20, fontWeight: 600 }}>Vencimientos 0-3 dias</div>
+        <div
+          style={{
+            marginTop: 12,
+            display: "flex",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ fontSize: 20, fontWeight: 600 }}>
+            Vencimientos 0-3 dias
+          </div>
           <div style={badge("critical")}>2</div>
         </div>
-        <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between" }}>
-          <div style={{ fontSize: 20, fontWeight: 600 }}>Pedidos por recibir</div>
+        <div
+          style={{
+            marginTop: 10,
+            display: "flex",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ fontSize: 20, fontWeight: 600 }}>
+            Pedidos por recibir
+          </div>
           <div style={badge("warning")}>3</div>
         </div>
       </div>
       <div style={cardBase}>
-        <div style={{ fontSize: 22, fontWeight: 800 }}>Operacion compras y pagos</div>
-        <div style={{ marginTop: 10, fontSize: 19, color: "#1e293b" }}>Pedidos a realizar: 4</div>
-        <div style={{ marginTop: 6, fontSize: 19, color: "#1e293b" }}>Pagos transfer: $98.000</div>
-        <div style={{ marginTop: 6, fontSize: 19, color: "#1e293b" }}>Pagos efectivo: $94.000</div>
+        <div style={{ fontSize: 22, fontWeight: 800 }}>
+          Operacion compras y pagos
+        </div>
+        <div style={{ marginTop: 10, fontSize: 19, color: "#1e293b" }}>
+          Pedidos a realizar: 4
+        </div>
+        <div style={{ marginTop: 6, fontSize: 19, color: "#1e293b" }}>
+          Pagos transfer: $98.000
+        </div>
+        <div style={{ marginTop: 6, fontSize: 19, color: "#1e293b" }}>
+          Pagos efectivo: $94.000
+        </div>
       </div>
     </div>
   );
@@ -154,20 +205,40 @@ const ExpirationsMobile: React.FC = () => {
         <div style={chip("4-7 dias", false)}>4-7 dias</div>
       </div>
       <div style={cardBase}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <div>
-            <div style={{ fontSize: 23, fontWeight: 800 }}>Yogur Natural 1L</div>
-            <div style={{ marginTop: 6, fontSize: 18, color: "#475569" }}>Batch LP-20260223-003</div>
+            <div style={{ fontSize: 23, fontWeight: 800 }}>
+              Yogur Natural 1L
+            </div>
+            <div style={{ marginTop: 6, fontSize: 18, color: "#475569" }}>
+              Batch LP-20260223-003
+            </div>
           </div>
           <div style={badge("critical")}>2 dias</div>
         </div>
         <div style={{ marginTop: 10, fontSize: 18 }}>Cantidad: 18 u</div>
       </div>
       <div style={cardBase}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <div>
-            <div style={{ fontSize: 23, fontWeight: 800 }}>Queso Cremoso 500g</div>
-            <div style={{ marginTop: 6, fontSize: 18, color: "#475569" }}>Batch LF-20260220-002</div>
+            <div style={{ fontSize: 23, fontWeight: 800 }}>
+              Queso Cremoso 500g
+            </div>
+            <div style={{ marginTop: 6, fontSize: 18, color: "#475569" }}>
+              Batch LF-20260220-002
+            </div>
           </div>
           <div style={badge("warning")}>4 dias</div>
         </div>
@@ -175,10 +246,19 @@ const ExpirationsMobile: React.FC = () => {
       </div>
       <div style={cardBase}>
         <div style={{ fontSize: 21, fontWeight: 800 }}>Desperdicio hoy</div>
-        <div style={{ marginTop: 8, fontSize: 26, fontWeight: 800, color: "#b91c1c" }}>
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 26,
+            fontWeight: 800,
+            color: "#b91c1c",
+          }}
+        >
           $24.600
         </div>
-        <div style={{ marginTop: 6, fontSize: 18, color: "#475569" }}>3 movimientos registrados</div>
+        <div style={{ marginTop: 6, fontSize: 18, color: "#475569" }}>
+          3 movimientos registrados
+        </div>
       </div>
     </div>
   );
@@ -193,26 +273,48 @@ const OrdersMobile: React.FC = () => {
         <div style={chip("Controlados", false)}>Controlados</div>
       </div>
       <div style={cardBase}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <div style={{ fontSize: 23, fontWeight: 800 }}>Lacteos del Valle</div>
           <div style={badge("sent")}>sent</div>
         </div>
-        <div style={{ marginTop: 8, fontSize: 18, color: "#334155" }}>Orden #A312 | 12 items</div>
-        <div style={{ marginTop: 4, fontSize: 18, color: "#334155" }}>Monto estimado: $188.000</div>
+        <div style={{ marginTop: 8, fontSize: 18, color: "#334155" }}>
+          Orden #A312 | 12 items
+        </div>
+        <div style={{ marginTop: 4, fontSize: 18, color: "#334155" }}>
+          Monto estimado: $188.000
+        </div>
         <div style={{ marginTop: 4, fontSize: 18, color: "#334155" }}>
           Vence pago: 2026-03-03
         </div>
       </div>
       <div style={cardBase}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <div style={{ fontSize: 23, fontWeight: 800 }}>Frutas San Juan</div>
           <div style={badge("overdue")}>atrasado</div>
         </div>
-        <div style={{ marginTop: 8, fontSize: 18, color: "#334155" }}>Orden #B984 | 9 items</div>
-        <div style={{ marginTop: 4, fontSize: 18, color: "#334155" }}>Recepcion estimada vencida</div>
+        <div style={{ marginTop: 8, fontSize: 18, color: "#334155" }}>
+          Orden #B984 | 9 items
+        </div>
+        <div style={{ marginTop: 4, fontSize: 18, color: "#334155" }}>
+          Recepcion estimada vencida
+        </div>
       </div>
       <div style={cardBase}>
-        <div style={{ fontSize: 21, fontWeight: 800 }}>Pedidos especiales pendientes</div>
+        <div style={{ fontSize: 21, fontWeight: 800 }}>
+          Pedidos especiales pendientes
+        </div>
         <div style={{ marginTop: 8, fontSize: 18, color: "#334155" }}>
           5 items de clientes para agregar al pedido
         </div>
@@ -252,7 +354,13 @@ type SceneProps = {
   children: React.ReactNode;
 };
 
-const Scene: React.FC<SceneProps> = ({ start, duration, title, subtitle, children }) => {
+const Scene: React.FC<SceneProps> = ({
+  start,
+  duration,
+  title,
+  subtitle,
+  children,
+}) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const localFrame = frame - start;
@@ -262,11 +370,16 @@ const Scene: React.FC<SceneProps> = ({ start, duration, title, subtitle, childre
     extrapolateRight: "clamp",
     easing: Easing.out(Easing.cubic),
   });
-  const opacityOut = interpolate(localFrame, [duration - 15, duration], [1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.in(Easing.cubic),
-  });
+  const opacityOut = interpolate(
+    localFrame,
+    [duration - 15, duration],
+    [1, 0],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.in(Easing.cubic),
+    },
+  );
   const slideY = interpolate(localFrame, [0, 12], [70, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -303,8 +416,17 @@ const Scene: React.FC<SceneProps> = ({ start, duration, title, subtitle, childre
           textShadow: "0 8px 30px rgba(0,0,0,0.4)",
         }}
       >
-        <div style={{ fontSize: 64, fontWeight: 900, letterSpacing: 0.4 }}>{title}</div>
-        <div style={{ marginTop: 10, fontSize: 30, fontWeight: 600, opacity: 0.92 }}>
+        <div style={{ fontSize: 64, fontWeight: 900, letterSpacing: 0.4 }}>
+          {title}
+        </div>
+        <div
+          style={{
+            marginTop: 10,
+            fontSize: 30,
+            fontWeight: 600,
+            opacity: 0.92,
+          }}
+        >
           {subtitle}
         </div>
       </div>
@@ -355,21 +477,50 @@ export const MyComposition = () => {
         }}
       >
         <div style={{ fontSize: 72, fontWeight: 900 }}>NODUX Mobile Ops</div>
-        <div style={{ marginTop: 18, fontSize: 34, fontWeight: 600, opacity: 0.95 }}>
+        <div
+          style={{
+            marginTop: 18,
+            fontSize: 34,
+            fontWeight: 600,
+            opacity: 0.95,
+          }}
+        >
           Dashboard | Vencimientos | Pedidos
         </div>
-        <div style={{ marginTop: 20, fontSize: 27, fontWeight: 500, opacity: 0.88 }}>
+        <div
+          style={{
+            marginTop: 20,
+            fontSize: 27,
+            fontWeight: 500,
+            opacity: 0.88,
+          }}
+        >
           1080x1920 | 30fps | 10s
         </div>
       </AbsoluteFill>
 
-      <Scene start={30} duration={90} title="Dashboard" subtitle="KPI + alertas accionables">
+      <Scene
+        start={30}
+        duration={90}
+        title="Dashboard"
+        subtitle="KPI + alertas accionables"
+      >
         <DashboardMobile />
       </Scene>
-      <Scene start={120} duration={90} title="Vencimientos" subtitle="Prioridad por severidad">
+      <Scene
+        start={120}
+        duration={90}
+        title="Vencimientos"
+        subtitle="Prioridad por severidad"
+      >
         <ExpirationsMobile />
       </Scene>
-      <Scene start={210} duration={90} title="Pedidos" subtitle="Pendientes y control operativo">
+      <Scene
+        start={210}
+        duration={90}
+        title="Pedidos"
+        subtitle="Pendientes y control operativo"
+      >
         <OrdersMobile />
       </Scene>
     </AbsoluteFill>

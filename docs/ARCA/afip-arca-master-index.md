@@ -1,4 +1,5 @@
 # AFIP / ARCA Master Index
+
 **Proyecto:** NODUX  
 **Versión:** v1.0  
 **Estado:** Canonical index  
@@ -77,24 +78,24 @@ docs/ARCA/
 
 ## 4. Fuente de verdad por tema
 
-| Tema | Documento canónico |
-| --- | --- |
-| Historial por lote (ARCA) | `docs/ARCA/activity-log.md` |
-| Arquitectura general | `docs/ARCA/architecture/afip-arca-fiscal-service.md` |
-| Modelo de datos | `docs/ARCA/architecture/afip-arca-data-model.md` |
-| Máquina de estados | `docs/ARCA/architecture/afip-arca-state-machine.md` |
-| Seguridad y secretos | `docs/ARCA/architecture/afip-arca-security-and-secrets.md` |
-| Contratos WSAA/WSFEv1 | `docs/ARCA/architecture/afip-arca-wsaa-wsfev1-integration-contracts.md` |
-| Base SQL fiscal | `docs/ARCA/implementation/20260308133000_fiscal_core.sql` |
-| Helpers/RPC fiscal | `docs/ARCA/implementation/20260308134500_fiscal_helpers_and_rpc.sql` |
-| Runtime worker | `docs/ARCA/implementation/afip-arca-worker-runtime.md` |
-| Catálogo de errores | `docs/ARCA/implementation/afip-arca-worker-error-catalog.md` |
-| Render pipeline | `docs/ARCA/implementation/afip-arca-render-pipeline.md` |
-| Reconciliación | `docs/ARCA/implementation/afip-arca-reconciliation-playbook.md` |
-| Testing | `docs/ARCA/implementation/afip-arca-testing-strategy.md` |
-| Prompts de ejecución | `docs/ARCA/implementation/afip-arca-codex-task-prompts.md` |
-| Baseline y freeze | `docs/ARCA/operations/afip-arca-lote-0-baseline-freeze.md` |
-| Onboarding operativo | `docs/ARCA/operations/fiscal-onboarding-playbook.md` |
+| Tema                      | Documento canónico                                                      |
+| ------------------------- | ----------------------------------------------------------------------- |
+| Historial por lote (ARCA) | `docs/ARCA/activity-log.md`                                             |
+| Arquitectura general      | `docs/ARCA/architecture/afip-arca-fiscal-service.md`                    |
+| Modelo de datos           | `docs/ARCA/architecture/afip-arca-data-model.md`                        |
+| Máquina de estados        | `docs/ARCA/architecture/afip-arca-state-machine.md`                     |
+| Seguridad y secretos      | `docs/ARCA/architecture/afip-arca-security-and-secrets.md`              |
+| Contratos WSAA/WSFEv1     | `docs/ARCA/architecture/afip-arca-wsaa-wsfev1-integration-contracts.md` |
+| Base SQL fiscal           | `docs/ARCA/implementation/20260308133000_fiscal_core.sql`               |
+| Helpers/RPC fiscal        | `docs/ARCA/implementation/20260308134500_fiscal_helpers_and_rpc.sql`    |
+| Runtime worker            | `docs/ARCA/implementation/afip-arca-worker-runtime.md`                  |
+| Catálogo de errores       | `docs/ARCA/implementation/afip-arca-worker-error-catalog.md`            |
+| Render pipeline           | `docs/ARCA/implementation/afip-arca-render-pipeline.md`                 |
+| Reconciliación            | `docs/ARCA/implementation/afip-arca-reconciliation-playbook.md`         |
+| Testing                   | `docs/ARCA/implementation/afip-arca-testing-strategy.md`                |
+| Prompts de ejecución      | `docs/ARCA/implementation/afip-arca-codex-task-prompts.md`              |
+| Baseline y freeze         | `docs/ARCA/operations/afip-arca-lote-0-baseline-freeze.md`              |
+| Onboarding operativo      | `docs/ARCA/operations/fiscal-onboarding-playbook.md`                    |
 
 ---
 

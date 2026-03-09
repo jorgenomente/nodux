@@ -7,7 +7,10 @@ import PageShell from '@/app/components/PageShell';
 import SupplierActions from '@/app/suppliers/SupplierActions';
 import SuppliersSearchInput from '@/app/suppliers/SuppliersSearchInput';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
-import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import {
+  hasStaffModuleEnabled,
+  resolveStaffHome,
+} from '@/lib/auth/staff-modules';
 
 type SearchParams = {
   q?: string;
@@ -67,8 +70,13 @@ export default async function SuppliersPage({
   const role = session.effectiveRole;
 
   if (role === 'staff') {
-    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
-    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    const { data: modules } = await supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
     if (!hasStaffModuleEnabled(resolvedModules, 'suppliers')) {
       const home = resolveStaffHome(resolvedModules);
       redirect(home);

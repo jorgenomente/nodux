@@ -7,7 +7,10 @@ import {
   getOrgAdminSession,
   getOrgMemberSession,
 } from '@/lib/auth/org-session';
-import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import {
+  hasStaffModuleEnabled,
+  resolveStaffHome,
+} from '@/lib/auth/staff-modules';
 
 type SearchParams = {
   branch_id?: string;
@@ -231,8 +234,13 @@ export default async function OrdersCalendarPage({
   const userId = session.userId;
 
   if (role === 'staff') {
-    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
-    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    const { data: modules } = await supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
     if (!hasStaffModuleEnabled(resolvedModules, 'orders_calendar')) {
       const home = resolveStaffHome(resolvedModules);
       redirect(home);

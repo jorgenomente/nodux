@@ -101,7 +101,7 @@ Compras
 ↓  
 Pagos  
 ↓  
-Reposición  
+Reposición
 
 También pueden usarse:
 
@@ -232,7 +232,7 @@ proveedores
 compras  
 vencimientos  
 sucursales  
-pedidos online  
+pedidos online
 
 El estilo debe ser:
 
@@ -269,7 +269,7 @@ Compras
 ↓  
 Pagos  
 ↓  
-Reposición  
+Reposición
 
 Este flujo representa la idea central del producto:
 

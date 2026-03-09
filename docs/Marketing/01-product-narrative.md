@@ -1,4 +1,5 @@
 01-product-narrative.md
+
 # NODUX — Product Narrative
 
 Versión: v1.0  
@@ -236,7 +237,7 @@ compras
 proveedores  
 pagos  
 clientes  
-pedidos  
+pedidos
 
 En lugar de tener múltiples herramientas desconectadas, la operación completa fluye dentro de un único sistema.
 
@@ -272,9 +273,7 @@ Un Retail OS no solo registra información.
 
 Coordina el flujo completo del negocio:
 
-
 Mercancía → Stock → Venta → Caja → Compras → Pagos → Reposición
-
 
 Cuando ese flujo está conectado, la operación deja de depender de memoria humana y procesos manuales.
 

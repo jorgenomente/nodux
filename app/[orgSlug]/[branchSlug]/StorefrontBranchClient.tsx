@@ -3,7 +3,8 @@
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
 
-const normalizePhoneForWhatsApp = (value: string) => value.replace(/[^\d]/g, '');
+const normalizePhoneForWhatsApp = (value: string) =>
+  value.replace(/[^\d]/g, '');
 
 type StorefrontProduct = {
   product_id: string;
@@ -104,7 +105,11 @@ export default function StorefrontBranchClient({
   };
 
   const whatsappHref = useMemo(() => {
-    if (!checkoutState.trackingToken || !whatsappPhone || !checkoutState.whatsappMessage) {
+    if (
+      !checkoutState.trackingToken ||
+      !whatsappPhone ||
+      !checkoutState.whatsappMessage
+    ) {
       return null;
     }
     const normalizedPhone = normalizePhoneForWhatsApp(whatsappPhone);
@@ -113,7 +118,11 @@ export default function StorefrontBranchClient({
     const text = encodeURIComponent(checkoutState.whatsappMessage);
 
     return `https://wa.me/${normalizedPhone}?text=${text}`;
-  }, [checkoutState.trackingToken, checkoutState.whatsappMessage, whatsappPhone]);
+  }, [
+    checkoutState.trackingToken,
+    checkoutState.whatsappMessage,
+    whatsappPhone,
+  ]);
 
   const handleCheckout = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -204,18 +213,18 @@ export default function StorefrontBranchClient({
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-orange-50 via-white to-amber-50 text-slate-900">
-      <section className="mx-auto grid w-full max-w-6xl gap-6 px-5 pb-12 pt-8 lg:grid-cols-[1.2fr_0.8fr]">
+      <section className="mx-auto grid w-full max-w-6xl gap-6 px-5 pt-8 pb-12 lg:grid-cols-[1.2fr_0.8fr]">
         <div>
           <div className="rounded-3xl border border-orange-100 bg-white p-5 shadow-sm md:p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-orange-700">
+            <p className="text-xs font-semibold tracking-[0.14em] text-orange-700 uppercase">
               {orgName}
             </p>
             <h1 className="mt-1 text-2xl font-semibold md:text-3xl">
               {branchName}
             </h1>
             <p className="mt-2 text-sm text-slate-600">
-              Consulta precio y stock actualizado para pedir online con retiro en
-              tienda.
+              Consulta precio y stock actualizado para pedir online con retiro
+              en tienda.
             </p>
             {pickupInstructions ? (
               <p className="mt-3 rounded-xl bg-orange-50 px-3 py-2 text-xs text-slate-700">
@@ -227,7 +236,7 @@ export default function StorefrontBranchClient({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Buscar producto"
-              className="mt-4 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none ring-orange-200 transition focus:ring"
+              className="mt-4 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm ring-orange-200 transition outline-none focus:ring"
             />
           </div>
 
@@ -255,7 +264,7 @@ export default function StorefrontBranchClient({
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                      <div className="flex h-full w-full items-center justify-center text-xs font-semibold tracking-[0.12em] text-slate-500 uppercase">
                         Sin imagen
                       </div>
                     )}
@@ -298,7 +307,9 @@ export default function StorefrontBranchClient({
         <aside className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
           <h2 className="text-lg font-semibold">Tu pedido</h2>
           {cartItems.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-600">Aún no agregaste productos.</p>
+            <p className="mt-3 text-sm text-slate-600">
+              Aún no agregaste productos.
+            </p>
           ) : (
             <div className="mt-3 space-y-2">
               {cartItems.map((item) => (
@@ -306,9 +317,12 @@ export default function StorefrontBranchClient({
                   key={item.product_id}
                   className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
                 >
-                  <p className="text-sm font-medium text-slate-800">{item.product_name}</p>
+                  <p className="text-sm font-medium text-slate-800">
+                    {item.product_name}
+                  </p>
                   <p className="text-xs text-slate-600">
-                    {item.quantity} x ${Number(item.unit_price).toFixed(2)} = ${item.lineTotal.toFixed(2)}
+                    {item.quantity} x ${Number(item.unit_price).toFixed(2)} = $
+                    {item.lineTotal.toFixed(2)}
                   </p>
                 </div>
               ))}
@@ -325,38 +339,43 @@ export default function StorefrontBranchClient({
               value={customerName}
               onChange={(event) => setCustomerName(event.target.value)}
               placeholder="Tu nombre"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none ring-orange-200 transition focus:ring"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm ring-orange-200 transition outline-none focus:ring"
             />
             <input
               required
               value={customerPhone}
               onChange={(event) => setCustomerPhone(event.target.value)}
               placeholder="Tu teléfono"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none ring-orange-200 transition focus:ring"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm ring-orange-200 transition outline-none focus:ring"
             />
             <input
               required
               value={customerAddress}
               onChange={(event) => setCustomerAddress(event.target.value)}
               placeholder="Dirección"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none ring-orange-200 transition focus:ring"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm ring-orange-200 transition outline-none focus:ring"
             />
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-              Método de pago: <span className="font-semibold">Pagar al retirar</span>
+              Método de pago:{' '}
+              <span className="font-semibold">Pagar al retirar</span>
             </div>
             <textarea
               value={customerNotes}
               onChange={(event) => setCustomerNotes(event.target.value)}
               placeholder="Notas para la tienda (opcional)"
               rows={3}
-              className="w-full resize-none rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none ring-orange-200 transition focus:ring"
+              className="w-full resize-none rounded-xl border border-slate-300 px-3 py-2.5 text-sm ring-orange-200 transition outline-none focus:ring"
             />
             <button
               type="submit"
-              disabled={checkoutState.status === 'loading' || cartItems.length === 0}
+              disabled={
+                checkoutState.status === 'loading' || cartItems.length === 0
+              }
               className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {checkoutState.status === 'loading' ? 'Enviando pedido...' : 'Confirmar pedido'}
+              {checkoutState.status === 'loading'
+                ? 'Enviando pedido...'
+                : 'Confirmar pedido'}
             </button>
           </form>
 
@@ -368,7 +387,9 @@ export default function StorefrontBranchClient({
 
           {checkoutState.status === 'success' && checkoutState.trackingToken ? (
             <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-emerald-800">
-              <p className="font-semibold">Pedido {checkoutState.orderCode} creado.</p>
+              <p className="font-semibold">
+                Pedido {checkoutState.orderCode} creado.
+              </p>
               <a
                 href={`/o/${checkoutState.trackingToken}`}
                 className="mt-1 inline-block font-semibold text-emerald-900 underline"

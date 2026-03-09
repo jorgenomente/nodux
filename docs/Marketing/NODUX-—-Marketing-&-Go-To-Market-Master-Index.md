@@ -12,6 +12,7 @@ Ese flujo es exactamente como se construye el marketing de productos SaaS fuerte
 
 ```md
 # NODUX — Marketing & Go-To-Market Master Index
+
 Version: v1.0
 Status: Foundational
 Purpose: Establish the strategic foundation for marketing, positioning and growth of NODUX.
@@ -31,10 +32,10 @@ Explica qué es este repositorio de marketing.
 
 Debe incluir:
 
-* objetivo del proyecto
-* qué es NODUX
-* qué contiene la carpeta
-* cómo usar estos documentos
+- objetivo del proyecto
+- qué es NODUX
+- qué contiene la carpeta
+- cómo usar estos documentos
 
 Esto evita que en 6 meses nadie entienda el contexto.
 
@@ -52,11 +53,11 @@ Esto evita que en 6 meses nadie entienda el contexto.
 
 Contiene:
 
-* evolución del retail
-* caos operativo
-* merma invisible
-* pérdida de control
-* nacimiento de NODUX
+- evolución del retail
+- caos operativo
+- merma invisible
+- pérdida de control
+- nacimiento de NODUX
 
 Este documento es **la base de toda la narrativa.**
 
@@ -74,10 +75,10 @@ Este documento es **la base de toda la narrativa.**
 
 Contiene:
 
-* por qué POS es insuficiente
-* por qué ERP no sirve para tiendas
-* definición de **Retail Operating System**
-* arquitectura conceptual del retail
+- por qué POS es insuficiente
+- por qué ERP no sirve para tiendas
+- definición de **Retail Operating System**
+- arquitectura conceptual del retail
 
 Objetivo:
 
@@ -99,10 +100,10 @@ NODUX = Retail Operating System
 
 Define:
 
-* rubro
-* tamaño
-* nivel de caos operativo
-* señales de compra
+- rubro
+- tamaño
+- nivel de caos operativo
+- señales de compra
 
 ICP principal:
 
@@ -127,19 +128,19 @@ dependencia de Excel
 
 Mapa completo de problemas:
 
-* vencimientos
-* merma
-* stock fantasma
-* quiebres
-* caja
-* compras desordenadas
-* Excel
+- vencimientos
+- merma
+- stock fantasma
+- quiebres
+- caja
+- compras desordenadas
+- Excel
 
 Este documento alimenta:
 
-* marketing
-* ventas
-* contenido
+- marketing
+- ventas
+- contenido
 
 ---
 
@@ -159,10 +160,10 @@ Framework de propuesta de valor.
 
 Impactos:
 
-* reducción de merma
-* control multi-sucursal
-* automatización de compras
-* visibilidad total
+- reducción de merma
+- control multi-sucursal
+- automatización de compras
+- visibilidad total
 
 ---
 
@@ -178,10 +179,10 @@ Impactos:
 
 Incluye:
 
-* qué es NODUX
-* qué no es
-* quién debe usarlo
-* por qué existe
+- qué es NODUX
+- qué no es
+- quién debe usarlo
+- por qué existe
 
 Esto evita que se perciba como:
 
@@ -209,16 +210,16 @@ Nivel 3 — mensajes por audiencia
 
 Audiencias:
 
-* dueño
-* administrador
-* staff
+- dueño
+- administrador
+- staff
 
 Esto alinea:
 
-* landing
-* demos
-* contenido
-* ventas
+- landing
+- demos
+- contenido
+- ventas
 
 ---
 
@@ -234,10 +235,10 @@ Esto alinea:
 
 Comparación con:
 
-* Tango
-* DUX
-* Tiendanube
-* Bistrosoft
+- Tango
+- DUX
+- Tiendanube
+- Bistrosoft
 
 Identifica:
 
@@ -259,11 +260,11 @@ brechas del mercado
 
 Contiene:
 
-* estrategia inicial
-* ventas directas
-* demos
-* vertical inicial
-* expansión
+- estrategia inicial
+- ventas directas
+- demos
+- vertical inicial
+- expansión
 
 ---
 
@@ -285,10 +286,10 @@ Pilares:
 
 Esto genera:
 
-* posts
-* reels
-* artículos
-* newsletter
+- posts
+- reels
+- artículos
+- newsletter
 
 ---
 
@@ -304,10 +305,10 @@ Define:
 
 Contiene:
 
-* storytelling de venta
-* preguntas de diagnóstico
-* demo flow
-* objeciones
+- storytelling de venta
+- preguntas de diagnóstico
+- demo flow
+- objeciones
 
 ---
 
@@ -325,10 +326,10 @@ el fundador vende
 
 Incluye:
 
-* cómo abordar tiendas
-* guión de conversación
-* demo en 10 minutos
-* cierre inicial
+- cómo abordar tiendas
+- guión de conversación
+- demo en 10 minutos
+- cierre inicial
 
 ---
 
@@ -391,17 +392,17 @@ Para NODUX el documento **más importante de todos** es:
 
 Porque ese documento define:
 
-* la historia del producto
-* la narrativa de mercado
-* la categoría
-* el problema real
+- la historia del producto
+- la narrativa de mercado
+- la categoría
+- el problema real
 
 Y ese documento luego alimenta:
 
-* la landing
-* el pitch
-* el contenido
-* el marketing
+- la landing
+- el pitch
+- el contenido
+- el marketing
 
 ---
 
@@ -409,7 +410,7 @@ Si quieres, en el siguiente paso puedo escribir **01-product-narrative.md comple
 
 Ese documento va a quedar **muy potente**, porque vamos a estructurar la historia de NODUX como lo hacen empresas tipo:
 
-* Stripe
-* Shopify
-* Toast
-* Square.
+- Stripe
+- Shopify
+- Toast
+- Square.

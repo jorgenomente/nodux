@@ -38,8 +38,7 @@ export const encryptPrivateKeyPem = (params: {
   ]);
   const tag = cipher.getAuthTag();
 
-  const encryptionKeyReference =
-    params.keyReference ?? config.keyReference;
+  const encryptionKeyReference = params.keyReference ?? config.keyReference;
 
   return {
     encryptedPrivateKey: JSON.stringify({

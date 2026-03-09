@@ -3,7 +3,10 @@ import { redirect } from 'next/navigation';
 
 import PrintTicketButton from '@/app/sales/PrintTicketButton';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
-import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import {
+  hasStaffModuleEnabled,
+  resolveStaffHome,
+} from '@/lib/auth/staff-modules';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,8 +109,13 @@ export default async function SaleTicketPage({
   }
 
   if (session.effectiveRole === 'staff') {
-    const { data: modules } = await session.supabase.rpc('rpc_get_staff_effective_modules');
-    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    const { data: modules } = await session.supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
     if (!hasStaffModuleEnabled(resolvedModules, 'sales')) {
       const home = resolveStaffHome(resolvedModules);
       redirect(home);
@@ -135,7 +143,8 @@ export default async function SaleTicketPage({
     .eq('org_id', session.orgId)
     .eq('id', sale.branch_id)
     .maybeSingle();
-  const branchConfig = (branchConfigData ?? null) as BranchTicketConfigRow | null;
+  const branchConfig = (branchConfigData ??
+    null) as BranchTicketConfigRow | null;
   const printSettings = {
     paperWidthMm: sanitizeNumber(branchConfig?.ticket_paper_width_mm, {
       min: 48,
@@ -222,18 +231,24 @@ export default async function SaleTicketPage({
         </p>
         <h1 className="mt-1 text-xl font-semibold">NODUX</h1>
         {branchConfig?.ticket_header_text ? (
-          <p className="mt-1 text-xs text-zinc-600 whitespace-pre-line">
+          <p className="mt-1 text-xs whitespace-pre-line text-zinc-600">
             {branchConfig.ticket_header_text}
           </p>
         ) : null}
-        <p className="text-xs text-zinc-500">Sucursal: {sale.branch_name ?? '—'}</p>
-        <p className="text-xs text-zinc-500">Fecha: {formatDateTime(sale.created_at)}</p>
-        <p className="text-xs text-zinc-500">Vendedor: {sale.created_by_name}</p>
+        <p className="text-xs text-zinc-500">
+          Sucursal: {sale.branch_name ?? '—'}
+        </p>
+        <p className="text-xs text-zinc-500">
+          Fecha: {formatDateTime(sale.created_at)}
+        </p>
+        <p className="text-xs text-zinc-500">
+          Vendedor: {sale.created_by_name}
+        </p>
         <p className="text-xs text-zinc-500">
           Estado fiscal: {sale.is_invoiced ? 'Facturada' : 'No facturada'}
         </p>
         {branchConfig?.fiscal_ticket_note_text ? (
-          <p className="text-xs text-zinc-500 whitespace-pre-line">
+          <p className="text-xs whitespace-pre-line text-zinc-500">
             {branchConfig.fiscal_ticket_note_text}
           </p>
         ) : null}
@@ -244,14 +259,19 @@ export default async function SaleTicketPage({
           ) : (
             <div className="grid gap-2">
               {items.map((item) => (
-                <div key={item.sale_item_id} className="flex items-start justify-between gap-3">
+                <div
+                  key={item.sale_item_id}
+                  className="flex items-start justify-between gap-3"
+                >
                   <div>
                     <p className="font-medium">{item.product_name}</p>
                     <p className="text-xs text-zinc-500">
                       {item.quantity} x {formatCurrency(item.unit_price)}
                     </p>
                   </div>
-                  <p className="font-medium">{formatCurrency(item.line_total)}</p>
+                  <p className="font-medium">
+                    {formatCurrency(item.line_total)}
+                  </p>
                 </div>
               ))}
             </div>
@@ -273,7 +293,7 @@ export default async function SaleTicketPage({
           </div>
         </div>
         {branchConfig?.ticket_footer_text ? (
-          <div className="mt-4 border-t border-zinc-200 pt-2 text-xs text-zinc-600 whitespace-pre-line">
+          <div className="mt-4 border-t border-zinc-200 pt-2 text-xs whitespace-pre-line text-zinc-600">
             {branchConfig.ticket_footer_text}
           </div>
         ) : null}

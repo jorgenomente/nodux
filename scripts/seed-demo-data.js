@@ -901,7 +901,10 @@ const purchaseOrderSeeds = [
       const orderedQty = seed.baseQty + itemIdx * 2 + (idx % 2);
       const receivedQty =
         seed.status === 'received' || seed.status === 'reconciled'
-          ? Math.max(orderedQty + (seed.receiveVariance ?? 0) - (itemIdx % 2), 1)
+          ? Math.max(
+              orderedQty + (seed.receiveVariance ?? 0) - (itemIdx % 2),
+              1,
+            )
           : 0;
       const baseUnitCost =
         Number(product.unit_price ?? 0) *

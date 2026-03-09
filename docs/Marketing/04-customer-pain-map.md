@@ -1,4 +1,5 @@
 04-customer-pain-map.md
+
 # NODUX — Customer Pain Map
 
 Versión: v1.0  

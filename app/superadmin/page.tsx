@@ -63,7 +63,9 @@ const findAuthUserIdByEmail = async (
     const users = data.users ?? [];
     const user = users.find(
       (candidate) =>
-        String(candidate.email ?? '').trim().toLowerCase() === email,
+        String(candidate.email ?? '')
+          .trim()
+          .toLowerCase() === email,
     );
     if (user?.id) return user.id;
     if (users.length < 200) break;

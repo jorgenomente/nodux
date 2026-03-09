@@ -147,7 +147,9 @@ export default function ProductActions({
       setOpen(false);
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'No se pudieron guardar los cambios.';
+        error instanceof Error
+          ? error.message
+          : 'No se pudieron guardar los cambios.';
       setNotice({
         tone: 'error',
         message: errorMessage,

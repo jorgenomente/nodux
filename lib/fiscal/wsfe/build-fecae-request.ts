@@ -6,20 +6,26 @@ import type {
 
 const assertPositiveNumber = (value: number, field: string) => {
   if (!Number.isFinite(value) || value <= 0) {
-    throw new Error(`FISCAL_REQUEST_INVALID_INTERNAL_CONTRACT: ${field} must be > 0`);
+    throw new Error(
+      `FISCAL_REQUEST_INVALID_INTERNAL_CONTRACT: ${field} must be > 0`,
+    );
   }
 };
 
 const assertNonNegativeNumber = (value: number, field: string) => {
   if (!Number.isFinite(value) || value < 0) {
-    throw new Error(`FISCAL_REQUEST_INVALID_INTERNAL_CONTRACT: ${field} must be >= 0`);
+    throw new Error(
+      `FISCAL_REQUEST_INVALID_INTERNAL_CONTRACT: ${field} must be >= 0`,
+    );
   }
 };
 
 const normalizeDate = (value: string) => {
   const compact = value.replaceAll('-', '').trim();
   if (!/^\d{8}$/.test(compact)) {
-    throw new Error('FISCAL_REQUEST_INVALID_INTERNAL_CONTRACT: cbteFch must be YYYYMMDD or YYYY-MM-DD');
+    throw new Error(
+      'FISCAL_REQUEST_INVALID_INTERNAL_CONTRACT: cbteFch must be YYYYMMDD or YYYY-MM-DD',
+    );
   }
   return compact;
 };

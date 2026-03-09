@@ -43,7 +43,10 @@ type DemoPageProps = {
   searchParams: Promise<{ error?: string; readonly?: string }>;
 };
 
-const resolveNotice = (error: string | undefined, readonly: string | undefined) => {
+const resolveNotice = (
+  error: string | undefined,
+  readonly: string | undefined,
+) => {
   if (readonly === '1') {
     return 'Esta cuenta demo es solo lectura. Podes navegar todo, pero no guardar cambios.';
   }
@@ -64,7 +67,7 @@ export default async function PublicDemoPage({ searchParams }: DemoPageProps) {
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
-      <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-12">
+      <section className="mx-auto w-full max-w-6xl px-6 pt-12 pb-16">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/landing"
@@ -90,7 +93,7 @@ export default async function PublicDemoPage({ searchParams }: DemoPageProps) {
 
         <div className="mt-8 grid gap-8 md:grid-cols-[1.2fr_0.8fr] md:items-start">
           <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-7">
-            <h1 className="text-3xl font-semibold leading-tight md:text-4xl">
+            <h1 className="text-3xl leading-tight font-semibold md:text-4xl">
               Recorrido publico de NODUX
             </h1>
             <p className="mt-4 max-w-2xl text-sm text-slate-300 md:text-base">
@@ -123,7 +126,7 @@ export default async function PublicDemoPage({ searchParams }: DemoPageProps) {
                 key={stat.label}
                 className="rounded-2xl border border-slate-800 bg-slate-900 p-4"
               >
-                <p className="text-xs uppercase tracking-[0.15em] text-slate-400">
+                <p className="text-xs tracking-[0.15em] text-slate-400 uppercase">
                   {stat.label}
                 </p>
                 <p className="mt-1 text-2xl font-semibold text-amber-200">
@@ -145,7 +148,9 @@ export default async function PublicDemoPage({ searchParams }: DemoPageProps) {
               <h2 className="text-lg font-semibold text-amber-100">
                 {module.title}
               </h2>
-              <p className="mt-2 text-sm text-slate-300">{module.description}</p>
+              <p className="mt-2 text-sm text-slate-300">
+                {module.description}
+              </p>
             </article>
           ))}
         </div>

@@ -115,7 +115,12 @@ type Props = {
     onlineOrderId: string;
     orderCode: string;
     customerName: string | null;
-    status: 'pending' | 'confirmed' | 'ready_for_pickup' | 'delivered' | 'cancelled';
+    status:
+      | 'pending'
+      | 'confirmed'
+      | 'ready_for_pickup'
+      | 'delivered'
+      | 'cancelled';
     items: Array<{
       product_id: string;
       name: string;
@@ -220,7 +225,9 @@ const sanitizePrintConfig = (config?: TicketSnapshot['printConfig']) => {
 const openTicketPrintWindow = (ticket: TicketSnapshot) => {
   const printConfig = sanitizePrintConfig(ticket.printConfig);
   const contentWidthMm = Math.max(
-    printConfig.paperWidthMm - printConfig.marginLeftMm - printConfig.marginRightMm,
+    printConfig.paperWidthMm -
+      printConfig.marginLeftMm -
+      printConfig.marginRightMm,
     30,
   );
   const rows = ticket.items
@@ -454,7 +461,12 @@ export default function PosClient({
     onlineOrder?.orderCode ?? null,
   );
   const [onlineOrderStatus, setOnlineOrderStatus] = useState<
-    'pending' | 'confirmed' | 'ready_for_pickup' | 'delivered' | 'cancelled' | null
+    | 'pending'
+    | 'confirmed'
+    | 'ready_for_pickup'
+    | 'delivered'
+    | 'cancelled'
+    | null
   >(onlineOrder?.status ?? null);
   const [onlineOrderCustomerName, setOnlineOrderCustomerName] = useState<
     string | null
@@ -596,7 +608,9 @@ export default function PosClient({
     [splitPaymentsTotal, total],
   );
   const activeBranchName = useMemo(
-    () => branches.find((branch) => branch.id === activeBranchId)?.name ?? 'Sucursal',
+    () =>
+      branches.find((branch) => branch.id === activeBranchId)?.name ??
+      'Sucursal',
     [activeBranchId, branches],
   );
   const activeBranchConfig = useMemo(
@@ -1049,14 +1063,12 @@ export default function PosClient({
       | { sale_id?: string | null; total?: number | null }
       | Array<{ sale_id?: string | null; total?: number | null }>
       | null = null;
-    let error:
-      | {
-          message: string;
-          details?: string | null;
-          hint?: string | null;
-          code?: string | null;
-        }
-      | null = null;
+    let error: {
+      message: string;
+      details?: string | null;
+      hint?: string | null;
+      code?: string | null;
+    } | null = null;
     let fiscalErrorFromServer: string | null = null;
     let fiscalSyncStatus:
       | 'not_requested'
@@ -1082,29 +1094,29 @@ export default function PosClient({
           !isSplitPayment && applyCashDiscount ? cashDiscountPct : null,
         payments: paymentsPayload ?? null,
         applyEmployeeDiscount,
-        employeeDiscountPct: applyEmployeeDiscount
-          ? employeeDiscountPct
-          : null,
+        employeeDiscountPct: applyEmployeeDiscount ? employeeDiscountPct : null,
         employeeAccountId: applyEmployeeDiscount ? employeeAccountId : null,
         mode,
       }),
     });
 
-    const payload = (await response.json().catch(() => null)) as
-      | {
-          ok?: boolean;
-          saleId?: string;
-          total?: number;
-          isInvoiced?: boolean;
-          fiscalError?: string;
-          fiscalSyncStatus?: 'not_requested' | 'processing' | 'completed' | 'failed';
-          invoiceUrl?: string | null;
-          error?: string;
-          details?: string | null;
-          hint?: string | null;
-          code?: string | null;
-        }
-      | null;
+    const payload = (await response.json().catch(() => null)) as {
+      ok?: boolean;
+      saleId?: string;
+      total?: number;
+      isInvoiced?: boolean;
+      fiscalError?: string;
+      fiscalSyncStatus?:
+        | 'not_requested'
+        | 'processing'
+        | 'completed'
+        | 'failed';
+      invoiceUrl?: string | null;
+      error?: string;
+      details?: string | null;
+      hint?: string | null;
+      code?: string | null;
+    } | null;
 
     if (!response.ok || !payload?.ok) {
       error = {
@@ -1176,7 +1188,11 @@ export default function PosClient({
       setErrorMessage(fiscalErrorFromServer);
     }
 
-    if (onlineOrderId && onlineOrderStatus && onlineOrderStatus !== 'cancelled') {
+    if (
+      onlineOrderId &&
+      onlineOrderStatus &&
+      onlineOrderStatus !== 'cancelled'
+    ) {
       const transitionsByStatus: Record<
         'pending' | 'confirmed' | 'ready_for_pickup' | 'delivered',
         Array<'confirmed' | 'ready_for_pickup' | 'delivered'>
@@ -1376,7 +1392,9 @@ export default function PosClient({
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             <div>
               Pedido online en POS · {onlineOrderCode}
-              {onlineOrderCustomerName ? ` · Cliente: ${onlineOrderCustomerName}` : ''}
+              {onlineOrderCustomerName
+                ? ` · Cliente: ${onlineOrderCustomerName}`
+                : ''}
             </div>
             <div className="text-xs font-semibold">
               Estado actual: {onlineOrderStatus ?? 'pending'}

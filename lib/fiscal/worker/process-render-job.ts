@@ -24,13 +24,15 @@ type InvoiceRow = {
 };
 
 const resolveCbteFch = (invoice: InvoiceRow) => {
-  const cbteFch = (invoice.raw_request_json?.feDetReq as
-    | Record<string, unknown>
-    | undefined)?.cbteFch;
+  const cbteFch = (
+    invoice.raw_request_json?.feDetReq as Record<string, unknown> | undefined
+  )?.cbteFch;
   if (typeof cbteFch === 'string' && cbteFch.trim()) {
     return cbteFch.trim();
   }
-  throw new Error(`Missing cbteFch in raw_request_json for invoice ${invoice.id}`);
+  throw new Error(
+    `Missing cbteFch in raw_request_json for invoice ${invoice.id}`,
+  );
 };
 
 export const processRenderJob = async (
@@ -129,7 +131,9 @@ export const processRenderJob = async (
     return { status: 'completed' as const };
   } catch (renderError) {
     const message =
-      renderError instanceof Error ? renderError.message : 'Fiscal render failed';
+      renderError instanceof Error
+        ? renderError.message
+        : 'Fiscal render failed';
     await markJobFailed({
       invoiceJobId: job.id,
       lastErrorCode: 'FISCAL_RENDER_FAILED',

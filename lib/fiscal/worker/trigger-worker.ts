@@ -38,12 +38,13 @@ export const triggerFiscalWorker = async ({
     });
 
     if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as
-        | { error?: string }
-        | null;
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
       return {
         ok: false as const,
-        error: payload?.error || `Fiscal worker trigger failed (${response.status})`,
+        error:
+          payload?.error || `Fiscal worker trigger failed (${response.status})`,
       };
     }
 
@@ -53,7 +54,8 @@ export const triggerFiscalWorker = async ({
   } catch (error) {
     return {
       ok: false as const,
-      error: error instanceof Error ? error.message : 'Fiscal worker trigger failed',
+      error:
+        error instanceof Error ? error.message : 'Fiscal worker trigger failed',
     };
   }
 };

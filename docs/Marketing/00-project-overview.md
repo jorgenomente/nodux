@@ -174,7 +174,6 @@ Toda la comunicación debe seguir estos principios:
 4. Posicionar NODUX como **infraestructura del negocio**, no como una simple aplicación.
 
 5. Explicar el impacto en el negocio:
-
    - control operativo
    - reducción de pérdidas
    - eficiencia en la operación
@@ -195,7 +194,6 @@ Solo después de ese reconocimiento aparece NODUX como la solución natural.
 Este repositorio contiene los documentos estratégicos fundamentales que definen cómo NODUX se posiciona y se comercializa.
 
 Los documentos principales incluyen:
-
 ```
 
 00-project-overview.md
@@ -255,4 +253,3 @@ Será percibido como:
 
 **El sistema que hace funcionar la tienda.**
 ```
-

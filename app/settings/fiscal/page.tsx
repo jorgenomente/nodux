@@ -159,7 +159,9 @@ export default async function SettingsFiscalPage({
 
   const { data: pointsRaw } = await context.admin
     .from('points_of_sale' as never)
-    .select('id, environment, location_id, pto_vta, description, invoice_mode, status')
+    .select(
+      'id, environment, location_id, pto_vta, description, invoice_mode, status',
+    )
     .eq('tenant_id', context.orgId)
     .order('environment')
     .order('pto_vta');
@@ -183,12 +185,16 @@ export default async function SettingsFiscalPage({
       redirect('/no-access');
     }
 
-    const environment = String(formData.get('environment') ?? '').trim() as FiscalEnvironment;
+    const environment = String(
+      formData.get('environment') ?? '',
+    ).trim() as FiscalEnvironment;
     if (!ENVIRONMENTS.includes(environment)) {
       redirect('/settings/fiscal?result=invalid_env');
     }
 
-    const taxpayerCuit = sanitizeCuit(String(formData.get('taxpayer_cuit') ?? ''));
+    const taxpayerCuit = sanitizeCuit(
+      String(formData.get('taxpayer_cuit') ?? ''),
+    );
     if (!/^\d{11}$/.test(taxpayerCuit)) {
       redirect(`/settings/fiscal?result=invalid_cuit&env=${environment}`);
     }
@@ -207,31 +213,33 @@ export default async function SettingsFiscalPage({
       .eq('tenant_id', auth.orgId)
       .eq('environment', environment)
       .maybeSingle();
-    const existing = (existingRaw.data ?? null) as
-      | {
-          id: string;
-          certificate_pem: string;
-          encrypted_private_key: string;
-          encryption_key_reference: string;
-        }
-      | null;
+    const existing = (existingRaw.data ?? null) as {
+      id: string;
+      certificate_pem: string;
+      encrypted_private_key: string;
+      encryption_key_reference: string;
+    } | null;
 
-    const certificateUpload = (await readUploadedTextFile(
-      formData.get('certificate_file'),
-    ))?.trim();
-    const privateKeyUpload = (await readUploadedTextFile(
-      formData.get('private_key_file'),
-    ))?.trim();
+    const certificateUpload = (
+      await readUploadedTextFile(formData.get('certificate_file'))
+    )?.trim();
+    const privateKeyUpload = (
+      await readUploadedTextFile(formData.get('private_key_file'))
+    )?.trim();
 
     const certificatePem = certificateUpload || existing?.certificate_pem || '';
     if (!certificatePem) {
-      redirect(`/settings/fiscal?result=missing_certificate&env=${environment}`);
+      redirect(
+        `/settings/fiscal?result=missing_certificate&env=${environment}`,
+      );
     }
 
     try {
       new X509Certificate(certificatePem);
     } catch {
-      redirect(`/settings/fiscal?result=invalid_certificate&env=${environment}`);
+      redirect(
+        `/settings/fiscal?result=invalid_certificate&env=${environment}`,
+      );
     }
 
     let encryptedPrivateKey = existing?.encrypted_private_key ?? '';
@@ -246,7 +254,9 @@ export default async function SettingsFiscalPage({
     }
 
     if (!encryptedPrivateKey || !encryptionKeyReference) {
-      redirect(`/settings/fiscal?result=missing_private_key&env=${environment}`);
+      redirect(
+        `/settings/fiscal?result=missing_private_key&env=${environment}`,
+      );
     }
 
     if (existing?.id) {
@@ -264,23 +274,29 @@ export default async function SettingsFiscalPage({
         } as never)
         .eq('id', existing.id);
       if (error) {
-        redirect(`/settings/fiscal?result=credentials_write_error&env=${environment}`);
+        redirect(
+          `/settings/fiscal?result=credentials_write_error&env=${environment}`,
+        );
       }
     } else {
-      const { error } = await auth.admin.from('fiscal_credentials' as never).insert({
-        tenant_id: auth.orgId,
-        environment,
-        taxpayer_cuit: taxpayerCuit,
-        alias: alias || null,
-        certificate_pem: certificatePem,
-        encrypted_private_key: encryptedPrivateKey,
-        encryption_key_reference: encryptionKeyReference,
-        wsaa_service_name: 'wsfe',
-        wsfe_service_name: 'wsfe',
-        status,
-      } as never);
+      const { error } = await auth.admin
+        .from('fiscal_credentials' as never)
+        .insert({
+          tenant_id: auth.orgId,
+          environment,
+          taxpayer_cuit: taxpayerCuit,
+          alias: alias || null,
+          certificate_pem: certificatePem,
+          encrypted_private_key: encryptedPrivateKey,
+          encryption_key_reference: encryptionKeyReference,
+          wsaa_service_name: 'wsfe',
+          wsfe_service_name: 'wsfe',
+          status,
+        } as never);
       if (error) {
-        redirect(`/settings/fiscal?result=credentials_write_error&env=${environment}`);
+        redirect(
+          `/settings/fiscal?result=credentials_write_error&env=${environment}`,
+        );
       }
     }
 
@@ -297,7 +313,9 @@ export default async function SettingsFiscalPage({
       redirect('/no-access');
     }
 
-    const environment = String(formData.get('environment') ?? '').trim() as FiscalEnvironment;
+    const environment = String(
+      formData.get('environment') ?? '',
+    ).trim() as FiscalEnvironment;
     const locationId = String(formData.get('location_id') ?? '').trim();
     const ptoVta = Number(String(formData.get('pto_vta') ?? '').trim());
     const description = String(formData.get('description') ?? '').trim();
@@ -310,7 +328,9 @@ export default async function SettingsFiscalPage({
       redirect(`/settings/fiscal?result=invalid_pos&pos_env=${environment}`);
     }
     if (!['active', 'inactive'].includes(status)) {
-      redirect(`/settings/fiscal?result=invalid_pos_status&pos_env=${environment}`);
+      redirect(
+        `/settings/fiscal?result=invalid_pos_status&pos_env=${environment}`,
+      );
     }
 
     const existingRaw = await auth.admin
@@ -320,7 +340,8 @@ export default async function SettingsFiscalPage({
       .eq('environment', environment)
       .eq('location_id', locationId)
       .maybeSingle();
-    const existingId = ((existingRaw.data as { id: string } | null) ?? null)?.id ?? null;
+    const existingId =
+      ((existingRaw.data as { id: string } | null) ?? null)?.id ?? null;
 
     const conflictingRaw = await auth.admin
       .from('points_of_sale' as never)
@@ -329,13 +350,12 @@ export default async function SettingsFiscalPage({
       .eq('environment', environment)
       .eq('pto_vta', ptoVta)
       .maybeSingle();
-    const conflicting = (conflictingRaw.data as
-      | {
-          id: string;
-          location_id: string | null;
-          pto_vta: number;
-        }
-      | null) ?? null;
+    const conflicting =
+      (conflictingRaw.data as {
+        id: string;
+        location_id: string | null;
+        pto_vta: number;
+      } | null) ?? null;
 
     if (
       conflicting &&
@@ -366,20 +386,26 @@ export default async function SettingsFiscalPage({
         } as never)
         .eq('id', existingId);
       if (error) {
-        redirect(`/settings/fiscal?result=pos_write_error&pos_env=${environment}`);
+        redirect(
+          `/settings/fiscal?result=pos_write_error&pos_env=${environment}`,
+        );
       }
     } else {
-      const { error } = await auth.admin.from('points_of_sale' as never).insert({
-        tenant_id: auth.orgId,
-        location_id: locationId,
-        environment,
-        pto_vta: ptoVta,
-        description: description || null,
-        invoice_mode: 'sync',
-        status,
-      } as never);
+      const { error } = await auth.admin
+        .from('points_of_sale' as never)
+        .insert({
+          tenant_id: auth.orgId,
+          location_id: locationId,
+          environment,
+          pto_vta: ptoVta,
+          description: description || null,
+          invoice_mode: 'sync',
+          status,
+        } as never);
       if (error) {
-        redirect(`/settings/fiscal?result=pos_write_error&pos_env=${environment}`);
+        redirect(
+          `/settings/fiscal?result=pos_write_error&pos_env=${environment}`,
+        );
       }
     }
 
@@ -395,7 +421,9 @@ export default async function SettingsFiscalPage({
       redirect('/no-access');
     }
 
-    const environment = String(formData.get('environment') ?? '').trim() as FiscalEnvironment;
+    const environment = String(
+      formData.get('environment') ?? '',
+    ).trim() as FiscalEnvironment;
     const ptoVta = Number(String(formData.get('pto_vta') ?? '').trim());
 
     if (!ENVIRONMENTS.includes(environment)) {
@@ -403,7 +431,9 @@ export default async function SettingsFiscalPage({
     }
 
     if (!Number.isInteger(ptoVta) || ptoVta <= 0) {
-      redirect(`/settings/fiscal?result=test_invalid_pos&test_env=${environment}`);
+      redirect(
+        `/settings/fiscal?result=test_invalid_pos&test_env=${environment}`,
+      );
     }
 
     try {
@@ -423,7 +453,9 @@ export default async function SettingsFiscalPage({
       }
 
       const message =
-        error instanceof Error ? error.message : 'Fiscal connection test failed';
+        error instanceof Error
+          ? error.message
+          : 'Fiscal connection test failed';
       redirect(
         `/settings/fiscal?result=test_error&test_env=${environment}&test_pto_vta=${ptoVta}&test_error=${encodeURIComponent(message)}`,
       );
@@ -475,18 +507,33 @@ export default async function SettingsFiscalPage({
             expone en la UI.
           </p>
           <p className="mt-2 text-sm text-zinc-500">
-            ORG activa: <span className="font-medium text-zinc-700">{org?.name ?? context.orgId}</span>
+            ORG activa:{' '}
+            <span className="font-medium text-zinc-700">
+              {org?.name ?? context.orgId}
+            </span>
           </p>
         </header>
 
         {resolvedSearchParams.result === 'credentials_saved' ? (
           <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-            Credencial fiscal guardada para {ENVIRONMENT_LABELS[(resolvedSearchParams.env as FiscalEnvironment) ?? 'homo']}.
+            Credencial fiscal guardada para{' '}
+            {
+              ENVIRONMENT_LABELS[
+                (resolvedSearchParams.env as FiscalEnvironment) ?? 'homo'
+              ]
+            }
+            .
           </p>
         ) : null}
         {resolvedSearchParams.result === 'pos_saved' ? (
           <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-            Punto de venta fiscal guardado para {ENVIRONMENT_LABELS[(resolvedSearchParams.pos_env as FiscalEnvironment) ?? 'homo']}.
+            Punto de venta fiscal guardado para{' '}
+            {
+              ENVIRONMENT_LABELS[
+                (resolvedSearchParams.pos_env as FiscalEnvironment) ?? 'homo'
+              ]
+            }
+            .
           </p>
         ) : null}
         {[
@@ -498,16 +545,16 @@ export default async function SettingsFiscalPage({
           'credentials_write_error',
         ].includes(resolvedSearchParams.result ?? '') ? (
           <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            Revisa la credencial fiscal. Se requiere CUIT válido, certificado `.crt/.pem`, private key `.key/.pem` y estado permitido.
+            Revisa la credencial fiscal. Se requiere CUIT válido, certificado
+            `.crt/.pem`, private key `.key/.pem` y estado permitido.
           </p>
         ) : null}
-        {[
-          'invalid_pos',
-          'invalid_pos_status',
-          'pos_write_error',
-        ].includes(resolvedSearchParams.result ?? '') ? (
+        {['invalid_pos', 'invalid_pos_status', 'pos_write_error'].includes(
+          resolvedSearchParams.result ?? '',
+        ) ? (
           <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            Revisa el punto de venta fiscal. Debes elegir una sucursal válida, cargar un `pto_vta` positivo y usar un estado permitido.
+            Revisa el punto de venta fiscal. Debes elegir una sucursal válida,
+            cargar un `pto_vta` positivo y usar un estado permitido.
           </p>
         ) : null}
         {resolvedSearchParams.result === 'pos_conflict' ? (
@@ -527,7 +574,13 @@ export default async function SettingsFiscalPage({
         ) : null}
         {resolvedSearchParams.result === 'test_ok' ? (
           <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-            Prueba segura {ENVIRONMENT_LABELS[(resolvedSearchParams.test_env as FiscalEnvironment) ?? 'prod']} OK para PV{' '}
+            Prueba segura{' '}
+            {
+              ENVIRONMENT_LABELS[
+                (resolvedSearchParams.test_env as FiscalEnvironment) ?? 'prod'
+              ]
+            }{' '}
+            OK para PV{' '}
             <span className="font-semibold">
               {String(resolvedSearchParams.test_pto_vta ?? '').padStart(4, '0')}
             </span>
@@ -535,22 +588,31 @@ export default async function SettingsFiscalPage({
             {resolvedSearchParams.test_expires_at
               ? decodeURIComponent(resolvedSearchParams.test_expires_at)
               : '—'}{' '}
-            · FEDummy: App={resolvedSearchParams.test_app
+            · FEDummy: App=
+            {resolvedSearchParams.test_app
               ? decodeURIComponent(resolvedSearchParams.test_app)
               : '—'}
-            , DB={resolvedSearchParams.test_db
+            , DB=
+            {resolvedSearchParams.test_db
               ? decodeURIComponent(resolvedSearchParams.test_db)
               : '—'}
-            , Auth={resolvedSearchParams.test_auth
+            , Auth=
+            {resolvedSearchParams.test_auth
               ? decodeURIComponent(resolvedSearchParams.test_auth)
               : '—'}
             .
           </p>
         ) : null}
-        {['test_invalid_pos', 'test_error'].includes(resolvedSearchParams.result ?? '') ? (
+        {['test_invalid_pos', 'test_error'].includes(
+          resolvedSearchParams.result ?? '',
+        ) ? (
           <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
             La prueba segura no pudo completarse para{' '}
-            {ENVIRONMENT_LABELS[(resolvedSearchParams.test_env as FiscalEnvironment) ?? 'prod']}
+            {
+              ENVIRONMENT_LABELS[
+                (resolvedSearchParams.test_env as FiscalEnvironment) ?? 'prod'
+              ]
+            }
             {resolvedSearchParams.test_error
               ? `: ${decodeURIComponent(resolvedSearchParams.test_error)}`
               : '. Revisa que exista un PV activo y una credencial activa para ese ambiente.'}
@@ -570,7 +632,8 @@ export default async function SettingsFiscalPage({
         <section className="grid gap-4 lg:grid-cols-2">
           {ENVIRONMENTS.map((environment) => {
             const credential =
-              credentials.find((item) => item.environment === environment) ?? null;
+              credentials.find((item) => item.environment === environment) ??
+              null;
             const certificateSummary = credential
               ? parseCertificateSummary(credential.certificate_pem)
               : null;
@@ -639,10 +702,13 @@ export default async function SettingsFiscalPage({
                       </p>
                       <p>
                         <span className="font-medium">Vigencia:</span>{' '}
-                        {certificateSummary.validFrom} → {certificateSummary.validTo}
+                        {certificateSummary.validFrom} →{' '}
+                        {certificateSummary.validTo}
                       </p>
                       <p className="break-all">
-                        <span className="font-medium">Fingerprint SHA-256:</span>{' '}
+                        <span className="font-medium">
+                          Fingerprint SHA-256:
+                        </span>{' '}
                         {certificateSummary.fingerprint256}
                       </p>
                     </>
@@ -654,7 +720,9 @@ export default async function SettingsFiscalPage({
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <label className="grid gap-1 text-sm text-zinc-700">
-                      <span className="text-xs font-semibold text-zinc-600">CUIT</span>
+                      <span className="text-xs font-semibold text-zinc-600">
+                        CUIT
+                      </span>
                       <input
                         name="taxpayer_cuit"
                         defaultValue={credential?.taxpayer_cuit ?? ''}
@@ -664,7 +732,9 @@ export default async function SettingsFiscalPage({
                       />
                     </label>
                     <label className="grid gap-1 text-sm text-zinc-700">
-                      <span className="text-xs font-semibold text-zinc-600">Alias interno</span>
+                      <span className="text-xs font-semibold text-zinc-600">
+                        Alias interno
+                      </span>
                       <input
                         name="alias"
                         defaultValue={credential?.alias ?? ''}
@@ -676,7 +746,9 @@ export default async function SettingsFiscalPage({
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <label className="grid gap-1 text-sm text-zinc-700">
-                      <span className="text-xs font-semibold text-zinc-600">Certificado `.crt` / `.pem`</span>
+                      <span className="text-xs font-semibold text-zinc-600">
+                        Certificado `.crt` / `.pem`
+                      </span>
                       <input
                         type="file"
                         name="certificate_file"
@@ -685,7 +757,9 @@ export default async function SettingsFiscalPage({
                       />
                     </label>
                     <label className="grid gap-1 text-sm text-zinc-700">
-                      <span className="text-xs font-semibold text-zinc-600">Private key `.key` / `.pem`</span>
+                      <span className="text-xs font-semibold text-zinc-600">
+                        Private key `.key` / `.pem`
+                      </span>
                       <input
                         type="file"
                         name="private_key_file"
@@ -696,7 +770,9 @@ export default async function SettingsFiscalPage({
                   </div>
 
                   <label className="grid gap-1 text-sm text-zinc-700 md:max-w-xs">
-                    <span className="text-xs font-semibold text-zinc-600">Estado</span>
+                    <span className="text-xs font-semibold text-zinc-600">
+                      Estado
+                    </span>
                     <select
                       name="status"
                       defaultValue={credential?.status ?? 'active'}
@@ -728,8 +804,8 @@ export default async function SettingsFiscalPage({
                     Prueba segura {ENVIRONMENT_LABELS[environment]}
                   </h3>
                   <p className="mt-1 text-sm text-zinc-600">
-                    Ejecuta `WSAA + FEDummy` con la credencial y un PV activo de este ambiente.
-                    No emite comprobantes reales.
+                    Ejecuta `WSAA + FEDummy` con la credencial y un PV activo de
+                    este ambiente. No emite comprobantes reales.
                   </p>
 
                   {credential?.status !== 'active' ? (
@@ -742,8 +818,15 @@ export default async function SettingsFiscalPage({
                       {ENVIRONMENT_LABELS[environment]} para probar.
                     </p>
                   ) : (
-                    <form action={runConnectionTest} className="mt-4 grid gap-4">
-                      <input type="hidden" name="environment" value={environment} />
+                    <form
+                      action={runConnectionTest}
+                      className="mt-4 grid gap-4"
+                    >
+                      <input
+                        type="hidden"
+                        name="environment"
+                        value={environment}
+                      />
 
                       <label className="grid gap-1 text-sm text-zinc-700">
                         <span className="text-xs font-semibold text-zinc-600">
@@ -752,15 +835,19 @@ export default async function SettingsFiscalPage({
                         <select
                           name="pto_vta"
                           className="rounded border border-zinc-200 bg-white px-3 py-2 text-sm"
-                          defaultValue={String(activeEnvironmentPoints[0]?.pto_vta ?? '')}
+                          defaultValue={String(
+                            activeEnvironmentPoints[0]?.pto_vta ?? '',
+                          )}
                         >
                           {activeEnvironmentPoints.map((item) => {
                             const branchName =
-                              branches.find((branch) => branch.id === item.location_id)?.name ??
-                              'Sucursal desconocida';
+                              branches.find(
+                                (branch) => branch.id === item.location_id,
+                              )?.name ?? 'Sucursal desconocida';
                             return (
                               <option key={item.id} value={item.pto_vta}>
-                                {String(item.pto_vta).padStart(4, '0')} · {branchName}
+                                {String(item.pto_vta).padStart(4, '0')} ·{' '}
+                                {branchName}
                               </option>
                             );
                           })}
@@ -786,9 +873,9 @@ export default async function SettingsFiscalPage({
             Puntos de venta fiscales
           </h2>
           <p className="mt-1 text-sm text-zinc-600">
-            Define el `pto_vta` que usará cada sucursal por ambiente.
-            Esta sección no requiere volver a cargar certificado ni private key
-            si la credencial ya fue guardada.
+            Define el `pto_vta` que usará cada sucursal por ambiente. Esta
+            sección no requiere volver a cargar certificado ni private key si la
+            credencial ya fue guardada.
           </p>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -802,21 +889,26 @@ export default async function SettingsFiscalPage({
                 </h3>
 
                 <div className="mt-3 grid gap-2 text-sm text-zinc-700">
-                  {pointsOfSale.filter((item) => item.environment === environment).length === 0 ? (
+                  {pointsOfSale.filter(
+                    (item) => item.environment === environment,
+                  ).length === 0 ? (
                     <p className="text-zinc-500">Sin puntos configurados.</p>
                   ) : (
                     pointsOfSale
                       .filter((item) => item.environment === environment)
                       .map((item) => {
                         const branchName =
-                          branches.find((branch) => branch.id === item.location_id)?.name ??
-                          'Sucursal desconocida';
+                          branches.find(
+                            (branch) => branch.id === item.location_id,
+                          )?.name ?? 'Sucursal desconocida';
                         return (
                           <div
                             key={item.id}
                             className="rounded border border-zinc-200 bg-white px-3 py-2"
                           >
-                            <p className="font-medium text-zinc-900">{branchName}</p>
+                            <p className="font-medium text-zinc-900">
+                              {branchName}
+                            </p>
                             <p>
                               PV {String(item.pto_vta).padStart(4, '0')} ·{' '}
                               {item.status} · {item.invoice_mode}
@@ -834,7 +926,9 @@ export default async function SettingsFiscalPage({
                   <input type="hidden" name="environment" value={environment} />
 
                   <label className="grid gap-1 text-sm text-zinc-700">
-                    <span className="text-xs font-semibold text-zinc-600">Sucursal</span>
+                    <span className="text-xs font-semibold text-zinc-600">
+                      Sucursal
+                    </span>
                     <select
                       name="location_id"
                       className="rounded border border-zinc-200 px-3 py-2 text-sm"
@@ -850,7 +944,9 @@ export default async function SettingsFiscalPage({
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <label className="grid gap-1 text-sm text-zinc-700">
-                      <span className="text-xs font-semibold text-zinc-600">Punto de venta</span>
+                      <span className="text-xs font-semibold text-zinc-600">
+                        Punto de venta
+                      </span>
                       <input
                         type="number"
                         min={1}
@@ -861,7 +957,9 @@ export default async function SettingsFiscalPage({
                       />
                     </label>
                     <label className="grid gap-1 text-sm text-zinc-700">
-                      <span className="text-xs font-semibold text-zinc-600">Estado</span>
+                      <span className="text-xs font-semibold text-zinc-600">
+                        Estado
+                      </span>
                       <select
                         name="status"
                         defaultValue="active"
@@ -874,7 +972,9 @@ export default async function SettingsFiscalPage({
                   </div>
 
                   <label className="grid gap-1 text-sm text-zinc-700">
-                    <span className="text-xs font-semibold text-zinc-600">Descripción</span>
+                    <span className="text-xs font-semibold text-zinc-600">
+                      Descripción
+                    </span>
                     <input
                       name="description"
                       placeholder="PV web services"
@@ -914,8 +1014,8 @@ export default async function SettingsFiscalPage({
                 Permitir encolar facturación fiscal en producción
               </label>
               <p className="text-xs text-amber-800">
-                Gate operativo para crear `invoice_jobs` en ambiente `prod`.
-                No emite comprobantes por sí solo.
+                Gate operativo para crear `invoice_jobs` en ambiente `prod`. No
+                emite comprobantes por sí solo.
               </p>
             </div>
 
@@ -929,8 +1029,8 @@ export default async function SettingsFiscalPage({
                 Permitir emisión fiscal real en producción
               </label>
               <p className="text-xs text-rose-800">
-                Gate de alto impacto para permitir `FECAESolicitar` real desde el
-                worker en ambiente `prod`. Requiere que el enqueue productivo
+                Gate de alto impacto para permitir `FECAESolicitar` real desde
+                el worker en ambiente `prod`. Requiere que el enqueue productivo
                 también esté habilitado.
               </p>
             </div>

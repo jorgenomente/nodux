@@ -1,4 +1,5 @@
 # AFIP / ARCA Fiscal Service Architecture
+
 **Proyecto:** NODUX  
 **Versión:** v0.1  
 **Estado:** Draft operativo  
@@ -163,7 +164,7 @@ Supabase / Postgres
   ├─ fiscal_sequences
   ├─ fiscal_credentials
   └─ print_jobs
-````
+```
 
 ---
 
@@ -173,19 +174,19 @@ Supabase / Postgres
 
 Responsabilidades:
 
-* cerrar venta
-* capturar método de pago
-* capturar documento del cliente si aplica
-* determinar si la operación requiere comprobante fiscal
-* invocar API interna de fiscalización
+- cerrar venta
+- capturar método de pago
+- capturar documento del cliente si aplica
+- determinar si la operación requiere comprobante fiscal
+- invocar API interna de fiscalización
 
 No debe:
 
-* hablar directo con AFIP / ARCA
-* manejar certificados
-* manejar SOAP
-* construir numeración fiscal
-* guardar tokens WSAA
+- hablar directo con AFIP / ARCA
+- manejar certificados
+- manejar SOAP
+- construir numeración fiscal
+- guardar tokens WSAA
 
 ---
 
@@ -193,10 +194,10 @@ No debe:
 
 Responsabilidades:
 
-* persistir la venta interna
-* validar integridad de totales
-* crear `sale_document_request`
-* invocar al `Fiscal Orchestrator`
+- persistir la venta interna
+- validar integridad de totales
+- crear `sale_document_request`
+- invocar al `Fiscal Orchestrator`
 
 ---
 
@@ -206,16 +207,16 @@ Es el núcleo del servicio.
 
 Responsabilidades:
 
-* resolver tenant, location y punto de venta
-* resolver ambiente fiscal
-* obtener credenciales correctas
-* asegurar ticket WSAA vigente
-* reservar numeración
-* invocar WSFEv1
-* persistir respuesta
-* emitir eventos de dominio
-* disparar render de ticket / PDF
-* dejar trazabilidad completa
+- resolver tenant, location y punto de venta
+- resolver ambiente fiscal
+- obtener credenciales correctas
+- asegurar ticket WSAA vigente
+- reservar numeración
+- invocar WSFEv1
+- persistir respuesta
+- emitir eventos de dominio
+- disparar render de ticket / PDF
+- dejar trazabilidad completa
 
 ---
 
@@ -223,12 +224,12 @@ Responsabilidades:
 
 Responsabilidades:
 
-* construir TRA
-* firmar TRA con certificado y private key
-* llamar WSAA
-* obtener `Token` y `Sign`
-* cachear ticket de acceso con vencimiento
-* renovar antes de expirar
+- construir TRA
+- firmar TRA con certificado y private key
+- llamar WSAA
+- obtener `Token` y `Sign`
+- cachear ticket de acceso con vencimiento
+- renovar antes de expirar
 
 ---
 
@@ -236,11 +237,11 @@ Responsabilidades:
 
 Responsabilidades:
 
-* administrar numeración por dominio fiscal
-* sincronizar con AFIP / ARCA si es necesario
-* reservar siguiente número de forma transaccional
-* impedir colisiones
-* marcar estados inciertos para conciliación
+- administrar numeración por dominio fiscal
+- sincronizar con AFIP / ARCA si es necesario
+- reservar siguiente número de forma transaccional
+- impedir colisiones
+- marcar estados inciertos para conciliación
 
 ---
 
@@ -248,18 +249,17 @@ Responsabilidades:
 
 Responsabilidades:
 
-* construir request SOAP
-* mapear tipos de comprobante
-* enviar `Auth`
-* enviar cabecera y detalle
-* parsear:
-
-  * resultado
-  * CAE
-  * fecha de vencimiento
-  * errores
-  * observaciones
-  * eventos
+- construir request SOAP
+- mapear tipos de comprobante
+- enviar `Auth`
+- enviar cabecera y detalle
+- parsear:
+  - resultado
+  - CAE
+  - fecha de vencimiento
+  - errores
+  - observaciones
+  - eventos
 
 ---
 
@@ -267,11 +267,11 @@ Responsabilidades:
 
 Responsabilidades:
 
-* resolver estados inciertos
-* consultar comprobantes cuando hubo timeout o error de red
-* cerrar jobs colgados
-* impedir reutilización indebida de numeración
-* generar alertas operativas
+- resolver estados inciertos
+- consultar comprobantes cuando hubo timeout o error de red
+- cerrar jobs colgados
+- impedir reutilización indebida de numeración
+- generar alertas operativas
 
 ---
 
@@ -279,10 +279,10 @@ Responsabilidades:
 
 Responsabilidades:
 
-* generar PDF A4
-* generar ticket térmico
-* incorporar QR fiscal
-* aplicar plantilla por tenant si corresponde
+- generar PDF A4
+- generar ticket térmico
+- incorporar QR fiscal
+- aplicar plantilla por tenant si corresponde
 
 ---
 
@@ -290,10 +290,10 @@ Responsabilidades:
 
 Responsabilidades:
 
-* enviar ticket a impresora térmica
-* manejar cola de impresión
-* permitir reimpresión
-* registrar resultado de impresión
+- enviar ticket a impresora térmica
+- manejar cola de impresión
+- permitir reimpresión
+- registrar resultado de impresión
 
 ---
 
@@ -458,19 +458,19 @@ created_at
 
 Ejemplos de `event_type`:
 
-* `job_created`
-* `sequence_reserved`
-* `wsaa_token_loaded`
-* `wsaa_token_renewed`
-* `authorization_requested`
-* `authorization_approved`
-* `authorization_rejected`
-* `reconcile_started`
-* `reconcile_resolved`
-* `render_completed`
-* `print_enqueued`
-* `print_completed`
-* `print_failed`
+- `job_created`
+- `sequence_reserved`
+- `wsaa_token_loaded`
+- `wsaa_token_renewed`
+- `authorization_requested`
+- `authorization_approved`
+- `authorization_rejected`
+- `reconcile_started`
+- `reconcile_resolved`
+- `render_completed`
+- `print_enqueued`
+- `print_completed`
+- `print_failed`
 
 ---
 
@@ -497,8 +497,8 @@ updated_at
 
 Obtener credenciales temporales:
 
-* `Token`
-* `Sign`
+- `Token`
+- `Sign`
 
 para invocar `WSFEv1`.
 
@@ -521,15 +521,14 @@ para invocar `WSFEv1`.
 
 ### 8.3 Reglas
 
-* no llamar WSAA por cada venta
-* renovar con margen preventivo antes del vencimiento
-* nunca exponer `Token`, `Sign` o private key al frontend
-* cachear por:
-
-  * tenant
-  * environment
-  * taxpayer_cuit
-  * service_name
+- no llamar WSAA por cada venta
+- renovar con margen preventivo antes del vencimiento
+- nunca exponer `Token`, `Sign` o private key al frontend
+- cachear por:
+  - tenant
+  - environment
+  - taxpayer_cuit
+  - service_name
 
 ---
 
@@ -574,10 +573,10 @@ para invocar `WSFEv1`.
 
 Caso típico:
 
-* request enviado
-* timeout local
-* no se recibió respuesta
-* no se sabe si AFIP autorizó o no
+- request enviado
+- timeout local
+- no se recibió respuesta
+- no se sabe si AFIP autorizó o no
 
 Flujo:
 
@@ -601,10 +600,10 @@ Flujo:
 
 La secuencia fiscal se define por:
 
-* `tenant_id`
-* `environment`
-* `pto_vta`
-* `cbte_tipo`
+- `tenant_id`
+- `environment`
+- `pto_vta`
+- `cbte_tipo`
 
 ---
 
@@ -643,11 +642,11 @@ COMMIT;
 
 Sincronizar con AFIP / ARCA:
 
-* al alta inicial del punto de venta
-* ante inconsistencia detectada
-* ante estado `pending_reconcile`
-* ante recuperación post-incidente
-* ante operaciones manuales de soporte
+- al alta inicial del punto de venta
+- ante inconsistencia detectada
+- ante estado `pending_reconcile`
+- ante recuperación post-incidente
+- ante operaciones manuales de soporte
 
 ---
 
@@ -661,21 +660,21 @@ Nunca reutilizar un número reservado hasta resolver formalmente su estado.
 
 ### 11.1 Reglas obligatorias
 
-* no guardar private key en texto plano
-* no devolver certificado ni key al frontend
-* no permitir acceso desde clientes públicos
-* no guardar secretos en tablas expuestas por APIs generales
-* no reutilizar la misma key maestra entre ambientes si puede evitarse
+- no guardar private key en texto plano
+- no devolver certificado ni key al frontend
+- no permitir acceso desde clientes públicos
+- no guardar secretos en tablas expuestas por APIs generales
+- no reutilizar la misma key maestra entre ambientes si puede evitarse
 
 ---
 
 ### 11.2 Estrategia recomendada
 
-* `certificate_pem`: puede persistirse cifrado o claro según política interna
-* `encrypted_private_key`: siempre cifrada
-* `encryption_key_reference`: referencia a KMS / secret manager / app master key
-* desencriptación solo en worker fiscal
-* rotación periódica de claves de aplicación
+- `certificate_pem`: puede persistirse cifrado o claro según política interna
+- `encrypted_private_key`: siempre cifrada
+- `encryption_key_reference`: referencia a KMS / secret manager / app master key
+- desencriptación solo en worker fiscal
+- rotación periódica de claves de aplicación
 
 ---
 
@@ -683,17 +682,17 @@ Nunca reutilizar un número reservado hasta resolver formalmente su estado.
 
 Solo estos componentes pueden tocar secretos:
 
-* Fiscal Orchestrator
-* Fiscal Auth Provider
-* herramientas internas de administración restringidas
+- Fiscal Orchestrator
+- Fiscal Auth Provider
+- herramientas internas de administración restringidas
 
 No pueden tocar secretos:
 
-* POS frontend
-* mobile clients
-* edge public handlers
-* dashboards generales
-* workers no fiscales
+- POS frontend
+- mobile clients
+- edge public handlers
+- dashboards generales
+- workers no fiscales
 
 ---
 
@@ -703,12 +702,12 @@ No pueden tocar secretos:
 
 Cada ambiente debe tener:
 
-* credenciales distintas
-* certificados distintos
-* puntos de venta distintos
-* token cache distinto
-* secuencias distintas
-* logs distintos
+- credenciales distintas
+- certificados distintos
+- puntos de venta distintos
+- token cache distinto
+- secuencias distintas
+- logs distintos
 
 ---
 
@@ -720,11 +719,11 @@ environment = homo | prod
 
 Y siempre incluir `environment` en:
 
-* `fiscal_credentials`
-* `points_of_sale`
-* `fiscal_sequences`
-* `invoice_jobs`
-* `invoices`
+- `fiscal_credentials`
+- `points_of_sale`
+- `fiscal_sequences`
+- `invoice_jobs`
+- `invoices`
 
 ---
 
@@ -734,11 +733,11 @@ Nunca promover datos fiscales de homologación a producción.
 
 Solo promover:
 
-* configuración funcional
-* plantillas
-* código
-* mappings
-* tests
+- configuración funcional
+- plantillas
+- código
+- mappings
+- tests
 
 ---
 
@@ -761,10 +760,10 @@ Solo promover:
     "currency": "PES",
     "currencyRate": 1,
     "amounts": {
-      "total": 1210.00,
-      "net": 1000.00,
-      "iva": 210.00,
-      "trib": 0.00
+      "total": 1210.0,
+      "net": 1000.0,
+      "iva": 210.0,
+      "trib": 0.0
     }
   }
 }
@@ -844,15 +843,15 @@ pending
 
 ### 14.2 Semántica
 
-* `pending`: job creado, aún no reservado
-* `reserved`: numeración reservada
-* `authorizing`: request en curso
-* `authorized`: AFIP / ARCA aprobó, falta posprocesamiento
-* `rejected`: rechazo fiscal confirmado
-* `pending_reconcile`: estado incierto, requiere consulta posterior
-* `render_pending`: falta PDF / ticket / QR
-* `completed`: proceso cerrado exitosamente
-* `failed`: error terminal operativo
+- `pending`: job creado, aún no reservado
+- `reserved`: numeración reservada
+- `authorizing`: request en curso
+- `authorized`: AFIP / ARCA aprobó, falta posprocesamiento
+- `rejected`: rechazo fiscal confirmado
+- `pending_reconcile`: estado incierto, requiere consulta posterior
+- `render_pending`: falta PDF / ticket / QR
+- `completed`: proceso cerrado exitosamente
+- `failed`: error terminal operativo
 
 ---
 
@@ -860,16 +859,16 @@ pending
 
 ### 15.1 Métricas mínimas
 
-* tiempo de autorización fiscal
-* tasa de aprobación
-* tasa de rechazo
-* tasa de jobs en `pending_reconcile`
-* tiempo medio de reconciliación
-* cantidad de renovaciones WSAA
-* cantidad de errores SOAP por tenant
-* cantidad de errores de impresión
-* tiempo medio de render PDF
-* secuencias bloqueadas por inconsistencia
+- tiempo de autorización fiscal
+- tasa de aprobación
+- tasa de rechazo
+- tasa de jobs en `pending_reconcile`
+- tiempo medio de reconciliación
+- cantidad de renovaciones WSAA
+- cantidad de errores SOAP por tenant
+- cantidad de errores de impresión
+- tiempo medio de render PDF
+- secuencias bloqueadas por inconsistencia
 
 ---
 
@@ -877,16 +876,16 @@ pending
 
 Incluir siempre:
 
-* tenant_id
-* location_id
-* environment
-* taxpayer_cuit
-* pto_vta
-* cbte_tipo
-* cbte_nro
-* invoice_job_id
-* correlation_id
-* external_request_id si existe
+- tenant_id
+- location_id
+- environment
+- taxpayer_cuit
+- pto_vta
+- cbte_tipo
+- cbte_nro
+- invoice_job_id
+- correlation_id
+- external_request_id si existe
 
 ---
 
@@ -894,12 +893,12 @@ Incluir siempre:
 
 Alertar cuando:
 
-* WSAA no renueva
-* secuencia entra en `blocked`
-* hay más de N jobs en `pending_reconcile`
-* hay rechazos repetidos por mala configuración
-* falla sistemáticamente el render o la impresión
-* el certificado está próximo a vencer
+- WSAA no renueva
+- secuencia entra en `blocked`
+- hay más de N jobs en `pending_reconcile`
+- hay rechazos repetidos por mala configuración
+- falla sistemáticamente el render o la impresión
+- el certificado está próximo a vencer
 
 ---
 
@@ -943,20 +942,20 @@ Objetivo: primer circuito homologación funcional.
 
 Incluir:
 
-* tabla `fiscal_credentials`
-* tabla `points_of_sale`
-* tabla `fiscal_sequences`
-* tabla `invoice_jobs`
-* tabla `invoices`
-* WSAA client
-* WSFEv1 client
-* reserva transaccional de numeración
-* autorización síncrona
-* almacenamiento de payload crudo
-* render de ticket simple
-* render PDF básico
-* QR fiscal
-* reimpresión básica
+- tabla `fiscal_credentials`
+- tabla `points_of_sale`
+- tabla `fiscal_sequences`
+- tabla `invoice_jobs`
+- tabla `invoices`
+- WSAA client
+- WSFEv1 client
+- reserva transaccional de numeración
+- autorización síncrona
+- almacenamiento de payload crudo
+- render de ticket simple
+- render PDF básico
+- QR fiscal
+- reimpresión básica
 
 ---
 
@@ -966,14 +965,14 @@ Objetivo: tolerancia a fallos y soporte multi-tenant serio.
 
 Incluir:
 
-* reconciliation engine
-* métricas y alertas
-* dashboard de errores fiscales
-* cola de render
-* cola de impresión
-* soporte de reintentos controlados
-* vencimiento y rotación operativa de certificados
-* auditoría técnica de cambios de configuración
+- reconciliation engine
+- métricas y alertas
+- dashboard de errores fiscales
+- cola de render
+- cola de impresión
+- soporte de reintentos controlados
+- vencimiento y rotación operativa de certificados
+- auditoría técnica de cambios de configuración
 
 ---
 
@@ -983,12 +982,12 @@ Objetivo: onboarding fiscal por cliente y operación madura.
 
 Incluir:
 
-* portal de configuración fiscal por tenant
-* asistente guiado de credenciales
-* validaciones previas de punto de venta
-* soporte extendido de tipos de comprobante
-* herramientas de soporte interno
-* observabilidad avanzada por tenant / sucursal
+- portal de configuración fiscal por tenant
+- asistente guiado de credenciales
+- validaciones previas de punto de venta
+- soporte extendido de tipos de comprobante
+- herramientas de soporte interno
+- observabilidad avanzada por tenant / sucursal
 
 ---
 
@@ -998,24 +997,24 @@ Incluir:
 
 Para NODUX hoy se recomienda:
 
-* `WSFEv1`
-* facturación síncrona en homologación
-* worker fiscal dedicado
-* ticket térmico común
-* PDF básico
-* QR fiscal
-* reconciliación mínima obligatoria
-* secuencia aislada por tenant / punto de venta / tipo
+- `WSFEv1`
+- facturación síncrona en homologación
+- worker fiscal dedicado
+- ticket térmico común
+- PDF básico
+- QR fiscal
+- reconciliación mínima obligatoria
+- secuencia aislada por tenant / punto de venta / tipo
 
 ---
 
 ### 18.2 No recomendado en MVP
 
-* impresora fiscal tradicional como requisito base
-* render complejo dentro del flujo de cobro
-* múltiples servicios fiscales simultáneos
-* automatizaciones fiscales avanzadas sin observabilidad
-* guardar secretos en tablas públicas o expuestas por RPC generalista
+- impresora fiscal tradicional como requisito base
+- render complejo dentro del flujo de cobro
+- múltiples servicios fiscales simultáneos
+- automatizaciones fiscales avanzadas sin observabilidad
+- guardar secretos en tablas públicas o expuestas por RPC generalista
 
 ---
 
@@ -1023,30 +1022,30 @@ Para NODUX hoy se recomienda:
 
 ### Fiscal
 
-* [ ] CUIT operativa
-* [ ] clave fiscal disponible
-* [ ] certificado generado
-* [ ] servicio habilitado
-* [ ] punto de venta habilitado
-* [ ] ambiente homologación validado
+- [ ] CUIT operativa
+- [ ] clave fiscal disponible
+- [ ] certificado generado
+- [ ] servicio habilitado
+- [ ] punto de venta habilitado
+- [ ] ambiente homologación validado
 
 ### Arquitectura
 
-* [ ] tablas base creadas
-* [ ] cifrado de private key implementado
-* [ ] WSAA cacheado
-* [ ] secuencia transaccional implementada
-* [ ] WSFEv1 client probado
-* [ ] estados `pending_reconcile` soportados
+- [ ] tablas base creadas
+- [ ] cifrado de private key implementado
+- [ ] WSAA cacheado
+- [ ] secuencia transaccional implementada
+- [ ] WSFEv1 client probado
+- [ ] estados `pending_reconcile` soportados
 
 ### Operación
 
-* [ ] logs estructurados
-* [ ] métricas mínimas
-* [ ] reimpresión funcional
-* [ ] render PDF funcional
-* [ ] QR fiscal embebido
-* [ ] playbook de soporte inicial
+- [ ] logs estructurados
+- [ ] métricas mínimas
+- [ ] reimpresión funcional
+- [ ] render PDF funcional
+- [ ] QR fiscal embebido
+- [ ] playbook de soporte inicial
 
 ---
 
@@ -1068,12 +1067,11 @@ Para NODUX, la integración fiscal argentina debe tratarse como una capacidad de
 
 La arquitectura correcta parte de estas premisas:
 
-* una venta interna no es lo mismo que una factura fiscal
-* la numeración fiscal es un dominio propio
-* los secretos fiscales requieren aislamiento fuerte
-* homologación y producción deben vivir separadas
-* la reconciliación no es opcional
-* el PDF y la impresión son derivados, no la fuente de verdad
+- una venta interna no es lo mismo que una factura fiscal
+- la numeración fiscal es un dominio propio
+- los secretos fiscales requieren aislamiento fuerte
+- homologación y producción deben vivir separadas
+- la reconciliación no es opcional
+- el PDF y la impresión son derivados, no la fuente de verdad
 
 Si esta base se implementa bien desde el inicio, NODUX puede evolucionar desde un MVP operativo a un servicio fiscal multi-tenant serio sin rehacer el núcleo.
-

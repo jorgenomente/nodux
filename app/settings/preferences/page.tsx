@@ -366,8 +366,8 @@ export default async function SettingsPreferencesPage({
           {searchParams.result === 'invalid' ? (
             <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
               Revisa los valores: warning debe ser mayor o igual a critical y el
-              descuento en efectivo/empleado debe estar entre 0 y 100. El
-              margen de ganancia por defecto debe estar entre 0 y 1000. Las
+              descuento en efectivo/empleado debe estar entre 0 y 100. El margen
+              de ganancia por defecto debe estar entre 0 y 1000. Las
               denominaciones deben ser números positivos separados por coma.
             </p>
           ) : null}

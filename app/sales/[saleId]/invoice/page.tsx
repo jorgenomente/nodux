@@ -194,7 +194,8 @@ export default async function SaleFiscalInvoicePage({
     .eq('user_id', sale.created_by)
     .maybeSingle();
 
-  const branchConfig = (branchConfigData ?? null) as BranchTicketConfigRow | null;
+  const branchConfig = (branchConfigData ??
+    null) as BranchTicketConfigRow | null;
   const org = (orgData ?? { name: 'NODUX' }) as OrgRow;
   const orgUser = (orgUserData ?? null) as OrgUserRow | null;
   const printSettings = {
@@ -308,7 +309,9 @@ export default async function SaleFiscalInvoicePage({
             {isTicketFormat ? 'Ver A4' : 'Ver ticket'}
           </Link>
           <PrintTicketButton
-            label={isTicketFormat ? 'Imprimir ticket fiscal' : 'Imprimir factura'}
+            label={
+              isTicketFormat ? 'Imprimir ticket fiscal' : 'Imprimir factura'
+            }
           />
         </div>
       </div>
@@ -321,7 +324,7 @@ export default async function SaleFiscalInvoicePage({
           <div>
             <h1 className="text-2xl font-semibold text-zinc-950">{org.name}</h1>
             {branchConfig?.ticket_header_text ? (
-              <p className="mt-1 max-w-xl text-xs text-zinc-600 whitespace-pre-line">
+              <p className="mt-1 max-w-xl text-xs whitespace-pre-line text-zinc-600">
                 {branchConfig.ticket_header_text}
               </p>
             ) : null}
@@ -358,7 +361,9 @@ export default async function SaleFiscalInvoicePage({
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-zinc-500">Emitido por</span>
-                <span className="font-medium text-zinc-900">{issuedByLabel}</span>
+                <span className="font-medium text-zinc-900">
+                  {issuedByLabel}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-zinc-500">Tipo</span>
@@ -402,7 +407,7 @@ export default async function SaleFiscalInvoicePage({
           </div>
         </div>
         {branchConfig?.fiscal_ticket_note_text ? (
-          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 whitespace-pre-line">
+          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs whitespace-pre-line text-amber-800">
             {branchConfig.fiscal_ticket_note_text}
           </p>
         ) : null}
@@ -414,29 +419,31 @@ export default async function SaleFiscalInvoicePage({
             </p>
           </div>
           <div className="px-4 py-3">
-          {items.length === 0 ? (
-            <p className="text-xs text-zinc-500">Sin ítems.</p>
-          ) : (
-            <div className="grid gap-2">
-              {items.map((item) => (
-                <div
-                  key={item.sale_item_id}
-                  className="flex items-start justify-between gap-3 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2"
-                >
-                  <div>
-                    <p className="font-medium text-zinc-900">{item.product_name}</p>
-                    <p className="text-xs text-zinc-500">
-                      {item.quantity} x {formatCurrency(item.unit_price)}
+            {items.length === 0 ? (
+              <p className="text-xs text-zinc-500">Sin ítems.</p>
+            ) : (
+              <div className="grid gap-2">
+                {items.map((item) => (
+                  <div
+                    key={item.sale_item_id}
+                    className="flex items-start justify-between gap-3 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2"
+                  >
+                    <div>
+                      <p className="font-medium text-zinc-900">
+                        {item.product_name}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {item.quantity} x {formatCurrency(item.unit_price)}
+                      </p>
+                    </div>
+                    <p className="font-medium text-zinc-900">
+                      {formatCurrency(item.line_total)}
                     </p>
                   </div>
-                  <p className="font-medium text-zinc-900">
-                    {formatCurrency(item.line_total)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
@@ -458,7 +465,9 @@ export default async function SaleFiscalInvoicePage({
             </div>
             <div className="flex items-center justify-between border-t border-zinc-200 pt-2 text-base font-semibold">
               <span>Total</span>
-              <span>{formatCurrency(fiscalInvoice.imp_total, displayCurrency)}</span>
+              <span>
+                {formatCurrency(fiscalInvoice.imp_total, displayCurrency)}
+              </span>
             </div>
           </div>
         </div>
@@ -511,7 +520,7 @@ export default async function SaleFiscalInvoicePage({
         </div>
 
         {branchConfig?.ticket_footer_text ? (
-          <p className="mt-4 text-xs text-zinc-500 whitespace-pre-line">
+          <p className="mt-4 text-xs whitespace-pre-line text-zinc-500">
             {branchConfig.ticket_footer_text}
           </p>
         ) : null}

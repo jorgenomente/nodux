@@ -21,9 +21,9 @@ El objetivo del pricing no es “poner un número”.
 
 El objetivo es:
 
-1) capturar el valor real que genera NODUX  
-2) mantener simple la decisión de compra  
-3) escalar ingresos a medida que el cliente crece (más sucursales)  
+1. capturar el valor real que genera NODUX
+2. mantener simple la decisión de compra
+3. escalar ingresos a medida que el cliente crece (más sucursales)
 
 ---
 
@@ -74,6 +74,7 @@ Objetivo:
 Para: tiendas que necesitan dejar Excel y conectar la operación básica.
 
 Incluye:
+
 - operación de tienda (ventas + inventario + caja)
 - control operativo esencial (visibilidad de stock y movimientos)
 - multi-sucursal (si aplica, se cobra por sucursal)
@@ -88,6 +89,7 @@ Mensaje:
 Para: tiendas donde el problema de pérdidas y control ya es fuerte.
 
 Incluye:
+
 - todo lo del plan Core
 - foco en gobernanza operativa (alertas y control sobre pérdidas típicas)
 - procesos que reducen fricción operativa y elevan confiabilidad
@@ -102,6 +104,7 @@ Mensaje:
 Para: negocios con expansión activa y operación omnicanal real.
 
 Incluye:
+
 - todo lo del plan Control
 - capacidades para escalar operación entre sucursales
 - omnicanal operativo (tienda online por sucursal + retiro en tienda / BOPIS)
@@ -120,6 +123,7 @@ Los add-ons existen para:
 - mantener el pricing ordenado
 
 Ejemplos de add-ons (sin inventar features nuevas):
+
 - “Onboarding asistido” (servicio)
 - “Migración / carga inicial de datos” (servicio)
 - “Soporte prioritario” (servicio)
@@ -140,6 +144,7 @@ Para proteger margen y evitar clientes “no comprometidos”, se recomienda:
 - o “Onboarding incluido” solo si el ticket mensual lo justifica
 
 El onboarding fee se justifica por:
+
 - importación / limpieza inicial de datos
 - configuración base
 - capacitación inicial
@@ -161,6 +166,7 @@ Para acelerar cierres en early-stage, se recomienda un piloto controlado.
 - criterio de éxito definido antes de empezar
 
 Criterios de éxito típicos:
+
 - precisión de inventario mejora
 - reducción de vencidos identificados tarde
 - cierres de caja más consistentes
@@ -184,9 +190,9 @@ Aun así, se definen guardrails para mantener consistencia.
 
 ## Descuentos permitidos
 
-1) **Pago anual**  
-2) **Más sucursales** (descuento por volumen)  
-3) **Cliente caso de éxito** (condicionado a testimonio / estudio de caso)
+1. **Pago anual**
+2. **Más sucursales** (descuento por volumen)
+3. **Cliente caso de éxito** (condicionado a testimonio / estudio de caso)
 
 ## Descuentos NO recomendados
 
@@ -203,6 +209,7 @@ Recomendación:
 Ofrecer plan anual con incentivo.
 
 Beneficios:
+
 - reduce churn
 - mejora cashflow
 - filtra clientes con baja convicción
@@ -235,6 +242,7 @@ infraestructura que protege margen y control.
 En América Latina, el pricing debe contemplar volatilidad.
 
 Recomendación operativa:
+
 - precio de referencia en moneda estable (ej: USD) como lista
 - cobro en moneda local según tipo de cambio/actualización periódica
 - ajustes predecibles (ej: trimestral) para evitar fricción mensual

@@ -170,7 +170,7 @@ ventas
 dinero  
 reposiciones  
 operación multi-sucursal  
-canal online  
+canal online
 
 ---
 

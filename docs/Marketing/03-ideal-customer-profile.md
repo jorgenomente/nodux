@@ -1,4 +1,5 @@
 03-ideal-customer-profile.md
+
 # NODUX — Ideal Customer Profile (ICP)
 
 Versión: v1.0  
@@ -301,14 +302,12 @@ Ese mercado pertenece a sistemas especializados en gastronomía.
 
 Podemos resumir el ICP principal de esta forma:
 
-
 Tiendas retail físicas
 de alimentos o productos naturales
 con 2–5 sucursales
 inventario complejo
 procesos manuales
 dependencia de Excel
-
 
 En este tipo de negocio, **una mejora pequeña en control operativo genera un impacto financiero inmediato**.
 
@@ -318,10 +317,10 @@ En este tipo de negocio, **una mejora pequeña en control operativo genera un im
 
 Este nicho tiene ventajas importantes para NODUX.
 
-1. Problema claro y frecuente  
-2. Operación compleja pero no corporativa  
-3. Alto impacto de vencimientos  
-4. Dependencia de procesos manuales  
+1. Problema claro y frecuente
+2. Operación compleja pero no corporativa
+3. Alto impacto de vencimientos
+4. Dependencia de procesos manuales
 5. Dueños involucrados en decisiones
 
 Esto crea el entorno perfecto para la adopción inicial del producto.

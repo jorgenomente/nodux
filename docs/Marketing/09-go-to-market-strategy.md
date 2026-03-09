@@ -42,10 +42,8 @@ El foco inicial debe ser **un segmento muy específico** donde el problema es pa
 
 Para NODUX ese segmento es:
 
-
 Dietéticas y tiendas de productos naturales
 con 2–5 sucursales
-
 
 Este nicho tiene características ideales:
 
@@ -85,9 +83,7 @@ Esto facilita:
 
 Ejemplo de estrategia:
 
-
 Ciudad → Barrio → Nicho
-
 
 Por ejemplo:
 
@@ -208,9 +204,7 @@ Modelo recomendado:
 
 Ejemplo conceptual:
 
-
 precio base por sucursal
-
 
 Esto alinea el modelo de negocio con el crecimiento del cliente.
 
@@ -293,11 +287,9 @@ Cuando ese punto se alcanza, el crecimiento puede acelerarse.
 
 La estrategia de lanzamiento de NODUX puede resumirse así:
 
-
 Dominar un nicho pequeño
 con un problema intenso
 mediante ventas directas
 y casos de éxito reales.
-
 
 A partir de esa base, NODUX puede expandirse progresivamente hasta convertirse en la infraestructura operativa del retail moderno.

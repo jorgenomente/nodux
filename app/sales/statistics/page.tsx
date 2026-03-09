@@ -4,7 +4,10 @@ import type { ReactNode } from 'react';
 
 import PageShell from '@/app/components/PageShell';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
-import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import {
+  hasStaffModuleEnabled,
+  resolveStaffHome,
+} from '@/lib/auth/staff-modules';
 
 export const dynamic = 'force-dynamic';
 
@@ -368,8 +371,13 @@ export default async function SalesStatisticsPage({
   const role = session.effectiveRole;
 
   if (role === 'staff') {
-    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
-    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    const { data: modules } = await supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
     if (!hasStaffModuleEnabled(resolvedModules, 'sales_statistics')) {
       const home = resolveStaffHome(resolvedModules);
       redirect(home);
@@ -471,7 +479,8 @@ export default async function SalesStatisticsPage({
   }
 
   const { data: payablesData } = await payablesQuery;
-  const supplierPayables = (payablesData ?? []) as unknown as SupplierPayableRow[];
+  const supplierPayables = (payablesData ??
+    []) as unknown as SupplierPayableRow[];
 
   const saleIds = new Set<string>();
   const productMap = new Map<
@@ -705,14 +714,19 @@ export default async function SalesStatisticsPage({
 
     const paidAmount = Number(row.paid_amount ?? 0);
     const outstandingAmount = Number(row.outstanding_amount ?? 0);
-    const invoiceAmount = Number(row.invoice_amount ?? row.estimated_amount ?? 0);
-    const isOverdue = Boolean(row.is_overdue) || row.payment_state === 'overdue';
+    const invoiceAmount = Number(
+      row.invoice_amount ?? row.estimated_amount ?? 0,
+    );
+    const isOverdue =
+      Boolean(row.is_overdue) || row.payment_state === 'overdue';
 
     const safePaidAmount = Number.isFinite(paidAmount) ? paidAmount : 0;
     const safeOutstandingAmount = Number.isFinite(outstandingAmount)
       ? outstandingAmount
       : 0;
-    const safeInvoiceAmount = Number.isFinite(invoiceAmount) ? invoiceAmount : 0;
+    const safeInvoiceAmount = Number.isFinite(invoiceAmount)
+      ? invoiceAmount
+      : 0;
 
     totalSupplierPaid += safePaidAmount;
     totalSupplierOutstanding += safeOutstandingAmount;

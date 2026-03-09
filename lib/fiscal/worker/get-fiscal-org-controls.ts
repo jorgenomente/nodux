@@ -18,12 +18,10 @@ export const getFiscalOrgControls = async (tenantId: string) => {
     throw new Error(`getFiscalOrgControls failed: ${error.message}`);
   }
 
-  const row = (data ?? null) as
-    | {
-        fiscal_prod_enqueue_enabled?: boolean | null;
-        fiscal_prod_live_enabled?: boolean | null;
-      }
-    | null;
+  const row = (data ?? null) as {
+    fiscal_prod_enqueue_enabled?: boolean | null;
+    fiscal_prod_live_enabled?: boolean | null;
+  } | null;
 
   return {
     fiscalProdEnqueueEnabled: row?.fiscal_prod_enqueue_enabled === true,

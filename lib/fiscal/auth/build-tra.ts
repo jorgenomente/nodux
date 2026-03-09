@@ -30,9 +30,7 @@ export const buildTra = (params: {
     params.expirationWindowSeconds ?? DEFAULT_EXPIRATION_WINDOW_SECONDS;
   const uniqueId =
     params.uniqueId ?? Math.floor(now.getTime() / 1000) + randomInt(0, 1000);
-  const generationTime = new Date(
-    now.getTime() - generationSkewSeconds * 1000,
-  );
+  const generationTime = new Date(now.getTime() - generationSkewSeconds * 1000);
   const expirationTime = new Date(
     now.getTime() + expirationWindowSeconds * 1000,
   );

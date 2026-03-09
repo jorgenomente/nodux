@@ -1,4 +1,5 @@
 # AFIP / ARCA — Lote 0 Baseline & Freeze
+
 **Proyecto:** NODUX  
 **Versión:** v1.0  
 **Estado:** Activo  
@@ -65,18 +66,23 @@ Durante Lote 0 y Lote 1:
 ## 5. Checklist de precondiciones
 
 1. Contratos canónicos alineados:
+
 - `data-model` vs `state-machine` vs SQL helpers/RPC.
 
 2. Rutas y referencias internas consistentes:
+
 - sin referencias legacy activas como fuente de verdad.
 
 3. SQL de referencia ejecutable:
+
 - archivo de helpers finalizando en `commit;`.
 
 4. Estrategia de activación controlada:
+
 - feature flag fiscal por tenant/sucursal definida para rollout gradual.
 
 5. Logging mínimo definido:
+
 - `invoice_job_id`, `tenant_id`, `environment`, `pto_vta`, `cbte_tipo`, `cbte_nro`, `correlation_id`.
 
 ---

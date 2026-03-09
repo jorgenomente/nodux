@@ -53,9 +53,9 @@ export default async function OrgStorefrontPage({
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-orange-50 via-white to-amber-50 text-slate-900">
-      <section className="mx-auto w-full max-w-4xl px-6 pb-14 pt-10">
+      <section className="mx-auto w-full max-w-4xl px-6 pt-10 pb-14">
         <div className="rounded-3xl border border-orange-100 bg-white p-6 shadow-sm md:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">
+          <p className="text-xs font-semibold tracking-[0.16em] text-orange-700 uppercase">
             Tienda online
           </p>
           <h1 className="mt-2 text-3xl font-semibold md:text-4xl">{orgName}</h1>
@@ -72,7 +72,7 @@ export default async function OrgStorefrontPage({
               href={`/${orgSlug}/${branch.branch_slug}`}
               className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-300"
             >
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+              <p className="text-xs font-semibold tracking-[0.12em] text-slate-500 uppercase">
                 Sucursal
               </p>
               <h2 className="mt-1 text-xl font-semibold text-slate-900">

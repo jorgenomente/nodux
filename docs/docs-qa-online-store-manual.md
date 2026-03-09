@@ -21,9 +21,11 @@ npm run dev
 
 1. Ingresar como admin.
 2. Ir a `/settings` y validar sección "Tienda online":
+
 - `Estado storefront = Habilitado`.
 - `Org slug` visible.
 - Links públicos por sucursal visibles.
+
 3. Ir a `/settings/branches` y validar WhatsApp de tienda por sucursal.
 
 Resultado esperado:
@@ -43,6 +45,7 @@ Resultado esperado:
 ## Escenario 3 — Catálogo público por sucursal
 
 1. En `/<orgSlug>/<branchSlug>` validar:
+
 - nombre, precio, stock e imagen (si existe) por producto.
 - carrito funcional (agregar/quitar).
 - total calculado correctamente.
@@ -78,6 +81,7 @@ Resultado esperado:
 
 1. Abrir `/o/<trackingToken>`.
 2. Validar:
+
 - estado actual.
 - resumen del cliente (nombre, WhatsApp, dirección).
 - detalle de ítems y total.
@@ -117,6 +121,7 @@ Resultado esperado:
 ## Escenario 9 — Transiciones de estado del pedido
 
 1. Ejecutar transiciones válidas:
+
 - `pending -> confirmed`
 - `confirmed -> ready_for_pickup`
 - `ready_for_pickup -> delivered`

@@ -35,7 +35,7 @@ CUIT
 Razón social  
 Condición fiscal (Monotributista / Responsable Inscripto / Exento)  
 Domicilio fiscal  
-Email administrativo  
+Email administrativo
 
 ## Información operativa
 
@@ -71,7 +71,7 @@ Debe entregarte:
 archivo `.crt`  
 archivo `.key` o `.p12`  
 contraseña del `.p12` si existe  
-número de punto de venta  
+número de punto de venta
 
 Procedimiento:
 
@@ -103,21 +103,17 @@ Este paso puede hacerlo NODUX junto con el cliente.
 
 ## Generar clave privada
 
-
 openssl genrsa -out privada.key 2048
-
 
 ## Generar CSR
 
-
 openssl req -new -key privada.key -out pedido.csr
-
 
 Datos sugeridos:
 
 Common Name: nombre interno  
 Organization: nombre empresa  
-SerialNumber: CUIT  
+SerialNumber: CUIT
 
 ---
 
@@ -129,15 +125,11 @@ Administración de Certificados Digitales
 
 Subir el archivo:
 
-
 pedido.csr
-
 
 Descargar luego el certificado:
 
-
 certificado.crt
-
 
 ---
 
@@ -151,9 +143,7 @@ Crear nueva relación:
 
 Servicio:
 
-
 wsfe
-
 
 Asociar al certificado creado.
 
@@ -169,15 +159,11 @@ Crear nuevo punto:
 
 Número recomendado:
 
-
 00002
-
 
 Sistema:
 
-
 Factura Electrónica - Web Services
-
 
 Guardar.
 
@@ -198,16 +184,16 @@ Cargar:
 CUIT  
 Razón social  
 Condición fiscal  
-Domicilio fiscal  
+Domicilio fiscal
 
 Subir:
 
 certificado `.crt`  
-clave privada `.key` o `.p12`  
+clave privada `.key` o `.p12`
 
 Registrar:
 
-punto de venta WS  
+punto de venta WS
 
 Guardar configuración.
 
@@ -228,7 +214,7 @@ fecha de expiración del ticket
 Si falla:
 
 verificar certificado  
-verificar asociación al servicio  
+verificar asociación al servicio
 
 ---
 
@@ -241,7 +227,7 @@ FECompUltimoAutorizado
 Parámetros:
 
 Punto de venta  
-Tipo de comprobante  
+Tipo de comprobante
 
 Resultado esperado:
 
@@ -262,7 +248,7 @@ CUIT receptor de prueba
 Resultado esperado:
 
 CAE autorizado  
-fecha de vencimiento CAE  
+fecha de vencimiento CAE
 
 Guardar XML request y response.
 
@@ -274,7 +260,7 @@ Verificar que el comprobante generado tenga:
 
 Número de comprobante  
 CAE válido  
-Fecha de vencimiento CAE  
+Fecha de vencimiento CAE
 
 Opcional:
 
@@ -288,9 +274,7 @@ Si todas las pruebas son correctas:
 
 marcar el comercio como:
 
-
 Fiscalmente habilitado
-
 
 Esto activa la emisión automática desde el POS.
 
@@ -339,7 +323,7 @@ certificado válido
 WSAA autenticado  
 WSFE funcionando  
 factura de prueba emitida  
-CAE recibido  
+CAE recibido
 
 Si todo está correcto:
 
@@ -360,6 +344,7 @@ Renovar certificados antes de su vencimiento.
 ---
 
 # Fin del documento
+
 Recomendación importante para NODUX
 
 Este playbook te permite tener un proceso repetible.

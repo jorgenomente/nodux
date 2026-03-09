@@ -81,15 +81,15 @@ export default function ReceiveItemsPricingClient({
   const [discountAmount, setDiscountAmount] = useState(
     Number(defaultDiscountAmount).toFixed(2),
   );
-  const [unitPriceByItem, setUnitPriceByItem] = useState<Record<string, string>>(
-    () => {
-      const next: Record<string, string> = {};
-      items.forEach((item) => {
-        next[item.order_item_id] = Number(item.default_unit_price).toFixed(2);
-      });
-      return next;
-    },
-  );
+  const [unitPriceByItem, setUnitPriceByItem] = useState<
+    Record<string, string>
+  >(() => {
+    const next: Record<string, string> = {};
+    items.forEach((item) => {
+      next[item.order_item_id] = Number(item.default_unit_price).toFixed(2);
+    });
+    return next;
+  });
 
   const totals = useMemo(() => {
     const subtotalWithoutTax = items.reduce((total, item) => {
@@ -119,7 +119,15 @@ export default function ReceiveItemsPricingClient({
       discountAmount: safeDiscount,
       totalInvoice,
     };
-  }, [applyDiscount, applyTax, discountAmount, items, receivedQtyByItem, taxPct, unitCostByItem]);
+  }, [
+    applyDiscount,
+    applyTax,
+    discountAmount,
+    items,
+    receivedQtyByItem,
+    taxPct,
+    unitCostByItem,
+  ]);
 
   const filteredItems = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -176,7 +184,9 @@ export default function ReceiveItemsPricingClient({
                 className="rounded border border-zinc-200 p-3"
               >
                 <div className="grid gap-2 md:grid-cols-5">
-                  <div className="text-sm text-zinc-700">{item.product_name}</div>
+                  <div className="text-sm text-zinc-700">
+                    {item.product_name}
+                  </div>
                   <div className="text-xs text-zinc-500">
                     Ordenado: {item.ordered_qty}
                   </div>

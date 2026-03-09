@@ -5,7 +5,10 @@ import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
-import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import {
+  hasStaffModuleEnabled,
+  resolveStaffHome,
+} from '@/lib/auth/staff-modules';
 
 const SETTINGS_LINKS = [
   {
@@ -62,8 +65,13 @@ export default async function SettingsPage() {
   const role = session.effectiveRole;
 
   if (role === 'staff') {
-    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
-    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    const { data: modules } = await supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
     if (!hasStaffModuleEnabled(resolvedModules, 'settings')) {
       const home = resolveStaffHome(resolvedModules);
       redirect(home);
@@ -73,7 +81,8 @@ export default async function SettingsPage() {
   const forwardedProto = requestHeaders.get('x-forwarded-proto');
   const forwardedHost = requestHeaders.get('x-forwarded-host');
   const host = forwardedHost || requestHeaders.get('host') || 'app.nodux.app';
-  const protocol = forwardedProto || (host.includes('localhost') ? 'http' : 'https');
+  const protocol =
+    forwardedProto || (host.includes('localhost') ? 'http' : 'https');
   const appBaseUrl = `${protocol}://${host}`;
 
   const { data: orgRaw } = await supabase
@@ -81,14 +90,21 @@ export default async function SettingsPage() {
     .select('id, name, storefront_slug')
     .eq('id', orgId)
     .maybeSingle();
-  const orgData = orgRaw as { id: string; name: string; storefront_slug: string | null } | null;
+  const orgData = orgRaw as {
+    id: string;
+    name: string;
+    storefront_slug: string | null;
+  } | null;
 
   const { data: settingsRaw } = await supabase
     .from('storefront_settings' as never)
     .select('org_id, is_enabled')
     .eq('org_id', orgId)
     .maybeSingle();
-  const storefrontSettings = settingsRaw as { org_id: string; is_enabled: boolean } | null;
+  const storefrontSettings = settingsRaw as {
+    org_id: string;
+    is_enabled: boolean;
+  } | null;
 
   const { data: branchesRaw } = await supabase
     .from('branches' as never)
@@ -127,7 +143,9 @@ export default async function SettingsPage() {
       .eq('org_id', actionOrgId)
       .maybeSingle();
     if (existingError) {
-      throw new Error(existingError.message || 'No se pudo consultar storefront_settings.');
+      throw new Error(
+        existingError.message || 'No se pudo consultar storefront_settings.',
+      );
     }
     const existing = existingRaw as { org_id: string } | null;
 
@@ -137,14 +155,18 @@ export default async function SettingsPage() {
         .update({ is_enabled: nextEnabled } as never)
         .eq('org_id', actionOrgId);
       if (updateError) {
-        throw new Error(updateError.message || 'No se pudo actualizar storefront_settings.');
+        throw new Error(
+          updateError.message || 'No se pudo actualizar storefront_settings.',
+        );
       }
     } else {
       const { error: insertError } = await actionSupabase
         .from('storefront_settings' as never)
         .insert({ org_id: actionOrgId, is_enabled: nextEnabled } as never);
       if (insertError) {
-        throw new Error(insertError.message || 'No se pudo crear storefront_settings.');
+        throw new Error(
+          insertError.message || 'No se pudo crear storefront_settings.',
+        );
       }
     }
 
@@ -180,14 +202,17 @@ export default async function SettingsPage() {
         </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-          <h2 className="text-base font-semibold text-zinc-900">Tienda online</h2>
+          <h2 className="text-base font-semibold text-zinc-900">
+            Tienda online
+          </h2>
           <p className="mt-2 text-sm text-zinc-600">
-            Referencia rápida para QA del canal online por organización y sucursal.
+            Referencia rápida para QA del canal online por organización y
+            sucursal.
           </p>
 
           <div className="mt-4 grid gap-3 text-sm">
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
                 Estado storefront
               </p>
               <p
@@ -197,8 +222,12 @@ export default async function SettingsPage() {
               >
                 {storefrontEnabled ? 'Habilitado' : 'Deshabilitado'}
               </p>
-              <p className="mt-2 text-xs text-zinc-600">Org slug: {orgSlug || 'Sin definir'}</p>
-              <p className="mt-1 text-xs text-zinc-600">Base URL detectada: {appBaseUrl}</p>
+              <p className="mt-2 text-xs text-zinc-600">
+                Org slug: {orgSlug || 'Sin definir'}
+              </p>
+              <p className="mt-1 text-xs text-zinc-600">
+                Base URL detectada: {appBaseUrl}
+              </p>
               <form action={toggleStorefrontEnabledAction} className="mt-3">
                 <input
                   type="hidden"
@@ -219,7 +248,7 @@ export default async function SettingsPage() {
                 </button>
               </form>
               {orgPublicUrl ? (
-                <p className="mt-2 break-all text-xs text-zinc-700">
+                <p className="mt-2 text-xs break-all text-zinc-700">
                   Link público org:{' '}
                   <a
                     href={orgPublicUrl}
@@ -238,11 +267,13 @@ export default async function SettingsPage() {
             </div>
 
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
                 Sucursales activas y links públicos
               </p>
               {activeBranches.length === 0 ? (
-                <p className="mt-2 text-xs text-zinc-600">No hay sucursales activas.</p>
+                <p className="mt-2 text-xs text-zinc-600">
+                  No hay sucursales activas.
+                </p>
               ) : (
                 <div className="mt-2 grid gap-2">
                   {activeBranches.map((branch) => {
@@ -257,12 +288,14 @@ export default async function SettingsPage() {
                         key={branch.id}
                         className="rounded-lg border border-zinc-200 bg-white px-3 py-2"
                       >
-                        <p className="text-sm font-semibold text-zinc-900">{branch.name}</p>
+                        <p className="text-sm font-semibold text-zinc-900">
+                          {branch.name}
+                        </p>
                         <p className="mt-1 text-xs text-zinc-600">
                           Branch slug: {branchSlug || 'Sin definir'}
                         </p>
                         {branchPublicUrl ? (
-                          <p className="mt-1 break-all text-xs text-zinc-700">
+                          <p className="mt-1 text-xs break-all text-zinc-700">
                             <a
                               href={branchPublicUrl}
                               target="_blank"

@@ -111,7 +111,7 @@ POS
 Excel  
 WhatsApp  
 cuadernos  
-sistemas administrativos  
+sistemas administrativos
 
 Esto genera:
 

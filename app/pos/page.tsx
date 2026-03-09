@@ -72,7 +72,10 @@ const resolveStaffHome = (
 export default async function PosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ special_order_id?: string; online_order_id?: string }>;
+  searchParams: Promise<{
+    special_order_id?: string;
+    online_order_id?: string;
+  }>;
 }) {
   const resolvedSearchParams = await searchParams;
   const session = await getOrgMemberSession();
@@ -131,8 +134,8 @@ export default async function PosPage({
       .in('id', branchIds)
       .order('name');
 
-    branches = ((branchRows ?? []) as BranchOption[]).filter(
-      (branch) => Boolean(branch.id),
+    branches = ((branchRows ?? []) as BranchOption[]).filter((branch) =>
+      Boolean(branch.id),
     );
   } else {
     const { data: branchRows } = await dataClient
@@ -144,8 +147,8 @@ export default async function PosPage({
       .eq('is_active', true)
       .order('name');
 
-    branches = ((branchRows ?? []) as BranchOption[]).filter(
-      (branch) => Boolean(branch.id),
+    branches = ((branchRows ?? []) as BranchOption[]).filter((branch) =>
+      Boolean(branch.id),
     );
   }
 
@@ -193,17 +196,20 @@ export default async function PosPage({
         .eq('org_id', orgId)
         .maybeSingle()
     : { data: null };
-  const onlineOrderMeta = onlineOrderRaw as
-    | {
-        id: string;
-        org_id: string;
-        branch_id: string;
-        order_code: string;
-        customer_name: string;
-        status: 'pending' | 'confirmed' | 'ready_for_pickup' | 'delivered' | 'cancelled';
-        payment_intent: 'pay_on_pickup' | 'transfer' | 'qr';
-      }
-    | null;
+  const onlineOrderMeta = onlineOrderRaw as {
+    id: string;
+    org_id: string;
+    branch_id: string;
+    order_code: string;
+    customer_name: string;
+    status:
+      | 'pending'
+      | 'confirmed'
+      | 'ready_for_pickup'
+      | 'delivered'
+      | 'cancelled';
+    payment_intent: 'pay_on_pickup' | 'transfer' | 'qr';
+  } | null;
   const { data: onlineOrderItemsRaw } = onlineOrderMeta
     ? await dataClient
         .from('online_order_items' as never)
@@ -234,7 +240,9 @@ export default async function PosPage({
   }
   if (onlineOrderMeta?.branch_id) {
     if (role === 'staff') {
-      const allowed = branches.some((branch) => branch.id === onlineOrderMeta.branch_id);
+      const allowed = branches.some(
+        (branch) => branch.id === onlineOrderMeta.branch_id,
+      );
       if (!allowed) {
         redirect('/no-access');
       }

@@ -51,6 +51,8 @@ export const formatFiscalRenderStatus = (
 
 export const buildAfipQrUrl = (payload: Record<string, unknown> | null) => {
   if (!payload) return null;
-  const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64');
+  const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString(
+    'base64',
+  );
   return `https://www.afip.gob.ar/fe/qr/?p=${encodeURIComponent(encoded)}`;
 };

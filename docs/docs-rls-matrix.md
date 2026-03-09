@@ -66,52 +66,52 @@ Estado actual:
 
 ## Matriz (MVP - propuesta)
 
-| Entidad                              | SA                 | OA                 | ST                            | Notas                                                     |
-| ------------------------------------ | ------------------ | ------------------ | ----------------------------- | --------------------------------------------------------- |
-| `orgs`                               | read               | read               | no                            | SA global; OA solo su org                                 |
-| `branches`                           | read/insert/update | read/insert/update | read (solo asignadas)         | ST solo lectura de sus branches                           |
-| `org_users`                          | read/insert/update | read/insert/update | no                            | Gestion de usuarios                                       |
-| `platform_admins`                    | read/insert/update | no                 | no                            | SA global (tabla propia de plataforma)                    |
-| `user_active_orgs`                   | read/insert/update | read/insert/update | read/insert/update            | Contexto de org activa por usuario                        |
-| `branch_memberships`                 | read/insert/update | read/insert/update | read (propias)                | ST ve sus asignaciones                                    |
-| `staff_module_access`                | read/insert/update | read/insert/update | no                            | ST usa view efectiva                                      |
-| `org_preferences`                    | read/insert/update | read/insert/update | read (propia org)             | ST solo lectura si se expone                              |
-| `employee_accounts`                  | read/insert/update | read/insert/update | read (sucursal asignada)      | OA/SA gestionan nombres; ST solo selección en POS         |
-| `data_import_jobs`                   | read/insert/update | read/insert/update | no                            | Jobs de importación onboarding solo OA/SA                 |
-| `data_import_rows`                   | read/insert/update | read/insert/update | no                            | Filas por job con errores/validación solo OA/SA           |
-| `audit_log`                          | read               | read               | no                            | Append-only, solo lectura OA/SA                           |
-| `products`                           | read/insert/update | read/insert/update | read (lookup)                 | ST sin escritura                                          |
-| `stock_items`                        | read/insert/update | read/insert/update | read (lookup)                 | ST sin ajustes                                            |
-| `stock_movements`                    | read               | read/insert        | insert (via RPC)              | ST no lectura historica por defecto                       |
-| `sales`                              | read               | read/insert/update | insert/update (via RPC)       | ST crea ventas y puede marcarlas facturadas via RPC       |
-| `v_sales_statistics_items`           | read               | read               | no                            | View analítica de ventas (OA/SA)                          |
-| `sale_payments`                      | read               | read/insert        | insert (via RPC)              | Desglose de cobro por método                              |
-| `pos_payment_devices`                | read/insert/update | read/insert/update | read/insert/update            | Catálogo de dispositivos de cobro por sucursal            |
-| `cash_sessions`                      | read               | read/insert/update | insert/update (via RPC)       | Caja por sucursal (1 abierta por vez)                     |
-| `cash_session_movements`             | read               | read/insert        | insert (via RPC)              | Gastos/ingresos manuales de caja                          |
-| `cash_session_count_lines`           | read               | read/insert        | insert (via RPC)              | Conteo por denominaciones (apertura/cierre, caja/reserva) |
-| `cash_session_reconciliation_inputs` | read               | read/insert/update | insert/update (via RPC)       | Montos de comprobante por fila de conciliación            |
-| `sale_items`                         | read               | read/insert        | insert (via RPC)              | derivado de venta                                         |
-| `expiration_batches`                 | read/insert/update | read/insert/update | read/insert (si modulo)       | ST sin ajustes avanzados                                  |
-| `expiration_waste`                   | read               | read/insert        | read (via view/RPC)           | Registro de desperdicio                                   |
-| `suppliers`                          | read/insert/update | read/insert/update | no                            | ST sin acceso                                             |
-| `supplier_products`                  | read/insert/update | read/insert/update | no                            | ST sin acceso (incluye `supplier_price`)                  |
-| `supplier_orders`                    | read/insert/update | read/insert/update | no                            | ST no en MVP                                              |
-| `supplier_order_items`               | read/insert/update | read/insert/update | no                            | ST no en MVP                                              |
-| `supplier_payment_accounts`          | read/insert/update | read/insert/update | no                            | Cuentas de transferencia por proveedor                    |
-| `supplier_payables`                  | read/insert/update | read/insert/update | no                            | Cuenta por pagar por pedido (scope sucursal)              |
-| `supplier_payments`                  | read/insert/update | read/insert/update | no                            | Movimientos de pago proveedor                             |
-| `storage.objects` (`product-images`) | insert/update/delete | insert/update/delete | no                          | Imágenes de producto por org (`org_id/product_id.jpg`)    |
-| `storefront_settings`                | read/insert/update | read/insert/update | read                          | Configuración de storefront por org                       |
-| `storefront_domains`                 | read/insert/update | read/insert/update | no                            | Dominios personalizados de tienda                         |
-| `online_orders`                      | read/insert/update | read/insert/update | read/insert/update (limitado) | Pedidos online por org/sucursal                           |
-| `online_order_items`                 | read/insert/update | read/insert/update | read/insert/update (limitado) | Ítems snapshot de pedido online                           |
-| `online_order_status_history`        | read/insert/update | read/insert/update | read/insert (limitado)        | Historial de estados de pedido online                     |
-| `online_order_tracking_tokens`       | read/insert/update | read/insert/update | read/insert/update (limitado) | Token público de tracking                                 |
-| `online_order_payment_proofs`        | read/insert/update | read/insert/update | read/insert/update (limitado) | Comprobantes de transferencia/QR                          |
-| `clients`                            | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo en branch asignada                                |
-| `client_special_orders`              | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo su branch                                         |
-| `client_special_order_items`         | read/insert/update | read/insert/update | read/insert/update (limitado) | ST solo su branch                                         |
+| Entidad                              | SA                   | OA                   | ST                            | Notas                                                     |
+| ------------------------------------ | -------------------- | -------------------- | ----------------------------- | --------------------------------------------------------- |
+| `orgs`                               | read                 | read                 | no                            | SA global; OA solo su org                                 |
+| `branches`                           | read/insert/update   | read/insert/update   | read (solo asignadas)         | ST solo lectura de sus branches                           |
+| `org_users`                          | read/insert/update   | read/insert/update   | no                            | Gestion de usuarios                                       |
+| `platform_admins`                    | read/insert/update   | no                   | no                            | SA global (tabla propia de plataforma)                    |
+| `user_active_orgs`                   | read/insert/update   | read/insert/update   | read/insert/update            | Contexto de org activa por usuario                        |
+| `branch_memberships`                 | read/insert/update   | read/insert/update   | read (propias)                | ST ve sus asignaciones                                    |
+| `staff_module_access`                | read/insert/update   | read/insert/update   | no                            | ST usa view efectiva                                      |
+| `org_preferences`                    | read/insert/update   | read/insert/update   | read (propia org)             | ST solo lectura si se expone                              |
+| `employee_accounts`                  | read/insert/update   | read/insert/update   | read (sucursal asignada)      | OA/SA gestionan nombres; ST solo selección en POS         |
+| `data_import_jobs`                   | read/insert/update   | read/insert/update   | no                            | Jobs de importación onboarding solo OA/SA                 |
+| `data_import_rows`                   | read/insert/update   | read/insert/update   | no                            | Filas por job con errores/validación solo OA/SA           |
+| `audit_log`                          | read                 | read                 | no                            | Append-only, solo lectura OA/SA                           |
+| `products`                           | read/insert/update   | read/insert/update   | read (lookup)                 | ST sin escritura                                          |
+| `stock_items`                        | read/insert/update   | read/insert/update   | read (lookup)                 | ST sin ajustes                                            |
+| `stock_movements`                    | read                 | read/insert          | insert (via RPC)              | ST no lectura historica por defecto                       |
+| `sales`                              | read                 | read/insert/update   | insert/update (via RPC)       | ST crea ventas y puede marcarlas facturadas via RPC       |
+| `v_sales_statistics_items`           | read                 | read                 | no                            | View analítica de ventas (OA/SA)                          |
+| `sale_payments`                      | read                 | read/insert          | insert (via RPC)              | Desglose de cobro por método                              |
+| `pos_payment_devices`                | read/insert/update   | read/insert/update   | read/insert/update            | Catálogo de dispositivos de cobro por sucursal            |
+| `cash_sessions`                      | read                 | read/insert/update   | insert/update (via RPC)       | Caja por sucursal (1 abierta por vez)                     |
+| `cash_session_movements`             | read                 | read/insert          | insert (via RPC)              | Gastos/ingresos manuales de caja                          |
+| `cash_session_count_lines`           | read                 | read/insert          | insert (via RPC)              | Conteo por denominaciones (apertura/cierre, caja/reserva) |
+| `cash_session_reconciliation_inputs` | read                 | read/insert/update   | insert/update (via RPC)       | Montos de comprobante por fila de conciliación            |
+| `sale_items`                         | read                 | read/insert          | insert (via RPC)              | derivado de venta                                         |
+| `expiration_batches`                 | read/insert/update   | read/insert/update   | read/insert (si modulo)       | ST sin ajustes avanzados                                  |
+| `expiration_waste`                   | read                 | read/insert          | read (via view/RPC)           | Registro de desperdicio                                   |
+| `suppliers`                          | read/insert/update   | read/insert/update   | no                            | ST sin acceso                                             |
+| `supplier_products`                  | read/insert/update   | read/insert/update   | no                            | ST sin acceso (incluye `supplier_price`)                  |
+| `supplier_orders`                    | read/insert/update   | read/insert/update   | no                            | ST no en MVP                                              |
+| `supplier_order_items`               | read/insert/update   | read/insert/update   | no                            | ST no en MVP                                              |
+| `supplier_payment_accounts`          | read/insert/update   | read/insert/update   | no                            | Cuentas de transferencia por proveedor                    |
+| `supplier_payables`                  | read/insert/update   | read/insert/update   | no                            | Cuenta por pagar por pedido (scope sucursal)              |
+| `supplier_payments`                  | read/insert/update   | read/insert/update   | no                            | Movimientos de pago proveedor                             |
+| `storage.objects` (`product-images`) | insert/update/delete | insert/update/delete | no                            | Imágenes de producto por org (`org_id/product_id.jpg`)    |
+| `storefront_settings`                | read/insert/update   | read/insert/update   | read                          | Configuración de storefront por org                       |
+| `storefront_domains`                 | read/insert/update   | read/insert/update   | no                            | Dominios personalizados de tienda                         |
+| `online_orders`                      | read/insert/update   | read/insert/update   | read/insert/update (limitado) | Pedidos online por org/sucursal                           |
+| `online_order_items`                 | read/insert/update   | read/insert/update   | read/insert/update (limitado) | Ítems snapshot de pedido online                           |
+| `online_order_status_history`        | read/insert/update   | read/insert/update   | read/insert (limitado)        | Historial de estados de pedido online                     |
+| `online_order_tracking_tokens`       | read/insert/update   | read/insert/update   | read/insert/update (limitado) | Token público de tracking                                 |
+| `online_order_payment_proofs`        | read/insert/update   | read/insert/update   | read/insert/update (limitado) | Comprobantes de transferencia/QR                          |
+| `clients`                            | read/insert/update   | read/insert/update   | read/insert/update (limitado) | ST solo en branch asignada                                |
+| `client_special_orders`              | read/insert/update   | read/insert/update   | read/insert/update (limitado) | ST solo su branch                                         |
+| `client_special_order_items`         | read/insert/update   | read/insert/update   | read/insert/update (limitado) | ST solo su branch                                         |
 
 ---
 

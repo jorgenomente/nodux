@@ -16,18 +16,15 @@ export const enqueueSaleFiscalInvoice = async (params: {
   docNro?: number;
   source?: string;
 }) =>
-  callFiscalRpc<EnqueueSaleInvoiceResult[]>(
-    'rpc_enqueue_sale_fiscal_invoice',
-    {
-      p_org_id: params.orgId,
-      p_sale_id: params.saleId,
-      p_environment: params.environment ?? 'homo',
-      p_cbte_tipo: params.cbteTipo ?? 11,
-      p_doc_tipo: params.docTipo ?? 99,
-      p_doc_nro: params.docNro ?? 0,
-      p_source: params.source ?? 'manual',
-    },
-  ).then((rows) => {
+  callFiscalRpc<EnqueueSaleInvoiceResult[]>('rpc_enqueue_sale_fiscal_invoice', {
+    p_org_id: params.orgId,
+    p_sale_id: params.saleId,
+    p_environment: params.environment ?? 'homo',
+    p_cbte_tipo: params.cbteTipo ?? 11,
+    p_doc_tipo: params.docTipo ?? 99,
+    p_doc_nro: params.docNro ?? 0,
+    p_source: params.source ?? 'manual',
+  }).then((rows) => {
     const first = rows?.[0];
     if (!first) {
       throw new Error('rpc_enqueue_sale_fiscal_invoice returned no rows');

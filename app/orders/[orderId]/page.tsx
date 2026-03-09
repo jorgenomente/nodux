@@ -10,7 +10,10 @@ import ReceiveActionsRow from '@/app/orders/ReceiveActionsRow';
 import InvoiceImageField from '@/app/payments/InvoiceImageField';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
-import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import {
+  hasStaffModuleEnabled,
+  resolveStaffHome,
+} from '@/lib/auth/staff-modules';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
 type OrderDetailRow = {
@@ -157,8 +160,13 @@ export default async function OrderDetailPage({
   const orgId = session.orgId;
   const role = session.effectiveRole;
   if (role === 'staff') {
-    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
-    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    const { data: modules } = await supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
     if (!hasStaffModuleEnabled(resolvedModules, 'orders')) {
       const home = resolveStaffHome(resolvedModules);
       redirect(home);
@@ -498,18 +506,12 @@ export default async function OrderDetailPage({
       redirect(buildReceiveNoticeUrl('partial_total_required'));
     }
     const taxPct = taxPctRaw === '' ? 0 : Number(taxPctRaw);
-    if (
-      applyTax &&
-      (Number.isNaN(taxPct) || taxPct < 0 || taxPct > 1000)
-    ) {
+    if (applyTax && (Number.isNaN(taxPct) || taxPct < 0 || taxPct > 1000)) {
       redirect(buildReceiveNoticeUrl('invalid_tax_pct'));
     }
     const discountAmount =
       discountAmountRaw === '' ? 0 : Number(discountAmountRaw);
-    if (
-      applyDiscount &&
-      (Number.isNaN(discountAmount) || discountAmount < 0)
-    ) {
+    if (applyDiscount && (Number.isNaN(discountAmount) || discountAmount < 0)) {
       redirect(buildReceiveNoticeUrl('invalid_discount_amount'));
     }
 
@@ -671,7 +673,8 @@ export default async function OrderDetailPage({
         );
         const hasPrimaryFromAnotherSupplier = relatedRows.some(
           (row) =>
-            row.supplier_id !== order.supplier_id && row.relation_type === 'primary',
+            row.supplier_id !== order.supplier_id &&
+            row.relation_type === 'primary',
         );
         const relationType = sameSupplierRelation?.relation_type
           ? sameSupplierRelation.relation_type
@@ -702,8 +705,10 @@ export default async function OrderDetailPage({
       .eq('org_id', orgId)
       .eq('order_id', orderId)
       .maybeSingle();
-    const payableAfterReceiveAny =
-      payableAfterReceive as Record<string, unknown> | null;
+    const payableAfterReceiveAny = payableAfterReceive as Record<
+      string,
+      unknown
+    > | null;
     const payableIdForTotals = String(payableAfterReceiveAny?.id ?? '');
 
     if (payableIdForTotals) {
@@ -713,7 +718,9 @@ export default async function OrderDetailPage({
         `IVA ${applyTax ? `${taxPct.toFixed(2)}% = ${computedTaxAmount.toFixed(2)}` : 'no aplicado'}`,
         `Descuento ${applyDiscount ? computedDiscountAmount.toFixed(2) : 'no aplicado'}`,
       ].join(' · ');
-      const previousNote = String(payableAfterReceiveAny?.invoice_note ?? '').trim();
+      const previousNote = String(
+        payableAfterReceiveAny?.invoice_note ?? '',
+      ).trim();
       const mergedNote = previousNote
         ? `${previousNote}\n${breakdownNote}`
         : breakdownNote;
@@ -722,12 +729,14 @@ export default async function OrderDetailPage({
         p_org_id: orgId,
         p_payable_id: payableIdForTotals,
         p_invoice_amount: computedInvoiceAmount,
-        p_due_on: (payableAfterReceiveAny?.due_on as string | null) ?? undefined,
+        p_due_on:
+          (payableAfterReceiveAny?.due_on as string | null) ?? undefined,
         p_invoice_reference:
           (payableAfterReceiveAny?.invoice_reference as string | null) ??
           undefined,
         p_invoice_photo_url:
-          (payableAfterReceiveAny?.invoice_photo_url as string | null) ?? undefined,
+          (payableAfterReceiveAny?.invoice_photo_url as string | null) ??
+          undefined,
         p_invoice_note: mergedNote,
         p_selected_payment_method:
           (payableAfterReceiveAny?.selected_payment_method as
@@ -1016,7 +1025,8 @@ export default async function OrderDetailPage({
                 : 0,
         suggested_unit_cost: suggestedUnitCost > 0 ? suggestedUnitCost : 0,
         default_unit_price: productUnitPrice > 0 ? productUnitPrice : 0,
-        markup_pct: supplierDefaultMarkupPct > 0 ? supplierDefaultMarkupPct : 40,
+        markup_pct:
+          supplierDefaultMarkupPct > 0 ? supplierDefaultMarkupPct : 40,
       };
     });
   const controlledByLabel =
@@ -1108,7 +1118,7 @@ export default async function OrderDetailPage({
                             message:
                               'La imagen de factura/remito no es válida.',
                           }
-                      : resolvedSearchParams?.notice === 'image_too_large'
+                        : resolvedSearchParams?.notice === 'image_too_large'
                           ? {
                               tone: 'error',
                               message:
@@ -1127,38 +1137,38 @@ export default async function OrderDetailPage({
                                   message:
                                     'El descuento debe ser mayor o igual a 0.',
                                 }
-                            : resolvedSearchParams?.notice ===
-                                'expected_receive_updated'
-                              ? {
-                                tone: 'success',
-                                message: 'Fecha estimada actualizada.',
-                              }
-                            : resolvedSearchParams?.notice ===
-                                'draft_items_saved'
-                              ? {
-                                  tone: 'success',
-                                  message: 'Items del borrador guardados.',
-                                }
                               : resolvedSearchParams?.notice ===
-                                  'received_and_cash_paid'
+                                  'expected_receive_updated'
                                 ? {
                                     tone: 'success',
-                                    message:
-                                      'Recepción/control confirmado y pago en efectivo registrado.',
+                                    message: 'Fecha estimada actualizada.',
                                   }
                                 : resolvedSearchParams?.notice ===
-                                    'invoice_saved'
+                                    'draft_items_saved'
                                   ? {
                                       tone: 'success',
-                                      message:
-                                        'Datos de factura/remito guardados.',
+                                      message: 'Items del borrador guardados.',
                                     }
-                                  : resolvedSearchParams?.notice
+                                  : resolvedSearchParams?.notice ===
+                                      'received_and_cash_paid'
                                     ? {
-                                        tone: 'error',
-                                        message: `Error: ${resolvedSearchParams.notice.replaceAll('_', ' ')}`,
+                                        tone: 'success',
+                                        message:
+                                          'Recepción/control confirmado y pago en efectivo registrado.',
                                       }
-                                    : null;
+                                    : resolvedSearchParams?.notice ===
+                                        'invoice_saved'
+                                      ? {
+                                          tone: 'success',
+                                          message:
+                                            'Datos de factura/remito guardados.',
+                                        }
+                                      : resolvedSearchParams?.notice
+                                        ? {
+                                            tone: 'error',
+                                            message: `Error: ${resolvedSearchParams.notice.replaceAll('_', ' ')}`,
+                                          }
+                                        : null;
 
   return (
     <PageShell>

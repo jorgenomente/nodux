@@ -1,4 +1,5 @@
 # AFIP / ARCA Reconciliation Playbook
+
 **Proyecto:** NODUX  
 **Versión:** v0.1  
 **Estado:** Draft operativo  
@@ -59,15 +60,19 @@ Si no hay certeza, no se puede:
 Un job en reconciliación debe terminar en uno de estos resultados:
 
 ### 5.1 `authorized`
+
 Se confirma que AFIP autorizó.
 
 ### 5.2 `rejected`
+
 Se confirma que AFIP rechazó.
 
 ### 5.3 `still_unknown`
+
 No se pudo determinar todavía.
 
 ### 5.4 `blocked_for_manual_resolution`
+
 Se detectó inconsistencia fuerte y requiere soporte manual.
 
 ---
@@ -120,8 +125,8 @@ Sólo worker o herramientas internas.
 
 Toda reconciliación debe emitir evento y log.
 
-
 ## 9. Flujo operativo sugerido
+
 Paso 1 — cargar job
 
 Validar que:
@@ -174,8 +179,8 @@ si incierto → mantener pendiente
 
 si inconsistente → bloquear secuencia y escalar
 
-
 ## 10. Estrategias de resolución
+
 10.1 Estrategia A — confirmación positiva
 
 Si se logra evidencia suficiente de autorización:
@@ -212,7 +217,6 @@ registrar incidente crítico
 
 escalar a resolución manual
 
-
 ## 11. Señales de inconsistencia fuerte
 
 Ejemplos:
@@ -226,7 +230,6 @@ conflicto entre invoice_job y invoices
 secuencia local adelantada o atrasada de forma no explicable
 
 aprobación externa sin persistencia local consistente
-
 
 ## 12. Acciones automáticas permitidas
 
@@ -250,8 +253,8 @@ reseteo de correlatividad
 
 reutilización de números
 
-
 ## 13. Frecuencias sugeridas
+
 Primer reintento
 
 rápido, pocos segundos o minutos después
@@ -264,7 +267,6 @@ Escalado manual
 
 si supera umbral temporal definido por operación
 
-
 ## 14. Política sugerida
 
 reintento 1: inmediato o a pocos segundos
@@ -276,7 +278,6 @@ reintento 3: 5 minutos
 reintento 4: 15 minutos
 
 luego: alerta + revisión manual si sigue incierto
-
 
 ## 15. Eventos de auditoría sugeridos
 
@@ -294,24 +295,23 @@ reconcile_sequence_blocked
 
 reconcile_manual_resolution_required
 
-
 ## 16. Contrato interno sugerido
 
 ```ts
 type ReconcileInput = {
-  invoiceJobId: string
-  tenantId: string
-  environment: 'homo' | 'prod'
-  ptoVta: number
-  cbteTipo: number
-  cbteNro: number
-  correlationId: string
-}
+  invoiceJobId: string;
+  tenantId: string;
+  environment: 'homo' | 'prod';
+  ptoVta: number;
+  cbteTipo: number;
+  cbteNro: number;
+  correlationId: string;
+};
 type ReconcileResult =
   | { outcome: 'authorized'; normalizedResult: Record<string, unknown> }
   | { outcome: 'rejected'; normalizedResult: Record<string, unknown> }
   | { outcome: 'still_unknown'; reason: string }
-  | { outcome: 'manual_resolution'; reason: string }
+  | { outcome: 'manual_resolution'; reason: string };
 ```
 
 ## 17. Pseudocódigo
@@ -361,7 +361,6 @@ no puede garantizarse integridad de próximos comprobantes
 
 se detecta duplicación o colisión seria
 
-
 ## 19. Resolución manual
 
 La resolución manual debe contar con:
@@ -388,7 +387,6 @@ documentar incidente
 
 dejar secuencia segura
 
-
 ## 20. Métricas operativas
 
 Medir:
@@ -404,7 +402,6 @@ porcentaje resuelto automáticamente
 porcentaje escalado manualmente
 
 secuencias bloqueadas
-
 
 ## 21. Dashboard sugerido
 
@@ -430,8 +427,8 @@ resultado provisional
 
 acción sugerida
 
-
 ## 22. Errores comunes a evitar
+
 22.1 Reemitir comprobante con otro número sin resolver el anterior
 
 Incorrecto.
@@ -448,25 +445,23 @@ Genera deuda operativa y riesgo de inconsistencia.
 
 Incorrecto.
 
-
 ## 23. Checklist
 
- polling de jobs pending_reconcile
+polling de jobs pending_reconcile
 
- carga de contexto de reconciliación
+carga de contexto de reconciliación
 
- estrategia de consulta/verificación
+estrategia de consulta/verificación
 
- clasificación de resultados
+clasificación de resultados
 
- cierre automático authorized/rejected
+cierre automático authorized/rejected
 
- bloqueo de secuencia si aplica
+bloqueo de secuencia si aplica
 
- eventos de auditoría
+eventos de auditoría
 
- métricas y alertas
-
+métricas y alertas
 
 ## 24. Conclusión
 

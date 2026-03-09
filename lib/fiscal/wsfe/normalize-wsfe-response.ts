@@ -1,22 +1,22 @@
-import {
-  mapAfipErrorToFiscalClassification,
-} from '@/lib/fiscal/wsfe/map-afip-errors';
-import type {
-  FiscalNormalizedResult,
-} from '@/lib/fiscal/shared/fiscal-types';
+import { mapAfipErrorToFiscalClassification } from '@/lib/fiscal/wsfe/map-afip-errors';
+import type { FiscalNormalizedResult } from '@/lib/fiscal/shared/fiscal-types';
 
 const extractTagValue = (xml: string, tagName: string) => {
-  const match = xml.match(new RegExp(`<${tagName}>([\\s\\S]*?)</${tagName}>`, 'i'));
+  const match = xml.match(
+    new RegExp(`<${tagName}>([\\s\\S]*?)</${tagName}>`, 'i'),
+  );
   return match?.[1]?.trim() ?? null;
 };
 
 const extractRepeatingValues = (xml: string, tagName: string) => {
-  return [...xml.matchAll(new RegExp(`<${tagName}>([\\s\\S]*?)</${tagName}>`, 'gi'))].map(
-    (match) => match[1]?.trim(),
-  );
+  return [
+    ...xml.matchAll(new RegExp(`<${tagName}>([\\s\\S]*?)</${tagName}>`, 'gi')),
+  ].map((match) => match[1]?.trim());
 };
 
-export const normalizeWsfeResponse = (soapXml: string): FiscalNormalizedResult => {
+export const normalizeWsfeResponse = (
+  soapXml: string,
+): FiscalNormalizedResult => {
   const resultado = extractTagValue(soapXml, 'Resultado');
   const cae = extractTagValue(soapXml, 'CAE');
   const caeFchVto = extractTagValue(soapXml, 'CAEFchVto');

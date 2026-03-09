@@ -59,7 +59,10 @@ export const decryptPrivateKeyPem = (params: {
     params.allowPlaintextPem ||
     process.env.FISCAL_ALLOW_PLAINTEXT_PRIVATE_KEY === 'true';
 
-  if (allowPlaintextPem && params.encryptedPrivateKey.trim().startsWith('-----BEGIN ')) {
+  if (
+    allowPlaintextPem &&
+    params.encryptedPrivateKey.trim().startsWith('-----BEGIN ')
+  ) {
     return params.encryptedPrivateKey;
   }
 

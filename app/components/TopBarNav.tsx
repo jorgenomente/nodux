@@ -38,7 +38,9 @@ export default function TopBarNav({ groupedNav }: TopBarNavProps) {
               type="button"
               className="cursor-pointer rounded border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
               onClick={() =>
-                setOpenGroup((current) => (current === group.label ? null : group.label))
+                setOpenGroup((current) =>
+                  current === group.label ? null : group.label,
+                )
               }
             >
               {group.label}

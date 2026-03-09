@@ -1,4 +1,5 @@
 # AFIP / ARCA Render Pipeline
+
 **Proyecto:** NODUX  
 **Versión:** v0.1  
 **Estado:** Draft operativo  
@@ -103,6 +104,7 @@ mark render completed
 ```
 
 ## 7. Fase 1: Build QR Payload
+
 7.1 Objetivo
 
 Construir el payload del QR fiscal a partir de los datos de la invoice.
@@ -119,19 +121,19 @@ no usar datos tentativos
 
 7.3 Input sugerido
 {
-  "ver": 1,
-  "fecha": "2026-03-08",
-  "cuit": 20123456789,
-  "ptoVta": 1,
-  "tipoCmp": 11,
-  "nroCmp": 152,
-  "importe": 1210.00,
-  "moneda": "PES",
-  "ctz": 1,
-  "tipoDocRec": 99,
-  "nroDocRec": 0,
-  "tipoCodAut": "E",
-  "codAut": 12345678901234
+"ver": 1,
+"fecha": "2026-03-08",
+"cuit": 20123456789,
+"ptoVta": 1,
+"tipoCmp": 11,
+"nroCmp": 152,
+"importe": 1210.00,
+"moneda": "PES",
+"ctz": 1,
+"tipoDocRec": 99,
+"nroDocRec": 0,
+"tipoCodAut": "E",
+"codAut": 12345678901234
 }
 7.4 Persistencia
 
@@ -139,8 +141,8 @@ Guardar:
 
 qr_payload_json en invoices
 
-
 ## 8. Fase 2: QR Asset
+
 8.1 Objetivo
 
 Generar representación gráfica del QR para PDF/ticket.
@@ -153,8 +155,8 @@ el payload fuente sigue siendo qr_payload_json
 
 si falla la imagen pero el payload existe, el job puede seguir en render_pending
 
-
 ## 9. Fase 3: PDF A4
+
 9.1 Objetivo
 
 Generar un PDF imprimible y descargable del comprobante.
@@ -199,8 +201,8 @@ Para MVP:
 
 HTML template + render a PDF
 
-
 ## 10. Fase 4: Thermal Ticket
+
 10.1 Objetivo
 
 Generar representación de ticket térmico reimprimible.
@@ -238,7 +240,7 @@ representación intermedia serializable
 no acoplar a una marca específica de impresora en Fase 1
 
 11. Fase 5: Upload a Storage
-11.1 Objetivo
+    11.1 Objetivo
 
 Persistir artefactos generados.
 
@@ -275,7 +277,7 @@ Luego llamar:
 fn_fiscal_mark_render_completed(...)
 
 13. Estados del pipeline
-render_pending
+    render_pending
 
 AFIP autorizó, falta render o persistencia de artefactos.
 
@@ -308,7 +310,7 @@ no tocar numeración
 no volver a llamar WSFEv1 por errores de render
 
 15. Reintentos
-Qué sí reintentar
+    Qué sí reintentar
 
 QR
 
@@ -327,12 +329,12 @@ reserva de secuencia
 transiciones ya cerradas de AFIP
 
 16. Contrato interno sugerido
-type RenderInput = {
-  invoiceId: string
-  invoiceJobId: string
-  tenantId: string
-  environment: 'homo' | 'prod'
-  invoice: {
+    type RenderInput = {
+    invoiceId: string
+    invoiceJobId: string
+    tenantId: string
+    environment: 'homo' | 'prod'
+    invoice: {
     ptoVta: number
     cbteTipo: number
     cbteNro: number
@@ -340,68 +342,68 @@ type RenderInput = {
     caeExpiresAt: string
     currency: string
     amounts: {
-      total: number
-      net: number
-      iva: number
-      trib: number
-      opEx: number
-      totConc: number
+    total: number
+    net: number
+    iva: number
+    trib: number
+    opEx: number
+    totConc: number
     }
-  }
-  issuer: {
+    }
+    issuer: {
     name: string
     cuit: string
-  }
-  customer?: {
+    }
+    customer?: {
     docTipo?: number
     docNro?: number
     name?: string
-  }
-}
-Resultado sugerido
-type RenderOutput = {
-  qrPayloadJson: Record<string, unknown>
-  pdfStoragePath?: string
-  ticketStoragePath?: string
-}
+    }
+    }
+    Resultado sugerido
+    type RenderOutput = {
+    qrPayloadJson: Record<string, unknown>
+    pdfStoragePath?: string
+    ticketStoragePath?: string
+    }
 17. Estructura de código sugerida
-src/server/fiscal/render/
-  build-qr-payload.ts
-  render-qr-asset.ts
-  render-invoice-pdf.ts
-  render-thermal-ticket.ts
-  upload-artifacts.ts
-  run-render-pipeline.ts
+    src/server/fiscal/render/
+    build-qr-payload.ts
+    render-qr-asset.ts
+    render-invoice-pdf.ts
+    render-thermal-ticket.ts
+    upload-artifacts.ts
+    run-render-pipeline.ts
 18. Pseudocódigo
-async function runRenderPipeline(input: RenderInput): Promise<RenderOutput> {
-  const qrPayload = buildQrPayload(input)
+    async function runRenderPipeline(input: RenderInput): Promise<RenderOutput> {
+    const qrPayload = buildQrPayload(input)
 
-  const qrAsset = await renderQrAsset(qrPayload)
+const qrAsset = await renderQrAsset(qrPayload)
 
-  const pdfFile = await renderInvoicePdf({
-    ...input,
-    qrAsset
-  })
+const pdfFile = await renderInvoicePdf({
+...input,
+qrAsset
+})
 
-  const ticketFile = await renderThermalTicket({
-    ...input,
-    qrAsset
-  })
+const ticketFile = await renderThermalTicket({
+...input,
+qrAsset
+})
 
-  const uploaded = await uploadArtifacts({
-    environment: input.environment,
-    tenantId: input.tenantId,
-    invoiceId: input.invoiceId,
-    pdfFile,
-    ticketFile,
-    qrAsset
-  })
+const uploaded = await uploadArtifacts({
+environment: input.environment,
+tenantId: input.tenantId,
+invoiceId: input.invoiceId,
+pdfFile,
+ticketFile,
+qrAsset
+})
 
-  return {
-    qrPayloadJson: qrPayload,
-    pdfStoragePath: uploaded.pdfStoragePath,
-    ticketStoragePath: uploaded.ticketStoragePath
-  }
+return {
+qrPayloadJson: qrPayload,
+pdfStoragePath: uploaded.pdfStoragePath,
+ticketStoragePath: uploaded.ticketStoragePath
+}
 }
 
 ## 19. Observabilidad
@@ -432,7 +434,6 @@ tiempo de upload
 
 porcentaje de éxito por fase
 
-
 ## 20. Reglas de idempotencia
 
 El render debe ser idempotente.
@@ -444,7 +445,6 @@ no debe duplicar documentos operativos en DB
 puede sobrescribir artefactos del mismo path si la política lo permite
 
 debe mantener consistencia del resultado final
-
 
 ## 21. Branding y customización
 
@@ -466,7 +466,6 @@ textos legales configurables
 
 estilos por vertical
 
-
 ## 22. Fuera de alcance de Fase 1
 
 templates avanzados por industria
@@ -479,27 +478,25 @@ impresión fiscal legacy
 
 envío por email/WhatsApp
 
-
 ## 23. Checklist de implementación
 
- build QR payload
+build QR payload
 
- render QR asset
+render QR asset
 
- render PDF
+render PDF
 
- render thermal ticket
+render thermal ticket
 
- upload artifacts
+upload artifacts
 
- persist paths
+persist paths
 
- mark render completed
+mark render completed
 
- reintentos controlados
+reintentos controlados
 
- logs y métricas
-
+logs y métricas
 
 ## 24. Conclusión
 

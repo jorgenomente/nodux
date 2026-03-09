@@ -70,7 +70,9 @@ export default function TicketTemplateEditors({
   return (
     <>
       <div className="rounded-lg border border-zinc-200 p-4">
-        <h2 className="text-sm font-semibold text-zinc-900">Ticket no fiscal</h2>
+        <h2 className="text-sm font-semibold text-zinc-900">
+          Ticket no fiscal
+        </h2>
         <p className="mt-1 text-xs text-zinc-600">
           Se usa en POS y en ventas al hacer clic en Imprimir ticket.
         </p>

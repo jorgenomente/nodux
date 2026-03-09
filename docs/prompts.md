@@ -12,6 +12,22 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-03-09 19:30 -03 — Repo hygiene: ignorar certificados locales de ARCA
+
+**Lote:** repo-gitignore-arca-certificados-20260309
+**Objetivo:** Excluir del worktree los certificados locales bajo `docs/ARCA/certificados/` sin ocultar la carpeta `docs/ARCA/padron 5/`, que sigue siendo documentación futura válida.
+
+**Prompt**
+vamos a tomarlos en cuenta. seguimos dejando a un lado los certificados le podemos agregar un git ignore o algo asi para que no se tomen mas en cuenta y lo demas de padron 5 esta bien eso es un plan que estoy haciendo para implementar en el futuro
+
+## 2026-03-09 19:05 -03 — Repo maintenance: chequeo general de Prettier y hardening seguro
+
+**Lote:** repo-prettier-hardening-20260309
+**Objetivo:** Auditar el estado real de Prettier en el repo, excluir artefactos generados y normalizar formato pendiente sin romper validaciones.
+
+**Prompt**
+podemos hacer un chequeo general con prettier y resolver lo que este pendiente siempre y cuando no se rompa nada
+
 ## 2026-03-08 22:03 -03 — ARCA Lote 2 backend-only: runtime base worker fiscal
 
 **Lote:** arca-lote-2-worker-base
@@ -50,7 +66,7 @@ Si, ademas necesito dentro de ARCA un activity log que resuman los cambios que s
 **Objetivo:** Auditar `docs/ARCA` completo y corregir organización, coherencia, contradicciones de contrato y formato para dejar una fuente de verdad canónica y operable.
 
 **Prompt**
-Ok entonces haz los cambios necesarios para que todo este  al 100%
+Ok entonces haz los cambios necesarios para que todo este al 100%
 
 ## 2026-03-08 14:32 -03 — ARCA docs: limpieza de rutas y consolidación
 
@@ -100,7 +116,7 @@ Bueno vamos a esperar un momento, vamos a ir iterando desde el principio. me gus
 **Objetivo:** Exponer en `/settings` el estado storefront, `orgSlug` y links públicos por sucursal para validar QA manual sin SQL.
 
 **Prompt**
-estoy intentando hacer el QA de qa-online-store-manual.md pero  no se como verificar que la org tenga storefront_settings.is_enabled = true y Verificar que org y sucursales activas tengan `storefront_slug` despues tampoco sabria cual es mi /<orgslug> podriamos colocar esa informacion en https://app.nodux.app/settings en una nueva seccion de Tienda Online donde ahi pueda ver por sucursal los links publicos y el link de ORG que sirve para redirigir a las diferentes tiendas de las sucursales
+estoy intentando hacer el QA de qa-online-store-manual.md pero no se como verificar que la org tenga storefront_settings.is_enabled = true y Verificar que org y sucursales activas tengan `storefront_slug` despues tampoco sabria cual es mi /<orgslug> podriamos colocar esa informacion en https://app.nodux.app/settings en una nueva seccion de Tienda Online donde ahi pueda ver por sucursal los links publicos y el link de ORG que sirve para redirigir a las diferentes tiendas de las sucursales
 
 ## 2026-03-01 21:50 -03 — Docs: QA manual ecommerce y pedidos online v1
 
@@ -2787,7 +2803,7 @@ vamos a trabajar sobre /orders/id en el momento de confirmar recepecion de produ
 **Objetivo:** Ajustar UX de recepción para mostrar `ordenado` al inicio, agregar input de `precio unitario de venta` (actualiza catálogo en confirmación) con sugerido por margen proveedor/fallback org y habilitar configuración de margen default en `/settings/preferences`.
 
 **Prompt**
-ok ahora vamos a trabajar sobre /orders/id donde confirmo la recepcion. hay una lista del pedido eso esta bien pero lo que dice ordenado me sale de ultimo en la tabla, necesito que salga de primero. aqui debemos agregar el input de precio de venta, que va a modificar el precio del producto del sistema, es el item de precio unitario, el que se usa como precio final en el pos, este input aqui servira para modificarle el precio al articulo en el catalogo general, asi este es un ajuste de precio aplicado inmediatamente. me tiene que dar un sugerido de acuerdo a lo que este registrado como % de ganancia en el proveedor o el 40% por defecto. asi como lo hemos hecho hasta ahora en otros casos. Este precio unitario de venta no tiene nada que ver con las facturas y la orden, esto es para actualizar el precio en el momento de confirmada la recpecion para evitar tener que hacerlo manualmente en el futuro. Entonces por defecto aqui en ese einput debe venir el precio unitario que tiene el producto en el sistema, es el mismo que el precio de venta, entonces agrega eso como una columna nueva despues de precio proveedor. Me gustaria ademas desde configuracion en preferencias  tener un input donde yo pueda configurar ese % de ganancia por defecto, no se si existe ya esto, pero ahora lo establecimos como 40% pero si quisiera ser mas exacto y quiero establecer por defecto 41.5% para realizar estos calculos estimativos en las diferentes paginas, entonces esto yo lo pueda cambiar desde configuracion.
+ok ahora vamos a trabajar sobre /orders/id donde confirmo la recepcion. hay una lista del pedido eso esta bien pero lo que dice ordenado me sale de ultimo en la tabla, necesito que salga de primero. aqui debemos agregar el input de precio de venta, que va a modificar el precio del producto del sistema, es el item de precio unitario, el que se usa como precio final en el pos, este input aqui servira para modificarle el precio al articulo en el catalogo general, asi este es un ajuste de precio aplicado inmediatamente. me tiene que dar un sugerido de acuerdo a lo que este registrado como % de ganancia en el proveedor o el 40% por defecto. asi como lo hemos hecho hasta ahora en otros casos. Este precio unitario de venta no tiene nada que ver con las facturas y la orden, esto es para actualizar el precio en el momento de confirmada la recpecion para evitar tener que hacerlo manualmente en el futuro. Entonces por defecto aqui en ese einput debe venir el precio unitario que tiene el producto en el sistema, es el mismo que el precio de venta, entonces agrega eso como una columna nueva despues de precio proveedor. Me gustaria ademas desde configuracion en preferencias tener un input donde yo pueda configurar ese % de ganancia por defecto, no se si existe ya esto, pero ahora lo establecimos como 40% pero si quisiera ser mas exacto y quiero establecer por defecto 41.5% para realizar estos calculos estimativos en las diferentes paginas, entonces esto yo lo pueda cambiar desde configuracion.
 
 ## 2026-03-01 12:46 -03 — Sales Statistics: separar ventas vs proveedores/pagos en desplegables
 
@@ -2841,7 +2857,7 @@ puedes solcuionar los lint errors pendientes?
 **Objetivo:** Permitir configurar por sucursal el contenido del ticket (encabezado/pie/nota fiscal de prueba) desde `/settings/branches` y usar esa configuración al imprimir en POS y en `/sales/[saleId]/ticket`, preparando base para futura facturación fiscal.
 
 **Prompt**
-vamos a trabajar ahora sobre la impresion de tickets en el pos tengo los productos del carrito y el boton de imprimir ticket, me gustaria entonces poder configurar lo que va a aparecer en ese ticket, quizas podamos hacerlo desde configuracion, que yo pueda decidir que texto va a aparecer en el ticket, tener una especie de input de texto donde se especifique que es lo que va a decir en el ticket, esto es importante porque es posible que la informacion sea distinta por sucursal entonces debemos claramente poder definir que va a decir el ticket segun sucursal, esta misma preparacion la vamos a necesitar para cobrar y facturar, porque al facturar obligatoriamente se tiene que imprimir el ticket fiscal que va a tener la informacion de facturacion, pero todavia no hago la integracion con el arca o el proveedor de facturas fiscales estatales. Por ahora en ese caso lo dejamos como crear un pdf de prueba en ambos casos. La cuestion es esta, tengo una impresora USB  y ethernet de 80mm ESC/POS command support. Y me gustaria hacer pruebas, vamos primero a definir bien la idea, si me entiendes lo que quiero hacer, como lo hariamos y que necesitariamos
+vamos a trabajar ahora sobre la impresion de tickets en el pos tengo los productos del carrito y el boton de imprimir ticket, me gustaria entonces poder configurar lo que va a aparecer en ese ticket, quizas podamos hacerlo desde configuracion, que yo pueda decidir que texto va a aparecer en el ticket, tener una especie de input de texto donde se especifique que es lo que va a decir en el ticket, esto es importante porque es posible que la informacion sea distinta por sucursal entonces debemos claramente poder definir que va a decir el ticket segun sucursal, esta misma preparacion la vamos a necesitar para cobrar y facturar, porque al facturar obligatoriamente se tiene que imprimir el ticket fiscal que va a tener la informacion de facturacion, pero todavia no hago la integracion con el arca o el proveedor de facturas fiscales estatales. Por ahora en ese caso lo dejamos como crear un pdf de prueba en ambos casos. La cuestion es esta, tengo una impresora USB y ethernet de 80mm ESC/POS command support. Y me gustaria hacer pruebas, vamos primero a definir bien la idea, si me entiendes lo que quiero hacer, como lo hariamos y que necesitariamos
 
 excelente avancemos
 
@@ -2884,7 +2900,7 @@ estoy probando darle al boton de imprimir ticket y me dice Habilita pop-ups para
 
 **Prompt**
 estoy en https://app.nodux.app/settings/users y cree un nuevo usuario adming org en
-  la org pero me da un mensaje que dice Se creó la cuenta en Auth, pero falló la asignación a la organización/sucursales. El usuario no se creo, podemos ver que puede estar pasando?
+la org pero me da un mensaje que dice Se creó la cuenta en Auth, pero falló la asignación a la organización/sucursales. El usuario no se creo, podemos ver que puede estar pasando?
 
 ## 2026-03-01 15:38 -03 — Diagnóstico prod: Auth creado pero falla asignación org/sucursales
 
@@ -2900,7 +2916,7 @@ sigo teniendo este mensaje Se creó la cuenta en Auth, pero falló la asignació
 **Objetivo:** Evitar creación de usuarios huérfanos cuando falle la asignación a org/sucursales y permitir recuperar usuarios huérfanos previos por email.
 
 **Prompt**
-si intente dos usarios previos que estan huerfanos que son samuel@demo.com y samuelg@demo.com estaba intentando agregarlos a la org demo veo que ya se agrego este usuario  de prueba Diag User
+si intente dos usarios previos que estan huerfanos que son samuel@demo.com y samuelg@demo.com estaba intentando agregarlos a la org demo veo que ya se agrego este usuario de prueba Diag User
 
 diag.users.fix2.1772390282950@demo.com
 
@@ -2920,7 +2936,7 @@ estoy intentando hacer pruebas de impresion de ticket y no me sale completa la i
 **Objetivo:** Aterrizar la idea de tienda online con slugs por org/sucursal, pedidos online, tracking por link, WhatsApp asistido y pagos con comprobante como diseño Post-MVP documentado y listo para implementación por fases.
 
 **Prompt**
-Ves posible poder implementar una tienda online con la informacion que tenemos hasta  ahora? Se me ocurre poder otorgar un link publico por tienda con su org en el dominio. por ejemplo app.nodux.app/tiendadecafe/ y si tiene varias sucursales entonces se agrega la sucursal como app.nodux.app/tiendadecafe/caballito y el link de org sirva para que te permita selecionar la sucursal. la idea es que los productos aparezcan en una tienda online y se vea el stock y el precio y una imagen representativa o una foto del producto, y asi de esta manera los clientes podrian acceder online y hacer pedidos por alli directamente, podriamos agregar una pestana de pedidos online donde pueda ver los pedidos y administrarlos y que el cliente notifique el pedido por whatsapp a manera de alerta, que pague en la tienda al momento de retirarlo o que pueda pagar por transferencia o QR y que adjunte el comprobante. el pedido puede ir cambiando de estado es decir cuando se recoge y se almacena se marca como guardado y una vez entregado se marca como entregado. quizas todo esto puede vivir desde un link unico que se crea en el momento de la orden para que el cliente pueda trackear su pedido y ver cuando ya ha sido guardado y completado. eso lo maneja el staff en el momento que lo guarda entonces lo marca y quizas tener alli directo un mensaje por whatasapp que se le envie al cliente, porque obicamente el cliente va a dejar su numero cuando hace la orden y se le notifica que ya esta guardada su orden y ahi mismo se le puede decir lo que no hay o si algo no llego en el proveedor o si cambio de precio lo que sea. Creo que ya estoy yendome demasiado asi que te dejo para que me ayudes a aterrizar esta idea y me digas si es posible hacerlo, lo importante es que debe estar conectada con su plataforma nodux asi se ve el control del stock y tambien tiene que ser muy amigable para el usuario ya que sera una tienda online. que te parece la idea? seguramente si el cliente tiene su propio dominio podria usar ese link como para colocarle el dominio a esa pagina? o quizas hacer una espeice de redirect para que sea mas sencillo? dime que pinesas primero despues ejecutamos
+Ves posible poder implementar una tienda online con la informacion que tenemos hasta ahora? Se me ocurre poder otorgar un link publico por tienda con su org en el dominio. por ejemplo app.nodux.app/tiendadecafe/ y si tiene varias sucursales entonces se agrega la sucursal como app.nodux.app/tiendadecafe/caballito y el link de org sirva para que te permita selecionar la sucursal. la idea es que los productos aparezcan en una tienda online y se vea el stock y el precio y una imagen representativa o una foto del producto, y asi de esta manera los clientes podrian acceder online y hacer pedidos por alli directamente, podriamos agregar una pestana de pedidos online donde pueda ver los pedidos y administrarlos y que el cliente notifique el pedido por whatsapp a manera de alerta, que pague en la tienda al momento de retirarlo o que pueda pagar por transferencia o QR y que adjunte el comprobante. el pedido puede ir cambiando de estado es decir cuando se recoge y se almacena se marca como guardado y una vez entregado se marca como entregado. quizas todo esto puede vivir desde un link unico que se crea en el momento de la orden para que el cliente pueda trackear su pedido y ver cuando ya ha sido guardado y completado. eso lo maneja el staff en el momento que lo guarda entonces lo marca y quizas tener alli directo un mensaje por whatasapp que se le envie al cliente, porque obicamente el cliente va a dejar su numero cuando hace la orden y se le notifica que ya esta guardada su orden y ahi mismo se le puede decir lo que no hay o si algo no llego en el proveedor o si cambio de precio lo que sea. Creo que ya estoy yendome demasiado asi que te dejo para que me ayudes a aterrizar esta idea y me digas si es posible hacerlo, lo importante es que debe estar conectada con su plataforma nodux asi se ve el control del stock y tambien tiene que ser muy amigable para el usuario ya que sera una tienda online. que te parece la idea? seguramente si el cliente tiene su propio dominio podria usar ese link como para colocarle el dominio a esa pagina? o quizas hacer una espeice de redirect para que sea mas sencillo? dime que pinesas primero despues ejecutamos
 
 excelente avanza
 
@@ -3134,7 +3150,7 @@ seleccione una imagen, en un producto y despues le di guardar cambios y me dice 
 **Objetivo:** Garantizar que el guardado de imagen falle explícitamente si Storage falla y mostrar preview visible en cada tarjeta/fila de producto en `/products`.
 
 **Prompt**
-ahora me dice imagen cargada pero no estoy seguro de si se aplico porque en la tienda  no me aparece la imagen. podemos agregar tambien un pequeno preview de la imagen del producto en /products? en la tarjeta del articulo
+ahora me dice imagen cargada pero no estoy seguro de si se aplico porque en la tienda no me aparece la imagen. podemos agregar tambien un pequeno preview de la imagen del producto en /products? en la tarjeta del articulo
 
 ## 2026-03-03 15:04 -03 — Fix RLS upload imágenes producto en local
 
@@ -3210,7 +3226,7 @@ excelente vamos con 1
 **Objetivo:** En el formulario de alta de producto, agregar botón `Generar` en `Código interno` con lógica basada en `Marca` y reforzar prevención de marcas duplicadas por variaciones.
 
 **Prompt**
-me gustaria ademas en este mismo formulario en donde dice   codigo interno que justo en ese input que haya un pequeno boton que diga generar, esto es para generar un codigo interno de articulo que tenga sentido. Se me ocurre que los productos de X marca tengan un codigo de producto muy similar entonces quizas se puede tomar el dato que esta en marca como referencia para generar, es necesario llenar el input marca para poder usar este boton de generar codigo interno. para el input de marca debemos usar una logica similar a la de nombre de articulo para evitar que hayan marcas duplicadas que cambien por alguna palabra o letra y no haya confusion o se vean varias marcas que en realidad representan a la misma marca
+me gustaria ademas en este mismo formulario en donde dice codigo interno que justo en ese input que haya un pequeno boton que diga generar, esto es para generar un codigo interno de articulo que tenga sentido. Se me ocurre que los productos de X marca tengan un codigo de producto muy similar entonces quizas se puede tomar el dato que esta en marca como referencia para generar, es necesario llenar el input marca para poder usar este boton de generar codigo interno. para el input de marca debemos usar una logica similar a la de nombre de articulo para evitar que hayan marcas duplicadas que cambien por alguna palabra o letra y no haya confusion o se vean varias marcas que en realidad representan a la misma marca
 
 ## 2026-03-05 12:06 -03 — Carga de datos de prueba y ajuste de seed por unicidad normalizada
 
@@ -3352,8 +3368,8 @@ no podemos hacer un flujo para que todo esto se haga automatico?
 **Objetivo:** Mejorar `/settings/fiscal` para informar explícitamente cuando un `pto_vta` ya está asignado a otra sucursal y ajustar el demo local moviendo `00002` a Caballito.
 
 **Prompt**
-hay algo que no entiendo y es que ya hice lo de Guardar credencial Produccion pero cuando le doy Guardar PV Produccion y me dice 
-Revisa los datos cargados. Se requiere CUIT válido, certificado `.crt/.pem`, private key `.key/.pem` y punto de venta positivo. No estoy seguro si tengo que volver a cargar todo si en teoria ya esta cargado y guardado. puedes chequqear que ambas secciones especialmente la de punto de venta no me requiera cargar nuevamente los datos arriba ya que en teoria ya estan cargados y percistidos? esa seccion deberia ser solo para asignar punto de venta pero me dice esto 
+hay algo que no entiendo y es que ya hice lo de Guardar credencial Produccion pero cuando le doy Guardar PV Produccion y me dice
+Revisa los datos cargados. Se requiere CUIT válido, certificado `.crt/.pem`, private key `.key/.pem` y punto de venta positivo. No estoy seguro si tengo que volver a cargar todo si en teoria ya esta cargado y guardado. puedes chequqear que ambas secciones especialmente la de punto de venta no me requiera cargar nuevamente los datos arriba ya que en teoria ya estan cargados y percistidos? esa seccion deberia ser solo para asignar punto de venta pero me dice esto
 Revisa los datos cargados. Se requiere CUIT válido, certificado `.crt/.pem`, private key `.key/.pem` y punto de venta positivo.
 
 ok para estos casos entonces el mensaje Revisa el punto de venta fiscal. Debes elegir una sucursal válida, cargar un `pto_vta` positivo y usar un estado permitido. deberia decir ya se esta usando este punto de venta en otra sucursal. y si vamos a moverlo a caballito asi queda todo ahi
@@ -3372,7 +3388,7 @@ adelante haz el proximo paso
 **Objetivo:** Permitir validar credenciales nuevas desde `/settings/fiscal` con una prueba segura `WSAA + FEDummy` por ambiente y PV activo, sin depender de terminal ni de jobs pendientes.
 
 **Prompt**
-para que sirve esto   npm run fiscal:worker:prod-safe? para probar cada vez que agregue credenciales nuevas?
+para que sirve esto npm run fiscal:worker:prod-safe? para probar cada vez que agregue credenciales nuevas?
 
 excelente implementemos eso entonces
 
@@ -3513,4 +3529,4 @@ de igual manera no deberia tardar tanto, piensa que estos son clientes que estan
 adelante
 
 mplementemos
-  facturacion sincrona con fallback asincrono
+facturacion sincrona con fallback asincrono

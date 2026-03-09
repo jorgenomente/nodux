@@ -55,7 +55,9 @@ const parseExecutionModeEnv = (
 };
 
 const main = async () => {
-  const executionMode = parseExecutionModeEnv(process.env.FISCAL_EXECUTION_MODE);
+  const executionMode = parseExecutionModeEnv(
+    process.env.FISCAL_EXECUTION_MODE,
+  );
   const dryRun = parseBooleanEnv(process.env.FISCAL_DRY_RUN, true);
   const batchSize = parseBatchSizeEnv(process.env.FISCAL_BATCH_SIZE);
   const encryption = getFiscalEncryptionConfig();

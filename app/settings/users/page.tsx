@@ -48,7 +48,9 @@ const findAuthUserIdByEmail = async (
     const users = data.users ?? [];
     const user = users.find(
       (candidate) =>
-        String(candidate.email ?? '').trim().toLowerCase() === email,
+        String(candidate.email ?? '')
+          .trim()
+          .toLowerCase() === email,
     );
     if (user?.id) return user.id;
     if (users.length < 200) break;
@@ -123,7 +125,8 @@ const assignMembershipWithServiceRole = async ({
     const { error: insertMembershipsError } = await admin
       .from('branch_memberships')
       .upsert(memberships, { onConflict: 'org_id,branch_id,user_id' });
-    if (insertMembershipsError) return { error: insertMembershipsError.message };
+    if (insertMembershipsError)
+      return { error: insertMembershipsError.message };
   }
 
   await admin.from('audit_log').insert([

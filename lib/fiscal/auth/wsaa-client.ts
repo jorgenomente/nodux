@@ -47,11 +47,15 @@ const decodeXmlEntities = (value: string) =>
     .replaceAll('&amp;', '&');
 
 const extractTagValue = (xml: string, tagName: string) => {
-  const match = xml.match(new RegExp(`<${tagName}>([\\s\\S]*?)</${tagName}>`, 'i'));
+  const match = xml.match(
+    new RegExp(`<${tagName}>([\\s\\S]*?)</${tagName}>`, 'i'),
+  );
   return match?.[1]?.trim() ?? null;
 };
 
-const buildLoginCmsEnvelope = (cmsBase64: string) => `<?xml version="1.0" encoding="UTF-8"?>
+const buildLoginCmsEnvelope = (
+  cmsBase64: string,
+) => `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:wsaa="http://wsaa.view.sua.dvadac.desein.afip.gov">
   <soapenv:Header />
   <soapenv:Body>
@@ -61,7 +65,10 @@ const buildLoginCmsEnvelope = (cmsBase64: string) => `<?xml version="1.0" encodi
   </soapenv:Body>
 </soapenv:Envelope>`;
 
-const parseLoginCmsResponse = (soapXml: string, taxpayerCuit: string): WsaaContext => {
+const parseLoginCmsResponse = (
+  soapXml: string,
+  taxpayerCuit: string,
+): WsaaContext => {
   const encodedTicket = extractTagValue(soapXml, 'loginCmsReturn');
   if (!encodedTicket) {
     throw new Error('WSAA response does not contain loginCmsReturn');
@@ -233,7 +240,8 @@ export const getOrRefreshWsaaTicket = async (params: {
   }
 
   const timeoutMs =
-    params.timeoutMs ?? Number(process.env.FISCAL_WSAA_TIMEOUT_MS || DEFAULT_WSAA_TIMEOUT_MS);
+    params.timeoutMs ??
+    Number(process.env.FISCAL_WSAA_TIMEOUT_MS || DEFAULT_WSAA_TIMEOUT_MS);
   const signer = params.signer ?? new ForgeCmsSigner();
   const tra: WsaaTra = buildTra({
     service: params.credentials.wsaa_service_name,

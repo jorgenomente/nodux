@@ -12,7 +12,10 @@ import SalePaymentCorrectionForm from '@/app/sales/SalePaymentCorrectionForm';
 import { formatOperationalPaymentMethod } from '@/lib/payments/catalog';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 import { triggerFiscalWorker } from '@/lib/fiscal/worker/trigger-worker';
-import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import {
+  hasStaffModuleEnabled,
+  resolveStaffHome,
+} from '@/lib/auth/staff-modules';
 
 export const dynamic = 'force-dynamic';
 
@@ -151,8 +154,13 @@ export default async function SaleDetailPage({
   const orgId = session.orgId;
   const role = session.effectiveRole;
   if (role === 'staff') {
-    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
-    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    const { data: modules } = await supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
     if (!hasStaffModuleEnabled(resolvedModules, 'sales')) {
       const home = resolveStaffHome(resolvedModules);
       redirect(home);
@@ -183,7 +191,8 @@ export default async function SaleDetailPage({
           .eq('sale_id', saleId)
           .maybeSingle()
       : { data: null };
-  const fiscalInvoice = (fiscalInvoiceData ?? null) as SaleFiscalInvoiceRow | null;
+  const fiscalInvoice = (fiscalInvoiceData ??
+    null) as SaleFiscalInvoiceRow | null;
 
   const { data: paymentDevicesData } = await supabase
     .from('pos_payment_devices' as never)
@@ -302,7 +311,8 @@ export default async function SaleDetailPage({
     const forwardedProto = requestHeaders.get('x-forwarded-proto');
     const forwardedHost = requestHeaders.get('x-forwarded-host');
     const host = forwardedHost || requestHeaders.get('host') || 'app.nodux.app';
-    const protocol = forwardedProto || (host.includes('localhost') ? 'http' : 'https');
+    const protocol =
+      forwardedProto || (host.includes('localhost') ? 'http' : 'https');
     await triggerFiscalWorker({
       baseUrl: `${protocol}://${host}`,
       executionMode: 'live',
@@ -356,7 +366,8 @@ export default async function SaleDetailPage({
         ) : null}
         {notice === 'invoice_queued' ? (
           <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-            Facturación fiscal iniciada. La venta quedó encolada para procesamiento.
+            Facturación fiscal iniciada. La venta quedó encolada para
+            procesamiento.
           </p>
         ) : null}
         {notice === 'missing_fields' ? (
@@ -436,9 +447,11 @@ export default async function SaleDetailPage({
           </p>
           {fiscalInvoice ? (
             <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-              Factura fiscal {formatFiscalRenderStatus(fiscalInvoice.render_status).toLowerCase()}.
-              {' '}
-              CAE: {fiscalInvoice.cae ?? '—'} · Comprobante{' '}
+              Factura fiscal{' '}
+              {formatFiscalRenderStatus(
+                fiscalInvoice.render_status,
+              ).toLowerCase()}
+              . CAE: {fiscalInvoice.cae ?? '—'} · Comprobante{' '}
               {fiscalInvoice.pto_vta.toString().padStart(4, '0')}-
               {String(fiscalInvoice.cbte_nro).padStart(8, '0')}
             </div>

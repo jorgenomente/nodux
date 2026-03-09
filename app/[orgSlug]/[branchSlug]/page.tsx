@@ -83,7 +83,9 @@ export default async function BranchStorefrontPage({
     }
 
     const branchRows = (branchesData ?? []) as StorefrontBranchRow[];
-    const selectedBranch = branchRows.find((row) => row.branch_slug === branchSlug);
+    const selectedBranch = branchRows.find(
+      (row) => row.branch_slug === branchSlug,
+    );
 
     if (!selectedBranch) {
       notFound();

@@ -49,15 +49,15 @@ Debe sentirse como **infraestructura operativa para retail.**
 
 La landing se compone de las siguientes secciones:
 
-1. Hero Section  
-2. Problema del Retail  
-3. El Caos Operativo  
-4. Introducción de la Categoría  
-5. Qué Hace NODUX  
-6. Comercio Unificado (Online + Tienda)  
-7. Beneficios Operativos  
-8. Cómo Funciona  
-9. Prueba Social  
+1. Hero Section
+2. Problema del Retail
+3. El Caos Operativo
+4. Introducción de la Categoría
+5. Qué Hace NODUX
+6. Comercio Unificado (Online + Tienda)
+7. Beneficios Operativos
+8. Cómo Funciona
+9. Prueba Social
 10. Call to Action
 
 ---
@@ -111,7 +111,7 @@ POS
 Excel  
 WhatsApp  
 Trello  
-sistemas administrativos  
+sistemas administrativos
 
 Cuando la operación crece, este modelo genera:
 

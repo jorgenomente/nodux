@@ -7,7 +7,10 @@ import PageShell from '@/app/components/PageShell';
 import InvoiceImageField from '@/app/payments/InvoiceImageField';
 import PaymentAmountField from '@/app/payments/PaymentAmountField';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
-import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import {
+  hasStaffModuleEnabled,
+  resolveStaffHome,
+} from '@/lib/auth/staff-modules';
 
 type SearchParams = {
   branch_id?: string;
@@ -195,8 +198,13 @@ export default async function PaymentsPage({
   const role = session.effectiveRole;
 
   if (role === 'staff') {
-    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
-    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    const { data: modules } = await supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
     if (!hasStaffModuleEnabled(resolvedModules, 'payments')) {
       const home = resolveStaffHome(resolvedModules);
       redirect(home);

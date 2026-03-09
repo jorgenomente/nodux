@@ -19,7 +19,8 @@ const renderIvaItems = (items?: WsfeFeCAERequest['feDetReq']['ivaItems']) => {
   if (!items?.length) return '';
   return `<Iva>${items
     .map(
-      (item) => `<AlicIva><Id>${item.id}</Id><BaseImp>${item.baseImp}</BaseImp><Importe>${item.importe}</Importe></AlicIva>`,
+      (item) =>
+        `<AlicIva><Id>${item.id}</Id><BaseImp>${item.baseImp}</BaseImp><Importe>${item.importe}</Importe></AlicIva>`,
     )
     .join('')}</Iva>`;
 };
@@ -34,7 +35,9 @@ const renderTributes = (items?: WsfeFeCAERequest['feDetReq']['tributes']) => {
     .join('')}</Tributos>`;
 };
 
-const buildFeCAEEnvelope = (request: WsfeFeCAERequest) => `<?xml version="1.0" encoding="utf-8"?>
+const buildFeCAEEnvelope = (
+  request: WsfeFeCAERequest,
+) => `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
   <soap:Body>
     <FECAESolicitar xmlns="http://ar.gov.afip.dif.FEV1/">
@@ -101,7 +104,9 @@ const buildFECompUltimoAutorizadoEnvelope = (params: {
 </soap:Envelope>`;
 
 const extractTagValue = (xml: string, tagName: string) => {
-  const match = xml.match(new RegExp(`<${tagName}>([\\s\\S]*?)</${tagName}>`, 'i'));
+  const match = xml.match(
+    new RegExp(`<${tagName}>([\\s\\S]*?)</${tagName}>`, 'i'),
+  );
   return match?.[1]?.trim() ?? null;
 };
 
@@ -162,7 +167,8 @@ export const submitFECAESolicitar = async (params: {
   timeoutMs?: number;
 }): Promise<{ normalized: FiscalNormalizedResult; rawXml: string }> => {
   const timeoutMs =
-    params.timeoutMs ?? Number(process.env.FISCAL_WSFE_TIMEOUT_MS || DEFAULT_WSFE_TIMEOUT_MS);
+    params.timeoutMs ??
+    Number(process.env.FISCAL_WSFE_TIMEOUT_MS || DEFAULT_WSFE_TIMEOUT_MS);
   const endpoint = WSFE_ENDPOINTS[params.environment];
 
   const rawXml = await postSoapXmlOverHttps({

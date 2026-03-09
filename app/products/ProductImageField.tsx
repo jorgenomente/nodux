@@ -186,11 +186,25 @@ export default function ProductImageField({
   const [removeImage, setRemoveImage] = useState(false);
 
   return (
-    <div className={compact ? 'space-y-1 md:col-span-3' : 'space-y-2 md:col-span-2'}>
+    <div
+      className={
+        compact ? 'space-y-1 md:col-span-3' : 'space-y-2 md:col-span-2'
+      }
+    >
       <input type="hidden" name={inputName} value={compressedDataUrl} />
-      <input type="hidden" name={removeFlagName} value={removeImage ? 'true' : 'false'} />
+      <input
+        type="hidden"
+        name={removeFlagName}
+        value={removeImage ? 'true' : 'false'}
+      />
 
-      <label className={compact ? 'text-xs text-zinc-600' : 'text-sm font-medium text-zinc-700'}>
+      <label
+        className={
+          compact
+            ? 'text-xs text-zinc-600'
+            : 'text-sm font-medium text-zinc-700'
+        }
+      >
         Imagen producto
         <input
           type="file"
@@ -224,7 +238,9 @@ export default function ProductImageField({
         />
       </label>
 
-      {processing ? <p className="text-xs text-zinc-500">Procesando imagen...</p> : null}
+      {processing ? (
+        <p className="text-xs text-zinc-500">Procesando imagen...</p>
+      ) : null}
       {error ? <p className="text-xs text-rose-700">{error}</p> : null}
 
       {previewUrl && !removeImage ? (
@@ -235,7 +251,11 @@ export default function ProductImageField({
             width={640}
             height={480}
             unoptimized
-            className={compact ? 'max-h-28 w-auto rounded object-contain' : 'max-h-40 w-auto rounded object-contain'}
+            className={
+              compact
+                ? 'max-h-28 w-auto rounded object-contain'
+                : 'max-h-40 w-auto rounded object-contain'
+            }
           />
         </div>
       ) : (
@@ -260,7 +280,8 @@ export default function ProductImageField({
       ) : null}
 
       <p className="text-[11px] text-zinc-500">
-        Se convierte a JPG comprimido para usar menos almacenamiento y carga más rápida.
+        Se convierte a JPG comprimido para usar menos almacenamiento y carga más
+        rápida.
       </p>
     </div>
   );

@@ -4,7 +4,10 @@ import { redirect } from 'next/navigation';
 import DashboardFiltersClient from '@/app/dashboard/DashboardFiltersClient';
 import PageShell from '@/app/components/PageShell';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
-import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import {
+  hasStaffModuleEnabled,
+  resolveStaffHome,
+} from '@/lib/auth/staff-modules';
 
 type SearchParams = {
   branch_id?: string;
@@ -98,8 +101,13 @@ export default async function DashboardPage({
   const orgId = session.orgId;
 
   if (session.effectiveRole === 'staff') {
-    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
-    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    const { data: modules } = await supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
     if (!hasStaffModuleEnabled(resolvedModules, 'dashboard')) {
       const home = resolveStaffHome(resolvedModules);
       redirect(home);

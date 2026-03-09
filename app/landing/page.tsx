@@ -112,14 +112,14 @@ function SectionTitle({
   return (
     <header className="mx-auto flex w-full max-w-5xl flex-col gap-3 px-6">
       <p
-        className={`text-xs font-semibold uppercase tracking-[0.18em] ${
+        className={`text-xs font-semibold tracking-[0.18em] uppercase ${
           inverse ? 'text-cyan-300' : 'text-cyan-700'
         }`}
       >
         {eyebrow}
       </p>
       <h2
-        className={`text-2xl font-semibold leading-tight md:text-3xl ${
+        className={`text-2xl leading-tight font-semibold md:text-3xl ${
           inverse ? 'text-white' : 'text-slate-900'
         }`}
       >
@@ -141,7 +141,7 @@ function SectionTitle({
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-cyan-50 text-slate-900">
-      <section className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-16 pt-12 md:pt-16">
+      <section className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pt-12 pb-16 md:pt-16">
         <header className="flex items-center justify-between">
           <p className="text-sm font-semibold tracking-[0.2em] text-slate-800">
             NODUX
@@ -159,7 +159,7 @@ export default function LandingPage() {
             <p className="inline-flex rounded-full border border-cyan-200 bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-800">
               Retail Operating System
             </p>
-            <h1 className="text-4xl font-semibold leading-tight text-slate-950 md:text-6xl">
+            <h1 className="text-4xl leading-tight font-semibold text-slate-950 md:text-6xl">
               El sistema operativo de tu tienda.
             </h1>
             <p className="max-w-xl text-base text-slate-700 md:text-lg">
@@ -189,7 +189,7 @@ export default function LandingPage() {
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-cyan-700">
+            <p className="text-xs font-semibold tracking-[0.15em] text-cyan-700 uppercase">
               Flujo operativo conectado
             </p>
             <ol className="mt-4 grid gap-2 text-sm text-slate-700">
@@ -236,7 +236,7 @@ export default function LandingPage() {
         />
         <div className="mx-auto mt-8 grid w-full max-w-5xl gap-4 px-6 md:grid-cols-3">
           <article className="rounded-2xl border border-slate-700 bg-slate-900 p-5">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">
+            <h3 className="text-sm font-semibold tracking-[0.14em] text-slate-300 uppercase">
               Antes
             </h3>
             <p className="mt-2 text-sm text-slate-200">
@@ -244,7 +244,7 @@ export default function LandingPage() {
             </p>
           </article>
           <article className="rounded-2xl border border-cyan-700 bg-cyan-950/40 p-5">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-cyan-200">
+            <h3 className="text-sm font-semibold tracking-[0.14em] text-cyan-200 uppercase">
               Con NODUX
             </h3>
             <p className="mt-2 text-sm text-cyan-50">
@@ -252,7 +252,7 @@ export default function LandingPage() {
             </p>
           </article>
           <article className="rounded-2xl border border-slate-700 bg-slate-900 p-5">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-300">
+            <h3 className="text-sm font-semibold tracking-[0.14em] text-slate-300 uppercase">
               Resultado
             </h3>
             <p className="mt-2 text-sm text-slate-200">
@@ -277,7 +277,9 @@ export default function LandingPage() {
               <h3 className="text-base font-semibold text-slate-900">
                 {module.title}
               </h3>
-              <p className="mt-2 text-sm text-slate-600">{module.description}</p>
+              <p className="mt-2 text-sm text-slate-600">
+                {module.description}
+              </p>
             </article>
           ))}
         </div>
@@ -290,16 +292,20 @@ export default function LandingPage() {
           description="Cada sucursal puede tener su tienda online conectada al stock real para resolver un modelo BOPIS sin sumar complejidad operativa."
         />
         <div className="mx-auto mt-8 grid w-full max-w-5xl gap-3 px-6 text-sm text-slate-700 md:grid-cols-5">
-          {['Cliente', 'Tienda online', 'Sucursal', 'Pedido listo', 'Retiro'].map(
-            (step) => (
-              <div
-                key={step}
-                className="rounded-xl border border-cyan-200 bg-white px-4 py-3 text-center font-medium"
-              >
-                {step}
-              </div>
-            ),
-          )}
+          {[
+            'Cliente',
+            'Tienda online',
+            'Sucursal',
+            'Pedido listo',
+            'Retiro',
+          ].map((step) => (
+            <div
+              key={step}
+              className="rounded-xl border border-cyan-200 bg-white px-4 py-3 text-center font-medium"
+            >
+              {step}
+            </div>
+          ))}
         </div>
       </section>
 

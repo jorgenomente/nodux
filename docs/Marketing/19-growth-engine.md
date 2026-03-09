@@ -81,7 +81,7 @@ caos al abrir nuevas sucursales
 
 Cuando el mercado reconoce estos problemas, aparece la necesidad de una solución.
 
-Este componente está descrito en la estrategia de contenido. 
+Este componente está descrito en la estrategia de contenido.
 
 10-content-strategy.md
 
@@ -107,7 +107,7 @@ En esta etapa el objetivo no es vender.
 
 Es diagnosticar el negocio del cliente.
 
-Este proceso está detallado en la narrativa de ventas. 
+Este proceso está detallado en la narrativa de ventas.
 
 11-sales-narrative.md
 
@@ -125,7 +125,7 @@ qué impacto tendría en el negocio
 
 La demo debe durar aproximadamente 10–15 minutos.
 
-La arquitectura completa de demo está definida en el documento correspondiente. 
+La arquitectura completa de demo está definida en el documento correspondiente.
 
 16-—-product-demo-architecture.…
 
@@ -145,7 +145,7 @@ caja organizada
 
 reposiciones claras
 
-Este proceso está definido en la experiencia de onboarding. 
+Este proceso está definido en la experiencia de onboarding.
 
 17-—-onboarding-experience.md
 
@@ -207,7 +207,7 @@ se activa el canal online por sucursal
 
 el cliente adopta más funcionalidades
 
-El modelo de pricing por sucursal está diseñado para capturar este crecimiento. 
+El modelo de pricing por sucursal está diseñado para capturar este crecimiento.
 
 18-—-pricing-strategy.md
 

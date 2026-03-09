@@ -224,37 +224,37 @@ Ruta pública adicional (institucional, fuera del flujo operativo MVP):
     - Módulo: Permisos Staff
     - Propósito: habilitar/deshabilitar módulos para Staff
 
-25. `/settings/users`
+27. `/settings/users`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Usuarios
     - Propósito: invitar y gestionar usuarios
 
-26. `/settings/branches`
+28. `/settings/branches`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Sucursales
     - Propósito: crear y gestionar sucursales
 
-27. `/settings/tickets`
+29. `/settings/tickets`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Tickets e impresión
     - Propósito: configurar plantilla de ticket por sucursal
 
-28. `/settings/fiscal`
+30. `/settings/fiscal`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Facturación fiscal
     - Propósito: asociar certificado fiscal de la ORG y configurar puntos de venta por ambiente/sucursal
 
-29. `/settings/preferences`
+31. `/settings/preferences`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Preferencias
     - Propósito: parámetros simples (alertas, UX)
 
-30. `/settings/audit-log`
+32. `/settings/audit-log`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Auditoría

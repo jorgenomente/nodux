@@ -152,21 +152,31 @@ const isStaffAllowedPath = (
   if (pathname.startsWith('/no-access')) return true;
   if (pathname === '/') return true;
 
-  if (pathname.startsWith('/dashboard')) return enabledModuleKeys.has('dashboard');
+  if (pathname.startsWith('/dashboard'))
+    return enabledModuleKeys.has('dashboard');
   if (pathname.startsWith('/pos')) return enabledModuleKeys.has('pos');
-  if (pathname.startsWith('/sales/statistics')) return enabledModuleKeys.has('sales_statistics');
+  if (pathname.startsWith('/sales/statistics'))
+    return enabledModuleKeys.has('sales_statistics');
   if (pathname.startsWith('/sales')) return enabledModuleKeys.has('sales');
   if (pathname.startsWith('/cashbox')) return enabledModuleKeys.has('cashbox');
-  if (pathname.startsWith('/products/lookup')) return enabledModuleKeys.has('products_lookup');
-  if (pathname.startsWith('/products')) return enabledModuleKeys.has('products');
-  if (pathname.startsWith('/suppliers')) return enabledModuleKeys.has('suppliers');
-  if (pathname.startsWith('/orders/calendar')) return enabledModuleKeys.has('orders_calendar');
+  if (pathname.startsWith('/products/lookup'))
+    return enabledModuleKeys.has('products_lookup');
+  if (pathname.startsWith('/products'))
+    return enabledModuleKeys.has('products');
+  if (pathname.startsWith('/suppliers'))
+    return enabledModuleKeys.has('suppliers');
+  if (pathname.startsWith('/orders/calendar'))
+    return enabledModuleKeys.has('orders_calendar');
   if (pathname.startsWith('/orders')) return enabledModuleKeys.has('orders');
-  if (pathname.startsWith('/payments')) return enabledModuleKeys.has('payments');
+  if (pathname.startsWith('/payments'))
+    return enabledModuleKeys.has('payments');
   if (pathname.startsWith('/clients')) return enabledModuleKeys.has('clients');
-  if (pathname.startsWith('/expirations')) return enabledModuleKeys.has('expirations');
-  if (pathname.startsWith('/onboarding')) return enabledModuleKeys.has('onboarding');
-  if (pathname.startsWith('/online-orders')) return enabledModuleKeys.has('online_orders');
+  if (pathname.startsWith('/expirations'))
+    return enabledModuleKeys.has('expirations');
+  if (pathname.startsWith('/onboarding'))
+    return enabledModuleKeys.has('onboarding');
+  if (pathname.startsWith('/online-orders'))
+    return enabledModuleKeys.has('online_orders');
   if (pathname === '/settings') return enabledModuleKeys.has('settings');
 
   return false;
@@ -306,7 +316,9 @@ export async function proxy(request: NextRequest) {
   if (isSuperadmin) {
     homePath = '/superadmin';
   } else if (role === 'staff') {
-    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
+    const { data: modules } = await supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
     const resolvedModules = (modules ?? []) as Array<{
       module_key: string;
       is_enabled: boolean;

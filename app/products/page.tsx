@@ -8,7 +8,10 @@ import ProductListFilters from '@/app/products/ProductListFilters';
 import ProductListClient from '@/app/products/ProductListClient';
 import PageShell from '@/app/components/PageShell';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
-import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import {
+  hasStaffModuleEnabled,
+  resolveStaffHome,
+} from '@/lib/auth/staff-modules';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { fetchAllPages } from '@/lib/supabase/fetch-all-pages';
 
@@ -204,14 +207,12 @@ const updateProductMetadata = async ({
   const admin = createAdminSupabaseClient();
   const { error } = await admin
     .from('products' as never)
-    .update(
-      {
-        brand: brand || null,
-        image_url: imageUrl,
-        purchase_by_pack: purchaseByPack,
-        units_per_pack: purchaseByPack ? unitsPerPack : null,
-      } as never,
-    )
+    .update({
+      brand: brand || null,
+      image_url: imageUrl,
+      purchase_by_pack: purchaseByPack,
+      units_per_pack: purchaseByPack ? unitsPerPack : null,
+    } as never)
     .eq('org_id', orgId)
     .eq('id', productId);
   if (error) {
@@ -242,8 +243,13 @@ export default async function ProductsPage({
   const orgId = session.orgId;
   const role = session.effectiveRole;
   if (role === 'staff') {
-    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
-    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    const { data: modules } = await supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
     if (!hasStaffModuleEnabled(resolvedModules, 'products')) {
       const home = resolveStaffHome(resolvedModules);
       redirect(home);
@@ -368,7 +374,9 @@ export default async function ProductsPage({
   const productsCatalog = (productsCatalogRaw as ProductCatalogRow[]).filter(
     (product) => product.id && product.name,
   );
-  const productsForAdjust = productsCatalog.filter((product) => product.is_active);
+  const productsForAdjust = productsCatalog.filter(
+    (product) => product.is_active,
+  );
   const suppliers = ((suppliersResult.data ?? []) as SupplierOption[]).filter(
     (supplier) => supplier.id && supplier.name,
   );
@@ -553,17 +561,17 @@ export default async function ProductsPage({
     const { error: upsertProductError } = await supabaseServer.rpc(
       'rpc_upsert_product',
       {
-      p_product_id: productId,
-      p_org_id: orgId,
-      p_name: name,
-      p_internal_code: internalCode || '',
-      p_barcode: barcode || '',
-      p_sell_unit_type: sellUnitType,
-      p_uom: uom || 'unit',
-      p_unit_price: unitPrice,
-      p_is_active: true,
-      p_shelf_life_days: shelfLifeDays,
-    },
+        p_product_id: productId,
+        p_org_id: orgId,
+        p_name: name,
+        p_internal_code: internalCode || '',
+        p_barcode: barcode || '',
+        p_sell_unit_type: sellUnitType,
+        p_uom: uom || 'unit',
+        p_unit_price: unitPrice,
+        p_is_active: true,
+        p_shelf_life_days: shelfLifeDays,
+      },
     );
     if (upsertProductError) {
       throw new Error(mapProductUpsertError(upsertProductError));
@@ -581,15 +589,15 @@ export default async function ProductsPage({
       const { error: upsertPrimarySupplierError } = await supabaseServer.rpc(
         'rpc_upsert_supplier_product',
         {
-        p_org_id: orgId,
-        p_supplier_id: primarySupplierId,
-        p_product_id: productId,
-        p_supplier_sku: primarySupplierSku,
-        p_supplier_product_name: primarySupplierProductName,
-        p_relation_type: 'primary',
-        p_supplier_price:
-          supplierPriceRaw === '' ? undefined : Number(supplierPriceRaw),
-      },
+          p_org_id: orgId,
+          p_supplier_id: primarySupplierId,
+          p_product_id: productId,
+          p_supplier_sku: primarySupplierSku,
+          p_supplier_product_name: primarySupplierProductName,
+          p_relation_type: 'primary',
+          p_supplier_price:
+            supplierPriceRaw === '' ? undefined : Number(supplierPriceRaw),
+        },
       );
       throwIfError(
         upsertPrimarySupplierError,
@@ -601,14 +609,14 @@ export default async function ProductsPage({
       const { error: upsertSecondarySupplierError } = await supabaseServer.rpc(
         'rpc_upsert_supplier_product',
         {
-        p_org_id: orgId,
-        p_supplier_id: secondarySupplierId,
-        p_product_id: productId,
-        p_supplier_sku: '',
-        p_supplier_product_name: '',
-        p_relation_type: 'secondary',
-        p_supplier_price: undefined,
-      },
+          p_org_id: orgId,
+          p_supplier_id: secondarySupplierId,
+          p_product_id: productId,
+          p_supplier_sku: '',
+          p_supplier_product_name: '',
+          p_relation_type: 'secondary',
+          p_supplier_price: undefined,
+        },
       );
       throwIfError(
         upsertSecondarySupplierError,
@@ -732,21 +740,20 @@ export default async function ProductsPage({
 
     const parsedImage = parseImageDataUrl(imageDataUrlRaw);
     const admin = createAdminSupabaseClient();
-    const { data: currentProductRaw, error: currentProductError } =
-      await admin
-        .from('products' as never)
-        .select('image_url')
-        .eq('org_id', orgId)
-        .eq('id', productId)
-        .maybeSingle();
+    const { data: currentProductRaw, error: currentProductError } = await admin
+      .from('products' as never)
+      .select('image_url')
+      .eq('org_id', orgId)
+      .eq('id', productId)
+      .maybeSingle();
     if (currentProductError) {
       throw new Error(
         `No se pudo leer imagen actual del producto: ${currentProductError.message}`,
       );
     }
-    const currentProduct = currentProductRaw as
-      | { image_url?: string | null }
-      | null;
+    const currentProduct = currentProductRaw as {
+      image_url?: string | null;
+    } | null;
 
     let nextImageUrl = currentProduct?.image_url ?? null;
 
@@ -766,17 +773,17 @@ export default async function ProductsPage({
     const { error: updateUpsertProductError } = await supabaseServer.rpc(
       'rpc_upsert_product',
       {
-      p_product_id: productId,
-      p_org_id: orgId,
-      p_name: name,
-      p_internal_code: internalCode || '',
-      p_barcode: barcode || '',
-      p_sell_unit_type: sellUnitType,
-      p_uom: uom || 'unit',
-      p_unit_price: unitPrice,
-      p_is_active: isActive,
-      p_shelf_life_days: shelfLifeDays,
-    },
+        p_product_id: productId,
+        p_org_id: orgId,
+        p_name: name,
+        p_internal_code: internalCode || '',
+        p_barcode: barcode || '',
+        p_sell_unit_type: sellUnitType,
+        p_uom: uom || 'unit',
+        p_unit_price: unitPrice,
+        p_is_active: isActive,
+        p_shelf_life_days: shelfLifeDays,
+      },
     );
     if (updateUpsertProductError) {
       throw new Error(mapProductUpsertError(updateUpsertProductError));
@@ -825,15 +832,15 @@ export default async function ProductsPage({
       const { error: updatePrimarySupplierError } = await supabaseServer.rpc(
         'rpc_upsert_supplier_product',
         {
-        p_org_id: orgId,
-        p_supplier_id: primarySupplierId,
-        p_product_id: productId,
-        p_supplier_sku: primarySupplierSku,
-        p_supplier_product_name: primarySupplierProductName,
-        p_relation_type: 'primary',
-        p_supplier_price:
-          supplierPriceRaw === '' ? undefined : Number(supplierPriceRaw),
-      },
+          p_org_id: orgId,
+          p_supplier_id: primarySupplierId,
+          p_product_id: productId,
+          p_supplier_sku: primarySupplierSku,
+          p_supplier_product_name: primarySupplierProductName,
+          p_relation_type: 'primary',
+          p_supplier_price:
+            supplierPriceRaw === '' ? undefined : Number(supplierPriceRaw),
+        },
       );
       throwIfError(
         updatePrimarySupplierError,
@@ -843,10 +850,10 @@ export default async function ProductsPage({
       const { error: removePrimarySupplierError } = await supabaseServer.rpc(
         'rpc_remove_supplier_product_relation',
         {
-        p_org_id: orgId,
-        p_product_id: productId,
-        p_relation_type: 'primary',
-      },
+          p_org_id: orgId,
+          p_product_id: productId,
+          p_relation_type: 'primary',
+        },
       );
       throwIfError(
         removePrimarySupplierError,
@@ -858,14 +865,14 @@ export default async function ProductsPage({
       const { error: updateSecondarySupplierError } = await supabaseServer.rpc(
         'rpc_upsert_supplier_product',
         {
-        p_org_id: orgId,
-        p_supplier_id: secondarySupplierId,
-        p_product_id: productId,
-        p_supplier_sku: '',
-        p_supplier_product_name: '',
-        p_relation_type: 'secondary',
-        p_supplier_price: undefined,
-      },
+          p_org_id: orgId,
+          p_supplier_id: secondarySupplierId,
+          p_product_id: productId,
+          p_supplier_sku: '',
+          p_supplier_product_name: '',
+          p_relation_type: 'secondary',
+          p_supplier_price: undefined,
+        },
       );
       throwIfError(
         updateSecondarySupplierError,
@@ -875,10 +882,10 @@ export default async function ProductsPage({
       const { error: removeSecondarySupplierError } = await supabaseServer.rpc(
         'rpc_remove_supplier_product_relation',
         {
-        p_org_id: orgId,
-        p_product_id: productId,
-        p_relation_type: 'secondary',
-      },
+          p_org_id: orgId,
+          p_product_id: productId,
+          p_relation_type: 'secondary',
+        },
       );
       throwIfError(
         removeSecondarySupplierError,
@@ -923,8 +930,7 @@ export default async function ProductsPage({
   const visibleTo = Math.min(pageFrom + products.length, totalProducts);
   const productsForList = products.map((product) => ({
     ...product,
-    image_url:
-      (product as { image_url?: string | null }).image_url ?? null,
+    image_url: (product as { image_url?: string | null }).image_url ?? null,
   }));
   const buildProductsHref = (targetPage: number, targetPageSize?: number) => {
     const params = new URLSearchParams();

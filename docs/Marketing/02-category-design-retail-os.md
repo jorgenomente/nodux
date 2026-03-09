@@ -132,12 +132,9 @@ Un Retail OS tiene varias características fundamentales.
 
 La operación completa del negocio está conectada en un solo sistema.
 
-
 Mercancía → Stock → Venta → Caja → Compras → Pagos → Reposición
 
-
 Cada evento del negocio alimenta el siguiente proceso.
-
 
 ---
 
@@ -226,14 +223,14 @@ Este modelo, conocido como **Buy Online, Pick Up In Store (BOPIS)**, convierte l
 
 # POS vs ERP vs Retail OS
 
-| Atributo | POS | ERP | Retail OS |
-|--------|------|------|------|
-| Foco principal | Transacción | Administración | Operación |
-| Usuario principal | Cajero | Contador | Dueño y equipo |
-| Visibilidad operativa | Baja | Media | Alta |
-| Flujo operativo integrado | No | Parcial | Sí |
-| Multi-sucursal | Limitado | Complejo | Nativo |
-| Uso en tienda | Alto | Bajo | Alto |
+| Atributo                  | POS         | ERP            | Retail OS      |
+| ------------------------- | ----------- | -------------- | -------------- |
+| Foco principal            | Transacción | Administración | Operación      |
+| Usuario principal         | Cajero      | Contador       | Dueño y equipo |
+| Visibilidad operativa     | Baja        | Media          | Alta           |
+| Flujo operativo integrado | No          | Parcial        | Sí             |
+| Multi-sucursal            | Limitado    | Complejo       | Nativo         |
+| Uso en tienda             | Alto        | Bajo           | Alto           |
 
 ---
 

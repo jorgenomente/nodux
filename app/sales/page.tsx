@@ -12,7 +12,10 @@ import {
 } from '@/app/sales/fiscal-document';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 import { triggerFiscalWorker } from '@/lib/fiscal/worker/trigger-worker';
-import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import {
+  hasStaffModuleEnabled,
+  resolveStaffHome,
+} from '@/lib/auth/staff-modules';
 
 export const dynamic = 'force-dynamic';
 
@@ -139,8 +142,13 @@ export default async function SalesPage({
   const role = session.effectiveRole;
 
   if (role === 'staff') {
-    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
-    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    const { data: modules } = await supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
     if (!hasStaffModuleEnabled(resolvedModules, 'sales')) {
       const home = resolveStaffHome(resolvedModules);
       redirect(home);
@@ -283,7 +291,8 @@ export default async function SalesPage({
     const forwardedProto = requestHeaders.get('x-forwarded-proto');
     const forwardedHost = requestHeaders.get('x-forwarded-host');
     const host = forwardedHost || requestHeaders.get('host') || 'app.nodux.app';
-    const protocol = forwardedProto || (host.includes('localhost') ? 'http' : 'https');
+    const protocol =
+      forwardedProto || (host.includes('localhost') ? 'http' : 'https');
     await triggerFiscalWorker({
       baseUrl: `${protocol}://${host}`,
       executionMode: 'live',
@@ -291,7 +300,9 @@ export default async function SalesPage({
     });
 
     if (error) {
-      redirect(`/sales?notice=invoice_error:${encodeURIComponent(error.message)}`);
+      redirect(
+        `/sales?notice=invoice_error:${encodeURIComponent(error.message)}`,
+      );
     }
 
     redirect('/sales?notice=invoice_queued');
@@ -337,14 +348,16 @@ export default async function SalesPage({
   const sales = (salesData ?? []) as SaleRow[];
   const fiscalInvoices =
     role !== 'staff' && sales.length > 0
-      ? (((await supabase
-          .from('v_sale_fiscal_invoice_admin' as never)
-          .select('*')
-          .eq('org_id', orgId)
-          .in(
-            'sale_id',
-            sales.map((sale) => sale.sale_id),
-          )).data ?? []) as SaleFiscalInvoiceRow[])
+      ? (((
+          await supabase
+            .from('v_sale_fiscal_invoice_admin' as never)
+            .select('*')
+            .eq('org_id', orgId)
+            .in(
+              'sale_id',
+              sales.map((sale) => sale.sale_id),
+            )
+        ).data ?? []) as SaleFiscalInvoiceRow[])
       : [];
   const fiscalInvoiceMap = new Map(
     fiscalInvoices.map((invoice) => [invoice.sale_id, invoice]),
@@ -403,7 +416,8 @@ export default async function SalesPage({
         <section className="rounded-2xl border border-zinc-200 bg-white p-4">
           {notice === 'invoice_queued' ? (
             <div className="mb-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              Facturación fiscal iniciada. La venta quedó encolada para procesamiento.
+              Facturación fiscal iniciada. La venta quedó encolada para
+              procesamiento.
             </div>
           ) : null}
           {notice === 'invoice_missing_sale' ? (
@@ -413,7 +427,8 @@ export default async function SalesPage({
           ) : null}
           {notice.startsWith('invoice_error:') ? (
             <div className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-              Error al facturar: {decodeURIComponent(notice.replace('invoice_error:', ''))}
+              Error al facturar:{' '}
+              {decodeURIComponent(notice.replace('invoice_error:', ''))}
             </div>
           ) : null}
           <div className="mb-3 text-sm text-zinc-600">
@@ -621,108 +636,118 @@ export default async function SalesPage({
                 </thead>
                 <tbody>
                   {sales.map((sale) => {
-                    const fiscalInvoice = fiscalInvoiceMap.get(sale.sale_id) ?? null;
+                    const fiscalInvoice =
+                      fiscalInvoiceMap.get(sale.sale_id) ?? null;
                     return (
-                      <tr key={sale.sale_id} className="border-t border-zinc-100">
-                      <td className="px-3 py-2">
-                        {formatDateTime(sale.created_at)}
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="font-medium text-zinc-900">
-                          {sale.branch_name ?? '—'}
-                        </div>
-                        <div className="text-xs text-zinc-500">
-                          {sale.created_by_name}
-                        </div>
-                        {sale.employee_name_snapshot ? (
-                          <div className="text-xs text-amber-700">
-                            Empleado: {sale.employee_name_snapshot}
+                      <tr
+                        key={sale.sale_id}
+                        className="border-t border-zinc-100"
+                      >
+                        <td className="px-3 py-2">
+                          {formatDateTime(sale.created_at)}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="font-medium text-zinc-900">
+                            {sale.branch_name ?? '—'}
                           </div>
-                        ) : null}
-                      </td>
-                      <td className="px-3 py-2">
-                        <div>{sale.items_count} productos</div>
-                        <div className="max-w-[300px] truncate text-xs text-zinc-500">
-                          {sale.item_names_summary || '—'}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-wrap gap-1">
-                          {(sale.payment_methods ?? []).map((method) => (
-                            <span
-                              key={`${sale.sale_id}-${method}`}
-                              className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700"
-                            >
-                              {formatPaymentMethod(method)}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2">
-                        {fiscalInvoice ? (
-                          <div className="text-xs">
-                            <div className="inline-flex rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
-                              {formatFiscalRenderStatus(fiscalInvoice.render_status)}
-                            </div>
-                            <div className="mt-1 text-zinc-500">
-                              CAE: {fiscalInvoice.cae ?? '—'}
-                            </div>
+                          <div className="text-xs text-zinc-500">
+                            {sale.created_by_name}
                           </div>
-                        ) : sale.is_invoiced ? (
-                          <div className="text-xs">
-                            <div className="inline-flex rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
-                              En proceso
+                          {sale.employee_name_snapshot ? (
+                            <div className="text-xs text-amber-700">
+                              Empleado: {sale.employee_name_snapshot}
                             </div>
-                            <div className="mt-1 text-zinc-500">
-                              {sale.invoiced_at
-                                ? formatDateTime(sale.invoiced_at)
-                                : '—'}
-                            </div>
+                          ) : null}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div>{sale.items_count} productos</div>
+                          <div className="max-w-[300px] truncate text-xs text-zinc-500">
+                            {sale.item_names_summary || '—'}
                           </div>
-                        ) : (
-                          <span className="inline-flex rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                            No facturada
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 font-semibold text-zinc-900">
-                        {formatCurrency(Number(sale.total_amount ?? 0))}
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-wrap gap-2">
-                          <Link
-                            href={`/sales/${sale.sale_id}`}
-                            className="rounded border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700"
-                          >
-                            Ver detalle
-                          </Link>
-                          <Link
-                            href={`/sales/${sale.sale_id}/ticket`}
-                            className="rounded border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700"
-                          >
-                            Imprimir ticket
-                          </Link>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap gap-1">
+                            {(sale.payment_methods ?? []).map((method) => (
+                              <span
+                                key={`${sale.sale_id}-${method}`}
+                                className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700"
+                              >
+                                {formatPaymentMethod(method)}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
                           {fiscalInvoice ? (
+                            <div className="text-xs">
+                              <div className="inline-flex rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
+                                {formatFiscalRenderStatus(
+                                  fiscalInvoice.render_status,
+                                )}
+                              </div>
+                              <div className="mt-1 text-zinc-500">
+                                CAE: {fiscalInvoice.cae ?? '—'}
+                              </div>
+                            </div>
+                          ) : sale.is_invoiced ? (
+                            <div className="text-xs">
+                              <div className="inline-flex rounded bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
+                                En proceso
+                              </div>
+                              <div className="mt-1 text-zinc-500">
+                                {sale.invoiced_at
+                                  ? formatDateTime(sale.invoiced_at)
+                                  : '—'}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="inline-flex rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                              No facturada
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 font-semibold text-zinc-900">
+                          {formatCurrency(Number(sale.total_amount ?? 0))}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap gap-2">
                             <Link
-                              href={`/sales/${sale.sale_id}/invoice`}
+                              href={`/sales/${sale.sale_id}`}
                               className="rounded border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700"
                             >
-                              Ver factura
+                              Ver detalle
                             </Link>
-                          ) : null}
-                          {!sale.is_invoiced && role !== 'staff' ? (
-                            <form action={emitSaleInvoice}>
-                              <input type="hidden" name="sale_id" value={sale.sale_id} />
-                              <button
-                                type="submit"
-                                className="rounded border border-emerald-300 px-3 py-1.5 text-xs text-emerald-700"
+                            <Link
+                              href={`/sales/${sale.sale_id}/ticket`}
+                              className="rounded border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700"
+                            >
+                              Imprimir ticket
+                            </Link>
+                            {fiscalInvoice ? (
+                              <Link
+                                href={`/sales/${sale.sale_id}/invoice`}
+                                className="rounded border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700"
                               >
-                                Emitir factura
-                              </button>
-                            </form>
-                          ) : null}
-                        </div>
-                      </td>
+                                Ver factura
+                              </Link>
+                            ) : null}
+                            {!sale.is_invoiced && role !== 'staff' ? (
+                              <form action={emitSaleInvoice}>
+                                <input
+                                  type="hidden"
+                                  name="sale_id"
+                                  value={sale.sale_id}
+                                />
+                                <button
+                                  type="submit"
+                                  className="rounded border border-emerald-300 px-3 py-1.5 text-xs text-emerald-700"
+                                >
+                                  Emitir factura
+                                </button>
+                              </form>
+                            ) : null}
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}

@@ -18,6 +18,58 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-03-09 19:32 -03 — Repo hygiene: ignore local para certificados ARCA
+
+**Tipo:** infra/docs
+**Lote:** repo-gitignore-arca-certificados-20260309
+**Alcance:** infra | docs
+
+**Resumen**
+Se agregó una regla en `.gitignore` para ignorar `docs/ARCA/certificados/` y evitar que certificados locales o material sensible aparezcan como cambios pendientes. La carpeta `docs/ARCA/padron 5/` se mantiene visible y trackeable porque contiene documentación/planning funcional para implementación futura.
+
+**Archivos afectados:**
+
+- .gitignore
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `git status --short` verificado (2026-03-09)
+
+**Commit:** N/A
+
+## 2026-03-09 19:20 -03 — Hardening repo: normalización general con Prettier
+
+**Tipo:** docs/ui/infra/tests
+**Lote:** repo-prettier-hardening-20260309
+**Alcance:** frontend | docs | infra
+
+**Resumen**
+Se ejecutó un chequeo general de Prettier sobre el repo, se detectaron desvíos de formato en código fuente y documentación, y se normalizó el árbol con `prettier --write .`. Además, se agregó `.prettierignore` para excluir `apps/video/build`, ya que contenía artefactos compilados que no conviene reescribir como parte del mantenimiento de estilo.
+
+**Archivos afectados:**
+
+- .prettierignore
+- app/\*\*
+- lib/\*\*
+- scripts/\*\*
+- docs/\*\*
+- apps/package.json
+- apps/remotion.config.ts
+- apps/video/docs/\*\*
+- apps/video/package.json
+- apps/video/remotion.config.ts
+- apps/video/src/\*\*
+
+**Tests / comandos:**
+
+- `npm run format:check` OK (2026-03-09)
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Commit:** N/A
+
 ## 2026-03-08 21:55 -03 — ARCA: creación de bitácora por lote dentro del módulo
 
 **Tipo:** docs
@@ -536,6 +588,7 @@ Se creó `docs/ARCA/activity-log.md` como bitácora específica del módulo fisc
 Se agregó soporte WSFE para `FECompUltimoAutorizado`, un helper backend para sincronizar `fiscal_sequences` con el último comprobante autorizado remoto y se integró esa sincronización al worker `live` en `prod` antes de reservar numeración local. Con esto, la siguiente reserva queda alineada con ARCA real y no con la base local vacía.
 
 **Evidencia**
+
 - `lib/fiscal/wsfe/wsfe-client.ts`
 - `lib/fiscal/worker/sync-fiscal-sequence.ts`
 - `lib/fiscal/worker/process-invoice-job.ts`
@@ -564,6 +617,7 @@ La numeración fiscal deja de asumir base local `0` y pasa a anclarse en el últ
 Se agregó un segundo gate org-wide en `org_preferences`: `fiscal_prod_live_enabled`. A diferencia de `fiscal_prod_enqueue_enabled`, este flag no controla la creación del job sino la ejecución real del worker `live` antes de `FECAESolicitar` en ambiente `prod`. También se expuso en `/settings/preferences`, se agregó el comando `npm run fiscal:worker:live` y el worker ahora falla explícitamente con `FISCAL_PROD_LIVE_DISABLED` si intentás emitir en producción sin esa habilitación.
 
 **Evidencia**
+
 - `supabase/migrations/20260309113000_083_fiscal_prod_live_gate.sql`
 - `lib/fiscal/worker/get-fiscal-org-controls.ts`
 - `lib/fiscal/worker/process-invoice-job.ts`
@@ -590,6 +644,7 @@ Queda separada la decisión de “permitir facturación productiva” en dos niv
 Se corrigió la server action `runConnectionTest` para re-lanzar errores `NEXT_REDIRECT` en vez de capturarlos como errores funcionales. Esto alinea `/settings/fiscal` con el patrón ya usado en otras pantallas del repo y permite que la prueba segura redirija correctamente al estado `test_ok`.
 
 **Evidencia**
+
 - `app/settings/fiscal/page.tsx`
 - `npm run lint`: OK
 - `npm run build`: OK
@@ -610,6 +665,7 @@ El mensaje `La prueba segura no pudo completarse para Produccion: NEXT_REDIRECT`
 Se agregó un helper reusable `runFiscalConnectionTest` para resolver credencial/PV activos, descifrar la private key, obtener TA por WSAA y ejecutar `FEDummy` contra WSFE. Ese flujo quedó expuesto en `/settings/fiscal` como una acción de `Prueba segura` por ambiente, con selector de `pto_vta` activo y mensajes de éxito/error que muestran `CUIT`, expiración WSAA y estado `App/DB/Auth`.
 
 **Evidencia**
+
 - `lib/fiscal/testing/test-fiscal-connection.ts`
 - `app/settings/fiscal/page.tsx`
 - `docs/docs-app-screens-settings-fiscal.md`
@@ -632,6 +688,7 @@ El alta o cambio de credenciales ya puede validarse desde la propia UI operativa
 Se agregó `scripts/fiscal-worker.ts` como entrypoint operativo del worker fiscal, con parseo de `FISCAL_EXECUTION_MODE`, `FISCAL_DRY_RUN` y `FISCAL_BATCH_SIZE`, validación temprana de la configuración de cifrado y salida JSON legible para operación. También se incorporaron scripts npm para el modo genérico y el modo seguro `prod-safe`, y se documentó el runbook con prerrequisitos y variables de entorno.
 
 **Evidencia**
+
 - `package.json`: scripts `fiscal:worker` y `fiscal:worker:prod-safe`
 - `scripts/fiscal-worker.ts`: wrapper operativo para `runFiscalWorkerOnce`
 - `docs/ARCA/operations/fiscal-worker-prod-safe-runbook.md`: runbook operativo
@@ -1073,7 +1130,7 @@ Se ejecutó una normalización integral de `docs/ARCA` para cerrar gaps detectad
 **Alcance:** docs
 
 **Resumen**
-Se normalizaron los documentos de `docs/ARCA` removiendo encabezados/envoltorios de copia (`# ... \`docs/architecture/...` y bloque externo ```md), se corrigieron referencias internas de rutas en `afip-arca-fiscal-service.md` a `docs/ARCA/...`, y se eliminó `docs/ARCA/Plan pos serio.md` por duplicidad de contenido frente al documento arquitectónico principal. También se verificó que `docs/ARCA/implementation/afip-arca-lote-1-homologacion-base.md` tenga contenido cargado.
+Se normalizaron los documentos de `docs/ARCA` removiendo encabezados/envoltorios de copia (`# ... \`docs/architecture/...`y bloque externo ```md), se corrigieron referencias internas de rutas en`afip-arca-fiscal-service.md`a`docs/ARCA/...`, y se eliminó `docs/ARCA/Plan pos serio.md`por duplicidad de contenido frente al documento arquitectónico principal. También se verificó que`docs/ARCA/implementation/afip-arca-lote-1-homologacion-base.md` tenga contenido cargado.
 
 **Archivos**
 

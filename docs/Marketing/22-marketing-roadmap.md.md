@@ -59,7 +59,7 @@ Elementos clave:
 
 • posicionamiento como Retail Operating System  
 • narrativa del fundador basada en experiencia real  
-• contenido sobre problemas operativos del retail  
+• contenido sobre problemas operativos del retail
 
 Acciones:
 

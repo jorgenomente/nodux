@@ -95,7 +95,9 @@ export default async function SettingsTicketsPage({
     typeof resolvedSearchParams.branch_id === 'string'
       ? resolvedSearchParams.branch_id
       : '';
-  const selectedBranchId = branches.some((branch) => branch.id === selectedBranchIdRaw)
+  const selectedBranchId = branches.some(
+    (branch) => branch.id === selectedBranchIdRaw,
+  )
     ? selectedBranchIdRaw
     : (branches[0]?.id ?? '');
   const selectedBranch =
@@ -277,23 +279,30 @@ export default async function SettingsTicketsPage({
                   </button>
                 </div>
                 <p className="mt-2 text-xs text-zinc-500">
-                  Si cambias de sucursal, presiona <strong>Ver</strong> para cargar
-                  su plantilla antes de editar o guardar.
+                  Si cambias de sucursal, presiona <strong>Ver</strong> para
+                  cargar su plantilla antes de editar o guardar.
                 </p>
               </form>
 
               <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
-                <p className="font-semibold text-zinc-900">Guia de formato 80mm</p>
+                <p className="font-semibold text-zinc-900">
+                  Guia de formato 80mm
+                </p>
                 <ul className="mt-2 list-disc space-y-1 pl-4">
                   <li>
-                    Escribe texto plano, una idea por linea (sin HTML ni markdown).
+                    Escribe texto plano, una idea por linea (sin HTML ni
+                    markdown).
                   </li>
                   <li>
-                    Recomendado: maximo {MAX_PRINTABLE_CHARS_PER_LINE} caracteres por linea para evitar cortes.
+                    Recomendado: maximo {MAX_PRINTABLE_CHARS_PER_LINE}{' '}
+                    caracteres por linea para evitar cortes.
                   </li>
-                  <li>Usa saltos de linea manuales para controlar el layout final.</li>
                   <li>
-                    Si necesitas separadores, usa lineas tipo: ================================
+                    Usa saltos de linea manuales para controlar el layout final.
+                  </li>
+                  <li>
+                    Si necesitas separadores, usa lineas tipo:
+                    ================================
                   </li>
                 </ul>
               </div>
@@ -302,7 +311,11 @@ export default async function SettingsTicketsPage({
             <div>
               {selectedBranch ? (
                 <form action={saveTicketTemplate} className="grid gap-4">
-                  <input type="hidden" name="branch_id" value={selectedBranch.id} />
+                  <input
+                    type="hidden"
+                    name="branch_id"
+                    value={selectedBranch.id}
+                  />
 
                   <p className="text-xs font-semibold text-zinc-700">
                     Editando plantilla de: {selectedBranch.name}

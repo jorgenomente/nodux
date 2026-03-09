@@ -70,7 +70,7 @@ type InvoiceJobStatusRow = {
   last_error_message: string | null;
 };
 
-const callAuthedRpc = async <T,>(params: {
+const callAuthedRpc = async <T>(params: {
   accessToken: string;
   rpcName: string;
   payload: Record<string, unknown>;
@@ -188,7 +188,8 @@ const attemptSynchronousFiscalCompletion = async (params: {
     const typedJobRow = (jobRow ?? null) as InvoiceJobStatusRow | null;
     if (
       typedJobRow &&
-      (typedJobRow.job_status === 'failed' || typedJobRow.job_status === 'rejected')
+      (typedJobRow.job_status === 'failed' ||
+        typedJobRow.job_status === 'rejected')
     ) {
       return {
         status: 'failed' as const,
@@ -218,7 +219,12 @@ export async function POST(request: NextRequest) {
   }
 
   const body = (await request.json()) as CheckoutBody;
-  if (!body.orgId || !body.branchId || !Array.isArray(body.items) || body.items.length === 0) {
+  if (
+    !body.orgId ||
+    !body.branchId ||
+    !Array.isArray(body.items) ||
+    body.items.length === 0
+  ) {
     return NextResponse.json(
       { ok: false, error: 'Invalid checkout payload' },
       { status: 400 },
@@ -250,15 +256,15 @@ export async function POST(request: NextRequest) {
       p_close_special_order: Boolean(body.closeSpecialOrder),
       p_apply_cash_discount: Boolean(body.applyCashDiscount),
       p_cash_discount_pct: body.applyCashDiscount
-        ? body.cashDiscountPct ?? undefined
+        ? (body.cashDiscountPct ?? undefined)
         : undefined,
       p_payments: body.payments ?? undefined,
       p_apply_employee_discount: Boolean(body.applyEmployeeDiscount),
       p_employee_discount_pct: body.applyEmployeeDiscount
-        ? body.employeeDiscountPct ?? undefined
+        ? (body.employeeDiscountPct ?? undefined)
         : undefined,
       p_employee_account_id: body.applyEmployeeDiscount
-        ? body.employeeAccountId ?? undefined
+        ? (body.employeeAccountId ?? undefined)
         : undefined,
     },
   });
@@ -276,9 +282,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const sale = (Array.isArray(data) ? data[0] : data) as
-    | { sale_id?: string | null; total?: number | null }
-    | null;
+  const sale = (Array.isArray(data) ? data[0] : data) as {
+    sale_id?: string | null;
+    total?: number | null;
+  } | null;
   const saleId = String(sale?.sale_id ?? '').trim();
   const total = Number(sale?.total ?? 0);
   let isInvoiced = false;
@@ -317,7 +324,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const enqueueRow = Array.isArray(enqueueData) ? enqueueData[0] : enqueueData;
+    const enqueueRow = Array.isArray(enqueueData)
+      ? enqueueData[0]
+      : enqueueData;
     const invoiceJobId = String(enqueueRow?.invoice_job_id ?? '').trim();
 
     const { error: invoiceError } = await callAuthedRpc({

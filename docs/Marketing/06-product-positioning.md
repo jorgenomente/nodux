@@ -1,4 +1,5 @@
 06-product-positioning.md
+
 # NODUX — Product Positioning
 
 Versión: v1.0  
@@ -110,8 +111,7 @@ Cada sucursal puede tener su propia tienda online sincronizada con el stock real
 
 Esto permite que los clientes consulten el catálogo, elijan la sucursal más cercana y realicen pedidos online para retiro en tienda.
 
-De esta manera, la tienda física se convierte en un negocio omnicanal sin añadir complejidad operativa.
----
+## De esta manera, la tienda física se convierte en un negocio omnicanal sin añadir complejidad operativa.
 
 # Qué NO es NODUX
 

@@ -32,12 +32,11 @@ export const syncFiscalSequenceWithArca = async (params: {
     status: 'healthy',
   };
 
-  const { error } = await supabase.from('fiscal_sequences' as never).upsert(
-    payload as never,
-    {
+  const { error } = await supabase
+    .from('fiscal_sequences' as never)
+    .upsert(payload as never, {
       onConflict: 'tenant_id,environment,pto_vta,cbte_tipo',
-    },
-  );
+    });
 
   if (error) {
     throw new Error(`syncFiscalSequenceWithArca failed: ${error.message}`);

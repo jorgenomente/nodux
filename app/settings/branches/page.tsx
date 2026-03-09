@@ -180,21 +180,24 @@ export default async function SettingsBranchesPage({
     .eq('org_id', context.orgId)
     .order('name');
 
-  const branches = ((data ?? []) as unknown as BranchRow[]).filter(
-    (branch) => Boolean(branch.branch_id),
+  const branches = ((data ?? []) as unknown as BranchRow[]).filter((branch) =>
+    Boolean(branch.branch_id),
   );
   const requestHeaders = await headers();
   const forwardedProto = requestHeaders.get('x-forwarded-proto');
   const forwardedHost = requestHeaders.get('x-forwarded-host');
   const host = forwardedHost || requestHeaders.get('host') || 'app.nodux.app';
-  const protocol = forwardedProto || (host.includes('localhost') ? 'http' : 'https');
+  const protocol =
+    forwardedProto || (host.includes('localhost') ? 'http' : 'https');
   const appBaseUrl = `${protocol}://${host}`;
   const { data: orgRaw } = await context.admin
     .from('orgs')
     .select('storefront_slug')
     .eq('id', context.orgId)
     .maybeSingle();
-  const orgSlug = (orgRaw as { storefront_slug: string | null } | null)?.storefront_slug ?? '';
+  const orgSlug =
+    (orgRaw as { storefront_slug: string | null } | null)?.storefront_slug ??
+    '';
   const { data: devicesData } = await context.admin
     .from('pos_payment_devices' as never)
     .select('id, org_id, branch_id, device_name, provider, is_active')
@@ -330,7 +333,10 @@ export default async function SettingsBranchesPage({
                     key={branch.branch_id}
                     className="rounded-xl border border-zinc-200 p-4"
                   >
-                    <form action={saveBranch} className="grid gap-3 md:grid-cols-6">
+                    <form
+                      action={saveBranch}
+                      className="grid gap-3 md:grid-cols-6"
+                    >
                       <input
                         type="hidden"
                         name="branch_id"
@@ -390,7 +396,7 @@ export default async function SettingsBranchesPage({
                         </button>
                       </div>
                     </form>
-                    <p className="mt-2 break-all text-xs text-zinc-600">
+                    <p className="mt-2 text-xs break-all text-zinc-600">
                       Slug público: {branch.storefront_slug || 'Sin definir'}{' '}
                       {orgSlug && branch.storefront_slug ? (
                         <>

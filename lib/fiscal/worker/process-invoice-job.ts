@@ -16,7 +16,10 @@ import { resolveFiscalContext } from '@/lib/fiscal/worker/resolve-credentials';
 import { syncFiscalSequenceWithArca } from '@/lib/fiscal/worker/sync-fiscal-sequence';
 import { getFiscalOrgControls } from '@/lib/fiscal/worker/get-fiscal-org-controls';
 import { buildFECAERequest } from '@/lib/fiscal/wsfe/build-fecae-request';
-import { submitFECAESolicitar, submitFEDummy } from '@/lib/fiscal/wsfe/wsfe-client';
+import {
+  submitFECAESolicitar,
+  submitFEDummy,
+} from '@/lib/fiscal/wsfe/wsfe-client';
 
 export const processInvoiceJob = async (
   job: FiscalInvoiceJobRow,
@@ -42,7 +45,9 @@ export const processInvoiceJob = async (
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Fiscal context resolution failed';
+      error instanceof Error
+        ? error.message
+        : 'Fiscal context resolution failed';
     await markJobFailed({
       invoiceJobId: job.id,
       lastErrorCode: 'FISCAL_CONFIG_RESOLUTION_FAILED',
@@ -84,7 +89,8 @@ export const processInvoiceJob = async (
   try {
     const privateKeyPem = decryptPrivateKeyPem({
       encryptedPrivateKey: fiscalContext.credentials.encrypted_private_key,
-      encryptionKeyReference: fiscalContext.credentials.encryption_key_reference,
+      encryptionKeyReference:
+        fiscalContext.credentials.encryption_key_reference,
     });
 
     wsaa = await getOrRefreshWsaaTicket({
@@ -194,7 +200,8 @@ export const processInvoiceJob = async (
       await markJobFailed({
         invoiceJobId: job.id,
         lastErrorCode: 'FISCAL_PROD_SAFE_REQUIRES_PROD_ENV',
-        lastErrorMessage: 'prod-safe mode only supports invoice jobs in prod environment',
+        lastErrorMessage:
+          'prod-safe mode only supports invoice jobs in prod environment',
         responsePayloadJson: {
           reason: 'prod_safe_invalid_environment',
           executionMode,
@@ -231,7 +238,9 @@ export const processInvoiceJob = async (
       return { status: 'pending_reconcile' as const };
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'WSFE FEDummy failed in prod-safe mode';
+        error instanceof Error
+          ? error.message
+          : 'WSFE FEDummy failed in prod-safe mode';
       await markJobPendingReconcile({
         invoiceJobId: job.id,
         lastErrorCode: 'FISCAL_PROD_SAFE_DUMMY_FAILED',
@@ -250,7 +259,8 @@ export const processInvoiceJob = async (
   }
 
   try {
-    const fiscalRequestInput = requestedPayloadJson as FiscalInvoiceRequestInput;
+    const fiscalRequestInput =
+      requestedPayloadJson as FiscalInvoiceRequestInput;
     const fiscalRequest = buildFECAERequest({
       auth: wsaa,
       input: {
@@ -322,7 +332,8 @@ export const processInvoiceJob = async (
     });
     return { status: 'failed' as const };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown WSFE error';
+    const message =
+      error instanceof Error ? error.message : 'Unknown WSFE error';
     await markJobPendingReconcile({
       invoiceJobId: job.id,
       lastErrorCode: 'FISCAL_WSFE_REQUEST_FAILED',
@@ -332,9 +343,13 @@ export const processInvoiceJob = async (
       },
     });
 
-    fiscalLogger.warn('fiscal_job_moved_pending_reconcile_wsfe_error', context, {
-      message,
-    });
+    fiscalLogger.warn(
+      'fiscal_job_moved_pending_reconcile_wsfe_error',
+      context,
+      {
+        message,
+      },
+    );
     return { status: 'pending_reconcile' as const };
   }
 };

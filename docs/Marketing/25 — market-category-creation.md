@@ -19,7 +19,7 @@ Ejemplos:
 
 Stripe → Payment Infrastructure  
 Shopify → Commerce Platform  
-Snowflake → Data Cloud  
+Snowflake → Data Cloud
 
 NODUX busca hacer lo mismo en el sector retail.
 
@@ -41,7 +41,7 @@ entrará en un mercado saturado donde:
 
 • la diferenciación es baja  
 • la competencia es por precio  
-• el software se percibe como reemplazable  
+• el software se percibe como reemplazable
 
 Crear una categoría nueva cambia completamente la conversación.
 
@@ -68,7 +68,7 @@ compras
 proveedores  
 reposición  
 operación multi-sucursal  
-comercio omnicanal  
+comercio omnicanal
 
 No es una herramienta aislada.
 
@@ -153,7 +153,7 @@ Ejemplos de temas:
 • por qué el inventario de muchas tiendas nunca coincide  
 • el problema de abrir una segunda sucursal  
 • el costo de los productos vencidos  
-• cómo Excel rompe la operación  
+• cómo Excel rompe la operación
 
 Este contenido introduce la idea de que el retail necesita infraestructura operativa.
 
@@ -168,7 +168,7 @@ Cuando un dueño describe su operación suele aparecer el mismo patrón:
 POS  
 Excel  
 WhatsApp  
-cuadernos  
+cuadernos
 
 El problema no es falta de herramientas.
 
@@ -202,7 +202,7 @@ marketing
 contenido  
 ventas  
 demos  
-landing page  
+landing page
 
 La repetición es clave para que el mercado adopte la categoría.
 
@@ -233,7 +233,7 @@ Ese momento suele ocurrir cuando:
 • abre una segunda sucursal  
 • el inventario deja de coincidir  
 • aparecen productos vencidos  
-• los pedidos se vuelven caóticos  
+• los pedidos se vuelven caóticos
 
 En ese momento la categoría se vuelve relevante.
 

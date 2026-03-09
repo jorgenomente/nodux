@@ -319,7 +319,9 @@ export default async function OnlineOrdersPage({
     const orderId = String(formData.get('online_order_id') ?? '').trim();
     const newStatus = String(formData.get('new_status') ?? '').trim();
     const returnQ = String(formData.get('return_q') ?? '').trim();
-    const returnBranchId = String(formData.get('return_branch_id') ?? '').trim();
+    const returnBranchId = String(
+      formData.get('return_branch_id') ?? '',
+    ).trim();
     const returnStatus = String(formData.get('return_status') ?? '').trim();
 
     if (!orderId) {
@@ -453,7 +455,9 @@ export default async function OnlineOrdersPage({
     const decision = String(formData.get('decision') ?? '').trim();
     const reviewNote = String(formData.get('review_note') ?? '').trim();
     const returnQ = String(formData.get('return_q') ?? '').trim();
-    const returnBranchId = String(formData.get('return_branch_id') ?? '').trim();
+    const returnBranchId = String(
+      formData.get('return_branch_id') ?? '',
+    ).trim();
     const returnStatus = String(formData.get('return_status') ?? '').trim();
 
     if (!proofId || !['approved', 'rejected'].includes(decision)) {
@@ -536,14 +540,12 @@ export default async function OnlineOrdersPage({
 
     const { error } = await actionSupabase
       .from('online_order_payment_proofs' as never)
-      .update(
-        {
-          review_status: decision as 'approved' | 'rejected',
-          review_note: reviewNote || null,
-          reviewed_by_user_id: actionUserId,
-          reviewed_at: new Date().toISOString(),
-        } as never,
-      )
+      .update({
+        review_status: decision as 'approved' | 'rejected',
+        review_note: reviewNote || null,
+        reviewed_by_user_id: actionUserId,
+        reviewed_at: new Date().toISOString(),
+      } as never)
       .eq('id', proofId)
       .eq('org_id', actionOrgId);
 
@@ -612,7 +614,10 @@ export default async function OnlineOrdersPage({
         <section className="rounded-2xl border border-zinc-200 bg-white p-4">
           <form className="grid gap-3 md:grid-cols-[1fr_220px_220px_auto] md:items-end">
             <div>
-              <label className="text-xs font-semibold text-zinc-600" htmlFor="q">
+              <label
+                className="text-xs font-semibold text-zinc-600"
+                htmlFor="q"
+              >
                 Buscar
               </label>
               <input
@@ -636,9 +641,7 @@ export default async function OnlineOrdersPage({
                 defaultValue={selectedBranchId}
                 className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm"
               >
-                {role === 'org_admin' ? (
-                  <option value="">Todas</option>
-                ) : null}
+                {role === 'org_admin' ? <option value="">Todas</option> : null}
                 {branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>
                     {branch.name}
@@ -647,7 +650,10 @@ export default async function OnlineOrdersPage({
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold text-zinc-600" htmlFor="status">
+              <label
+                className="text-xs font-semibold text-zinc-600"
+                htmlFor="status"
+              >
                 Estado
               </label>
               <select
@@ -682,8 +688,10 @@ export default async function OnlineOrdersPage({
 
           {orders.map((order) => {
             const nextStatuses = getNextStatuses(order.status);
-            const latestProof = latestProofByOrderId.get(order.online_order_id) ?? null;
-            const proofUrl = signedProofUrlByOrderId.get(order.online_order_id) ?? '';
+            const latestProof =
+              latestProofByOrderId.get(order.online_order_id) ?? null;
+            const proofUrl =
+              signedProofUrlByOrderId.get(order.online_order_id) ?? '';
             const orderItems = itemsByOrderId.get(order.online_order_id) ?? [];
             return (
               <article
@@ -692,7 +700,7 @@ export default async function OnlineOrdersPage({
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
                       {order.order_code}
                     </p>
                     <h2 className="text-lg font-semibold text-zinc-900">
@@ -702,7 +710,9 @@ export default async function OnlineOrdersPage({
                       {order.customer_phone} · {order.branch_name}
                     </p>
                     {order.customer_address ? (
-                      <p className="text-xs text-zinc-500">{order.customer_address}</p>
+                      <p className="text-xs text-zinc-500">
+                        {order.customer_address}
+                      </p>
                     ) : null}
                   </div>
                   <div className="text-right">
@@ -733,7 +743,8 @@ export default async function OnlineOrdersPage({
                       Ver tracking
                     </Link>
                   ) : null}
-                  {order.status !== 'delivered' && order.status !== 'cancelled' ? (
+                  {order.status !== 'delivered' &&
+                  order.status !== 'cancelled' ? (
                     <Link
                       href={`/pos?online_order_id=${order.online_order_id}`}
                       className="rounded-full border border-indigo-300 bg-indigo-50 px-3 py-1 font-semibold text-indigo-700"
@@ -755,7 +766,8 @@ export default async function OnlineOrdersPage({
                 {latestProof ? (
                   <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
                     <p className="text-xs text-zinc-600">
-                      Último comprobante: {formatDateTime(latestProof.uploaded_at)}
+                      Último comprobante:{' '}
+                      {formatDateTime(latestProof.uploaded_at)}
                     </p>
                     {proofUrl ? (
                       <a
@@ -777,14 +789,22 @@ export default async function OnlineOrdersPage({
                       </p>
                     ) : null}
                     <form action={reviewProof} className="mt-3 grid gap-2">
-                      <input type="hidden" name="proof_id" value={latestProof.id} />
+                      <input
+                        type="hidden"
+                        name="proof_id"
+                        value={latestProof.id}
+                      />
                       <input type="hidden" name="return_q" value={query} />
                       <input
                         type="hidden"
                         name="return_branch_id"
                         value={selectedBranchId}
                       />
-                      <input type="hidden" name="return_status" value={statusFilter} />
+                      <input
+                        type="hidden"
+                        name="return_status"
+                        value={statusFilter}
+                      />
                       <textarea
                         name="review_note"
                         placeholder="Nota de revisión (opcional)"
@@ -814,7 +834,7 @@ export default async function OnlineOrdersPage({
                 ) : null}
 
                 <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                  <p className="text-xs font-semibold tracking-wide text-zinc-600 uppercase">
                     Detalle de artículos
                   </p>
                   {orderItems.length === 0 ? (
@@ -851,7 +871,11 @@ export default async function OnlineOrdersPage({
                           name="online_order_id"
                           value={order.online_order_id}
                         />
-                        <input type="hidden" name="new_status" value={nextStatus} />
+                        <input
+                          type="hidden"
+                          name="new_status"
+                          value={nextStatus}
+                        />
                         <input type="hidden" name="return_q" value={query} />
                         <input
                           type="hidden"

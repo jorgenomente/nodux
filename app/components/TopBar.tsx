@@ -32,13 +32,25 @@ const NAV_GROUPS = [
     label: 'Ventas',
     hrefs: ['/pos', '/sales', '/sales/statistics', '/cashbox', '/clients'],
   },
-  { label: 'Inventario', hrefs: ['/products', '/products/lookup', '/expirations'] },
+  {
+    label: 'Inventario',
+    hrefs: ['/products', '/products/lookup', '/expirations'],
+  },
   {
     label: 'Operaciones',
-    hrefs: ['/orders', '/orders/calendar', '/onboarding', '/suppliers', '/payments'],
+    hrefs: [
+      '/orders',
+      '/orders/calendar',
+      '/onboarding',
+      '/suppliers',
+      '/payments',
+    ],
   },
   { label: 'Tienda Online', hrefs: ['/online-orders'] },
-  { label: 'Configuracion', hrefs: ['/settings', '/settings/audit-log', '/superadmin'] },
+  {
+    label: 'Configuracion',
+    hrefs: ['/settings', '/settings/audit-log', '/superadmin'],
+  },
 ] as const;
 
 type BranchOption = {
@@ -160,8 +172,7 @@ export default async function TopBar() {
   const visibleNavLinks = isStaff
     ? navLinks.filter(
         (link) =>
-          link.href !== '/settings/audit-log' &&
-          link.href !== '/settings',
+          link.href !== '/settings/audit-log' && link.href !== '/settings',
       )
     : navLinks;
   const linkByHref = new Map(visibleNavLinks.map((link) => [link.href, link]));
@@ -194,7 +205,10 @@ export default async function TopBar() {
           <span className="font-semibold">Usuario:</span> {userLabel}
         </div>
         {branchOptions.length > 0 && !isStaff ? (
-          <form action={setActiveBranchAction} className="flex items-center gap-1">
+          <form
+            action={setActiveBranchAction}
+            className="flex items-center gap-1"
+          >
             <select
               name="active_branch_id"
               defaultValue={selectedBranch?.id ?? ''}

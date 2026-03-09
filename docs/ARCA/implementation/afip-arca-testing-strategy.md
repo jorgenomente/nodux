@@ -1,4 +1,5 @@
 # AFIP / ARCA Testing Strategy
+
 **Proyecto:** NODUX  
 **Versión:** v0.1  
 **Estado:** Draft operativo  
@@ -39,15 +40,19 @@ La estrategia debe asegurar que:
 ## 3. Pirámide de testing
 
 ### 3.1 Unit tests
+
 Para funciones puras y normalizadores.
 
 ### 3.2 Integration tests
+
 Para DB, RPC, worker y adaptadores.
 
 ### 3.3 End-to-end tests
+
 Para flujos completos en homologación o con mocks realistas.
 
 ### 3.4 Chaos / failure tests
+
 Para timeouts, network errors, crashes y estados inciertos.
 
 ---
@@ -55,32 +60,38 @@ Para timeouts, network errors, crashes y estados inciertos.
 ## 4. Capas a testear
 
 ### 4.1 DB / RPC
+
 - secuencia
 - transiciones de estado
 - integridad de invoice_jobs/invoices
 
 ### 4.2 Worker runtime
+
 - polling
 - clasificación de errores
 - orchestration
 
 ### 4.3 WSAA adapter
+
 - cache
 - vencimiento
 - renovación
 
 ### 4.4 WSFE adapter
+
 - request build
 - response normalization
 - timeout handling
 
 ### 4.5 Render pipeline
+
 - QR
 - PDF
 - ticket
 - storage
 
 ### 4.6 Reconciliation
+
 - authorized recovery
 - rejected recovery
 - still unknown
@@ -91,6 +102,7 @@ Para timeouts, network errors, crashes y estados inciertos.
 ## 5. Casos mínimos obligatorios
 
 ### 5.1 Happy path completo
+
 - job `pending`
 - reserva secuencia
 - autorización aprobada
@@ -98,45 +110,54 @@ Para timeouts, network errors, crashes y estados inciertos.
 - job `completed`
 
 ### 5.2 Rechazo fiscal
+
 - AFIP rechaza
 - job `rejected`
 - no se genera invoice autorizada
 
 ### 5.3 Timeout incierto
+
 - request incierto
 - job `pending_reconcile`
 - secuencia marcada correctamente
 
 ### 5.4 Reconciliación positiva
+
 - job `pending_reconcile`
 - se confirma autorización
 - invoice se crea
 - render finaliza
 
 ### 5.5 Reconciliación negativa
+
 - job `pending_reconcile`
 - se confirma rechazo
 - job `rejected`
 
 ### 5.6 Render falla
+
 - autorización aprobada
 - falla PDF o ticket
 - job queda `render_pending`
 
 ### 5.7 Re-render exitoso
+
 - job `render_pending`
 - reintento exitoso
 - job `completed`
 
 ### 5.8 Concurrencia secuencia
+
 - dos procesos intentan reservar a la vez
 - no hay colisión
 
 ### 5.9 Estado inválido
+
 - intento de transición no permitida
 - DB rechaza operación
 
 ### 5.10 Persistencia fallida tras aprobación
+
 - AFIP aprobó
 - falla persistencia local
 - sistema cae en `pending_reconcile`
@@ -146,29 +167,35 @@ Para timeouts, network errors, crashes y estados inciertos.
 ## 6. Unit tests recomendados
 
 ### 6.1 `build-tra`
+
 - genera XML válido
 - incluye servicio correcto
 - incluye timestamps correctos
 
 ### 6.2 `sign-tra`
+
 - firma output esperado
 - falla con cert/key inválidos
 
 ### 6.3 `build-fecae-request`
+
 - mapea importes correctamente
 - mapea documento correctamente
 - respeta cbte tipo / pto vta / cbte nro
 
 ### 6.4 `normalize-wsfe-response`
+
 - approved
 - rejected
 - malformed
 - uncertain
 
 ### 6.5 `classifyFiscalError`
+
 - mapea cada error al catálogo correcto
 
 ### 6.6 `build-qr-payload`
+
 - genera payload consistente con invoice
 
 ---
@@ -176,30 +203,40 @@ Para timeouts, network errors, crashes y estados inciertos.
 ## 7. Integration tests recomendados
 
 ### 7.1 `fn_fiscal_reserve_sequence`
+
 Validar:
+
 - crea secuencia si no existe
 - incrementa `last_local_reserved`
 - actualiza job a `reserved`
 
 ### 7.2 `fn_fiscal_mark_job_authorizing`
+
 Validar:
+
 - incrementa intentos
 - persiste payload
 - agrega evento
 
 ### 7.3 `fn_fiscal_mark_job_authorized`
+
 Validar:
+
 - crea `invoice`
 - actualiza `last_arca_confirmed`
 - deja job en `render_pending`
 
 ### 7.4 `fn_fiscal_mark_job_rejected`
+
 Validar:
+
 - deja job en `rejected`
 - sale_document en `failed`
 
 ### 7.5 `fn_fiscal_mark_render_completed`
+
 Validar:
+
 - persiste paths
 - deja job en `completed`
 
@@ -208,6 +245,7 @@ Validar:
 ## 8. End-to-end tests recomendados
 
 ### Escenario E2E 1 — factura homologación simple
+
 - venta
 - invoice_job
 - worker
@@ -216,16 +254,19 @@ Validar:
 - complete
 
 ### Escenario E2E 2 — rechazo homologación
+
 - payload inválido controlado
 - rechazo
 - visibilidad del error
 
 ### Escenario E2E 3 — timeout incierto
+
 - mock WSFE timeout
 - pending_reconcile
 - reconcile posterior
 
 ### Escenario E2E 4 — render retry
+
 - aprobación
 - falla render inicial
 - retry exitoso
@@ -237,6 +278,7 @@ Validar:
 La estrategia debe incluir inyección de fallos.
 
 ### Fallos a simular
+
 - timeout WSAA
 - timeout WSFE
 - error DNS
@@ -266,12 +308,15 @@ Definir fixtures con:
 ## 11. Entornos de prueba
 
 ### 11.1 Local con mocks
+
 Para alta velocidad y repetibilidad.
 
 ### 11.2 Local con DB real
+
 Para probar RPC y locks.
 
 ### 11.3 Homologación controlada
+
 Para validar integración real.
 
 ---
@@ -279,12 +324,14 @@ Para validar integración real.
 ## 12. Reglas de mocking
 
 Se debe mockear:
+
 - WSAA
 - WSFEv1
 - storage
 - impresión
 
 El mock debe poder devolver:
+
 - approved
 - rejected
 - timeout uncertain
@@ -321,14 +368,14 @@ No perseguir porcentaje ciego; perseguir cobertura de riesgos.
 
 ## 15. Matriz de riesgo
 
-| Riesgo | Capa | Prioridad |
-|---|---|---|
-| colisión de secuencia | DB/RPC | crítica |
-| estado incierto mal manejado | worker/reconcile | crítica |
-| aprobación no persistida | worker/DB | crítica |
-| render rompe flujo fiscal | render | alta |
-| retry incorrecto | worker | alta |
-| rechazo mal clasificado | wsfe/worker | alta |
+| Riesgo                       | Capa             | Prioridad |
+| ---------------------------- | ---------------- | --------- |
+| colisión de secuencia        | DB/RPC           | crítica   |
+| estado incierto mal manejado | worker/reconcile | crítica   |
+| aprobación no persistida     | worker/DB        | crítica   |
+| render rompe flujo fiscal    | render           | alta      |
+| retry incorrecto             | worker           | alta      |
+| rechazo mal clasificado      | wsfe/worker      | alta      |
 
 ---
 

@@ -7,7 +7,10 @@ import OrderSuggestionsClient from '@/app/orders/OrderSuggestionsClient';
 import PageShell from '@/app/components/PageShell';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
-import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import {
+  hasStaffModuleEnabled,
+  resolveStaffHome,
+} from '@/lib/auth/staff-modules';
 
 type SearchParams = {
   branch_id?: string;
@@ -222,8 +225,13 @@ export default async function OrdersPage({
   const role = session.effectiveRole;
 
   if (role === 'staff') {
-    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
-    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    const { data: modules } = await supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
     if (!hasStaffModuleEnabled(resolvedModules, 'orders')) {
       const home = resolveStaffHome(resolvedModules);
       redirect(home);
@@ -401,13 +409,15 @@ export default async function OrdersPage({
     priceByProduct.set(row.id, Number(row.unit_price ?? 0));
   });
   const supplierPriceByProduct = new Map<string, number>();
-  (supplierProductPrices as SupplierProductPriceRow[] | null)?.forEach((row) => {
-    if (!row.product_id) return;
-    supplierPriceByProduct.set(
-      row.product_id,
-      Number(row.supplier_price ?? 0),
-    );
-  });
+  (supplierProductPrices as SupplierProductPriceRow[] | null)?.forEach(
+    (row) => {
+      if (!row.product_id) return;
+      supplierPriceByProduct.set(
+        row.product_id,
+        Number(row.supplier_price ?? 0),
+      );
+    },
+  );
 
   const createOrder = async (formData: FormData) => {
     'use server';

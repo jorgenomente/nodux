@@ -17,7 +17,10 @@ export const callFiscalRpc = async <TResult>(
   args?: Record<string, unknown>,
 ): Promise<TResult> => {
   const supabase = createAdminSupabaseClient();
-  const { data, error } = await supabase.rpc(name as never, (args ?? {}) as never);
+  const { data, error } = await supabase.rpc(
+    name as never,
+    (args ?? {}) as never,
+  );
 
   if (error) {
     formatRpcError(name, error);

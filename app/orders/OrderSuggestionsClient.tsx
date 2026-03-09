@@ -207,7 +207,8 @@ export default function OrderSuggestionsClient({
     const parsed = Number(value);
     setUnitCosts((prev) => ({
       ...prev,
-      [productId]: Number.isFinite(parsed) && parsed >= 0 ? value : prev[productId],
+      [productId]:
+        Number.isFinite(parsed) && parsed >= 0 ? value : prev[productId],
     }));
   };
 
@@ -413,7 +414,10 @@ export default function OrderSuggestionsClient({
                         step="0.01"
                         value={currentUnitCostRaw}
                         onChange={(event) =>
-                          handleUnitCostChange(row.product_id, event.target.value)
+                          handleUnitCostChange(
+                            row.product_id,
+                            event.target.value,
+                          )
                         }
                         className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm"
                       />
@@ -451,17 +455,13 @@ export default function OrderSuggestionsClient({
               qty: suggestedQty,
               purchaseByPack: Boolean(row.purchase_by_pack),
               unitsPerPack:
-                row.units_per_pack == null
-                  ? null
-                  : Number(row.units_per_pack),
+                row.units_per_pack == null ? null : Number(row.units_per_pack),
             });
             const currentPackageHint = formatPackageHint({
               qty: currentQty,
               purchaseByPack: Boolean(row.purchase_by_pack),
               unitsPerPack:
-                row.units_per_pack == null
-                  ? null
-                  : Number(row.units_per_pack),
+                row.units_per_pack == null ? null : Number(row.units_per_pack),
             });
 
             return (

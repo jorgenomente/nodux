@@ -1,4 +1,5 @@
 # AFIP / ARCA Worker Runtime
+
 **Proyecto:** NODUX  
 **Versión:** v0.1  
 **Estado:** Draft operativo  
@@ -125,7 +126,7 @@ Fiscal Worker
 Postgres / Supabase
   ↓
 Storage / Print Queue
-````
+```
 
 ---
 
@@ -135,10 +136,10 @@ Storage / Print Queue
 
 Responsable de:
 
-* buscar jobs pendientes
-* tomar jobs de forma segura
-* evitar doble procesamiento
-* priorizar por tenant / ambiente / antigüedad si aplica
+- buscar jobs pendientes
+- tomar jobs de forma segura
+- evitar doble procesamiento
+- priorizar por tenant / ambiente / antigüedad si aplica
 
 ---
 
@@ -146,11 +147,11 @@ Responsable de:
 
 Responsable de:
 
-* localizar `fiscal_credentials`
-* localizar `points_of_sale`
-* resolver CUIT operativo
-* validar estado activo
-* validar ambiente correcto
+- localizar `fiscal_credentials`
+- localizar `points_of_sale`
+- resolver CUIT operativo
+- validar estado activo
+- validar ambiente correcto
 
 ---
 
@@ -158,13 +159,12 @@ Responsable de:
 
 Responsable de:
 
-* verificar si existe TA vigente
-* renovar TA si está vencido o próximo a vencer
-* devolver:
-
-  * `Token`
-  * `Sign`
-  * `Cuit`
+- verificar si existe TA vigente
+- renovar TA si está vencido o próximo a vencer
+- devolver:
+  - `Token`
+  - `Sign`
+  - `Cuit`
 
 ---
 
@@ -172,9 +172,9 @@ Responsable de:
 
 Responsable de:
 
-* invocar `fn_fiscal_reserve_sequence(job_id)`
-* nunca reservar numeración fuera de DB
-* respetar secuencias bloqueadas o en reconciliación
+- invocar `fn_fiscal_reserve_sequence(job_id)`
+- nunca reservar numeración fuera de DB
+- respetar secuencias bloqueadas o en reconciliación
 
 ---
 
@@ -182,17 +182,16 @@ Responsable de:
 
 Responsable de:
 
-* construir request SOAP
-* mapear payload normalizado a formato AFIP / ARCA
-* enviar `FECAESolicitar`
-* parsear respuesta cruda
-* distinguir:
-
-  * aprobación
-  * rechazo
-  * timeout
-  * error técnico
-  * estado incierto
+- construir request SOAP
+- mapear payload normalizado a formato AFIP / ARCA
+- enviar `FECAESolicitar`
+- parsear respuesta cruda
+- distinguir:
+  - aprobación
+  - rechazo
+  - timeout
+  - error técnico
+  - estado incierto
 
 ---
 
@@ -214,9 +213,9 @@ Responsable de traducir la respuesta SOAP a un payload interno consistente, por 
 
 También debe soportar:
 
-* `rejected`
-* `pending_reconcile`
-* `technical_error`
+- `rejected`
+- `pending_reconcile`
+- `technical_error`
 
 ---
 
@@ -224,11 +223,11 @@ También debe soportar:
 
 Responsable de:
 
-* generar QR fiscal
-* generar PDF A4
-* generar ticket térmico
-* guardar paths en storage
-* marcar job como completado
+- generar QR fiscal
+- generar PDF A4
+- generar ticket térmico
+- guardar paths en storage
+- marcar job como completado
 
 ---
 
@@ -236,10 +235,10 @@ Responsable de:
 
 Responsable de:
 
-* tomar jobs en `pending_reconcile`
-* consultar comprobante si es posible
-* resolver si fue autorizado o no
-* cerrar el estado sin reutilizar numeración prematuramente
+- tomar jobs en `pending_reconcile`
+- consultar comprobante si es posible
+- resolver si fue autorizado o no
+- cerrar el estado sin reutilizar numeración prematuramente
 
 ---
 
@@ -257,14 +256,14 @@ cada X segundos:
 
 Ventajas:
 
-* simple
-* predecible
-* fácil de debuggear
+- simple
+- predecible
+- fácil de debuggear
 
 Desventajas:
 
-* latencia fija
-* más consultas a DB
+- latencia fija
+- más consultas a DB
 
 ---
 
@@ -281,12 +280,12 @@ venta cierra
 
 Ventajas:
 
-* menor latencia
-* mejor escala
+- menor latencia
+- mejor escala
 
 Desventajas:
 
-* mayor complejidad operativa
+- mayor complejidad operativa
 
 ---
 
@@ -294,10 +293,10 @@ Desventajas:
 
 Para Lote 1:
 
-* **polling continuo**
-* intervalo bajo
-* batch chico
-* proceso único o baja concurrencia controlada
+- **polling continuo**
+- intervalo bajo
+- batch chico
+- proceso único o baja concurrencia controlada
 
 ---
 
@@ -354,10 +353,10 @@ Para Lote 1:
 
 Aplicar reconciliación si:
 
-* el request salió pero la respuesta es incierta
-* hay timeout luego de reservar numeración
-* hay caída de red entre request y respuesta
-* hay restart del worker en medio del proceso
+- el request salió pero la respuesta es incierta
+- hay timeout luego de reservar numeración
+- hay caída de red entre request y respuesta
+- hay restart del worker en medio del proceso
 
 ---
 
@@ -365,9 +364,9 @@ Aplicar reconciliación si:
 
 Mientras un job esté en `pending_reconcile`:
 
-* no reutilizar `cbte_nro`
-* no asumir rechazo
-* no desbloquear secuencia sin resolución
+- no reutilizar `cbte_nro`
+- no asumir rechazo
+- no desbloquear secuencia sin resolución
 
 ---
 
@@ -397,11 +396,11 @@ Mientras un job esté en `pending_reconcile`:
 
 Se puede reintentar:
 
-* obtención de TA WSAA por error transitorio
-* envío WSFEv1 antes de recibir confirmación concluyente
-* render PDF/ticket
-* upload a storage
-* print dispatch
+- obtención de TA WSAA por error transitorio
+- envío WSFEv1 antes de recibir confirmación concluyente
+- render PDF/ticket
+- upload a storage
+- print dispatch
 
 ---
 
@@ -409,10 +408,10 @@ Se puede reintentar:
 
 No reintentar ciegamente:
 
-* `FECAESolicitar` luego de timeout incierto sin reconciliar
-* reserva de secuencia ya consumida
-* jobs rechazados fiscalmente
-* jobs con configuración inválida permanente
+- `FECAESolicitar` luego de timeout incierto sin reconciliar
+- reserva de secuencia ya consumida
+- jobs rechazados fiscalmente
+- jobs con configuración inválida permanente
 
 ---
 
@@ -420,22 +419,22 @@ No reintentar ciegamente:
 
 #### WSAA
 
-* 3 intentos
-* backoff corto exponencial
+- 3 intentos
+- backoff corto exponencial
 
 #### WSFEv1
 
-* 1 intento directo
-* si timeout incierto → `pending_reconcile`
-* si error técnico claro previo al envío → 1 retry controlado
+- 1 intento directo
+- si timeout incierto → `pending_reconcile`
+- si error técnico claro previo al envío → 1 retry controlado
 
 #### Render
 
-* hasta 3 intentos
+- hasta 3 intentos
 
 #### Print
 
-* hasta 3 intentos
+- hasta 3 intentos
 
 ---
 
@@ -455,17 +454,17 @@ Opciones:
 
 #### Opción A — status transition con lock
 
-* seleccionar job `pending`
-* lock row
-* reservar secuencia
-* mover a `reserved`
+- seleccionar job `pending`
+- lock row
+- reservar secuencia
+- mover a `reserved`
 
 #### Opción B — columna de lease
 
 Agregar más adelante:
 
-* `leased_by`
-* `leased_until`
+- `leased_by`
+- `leased_until`
 
 ---
 
@@ -473,9 +472,9 @@ Agregar más adelante:
 
 Para Lote 1:
 
-* un worker principal
-* concurrencia baja
-* procesamiento serial o por lotes pequeños
+- un worker principal
+- concurrencia baja
+- procesamiento serial o por lotes pequeños
 
 ---
 
@@ -483,11 +482,11 @@ Para Lote 1:
 
 ### 12.1 Qué secretos usa el worker
 
-* `certificate_pem`
-* `encrypted_private_key`
-* clave maestra / reference
-* `Token`
-* `Sign`
+- `certificate_pem`
+- `encrypted_private_key`
+- clave maestra / reference
+- `Token`
+- `Sign`
 
 ---
 
@@ -497,19 +496,19 @@ La desencriptación ocurre sólo dentro del proceso del worker.
 
 Nunca:
 
-* en frontend
-* en Edge pública
-* en cliente móvil
-* en funciones compartidas sin boundary
+- en frontend
+- en Edge pública
+- en cliente móvil
+- en funciones compartidas sin boundary
 
 ---
 
 ### 12.3 Memoria
 
-* no loggear secretos
-* no persistir private key desencriptada
-* limpiar buffers cuando sea posible
-* no incluir Token / Sign en logs de error
+- no loggear secretos
+- no persistir private key desencriptada
+- limpiar buffers cuando sea posible
+- no incluir Token / Sign en logs de error
 
 ---
 
@@ -555,12 +554,12 @@ Nunca:
   "currency": "PES",
   "currencyRate": 1,
   "amounts": {
-    "total": 1210.00,
-    "net": 1000.00,
-    "iva": 210.00,
-    "trib": 0.00,
-    "opEx": 0.00,
-    "totConc": 0.00
+    "total": 1210.0,
+    "net": 1000.0,
+    "iva": 210.0,
+    "trib": 0.0,
+    "opEx": 0.0,
+    "totConc": 0.0
   },
   "observations": [],
   "events": [],
@@ -658,62 +657,62 @@ Resuelve estados inciertos.
 
 ```ts
 async function processInvoiceJob(jobId: string) {
-  const job = await loadJob(jobId)
+  const job = await loadJob(jobId);
 
-  const credentials = await resolveCredentials(job)
-  const pointOfSale = await resolvePointOfSale(job)
+  const credentials = await resolveCredentials(job);
+  const pointOfSale = await resolvePointOfSale(job);
 
-  const reserved = await rpc.reserveSequence(job.id)
+  const reserved = await rpc.reserveSequence(job.id);
 
   const requestPayload = await buildFiscalRequest({
     job,
     credentials,
     pointOfSale,
-    cbteNro: reserved.cbte_nro
-  })
+    cbteNro: reserved.cbte_nro,
+  });
 
-  await rpc.markAuthorizing(job.id, requestPayload)
+  await rpc.markAuthorizing(job.id, requestPayload);
 
-  const auth = await getOrRefreshWsaaTicket(credentials)
+  const auth = await getOrRefreshWsaaTicket(credentials);
 
   try {
     const response = await wsfe.submitCAERequest({
       auth,
-      payload: requestPayload
-    })
+      payload: requestPayload,
+    });
 
-    const normalized = normalizeFiscalResponse(response)
+    const normalized = normalizeFiscalResponse(response);
 
     if (normalized.outcome === 'approved') {
-      const invoiceId = await rpc.markAuthorized(job.id, normalized)
+      const invoiceId = await rpc.markAuthorized(job.id, normalized);
 
-      const renderResult = await renderArtifacts(invoiceId, normalized)
+      const renderResult = await renderArtifacts(invoiceId, normalized);
 
-      await rpc.markRenderCompleted(job.id, invoiceId, renderResult)
+      await rpc.markRenderCompleted(job.id, invoiceId, renderResult);
 
-      return
+      return;
     }
 
     if (normalized.outcome === 'rejected') {
-      await rpc.markRejected(job.id, normalized)
-      return
+      await rpc.markRejected(job.id, normalized);
+      return;
     }
 
-    await rpc.markPendingReconcile(job.id, normalized)
+    await rpc.markPendingReconcile(job.id, normalized);
   } catch (error) {
-    const classified = classifyFiscalError(error)
+    const classified = classifyFiscalError(error);
 
     if (classified.kind === 'uncertain') {
-      await rpc.markPendingReconcile(job.id, classified.payload)
-      return
+      await rpc.markPendingReconcile(job.id, classified.payload);
+      return;
     }
 
     if (classified.kind === 'definitive_rejection') {
-      await rpc.markRejected(job.id, classified.payload)
-      return
+      await rpc.markRejected(job.id, classified.payload);
+      return;
     }
 
-    throw error
+    throw error;
   }
 }
 ```
@@ -726,14 +725,14 @@ async function processInvoiceJob(jobId: string) {
 
 Todo log del worker debe incluir:
 
-* `invoice_job_id`
-* `tenant_id`
-* `environment`
-* `pto_vta`
-* `cbte_tipo`
-* `cbte_nro`
-* `correlation_id`
-* `worker_instance_id`
+- `invoice_job_id`
+- `tenant_id`
+- `environment`
+- `pto_vta`
+- `cbte_tipo`
+- `cbte_nro`
+- `correlation_id`
+- `worker_instance_id`
 
 ---
 
@@ -741,11 +740,11 @@ Todo log del worker debe incluir:
 
 Nunca incluir en logs:
 
-* private key
-* Token
-* Sign
-* certificado completo
-* request SOAP completo sin redacción
+- private key
+- Token
+- Sign
+- certificado completo
+- request SOAP completo sin redacción
 
 ---
 
@@ -753,9 +752,9 @@ Nunca incluir en logs:
 
 Aplicar redacción a:
 
-* headers sensibles
-* XML firmado
-* payloads de autenticación
+- headers sensibles
+- XML firmado
+- payloads de autenticación
 
 ---
 
@@ -763,16 +762,16 @@ Aplicar redacción a:
 
 ### 18.1 Métricas mínimas
 
-* jobs pendientes
-* jobs completados
-* jobs rechazados
-* jobs pending_reconcile
-* tiempo medio WSAA
-* tiempo medio WSFEv1
-* tiempo medio render
-* retries por tipo
-* secuencias bloqueadas
-* errores por tenant
+- jobs pendientes
+- jobs completados
+- jobs rechazados
+- jobs pending_reconcile
+- tiempo medio WSAA
+- tiempo medio WSFEv1
+- tiempo medio render
+- retries por tipo
+- secuencias bloqueadas
+- errores por tenant
 
 ---
 
@@ -780,21 +779,21 @@ Aplicar redacción a:
 
 #### Captura
 
-* jobs creados por minuto
+- jobs creados por minuto
 
 #### Fiscalización
 
-* autorizaciones por minuto
-* tasa de aprobación
+- autorizaciones por minuto
+- tasa de aprobación
 
 #### Render
 
-* PDF success rate
-* ticket success rate
+- PDF success rate
+- ticket success rate
 
 #### Reconciliación
 
-* antigüedad media pending_reconcile
+- antigüedad media pending_reconcile
 
 ---
 
@@ -822,12 +821,12 @@ El worker debe tratar `homo` y `prod` como universos separados.
 
 Separar:
 
-* endpoints
-* certificados
-* token cache
-* numeración
-* storage path
-* métricas si es posible
+- endpoints
+- certificados
+- token cache
+- numeración
+- storage path
+- métricas si es posible
 
 Ejemplo:
 
@@ -856,10 +855,10 @@ AFIP autorizado
 
 Si falla render después de autorización:
 
-* la factura sigue existiendo fiscalmente
-* el job no debe volver a `authorizing`
-* reintentar sólo render
-* mantener estado `render_pending` hasta resolver
+- la factura sigue existiendo fiscalmente
+- el job no debe volver a `authorizing`
+- reintentar sólo render
+- mantener estado `render_pending` hasta resolver
 
 ---
 
@@ -869,9 +868,9 @@ La impresión no debe bloquear el cierre fiscal del documento.
 
 Recomendación:
 
-* `invoice_job` termina en `completed` al finalizar render
-* la impresión va por `print_jobs`
-* reimpresiones posteriores no reabren el job fiscal
+- `invoice_job` termina en `completed` al finalizar render
+- la impresión va por `print_jobs`
+- reimpresiones posteriores no reabren el job fiscal
 
 ---
 
@@ -907,46 +906,46 @@ Riesgoso.
 
 ### Base
 
-* [ ] proceso worker creado
-* [ ] polling de jobs pending
-* [ ] polling de jobs pending_reconcile
+- [ ] proceso worker creado
+- [ ] polling de jobs pending
+- [ ] polling de jobs pending_reconcile
 
 ### Auth
 
-* [ ] TRA builder
-* [ ] signing flow
-* [ ] WSAA client
-* [ ] cache de TA
+- [ ] TRA builder
+- [ ] signing flow
+- [ ] WSAA client
+- [ ] cache de TA
 
 ### Fiscal
 
-* [ ] builder FECAESolicitar
-* [ ] WSFEv1 client
-* [ ] normalizador de respuesta
-* [ ] clasificación de errores
+- [ ] builder FECAESolicitar
+- [ ] WSFEv1 client
+- [ ] normalizador de respuesta
+- [ ] clasificación de errores
 
 ### DB
 
-* [ ] reserveSequence RPC
-* [ ] markAuthorizing RPC
-* [ ] markAuthorized RPC
-* [ ] markRejected RPC
-* [ ] markPendingReconcile RPC
-* [ ] markRenderCompleted RPC
+- [ ] reserveSequence RPC
+- [ ] markAuthorizing RPC
+- [ ] markAuthorized RPC
+- [ ] markRejected RPC
+- [ ] markPendingReconcile RPC
+- [ ] markRenderCompleted RPC
 
 ### Render
 
-* [ ] QR builder
-* [ ] PDF renderer
-* [ ] thermal ticket renderer
-* [ ] upload storage
+- [ ] QR builder
+- [ ] PDF renderer
+- [ ] thermal ticket renderer
+- [ ] upload storage
 
 ### Operación
 
-* [ ] logs estructurados
-* [ ] métricas mínimas
-* [ ] redacción de secretos
-* [ ] alertas básicas
+- [ ] logs estructurados
+- [ ] métricas mínimas
+- [ ] redacción de secretos
+- [ ] alertas básicas
 
 ---
 
@@ -985,13 +984,13 @@ El Fiscal Worker es el núcleo operativo que convierte una solicitud fiscal inte
 
 Su diseño correcto depende de:
 
-* DB como fuente de verdad
-* secretos aislados
-* reserva transaccional de numeración
-* WSAA cacheado
-* WSFEv1 desacoplado
-* render fuera del camino fiscal
-* reconciliación obligatoria para estados inciertos
+- DB como fuente de verdad
+- secretos aislados
+- reserva transaccional de numeración
+- WSAA cacheado
+- WSFEv1 desacoplado
+- render fuera del camino fiscal
+- reconciliación obligatoria para estados inciertos
 
 Con esta base, NODUX puede arrancar rápido en homologación sin hipotecar la arquitectura futura.
 

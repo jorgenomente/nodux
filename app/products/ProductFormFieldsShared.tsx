@@ -222,9 +222,9 @@ export default function ProductFormFieldsShared({
     () =>
       Boolean(
         normalizedTypedName &&
-          productNameSuggestions.some(
-            (product) => normalizeText(product.name) === normalizedTypedName,
-          ),
+        productNameSuggestions.some(
+          (product) => normalizeText(product.name) === normalizedTypedName,
+        ),
       ),
     [normalizedTypedName, productNameSuggestions],
   );
@@ -232,7 +232,9 @@ export default function ProductFormFieldsShared({
     if (!normalizedBarcodeValue) return null;
     return (
       productNameSuggestions.find(
-        (product) => normalizeBarcode(String(product.barcode ?? '')) === normalizedBarcodeValue,
+        (product) =>
+          normalizeBarcode(String(product.barcode ?? '')) ===
+          normalizedBarcodeValue,
       ) ?? null
     );
   }, [normalizedBarcodeValue, productNameSuggestions]);
@@ -309,7 +311,11 @@ export default function ProductFormFieldsShared({
     const basePrefix = `${brandPrefix}-${productPrefix}`;
     const existingCodes = new Set(
       productNameSuggestions
-        .map((product) => String(product.internal_code ?? '').trim().toUpperCase())
+        .map((product) =>
+          String(product.internal_code ?? '')
+            .trim()
+            .toUpperCase(),
+        )
         .filter(Boolean),
     );
     let sequence = 1;
@@ -349,7 +355,8 @@ export default function ProductFormFieldsShared({
         ) : null}
         {!exactNameDuplicate && suggestedProducts.length > 0 ? (
           <span className="mt-2 block text-xs text-amber-700">
-            Posibles coincidencias: {suggestedProducts.map((product) => product.name).join(' · ')}
+            Posibles coincidencias:{' '}
+            {suggestedProducts.map((product) => product.name).join(' · ')}
           </span>
         ) : null}
       </label>
@@ -372,8 +379,8 @@ export default function ProductFormFieldsShared({
         ) : null}
         {exactBrandMatch ? (
           <span className="mt-2 block text-xs text-amber-700">
-            Marca ya existente: <strong>{exactBrandMatch.raw}</strong>.
-            {' '}Usa este mismo nombre para mantener catálogo limpio.
+            Marca ya existente: <strong>{exactBrandMatch.raw}</strong>. Usa este
+            mismo nombre para mantener catálogo limpio.
           </span>
         ) : null}
         {!exactBrandMatch && similarBrands.length > 0 ? (
@@ -389,12 +396,20 @@ export default function ProductFormFieldsShared({
             name={fields.internalCode}
             value={internalCodeValue}
             onChange={(event) => setInternalCodeValue(event.target.value)}
-            className={compact ? 'w-full rounded border border-zinc-300 px-2 py-1 text-sm' : 'w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm'}
+            className={
+              compact
+                ? 'w-full rounded border border-zinc-300 px-2 py-1 text-sm'
+                : 'w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm'
+            }
           />
           <button
             type="button"
             onClick={generateInternalCode}
-            className={compact ? 'rounded border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50' : 'rounded-lg border border-zinc-300 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50'}
+            className={
+              compact
+                ? 'rounded border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50'
+                : 'rounded-lg border border-zinc-300 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50'
+            }
           >
             Generar
           </button>

@@ -48,12 +48,19 @@ const assertCronSecret = (request: NextRequest) => {
 
 export async function GET(request: NextRequest) {
   if (!assertCronSecret(request)) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, error: 'Unauthorized' },
+      { status: 401 },
+    );
   }
 
   try {
-    const batchSize = parseBatchSize(request.nextUrl.searchParams.get('batch_size'));
-    const executionMode = parseExecutionMode(request.nextUrl.searchParams.get('mode'));
+    const batchSize = parseBatchSize(
+      request.nextUrl.searchParams.get('batch_size'),
+    );
+    const executionMode = parseExecutionMode(
+      request.nextUrl.searchParams.get('mode'),
+    );
 
     const result = await runFiscalWorkerOnce({
       batchSize,
@@ -69,7 +76,8 @@ export async function GET(request: NextRequest) {
       processedAt: new Date().toISOString(),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Fiscal worker failed';
+    const message =
+      error instanceof Error ? error.message : 'Fiscal worker failed';
 
     return NextResponse.json(
       {

@@ -6,7 +6,12 @@ type TrackingRow = {
   order_code: string;
   store_name: string;
   branch_name: string;
-  status: 'pending' | 'confirmed' | 'ready_for_pickup' | 'delivered' | 'cancelled';
+  status:
+    | 'pending'
+    | 'confirmed'
+    | 'ready_for_pickup'
+    | 'delivered'
+    | 'cancelled';
   created_at: string;
   last_status_at: string;
   customer_name: string;
@@ -54,9 +59,12 @@ export default async function OnlineOrderTrackingPage({
     ) => Promise<{ data: unknown; error: { message: string } | null }>;
   };
 
-  const { data, error } = await supabaseRpc.rpc('rpc_get_online_order_tracking', {
-    p_tracking_token: trackingToken,
-  });
+  const { data, error } = await supabaseRpc.rpc(
+    'rpc_get_online_order_tracking',
+    {
+      p_tracking_token: trackingToken,
+    },
+  );
 
   if (error) {
     return (
@@ -92,9 +100,9 @@ export default async function OnlineOrderTrackingPage({
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-orange-50 text-slate-900">
-      <section className="mx-auto w-full max-w-2xl px-6 pb-14 pt-10">
+      <section className="mx-auto w-full max-w-2xl px-6 pt-10 pb-14">
         <div className="rounded-3xl border border-orange-100 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">
+          <p className="text-xs font-semibold tracking-[0.16em] text-orange-700 uppercase">
             Seguimiento pedido
           </p>
           <h1 className="mt-2 text-2xl font-semibold">{row.order_code}</h1>
@@ -107,7 +115,7 @@ export default async function OnlineOrderTrackingPage({
         </div>
 
         <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-600">
+          <h2 className="text-sm font-semibold tracking-[0.12em] text-slate-600 uppercase">
             Detalle del pedido
           </h2>
           <div className="mt-3 grid gap-2 rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-slate-700">
@@ -148,9 +156,12 @@ export default async function OnlineOrderTrackingPage({
                   key={`${item.product_name}-${index}`}
                   className="rounded-lg border border-slate-100 bg-white px-3 py-2"
                 >
-                  <p className="text-sm font-medium text-slate-800">{item.product_name}</p>
+                  <p className="text-sm font-medium text-slate-800">
+                    {item.product_name}
+                  </p>
                   <p className="text-xs text-slate-600">
-                    {Number(item.quantity)} x ${Number(item.unit_price).toFixed(2)} = $
+                    {Number(item.quantity)} x $
+                    {Number(item.unit_price).toFixed(2)} = $
                     {Number(item.line_total).toFixed(2)}
                   </p>
                 </div>
@@ -160,7 +171,7 @@ export default async function OnlineOrderTrackingPage({
         </div>
 
         <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-600">
+          <h2 className="text-sm font-semibold tracking-[0.12em] text-slate-600 uppercase">
             Historial
           </h2>
           <div className="mt-3 space-y-2">
@@ -170,13 +181,16 @@ export default async function OnlineOrderTrackingPage({
                 className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
               >
                 <p className="text-sm font-medium text-slate-800">
-                  {statusLabel[item.new_status as TrackingRow['status']] ?? item.new_status}
+                  {statusLabel[item.new_status as TrackingRow['status']] ??
+                    item.new_status}
                 </p>
                 <p className="text-xs text-slate-500">
                   {new Date(item.changed_at).toLocaleString('es-AR')}
                 </p>
                 {item.customer_note ? (
-                  <p className="mt-1 text-xs text-slate-600">{item.customer_note}</p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {item.customer_note}
+                  </p>
                 ) : null}
               </div>
             ))}

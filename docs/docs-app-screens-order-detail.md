@@ -114,7 +114,7 @@ RPC status change:
   - persiste el costo real en:
     - `supplier_order_items.unit_cost` (snapshot del pedido)
     - `supplier_products.supplier_price` (vigente para próximos pedidos)
-    RPC: `rpc_receive_supplier_order(order_id, received_items[], received_at, controlled_by)`
+      RPC: `rpc_receive_supplier_order(order_id, received_items[], received_at, controlled_by)`
 - Calculadora operativa de remito:
   - subtotal sin IVA
   - check `Aplicar IVA` + `%`

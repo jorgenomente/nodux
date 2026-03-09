@@ -99,7 +99,7 @@ Señales de que una tienda es buen cliente para NODUX:
 • inventario visible en estanterías  
 • gran variedad de productos  
 • pedidos manuales a proveedores  
-• presencia online desconectada  
+• presencia online desconectada
 
 Estas tiendas suelen tener dolor operativo claro.
 

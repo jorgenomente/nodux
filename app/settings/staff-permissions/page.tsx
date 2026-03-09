@@ -22,7 +22,10 @@ type ModuleAccessRow = {
 
 const STAFF_FULL_ACCESS_KEY = '__full_access__';
 
-const MODULE_DEFINITIONS: Record<string, { label: string; description: string }> = {
+const MODULE_DEFINITIONS: Record<
+  string,
+  { label: string; description: string }
+> = {
   dashboard: {
     label: 'Dashboard',
     description: 'Resumen operativo del negocio para seguimiento diario.',
@@ -255,7 +258,11 @@ export default async function SettingsStaffPermissionsPage({
             action={setModuleAccess}
             className="rounded-2xl border border-zinc-200 bg-white p-5"
           >
-            <input type="hidden" name="module_key" value={STAFF_FULL_ACCESS_KEY} />
+            <input
+              type="hidden"
+              name="module_key"
+              value={STAFF_FULL_ACCESS_KEY}
+            />
             <input
               type="hidden"
               name="scope_branch_id"
@@ -295,8 +302,7 @@ export default async function SettingsStaffPermissionsPage({
 
           {moduleKeys.map((moduleKey) => {
             const row = accessByModule.get(moduleKey);
-            const currentEnabled =
-              row?.is_enabled ?? fullAccessEnabled;
+            const currentEnabled = row?.is_enabled ?? fullAccessEnabled;
             const resolvedSource =
               row?.source_scope ??
               (fullAccessEnabled ? `full_access(${fullAccessSource})` : 'none');

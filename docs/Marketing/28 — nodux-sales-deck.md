@@ -23,7 +23,7 @@ POS
 Excel  
 WhatsApp  
 cuadernos  
-Trello  
+Trello
 
 La operación termina siendo caótica.
 

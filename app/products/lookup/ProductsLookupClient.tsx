@@ -125,18 +125,21 @@ export default function ProductsLookupClient({
     setIsLoading(false);
   };
 
-  const applyQuery = useCallback((value: string, options?: { instant?: boolean }) => {
-    setQuery(value);
-    setErrorMessage(null);
+  const applyQuery = useCallback(
+    (value: string, options?: { instant?: boolean }) => {
+      setQuery(value);
+      setErrorMessage(null);
 
-    if (options?.instant) {
-      instantSearchRef.current = true;
-    }
+      if (options?.instant) {
+        instantSearchRef.current = true;
+      }
 
-    if (value.trim().length < SEARCH_MIN_CHARS) {
-      setIsLoading(false);
-    }
-  }, []);
+      if (value.trim().length < SEARCH_MIN_CHARS) {
+        setIsLoading(false);
+      }
+    },
+    [],
+  );
 
   const handleQueryChange = (value: string) => {
     applyQuery(value);

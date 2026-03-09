@@ -29,7 +29,9 @@ export const resolveFiscalContext = async (params: {
     .maybeSingle();
 
   if (credentialsError) {
-    throw new Error(`resolveFiscalContext(credentials) failed: ${credentialsError.message}`);
+    throw new Error(
+      `resolveFiscalContext(credentials) failed: ${credentialsError.message}`,
+    );
   }
 
   if (!credentials) {
@@ -40,9 +42,7 @@ export const resolveFiscalContext = async (params: {
 
   const { data: pointOfSale, error: pointOfSaleError } = await supabase
     .from('points_of_sale' as never)
-    .select(
-      'id,tenant_id,location_id,environment,pto_vta,invoice_mode,status',
-    )
+    .select('id,tenant_id,location_id,environment,pto_vta,invoice_mode,status')
     .eq('tenant_id', params.tenantId)
     .eq('environment', params.environment)
     .eq('pto_vta', params.ptoVta)
@@ -51,7 +51,9 @@ export const resolveFiscalContext = async (params: {
     .maybeSingle();
 
   if (pointOfSaleError) {
-    throw new Error(`resolveFiscalContext(point_of_sale) failed: ${pointOfSaleError.message}`);
+    throw new Error(
+      `resolveFiscalContext(point_of_sale) failed: ${pointOfSaleError.message}`,
+    );
   }
 
   if (!pointOfSale) {

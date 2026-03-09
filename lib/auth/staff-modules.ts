@@ -62,4 +62,7 @@ export const resolveStaffHome = (modules: StaffModuleRow[]) => {
 export const hasStaffModuleEnabled = (
   modules: StaffModuleRow[],
   moduleKey: string,
-) => modules.some((module) => module.module_key === moduleKey && module.is_enabled);
+) =>
+  modules.some(
+    (module) => module.module_key === moduleKey && module.is_enabled,
+  );

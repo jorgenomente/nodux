@@ -223,11 +223,11 @@ Limitaciones:
 
 Cuando se observa el mercado completo aparece un patrón claro.
 
-| Categoría | Foco | Limitación |
-|------|------|------|
-| POS | Transacción | No controla operación |
-| ERP | Administración | No optimizado para tienda |
-| E-commerce | Venta online | Desconectado de tienda |
+| Categoría  | Foco           | Limitación                |
+| ---------- | -------------- | ------------------------- |
+| POS        | Transacción    | No controla operación     |
+| ERP        | Administración | No optimizado para tienda |
+| E-commerce | Venta online   | Desconectado de tienda    |
 
 Ninguna categoría está diseñada específicamente para **la ejecución operativa del retail**.
 

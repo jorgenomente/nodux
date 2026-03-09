@@ -6,7 +6,10 @@ import { revalidatePath } from 'next/cache';
 import PageShell from '@/app/components/PageShell';
 import NewProductForm from '@/app/products/NewProductForm';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
-import { hasStaffModuleEnabled, resolveStaffHome } from '@/lib/auth/staff-modules';
+import {
+  hasStaffModuleEnabled,
+  resolveStaffHome,
+} from '@/lib/auth/staff-modules';
 import { fetchAllPages } from '@/lib/supabase/fetch-all-pages';
 
 type SupplierDetailRow = {
@@ -85,8 +88,13 @@ export default async function SupplierDetailPage({
   const orgId = session.orgId;
   const role = session.effectiveRole;
   if (role === 'staff') {
-    const { data: modules } = await supabase.rpc('rpc_get_staff_effective_modules');
-    const resolvedModules = (modules ?? []) as Array<{ module_key: string; is_enabled: boolean }>;
+    const { data: modules } = await supabase.rpc(
+      'rpc_get_staff_effective_modules',
+    );
+    const resolvedModules = (modules ?? []) as Array<{
+      module_key: string;
+      is_enabled: boolean;
+    }>;
     if (!hasStaffModuleEnabled(resolvedModules, 'suppliers')) {
       const home = resolveStaffHome(resolvedModules);
       redirect(home);
@@ -395,13 +403,11 @@ export default async function SupplierDetailPage({
     });
     await supabaseServer
       .from('products' as never)
-      .update(
-        {
-          brand: brand || null,
-          purchase_by_pack: purchaseByPack,
-          units_per_pack: purchaseByPack ? unitsPerPack : null,
-        } as never,
-      )
+      .update({
+        brand: brand || null,
+        purchase_by_pack: purchaseByPack,
+        units_per_pack: purchaseByPack ? unitsPerPack : null,
+      } as never)
       .eq('org_id', orgId)
       .eq('id', productId);
 

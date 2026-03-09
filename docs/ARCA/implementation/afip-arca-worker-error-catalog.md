@@ -1,4 +1,5 @@
 # AFIP / ARCA Worker Error Catalog
+
 **Proyecto:** NODUX  
 **Versión:** v0.1  
 **Estado:** Draft operativo  
@@ -89,6 +90,7 @@ Formato interno sugerido:
 ```
 
 ## 5. Categorías principales
+
 5.1 configuration
 
 Errores de configuración del tenant o del ambiente.
@@ -133,8 +135,8 @@ Errores durante resolución de estados inciertos.
 
 Errores DB/RPC/locking/consistencia.
 
-
 ## 6. Severidades
+
 low
 
 No impide operación principal; suele requerir observación.
@@ -151,8 +153,8 @@ critical
 
 Riesgo de inconsistencia, seguridad o bloqueo sistémico.
 
-
 ## 7. Job transitions permitidas por error
+
 rejected
 
 Cuando AFIP / ARCA rechazó de forma concluyente.
@@ -173,8 +175,8 @@ completed
 
 No aplica a errores, salvo recuperación posterior.
 
-
 ## 8. Catálogo base
+
 8.1 CONFIGURATION
 FISCAL_CONFIG_CREDENTIALS_NOT_FOUND
 
@@ -730,17 +732,18 @@ Job transition: pending_reconcile
 
 Descripción: inconsistencia fuerte entre secuencia local y confirmación externa.
 
-
 ## 9. Matriz de decisión resumida
-Code	Retry	Reconcile	Transition
-FISCAL_WSAA_TIMEOUT	sí	no	failed
-FISCAL_WSFE_TIMEOUT_UNCERTAIN	no	sí	pending_reconcile
-FISCAL_REJECTED_BY_ARCA	no	no	rejected
-FISCAL_RENDER_PDF_FAILED	sí	no	render_pending
-FISCAL_DB_RPC_MARK_AUTHORIZED_FAILED	no	sí	pending_reconcile
-FISCAL_PRINT_DISPATCH_FAILED	sí	no	none
+
+Code Retry Reconcile Transition
+FISCAL_WSAA_TIMEOUT sí no failed
+FISCAL_WSFE_TIMEOUT_UNCERTAIN no sí pending_reconcile
+FISCAL_REJECTED_BY_ARCA no no rejected
+FISCAL_RENDER_PDF_FAILED sí no render_pending
+FISCAL_DB_RPC_MARK_AUTHORIZED_FAILED no sí pending_reconcile
+FISCAL_PRINT_DISPATCH_FAILED sí no none
 
 ## 10. Reglas de implementación
+
 10.1 No usar strings libres
 
 Todos los errores deben mapearse a un code del catálogo.
@@ -759,20 +762,19 @@ mensaje operativo: para dashboard/backoffice
 
 Si el estado es incierto, debe verse explícitamente como pending_reconcile.
 
-
 ## 11. Helper sugerido de clasificación
 
 Interfaz sugerida:
 
 type FiscalErrorClassification = {
-  code: string
-  category: string
-  severity: 'low' | 'medium' | 'high' | 'critical'
-  retryable: boolean
-  reconcileRequired: boolean
-  jobTransition: 'rejected' | 'pending_reconcile' | 'failed' | 'render_pending' | 'none'
-  message: string
-  details?: Record<string, unknown>
+code: string
+category: string
+severity: 'low' | 'medium' | 'high' | 'critical'
+retryable: boolean
+reconcileRequired: boolean
+jobTransition: 'rejected' | 'pending_reconcile' | 'failed' | 'render_pending' | 'none'
+message: string
+details?: Record<string, unknown>
 }
 
 ## 12. Próximos usos del catálogo
@@ -792,7 +794,6 @@ testing
 prompts de Codex
 
 playbooks de soporte
-
 
 ## 13. Conclusión
 

@@ -116,7 +116,7 @@ export default function NewProductForm({
       </div>
       {notice ? (
         <div
-          className={`md:col-span-2 rounded border px-3 py-2 text-xs ${
+          className={`rounded border px-3 py-2 text-xs md:col-span-2 ${
             notice.tone === 'error'
               ? 'border-red-200 bg-red-50 text-red-700'
               : 'border-emerald-200 bg-emerald-50 text-emerald-700'

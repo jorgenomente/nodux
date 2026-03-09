@@ -1,4 +1,5 @@
 # AFIP / ARCA Fiscal Data Model
+
 Proyecto: NODUX  
 Versión: v0.1  
 Estado: Draft
