@@ -3415,3 +3415,21 @@ implementemos render del comprobante.
 
 **Prompt**
 sigamos con el sublote UX
+
+## 2026-03-09 14:15 -03 — ARCA ops: automatización productiva con Vercel Cron
+
+**Lote:** arca-lote-4k-fiscal-prod-cron-worker
+**Objetivo:** Dejar el worker fiscal productivo automatizado sin shell manual, usando ruta interna segura y cron en Vercel.
+
+**Prompt**
+si exacto, no podemos ejecutar npm run fiscal:worker:live en prod asi que tenemos que automatizarlo de alguna manera
+
+listo ya las agregue en vercel seguimos
+
+## 2026-03-09 14:35 -03 — ARCA UI: reubicar controles fiscales productivos
+
+**Lote:** arca-lote-4l-fiscal-controls-relocation
+**Objetivo:** Mover los toggles productivos de facturación fiscal desde `/settings/preferences` hacia `/settings/fiscal` para alinearlos con el onboarding y la operación fiscal.
+
+**Prompt**
+vamos a mover los dos toggles de la facturacion fiscal desde /preferences a /fiscal en la parte inferior ya que esto tiene que ver mas con facturacion que con preferencias generales. he creado la clave de cron y tambien la desplegue en vercel

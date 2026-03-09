@@ -51,6 +51,58 @@ Se corrigieron referencias internas hacia `docs/ARCA/...`, se limpiaron envoltor
 **Estado:** DONE
 **Commit:** N/A
 
+## 2026-03-09 14:15 -03 — Lote 4K ops/infra: worker fiscal automatizado en producción
+
+**Lote:** arca-lote-4k-fiscal-prod-cron-worker
+**Tipo:** backend/infra/docs/tests
+**Objetivo:** Automatizar el procesamiento productivo de jobs fiscales sin depender de `npm run fiscal:worker:live` manual.
+
+**Resumen**
+Se agregó una route handler interna en `app/api/internal/fiscal/worker` que ejecuta `runFiscalWorkerOnce` con `dryRun=false` y acepta `mode=live|prod-safe` por querystring. La ruta exige `CRON_SECRET` y valida el header `Authorization` con el formato recomendado por la documentación actual de Vercel para cron jobs. Además se agregó `vercel.json` con un cron cada 5 minutos apuntando a esa ruta, dejando el worker productivo listo para operar en Vercel.
+
+**Archivos**
+- app/api/internal/fiscal/worker/route.ts
+- vercel.json
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+
+**Validación**
+- `npm run lint`: OK
+- `npm run build`: OK
+
+**Estado:** DONE
+**Commit:** N/A
+
+## 2026-03-09 14:35 -03 — Lote 4L UI: reubicación de controles fiscales productivos
+
+**Lote:** arca-lote-4l-fiscal-controls-relocation
+**Tipo:** ui/docs/tests
+**Objetivo:** Consolidar en `/settings/fiscal` todos los controles operativos de facturación productiva.
+
+**Resumen**
+Se movieron los toggles `fiscal_prod_enqueue_enabled` y `fiscal_prod_live_enabled` desde `/settings/preferences` hacia la sección inferior `Controles de producción` en `/settings/fiscal`. Con esto, la misma pantalla ya concentra credenciales, puntos de venta, prueba segura y habilitación productiva. Se actualizaron además los contratos de pantalla y el runbook `prod-safe` para dejar de referenciar `/settings/preferences` como punto operativo fiscal.
+
+**Archivos**
+- app/settings/fiscal/page.tsx
+- app/settings/preferences/page.tsx
+- docs/docs-app-screens-settings-fiscal.md
+- docs/docs-app-screens-settings-preferences.md
+- docs/context-summary.md
+- docs/ARCA/operations/fiscal-worker-prod-safe-runbook.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Validación**
+- `npm run lint`: OK
+- `npm run build`: OK
+
+**Estado:** DONE
+**Commit:** N/A
+
 ## 2026-03-09 13:55 -03 — Lote 4J UX: mejora visual del comprobante fiscal
 
 **Lote:** arca-lote-4j-fiscal-invoice-ux

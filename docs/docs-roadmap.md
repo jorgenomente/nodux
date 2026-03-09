@@ -3,7 +3,7 @@
 Este documento ordena el trabajo en fases logicas para avanzar el MVP de forma consistente.
 Debe actualizarse cada vez que se complete una fase o se cambie el plan.
 
-Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada, Fase 7 en progreso) + **track fiscal ARCA post-MVP activo** con autorización real y render MVP on-demand ya cerrados.
+Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada, Fase 7 en progreso) + **track fiscal ARCA post-MVP activo** con autorización real, render MVP on-demand y automatización productiva por cron ya cerrados.
 
 ---
 

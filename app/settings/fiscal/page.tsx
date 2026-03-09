@@ -13,6 +13,7 @@ type SearchParams = {
   result?: string;
   env?: string;
   pos_env?: string;
+  gate_result?: string;
   pto_vta?: string;
   branch_name?: string;
   test_env?: string;
@@ -61,6 +62,11 @@ type BranchRow = {
 type OrgRow = {
   id: string;
   name: string;
+};
+
+type FiscalOrgPreferencesRow = {
+  fiscal_prod_enqueue_enabled: boolean;
+  fiscal_prod_live_enabled: boolean;
 };
 
 const ENVIRONMENTS: FiscalEnvironment[] = ['homo', 'prod'];
@@ -158,6 +164,16 @@ export default async function SettingsFiscalPage({
     .order('environment')
     .order('pto_vta');
   const pointsOfSale = (pointsRaw ?? []) as PointOfSaleRow[];
+  const { data: orgPreferencesRaw } = await context.admin
+    .from('org_preferences' as never)
+    .select('fiscal_prod_enqueue_enabled, fiscal_prod_live_enabled')
+    .eq('org_id', context.orgId)
+    .maybeSingle();
+  const orgPreferences = (orgPreferencesRaw ??
+    ({
+      fiscal_prod_enqueue_enabled: false,
+      fiscal_prod_live_enabled: false,
+    } satisfies FiscalOrgPreferencesRow)) as FiscalOrgPreferencesRow;
 
   const saveCredentials = async (formData: FormData) => {
     'use server';
@@ -414,6 +430,38 @@ export default async function SettingsFiscalPage({
     }
   };
 
+  const saveFiscalProdControls = async (formData: FormData) => {
+    'use server';
+
+    const auth = await getContext();
+    if (!auth) {
+      redirect('/no-access');
+    }
+
+    const fiscalProdEnqueueEnabled =
+      formData.get('fiscal_prod_enqueue_enabled') === 'on';
+    const fiscalProdLiveEnabled =
+      formData.get('fiscal_prod_live_enabled') === 'on';
+
+    const { error } = await auth.admin.from('org_preferences' as never).upsert({
+      org_id: auth.orgId,
+      fiscal_prod_enqueue_enabled: fiscalProdEnqueueEnabled,
+      fiscal_prod_live_enabled: fiscalProdLiveEnabled,
+    } as never);
+
+    if (error) {
+      redirect('/settings/fiscal?gate_result=invalid');
+    }
+
+    revalidatePath('/settings/fiscal');
+    revalidatePath('/settings/preferences');
+    revalidatePath('/dashboard');
+    revalidatePath('/sales');
+    revalidatePath('/pos');
+
+    redirect('/settings/fiscal?gate_result=saved');
+  };
+
   return (
     <PageShell>
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -506,6 +554,16 @@ export default async function SettingsFiscalPage({
             {resolvedSearchParams.test_error
               ? `: ${decodeURIComponent(resolvedSearchParams.test_error)}`
               : '. Revisa que exista un PV activo y una credencial activa para ese ambiente.'}
+          </p>
+        ) : null}
+        {resolvedSearchParams.gate_result === 'saved' ? (
+          <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            Controles de facturación productiva actualizados.
+          </p>
+        ) : null}
+        {resolvedSearchParams.gate_result === 'invalid' ? (
+          <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            No pudimos guardar los controles de facturación productiva.
           </p>
         ) : null}
 
@@ -834,6 +892,56 @@ export default async function SettingsFiscalPage({
               </article>
             ))}
           </div>
+        </section>
+
+        <section className="rounded-2xl border border-zinc-200 bg-white p-6">
+          <h2 className="text-lg font-semibold text-zinc-900">
+            Controles de producción
+          </h2>
+          <p className="mt-1 text-sm text-zinc-600">
+            Estos toggles controlan si la ORG puede encolar jobs fiscales `prod`
+            y si el worker puede ejecutar `FECAESolicitar` real.
+          </p>
+
+          <form action={saveFiscalProdControls} className="mt-4 grid gap-4">
+            <div className="grid gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <label className="flex items-center gap-2 text-sm font-medium text-amber-900">
+                <input
+                  type="checkbox"
+                  name="fiscal_prod_enqueue_enabled"
+                  defaultChecked={orgPreferences.fiscal_prod_enqueue_enabled}
+                />
+                Permitir encolar facturación fiscal en producción
+              </label>
+              <p className="text-xs text-amber-800">
+                Gate operativo para crear `invoice_jobs` en ambiente `prod`.
+                No emite comprobantes por sí solo.
+              </p>
+            </div>
+
+            <div className="grid gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4">
+              <label className="flex items-center gap-2 text-sm font-medium text-rose-900">
+                <input
+                  type="checkbox"
+                  name="fiscal_prod_live_enabled"
+                  defaultChecked={orgPreferences.fiscal_prod_live_enabled}
+                />
+                Permitir emisión fiscal real en producción
+              </label>
+              <p className="text-xs text-rose-800">
+                Gate de alto impacto para permitir `FECAESolicitar` real desde el
+                worker en ambiente `prod`. Requiere que el enqueue productivo
+                también esté habilitado.
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              className="w-fit rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Guardar controles de producción
+            </button>
+          </form>
         </section>
       </div>
     </PageShell>

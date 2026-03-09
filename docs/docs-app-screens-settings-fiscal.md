@@ -18,6 +18,7 @@ Configurar el material fiscal de la ORG activa sin SQL manual:
 - asociar private key `.key/.pem` por ambiente
 - guardar la private key cifrada
 - configurar puntos de venta fiscales por sucursal y ambiente
+- controlar los gates productivos de facturación real por ORG
 - mostrar metadata mínima de la credencial activa (CUIT, alias, vigencia, fingerprint)
 - ejecutar una prueba segura de conectividad (`WSAA + FEDummy`) por ambiente y punto de venta activo
 
@@ -39,6 +40,10 @@ UI
   - selector de `pto_vta` activo por ambiente
   - acción `Probar WSAA + FEDummy`
   - mensaje de resultado con `CUIT`, expiración WSAA y estado `App/DB/Auth`
+- Bloque `Controles de producción`
+  - toggle `fiscal_prod_enqueue_enabled`
+  - toggle `fiscal_prod_live_enabled`
+  - acción `Guardar controles de producción`
 
 Data Contract
 
@@ -50,6 +55,9 @@ Lectura
   - por `tenant_id = org activa`
 - `points_of_sale`
   - por `tenant_id = org activa`
+- `org_preferences`
+  - `fiscal_prod_enqueue_enabled`
+  - `fiscal_prod_live_enabled`
 - `branches`
   - sucursales activas de la org
 
@@ -74,6 +82,10 @@ Escritura
   - `description`
   - `invoice_mode`
   - `status`
+- upsert en `org_preferences`
+  - `org_id`
+  - `fiscal_prod_enqueue_enabled`
+  - `fiscal_prod_live_enabled`
 
 Validaciones
 
@@ -85,9 +97,11 @@ Validaciones
 - sólo OA/SA pueden guardar
 - si un `pto_vta` ya está asignado a otra sucursal en el mismo ambiente, la UI debe informar explícitamente el conflicto
 - la prueba segura exige credencial `active` y al menos un `pto_vta` `active` para el ambiente elegido
+- `fiscal_prod_live_enabled=true` no sustituye a `fiscal_prod_enqueue_enabled`; ambos gates deben estar coordinados para emisión productiva real
 
 Notas operativas
 
 - dejar archivos vacíos en una credencial existente conserva el material ya guardado
 - la prueba segura ejecuta `WSAA + FEDummy`, pero no corre `FECAESolicitar` ni emite comprobantes reales
 - la asociación ORG -> certificado queda determinada por `fiscal_credentials.tenant_id`
+- los toggles productivos viven en `/settings/fiscal`, no en `/settings/preferences`

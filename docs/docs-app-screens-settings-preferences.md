@@ -35,10 +35,6 @@ Si no está definido, se posterga.
 
 allow_negative_stock (default true)
 
-fiscal_prod_enqueue_enabled (default false)
-
-fiscal_prod_live_enabled (default false)
-
 default_supplier_markup_pct (default 40)
 
 cash_discount_enabled (default true)
@@ -62,10 +58,6 @@ Sección “Alertas de vencimientos”
 input número: critical_days
 
 input número: warning_days
-
-toggle: fiscal_prod_enqueue_enabled
-
-toggle: fiscal_prod_live_enabled
 
 toggle: cash_discount_enabled
 
@@ -97,10 +89,6 @@ critical_days
 
 warning_days
 
-fiscal_prod_enqueue_enabled
-
-fiscal_prod_live_enabled
-
 cash_discount_enabled
 
 default_supplier_markup_pct
@@ -124,10 +112,6 @@ RPC: rpc_set_org_preferences(input)
 critical_days
 
 warning_days
-
-fiscal_prod_enqueue_enabled
-
-fiscal_prod_live_enabled
 
 (opcional) staff_nav_order[]
 
@@ -159,10 +143,10 @@ employee_discount_default_pct >= 0 y <= 100
 
 cash_denominations debe ser array/lista de números positivos
 
-`fiscal_prod_enqueue_enabled=false` debe bloquear `rpc_enqueue_sale_fiscal_invoice(..., p_environment='prod', ...)`
-
-`fiscal_prod_live_enabled=false` debe bloquear `FECAESolicitar` real en el worker cuando el job pertenece a `prod` y el modo de ejecución es `live`
-
 Smoke tests
 
 PF-01: cambiar thresholds y verificar severidades recalculadas en /expirations y alertas en /dashboard
+
+Notas
+
+Los controles fiscales productivos (`fiscal_prod_enqueue_enabled` y `fiscal_prod_live_enabled`) siguen viviendo en `org_preferences`, pero su operación UI ya no pertenece a esta pantalla. Esos toggles se administran desde `/settings/fiscal`.

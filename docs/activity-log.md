@@ -41,6 +41,54 @@ Se creó `docs/ARCA/activity-log.md` como bitácora específica del módulo fisc
 
 **Commit:** N/A
 
+## 2026-03-09 14:15 -03 — ARCA ops: automatización productiva con Vercel Cron
+
+**Tipo:** backend/infra/docs/tests
+**Lote:** arca-lote-4k-fiscal-prod-cron-worker
+**Descripción:** Se agregó una ruta interna `GET /api/internal/fiscal/worker` para ejecutar `runFiscalWorkerOnce` en modo autenticado, protegida con `CRON_SECRET` vía header `Authorization: Bearer ...`. Además se agregó `vercel.json` con un cron cada 5 minutos para drenar jobs fiscales productivos sin shell manual.
+
+**Archivos afectados:**
+
+- app/api/internal/fiscal/worker/route.ts
+- vercel.json
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Commit:** N/A
+
+## 2026-03-09 14:35 -03 — ARCA UI: reubicación de controles fiscales productivos
+
+**Tipo:** ui/docs/tests
+**Lote:** arca-lote-4l-fiscal-controls-relocation
+**Descripción:** Se movieron los toggles `fiscal_prod_enqueue_enabled` y `fiscal_prod_live_enabled` desde `/settings/preferences` hacia la parte inferior de `/settings/fiscal`, para consolidar en una sola pantalla el onboarding, la prueba segura, los puntos de venta y la habilitación productiva. También se corrigieron contratos y runbooks vivos para dejar de referenciar `/settings/preferences` como superficie operativa fiscal.
+
+**Archivos afectados:**
+
+- app/settings/fiscal/page.tsx
+- app/settings/preferences/page.tsx
+- docs/docs-app-screens-settings-fiscal.md
+- docs/docs-app-screens-settings-preferences.md
+- docs/context-summary.md
+- docs/ARCA/operations/fiscal-worker-prod-safe-runbook.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-09)
+- `npm run build` OK (2026-03-09)
+
+**Commit:** N/A
+
 ## 2026-03-09 13:55 -03 — ARCA UX: mejora visual del comprobante fiscal
 
 **Tipo:** ui/tests/docs

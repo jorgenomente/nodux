@@ -10,7 +10,7 @@ Nota operativa: los comandos usan `node --import tsx` en lugar de `npx tsx` para
 
 - La organización ya debe tener credencial `prod` guardada en `/settings/fiscal`.
 - La organización ya debe tener `pto_vta` `prod` activo por sucursal en `/settings/fiscal`.
-- `org_preferences.fiscal_prod_enqueue_enabled` debe estar activo desde `/settings/preferences`.
+- `org_preferences.fiscal_prod_enqueue_enabled` debe estar activo desde `/settings/fiscal`.
 - Debe existir al menos un `invoice_job` `prod` en estado `pending`.
 
 ## 2. Variables de entorno

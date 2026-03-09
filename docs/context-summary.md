@@ -26,8 +26,8 @@ Ultima actualizacion: 2026-03-09 09:55
 - Lote 1 completado: migraciones fiscales reales (`078_fiscal_core`, `079_fiscal_helpers_and_rpc`) con reset local validado.
 - Lote 2 completado: runtime base del worker fiscal en `lib/fiscal/*` con wrappers RPC, polling de jobs y resolución de credenciales/POS.
 - Lote 3 parcial completado: WSAA real, capa WSFE, puente `sale -> sale_document -> invoice_job`, y prueba segura en producción (`WSAA + FEDummy`) validada.
-- Gate operativo org-wide para enqueue `prod` disponible en `org_preferences.fiscal_prod_enqueue_enabled`, visible en `/settings/preferences`.
-- Gate org-wide separado para emisión real `prod` disponible en `org_preferences.fiscal_prod_live_enabled`; el worker `live` no ejecuta `FECAESolicitar` en producción si ese flag está apagado.
+- Gate operativo org-wide para enqueue `prod` disponible en `org_preferences.fiscal_prod_enqueue_enabled`, visible en `/settings/fiscal`.
+- Gate org-wide separado para emisión real `prod` disponible en `org_preferences.fiscal_prod_live_enabled`; el worker `live` no ejecuta `FECAESolicitar` en producción si ese flag está apagado y ambos controles se administran desde `/settings/fiscal`.
 - Onboarding fiscal interno inicial disponible en `/settings/fiscal`: carga `.crt/.key`, cifra private key y configura puntos de venta por sucursal/ambiente.
 - `/settings/fiscal` ya permite además correr una prueba segura de conectividad (`WSAA + FEDummy`) por ambiente y PV activo, sin depender de jobs ni emitir comprobantes.
 - En desarrollo local, el cifrado fiscal ya puede bootstrapear su key maestra automáticamente en archivo ignorado si falta `FISCAL_ENCRYPTION_MASTER_KEY`; en producción sigue siendo obligatoria por entorno.
@@ -36,6 +36,7 @@ Ultima actualizacion: 2026-03-09 09:55
 - Bloqueo vigente: homologación sigue rechazando certificado en WSAA (`cms.cert.untrusted`), mientras producción autentica correctamente.
 - Emisión real controlada en producción ya validada: existe al menos una factura autorizada con CAE persistido.
 - Render MVP del comprobante fiscal ya implementado: el worker procesa `render_pending`, persiste `qr_payload_json` y rutas determinísticas (`/sales/[saleId]/invoice`), y cierra el job en `completed`.
+- Worker productivo automatizable en Vercel: existe `GET /api/internal/fiscal/worker` protegido por `CRON_SECRET` y `vercel.json` agenda un cron cada 5 minutos para drenar jobs fiscales sin shell manual.
 - Gap actual: falta QR gráfico real, PDF binario/storage, ticket térmico serializado y reconciliación externa automática real.
 - Siguiente lote recomendado: pasar del render on-demand de la app a artefactos binarios reales (PDF/ticket/QR asset) y preparar impresión.
 
