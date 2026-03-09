@@ -19,6 +19,7 @@ Configurar el material fiscal de la ORG activa sin SQL manual:
 - guardar la private key cifrada
 - configurar puntos de venta fiscales por sucursal y ambiente
 - mostrar metadata mínima de la credencial activa (CUIT, alias, vigencia, fingerprint)
+- ejecutar una prueba segura de conectividad (`WSAA + FEDummy`) por ambiente y punto de venta activo
 
 UI
 
@@ -34,6 +35,10 @@ UI
 - Bloque `Puntos de venta fiscales`
   - listado de puntos configurados por ambiente
   - formulario para guardar `pto_vta` por sucursal/ambiente
+- Bloque `Prueba segura`
+  - selector de `pto_vta` activo por ambiente
+  - acción `Probar WSAA + FEDummy`
+  - mensaje de resultado con `CUIT`, expiración WSAA y estado `App/DB/Auth`
 
 Data Contract
 
@@ -79,9 +84,10 @@ Validaciones
 - `pto_vta > 0`
 - sólo OA/SA pueden guardar
 - si un `pto_vta` ya está asignado a otra sucursal en el mismo ambiente, la UI debe informar explícitamente el conflicto
+- la prueba segura exige credencial `active` y al menos un `pto_vta` `active` para el ambiente elegido
 
 Notas operativas
 
 - dejar archivos vacíos en una credencial existente conserva el material ya guardado
-- esta pantalla no ejecuta WSAA ni emite comprobantes
+- la prueba segura ejecuta `WSAA + FEDummy`, pero no corre `FECAESolicitar` ni emite comprobantes reales
 - la asociación ORG -> certificado queda determinada por `fiscal_credentials.tenant_id`

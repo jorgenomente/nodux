@@ -242,6 +242,7 @@ Estado actual:
 - `warning_days` (int)
 - `allow_negative_stock` (boolean)
 - `fiscal_prod_enqueue_enabled` (boolean, default false)
+- `fiscal_prod_live_enabled` (boolean, default false)
 - `default_supplier_markup_pct` (numeric 0..1000, default 40)
 - `cash_discount_enabled` (boolean)
 - `cash_discount_default_pct` (numeric 0..100)

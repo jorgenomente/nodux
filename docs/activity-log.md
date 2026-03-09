@@ -198,6 +198,129 @@ Se creó `docs/ARCA/activity-log.md` como bitácora específica del módulo fisc
 
 **Commit:** N/A
 
+## 2026-03-09 11:55 -03 — ARCA backend: sincronización de secuencia con FECompUltimoAutorizado
+
+**Lote:** arca-lote-4g-fiscal-sequence-sync
+**Tipo:** backend/docs/tests
+**Objetivo:** Evitar rechazos `10016` por numeración desalineada entre NODUX y ARCA.
+
+**Resumen**
+Se agregó soporte WSFE para `FECompUltimoAutorizado`, un helper backend para sincronizar `fiscal_sequences` con el último comprobante autorizado remoto y se integró esa sincronización al worker `live` en `prod` antes de reservar numeración local. Con esto, la siguiente reserva queda alineada con ARCA real y no con la base local vacía.
+
+**Evidencia**
+- `lib/fiscal/wsfe/wsfe-client.ts`
+- `lib/fiscal/worker/sync-fiscal-sequence.ts`
+- `lib/fiscal/worker/process-invoice-job.ts`
+- `npm run lint`: OK
+- `npm run build`: OK
+- consulta manual real `WSAA -> FECompUltimoAutorizado` con certificado `prod`: OK
+  - `PV 0002 / cbte tipo 11 -> lastAuthorized = 1`
+  - observación informativa `Code 39` sobre futura obligatoriedad de `Condicion Frente al IVA del receptor` desde `2026-04-01`
+- secuencia local alineada manualmente:
+  - `fiscal_sequences.last_local_reserved = 1`
+  - `fiscal_sequences.last_arca_confirmed = 1`
+
+**Conclusión**
+La numeración fiscal deja de asumir base local `0` y pasa a anclarse en el último comprobante autorizado real informado por ARCA antes de intentar `FECAESolicitar`.
+
+**Estado:** DONE
+**Commit:** N/A
+
+## 2026-03-09 11:30 -03 — ARCA schema/backend/UI: gate de emisión real productiva
+
+**Lote:** arca-lote-4f-fiscal-prod-live-gate
+**Tipo:** schema/backend/ui/docs/tests
+**Objetivo:** Abrir un camino controlado hacia emisión real en `prod` sin mezclarlo con el gate de enqueue.
+
+**Resumen**
+Se agregó un segundo gate org-wide en `org_preferences`: `fiscal_prod_live_enabled`. A diferencia de `fiscal_prod_enqueue_enabled`, este flag no controla la creación del job sino la ejecución real del worker `live` antes de `FECAESolicitar` en ambiente `prod`. También se expuso en `/settings/preferences`, se agregó el comando `npm run fiscal:worker:live` y el worker ahora falla explícitamente con `FISCAL_PROD_LIVE_DISABLED` si intentás emitir en producción sin esa habilitación.
+
+**Evidencia**
+- `supabase/migrations/20260309113000_083_fiscal_prod_live_gate.sql`
+- `lib/fiscal/worker/get-fiscal-org-controls.ts`
+- `lib/fiscal/worker/process-invoice-job.ts`
+- `app/settings/preferences/page.tsx`
+- `package.json`
+- `npm run db:reset`: OK
+- verificación SQL: `select fiscal_prod_enqueue_enabled, fiscal_prod_live_enabled from public.org_preferences limit 1;` -> `false / false`
+- `npm run lint`: OK
+- `npm run build`: OK
+
+**Conclusión**
+Queda separada la decisión de “permitir facturación productiva” en dos niveles: `enqueue` y `live`. Esto reduce el riesgo de abrir emisión real por accidente y deja un corte de operación más defendible.
+
+**Estado:** DONE
+**Commit:** N/A
+
+## 2026-03-09 11:20 -03 — ARCA fix: redirect correcto en prueba segura fiscal
+
+**Lote:** arca-lote-4e-fiscal-settings-connection-test
+**Tipo:** ui/tests
+**Objetivo:** Evitar que la prueba segura de `/settings/fiscal` reporte `NEXT_REDIRECT` como error falso.
+
+**Resumen**
+Se corrigió la server action `runConnectionTest` para re-lanzar errores `NEXT_REDIRECT` en vez de capturarlos como errores funcionales. Esto alinea `/settings/fiscal` con el patrón ya usado en otras pantallas del repo y permite que la prueba segura redirija correctamente al estado `test_ok`.
+
+**Evidencia**
+- `app/settings/fiscal/page.tsx`
+- `npm run lint`: OK
+- `npm run build`: OK
+
+**Conclusión**
+El mensaje `La prueba segura no pudo completarse para Produccion: NEXT_REDIRECT` no dependía de local vs producción; era un bug de manejo de redirect en la acción server-side y queda corregido.
+
+**Estado:** DONE
+**Commit:** N/A
+
+## 2026-03-09 11:15 -03 — ARCA UI/backend: prueba segura desde settings fiscal
+
+**Lote:** arca-lote-4e-fiscal-settings-connection-test
+**Tipo:** backend/ui/docs/tests
+**Objetivo:** Hacer verificable el onboarding fiscal directamente desde la app sin requerir CLI ni jobs fiscales previos.
+
+**Resumen**
+Se agregó un helper reusable `runFiscalConnectionTest` para resolver credencial/PV activos, descifrar la private key, obtener TA por WSAA y ejecutar `FEDummy` contra WSFE. Ese flujo quedó expuesto en `/settings/fiscal` como una acción de `Prueba segura` por ambiente, con selector de `pto_vta` activo y mensajes de éxito/error que muestran `CUIT`, expiración WSAA y estado `App/DB/Auth`.
+
+**Evidencia**
+- `lib/fiscal/testing/test-fiscal-connection.ts`
+- `app/settings/fiscal/page.tsx`
+- `docs/docs-app-screens-settings-fiscal.md`
+- `npm run lint`: OK
+- `npm run build`: OK
+
+**Conclusión**
+El alta o cambio de credenciales ya puede validarse desde la propia UI operativa del cliente, sin necesidad de preparar una venta ni correr el worker manualmente. Esto reduce fricción en onboarding y soporte.
+
+**Estado:** DONE
+**Commit:** N/A
+
+## 2026-03-09 11:05 -03 — ARCA ops: runbook y comando estable para prod-safe
+
+**Lote:** arca-lote-4d-fiscal-prod-safe-runbook
+**Tipo:** backend/docs/tests
+**Objetivo:** Dejar operativo el worker fiscal en modo `prod-safe` mediante un entrypoint estable del repo.
+
+**Resumen**
+Se agregó `scripts/fiscal-worker.ts` como entrypoint operativo del worker fiscal, con parseo de `FISCAL_EXECUTION_MODE`, `FISCAL_DRY_RUN` y `FISCAL_BATCH_SIZE`, validación temprana de la configuración de cifrado y salida JSON legible para operación. También se incorporaron scripts npm para el modo genérico y el modo seguro `prod-safe`, y se documentó el runbook con prerrequisitos y variables de entorno.
+
+**Evidencia**
+- `package.json`: scripts `fiscal:worker` y `fiscal:worker:prod-safe`
+- `scripts/fiscal-worker.ts`: wrapper operativo para `runFiscalWorkerOnce`
+- `docs/ARCA/operations/fiscal-worker-prod-safe-runbook.md`: runbook operativo
+- `npm run lint`: OK
+- `npm run build`: OK
+- `FISCAL_EXECUTION_MODE=prod-safe FISCAL_DRY_RUN=true npm run fiscal:worker`: OK
+  - `encryptionSource=env`
+  - `encryptionKeyReference=prod-2026-03`
+  - `pendingProcessed=0`
+  - `reconcileProcessed=1`
+
+**Conclusión**
+Queda un camino estable para operar el worker fiscal localmente y en entornos controlados sin depender de comandos ad-hoc. El siguiente paso operativo es ejecutar `npm run fiscal:worker:prod-safe` con las envs correctas cuando existan jobs `prod` pendientes.
+
+**Estado:** DONE
+**Commit:** N/A
+
 ## 2026-03-09 10:34 -03 — ARCA wiring operativo: cobrar y facturar / emitir factura
 
 **Tipo:** ui/docs/tests
@@ -9231,5 +9354,27 @@ Se aplico una optimizacion de bajo riesgo para reducir latencia de navegacion en
 - `npm run db:seed:demo` OK (2026-03-08)
 - `npm run lint` OK (2026-03-08)
 - `npm run build` BLOCKED (2026-03-08) por error TypeScript preexistente en `lib/fiscal/auth/wsaa-client.ts:182` (`params.context` puede ser `undefined`)
+
+**Commit:** N/A
+
+## 2026-03-09 12:20 -03 — ARCA ops: runner live estable y primera emisión real
+
+**Tipo:** backend/docs/tests
+**Lote:** arca-lote-4h-fiscal-live-runner-fix
+**Descripción:** Se confirmó el resultado real del primer job `live` tras sincronizar secuencia con ARCA y se estabilizaron los comandos del worker fiscal usando `node --import tsx` en lugar de `npx tsx`, evitando bloqueos del runtime local. La emisión productiva quedó autorizada para `PV 0002 / cbte tipo 11 / cbte nro 2`, con `CAE 86106905768691`, y el job pasó a `render_pending`.
+
+**Archivos afectados:**
+
+- package.json
+- docs/ARCA/operations/fiscal-worker-prod-safe-runbook.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/ARCA/activity-log.md
+
+**Tests / comandos:**
+
+- `psql ... select ... from public.invoice_jobs where id='07790e9c-4c32-4cb1-a25d-269116dc7c14'`: OK (`job_status=render_pending`, `authorized_at` presente)
+- `psql ... select ... from public.invoices order by created_at desc limit 5`: OK (`CAE=86106905768691`, `result_status=authorized`, `imp_total=20.00`)
+- `psql ... select ... from public.fiscal_sequences ...`: OK (`last_local_reserved=2`, `last_arca_confirmed=2`, `status=healthy`)
 
 **Commit:** N/A

@@ -27,9 +27,12 @@ Ultima actualizacion: 2026-03-09 09:55
 - Lote 2 completado: runtime base del worker fiscal en `lib/fiscal/*` con wrappers RPC, polling de jobs y resolución de credenciales/POS.
 - Lote 3 parcial completado: WSAA real, capa WSFE, puente `sale -> sale_document -> invoice_job`, y prueba segura en producción (`WSAA + FEDummy`) validada.
 - Gate operativo org-wide para enqueue `prod` disponible en `org_preferences.fiscal_prod_enqueue_enabled`, visible en `/settings/preferences`.
+- Gate org-wide separado para emisión real `prod` disponible en `org_preferences.fiscal_prod_live_enabled`; el worker `live` no ejecuta `FECAESolicitar` en producción si ese flag está apagado.
 - Onboarding fiscal interno inicial disponible en `/settings/fiscal`: carga `.crt/.key`, cifra private key y configura puntos de venta por sucursal/ambiente.
+- `/settings/fiscal` ya permite además correr una prueba segura de conectividad (`WSAA + FEDummy`) por ambiente y PV activo, sin depender de jobs ni emitir comprobantes.
 - En desarrollo local, el cifrado fiscal ya puede bootstrapear su key maestra automáticamente en archivo ignorado si falta `FISCAL_ENCRYPTION_MASTER_KEY`; en producción sigue siendo obligatoria por entorno.
 - Modo backend `prod-safe` disponible para jobs `prod`: autentica WSAA, ejecuta `FEDummy` y corta antes de `FECAESolicitar`, dejando el job en `pending_reconcile` con evidencia.
+- Runbook operativo y comando estable disponibles para ejecutar el worker fiscal en modo `prod-safe`: `npm run fiscal:worker:prod-safe`.
 - Bloqueo vigente: homologación sigue rechazando certificado en WSAA (`cms.cert.untrusted`), mientras producción autentica correctamente.
 - Gap actual: falta habilitar emisión real controlada (`FECAESolicitar` en prod), render real, reconciliación automática real y onboarding/UI operativa.
 - Siguiente lote recomendado: conectar credenciales `prod` al worker en modo `prod-safe`, validar operaciones con jobs `prod` y recién después abrir emisión real con confirmación explícita.

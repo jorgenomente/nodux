@@ -13,6 +13,8 @@ import type {
   FiscalInvoiceRequestInput,
 } from '@/lib/fiscal/shared/fiscal-types';
 import { resolveFiscalContext } from '@/lib/fiscal/worker/resolve-credentials';
+import { syncFiscalSequenceWithArca } from '@/lib/fiscal/worker/sync-fiscal-sequence';
+import { getFiscalOrgControls } from '@/lib/fiscal/worker/get-fiscal-org-controls';
 import { buildFECAERequest } from '@/lib/fiscal/wsfe/build-fecae-request';
 import { submitFECAESolicitar, submitFEDummy } from '@/lib/fiscal/wsfe/wsfe-client';
 
@@ -22,6 +24,15 @@ export const processInvoiceJob = async (
 ) => {
   const dryRun = options?.dryRun ?? true;
   const executionMode = options?.executionMode ?? 'live';
+  const baseContext = {
+    invoiceJobId: job.id,
+    tenantId: job.tenant_id,
+    environment: job.environment,
+    ptoVta: job.pto_vta,
+    cbteTipo: job.cbte_tipo,
+    cbteNro: job.cbte_nro,
+    correlationId: job.correlation_id,
+  };
   let fiscalContext;
   try {
     fiscalContext = await resolveFiscalContext({
@@ -43,21 +54,16 @@ export const processInvoiceJob = async (
     return { status: 'failed' as const };
   }
 
-  const reserve = await reserveSequence(job.id);
-  const context = {
-    invoiceJobId: job.id,
-    tenantId: job.tenant_id,
-    environment: job.environment,
-    ptoVta: reserve.pto_vta,
-    cbteTipo: reserve.cbte_tipo,
-    cbteNro: reserve.cbte_nro,
-    correlationId: job.correlation_id,
-  };
-
-  fiscalLogger.info('fiscal_job_sequence_reserved', context, reserve);
-
   if (dryRun) {
-    fiscalLogger.info('fiscal_job_dry_run_stop_before_ws', context);
+    const reserve = await reserveSequence(job.id);
+    const dryRunContext = {
+      ...baseContext,
+      ptoVta: reserve.pto_vta,
+      cbteTipo: reserve.cbte_tipo,
+      cbteNro: reserve.cbte_nro,
+    };
+    fiscalLogger.info('fiscal_job_sequence_reserved', dryRunContext, reserve);
+    fiscalLogger.info('fiscal_job_dry_run_stop_before_ws', dryRunContext);
     return { status: 'dry_run' as const };
   }
 
@@ -74,11 +80,6 @@ export const processInvoiceJob = async (
     return { status: 'failed' as const };
   }
 
-  await markJobAuthorizing({
-    invoiceJobId: job.id,
-    requestedPayloadJson,
-  });
-
   let wsaa;
   try {
     const privateKeyPem = decryptPrivateKeyPem({
@@ -89,7 +90,7 @@ export const processInvoiceJob = async (
     wsaa = await getOrRefreshWsaaTicket({
       credentials: fiscalContext.credentials,
       privateKeyPem,
-      context,
+      context: baseContext,
     });
   } catch (error) {
     const message =
@@ -106,16 +107,86 @@ export const processInvoiceJob = async (
         reason: 'wsaa_failed',
       },
     });
-    fiscalLogger.warn('fiscal_job_failed_before_wsfe', context, {
+    fiscalLogger.warn('fiscal_job_failed_before_wsfe', baseContext, {
       code,
       message,
     });
     return { status: 'failed' as const };
   }
 
-  fiscalLogger.info('fiscal_job_wsaa_context_ready', context, {
+  fiscalLogger.info('fiscal_job_wsaa_context_ready', baseContext, {
     wsaaExpiresAt: wsaa.expiresAt,
     executionMode,
+  });
+
+  if (executionMode === 'live' && job.environment === 'prod') {
+    try {
+      const controls = await getFiscalOrgControls(job.tenant_id);
+      if (!controls.fiscalProdLiveEnabled) {
+        await markJobFailed({
+          invoiceJobId: job.id,
+          lastErrorCode: 'FISCAL_PROD_LIVE_DISABLED',
+          lastErrorMessage:
+            'Live fiscal emission in prod is disabled for this organization',
+          responsePayloadJson: {
+            reason: 'prod_live_disabled',
+            executionMode,
+          },
+        });
+        return { status: 'failed' as const };
+      }
+
+      const remoteSequence = await syncFiscalSequenceWithArca({
+        tenantId: job.tenant_id,
+        environment: job.environment,
+        taxpayerCuit: fiscalContext.credentials.taxpayer_cuit,
+        ptoVta: job.pto_vta,
+        cbteTipo: job.cbte_tipo,
+        wsaa,
+      });
+
+      fiscalLogger.info('fiscal_sequence_synced_with_arca', baseContext, {
+        lastAuthorized: remoteSequence.lastAuthorized,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to resolve fiscal org controls';
+      await markJobFailed({
+        invoiceJobId: job.id,
+        lastErrorCode:
+          message ===
+          'Live fiscal emission in prod is disabled for this organization'
+            ? 'FISCAL_PROD_LIVE_DISABLED'
+            : 'FISCAL_PROD_LIVE_CONTROL_FAILED',
+        lastErrorMessage: message,
+        responsePayloadJson: {
+          reason:
+            message ===
+            'Live fiscal emission in prod is disabled for this organization'
+              ? 'prod_live_disabled'
+              : 'prod_live_control_failed',
+          executionMode,
+        },
+      });
+      return { status: 'failed' as const };
+    }
+  }
+
+  const reserve = await reserveSequence(job.id);
+  const context = {
+    ...baseContext,
+    ptoVta: reserve.pto_vta,
+    cbteTipo: reserve.cbte_tipo,
+    cbteNro: reserve.cbte_nro,
+  };
+
+  fiscalLogger.info('fiscal_job_sequence_reserved', context, reserve);
+
+  await markJobAuthorizing({
+    invoiceJobId: job.id,
+    requestedPayloadJson,
   });
 
   if (executionMode === 'prod-safe') {

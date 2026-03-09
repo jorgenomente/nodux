@@ -301,6 +301,7 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada, Fase 7 e
 - producción quedó validada en modo seguro (`WSAA + FEDummy`)
 - backend incorpora `prod-safe` para cortar antes de `FECAESolicitar` y evitar emisión real accidental
 - gate org-wide `org_preferences.fiscal_prod_enqueue_enabled` agregado para controlar enqueue `prod` desde operación
+- gate org-wide `org_preferences.fiscal_prod_live_enabled` agregado para abrir emisión real `prod` sólo con habilitación explícita
 
 ### ARCA-4 — Render y reconciliación mínima
 
@@ -330,6 +331,7 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada, Fase 7 e
 
 - `/settings/fiscal` ya permite cargar `.crt/.key`, cifrar private key y guardar `fiscal_credentials`
 - `/settings/fiscal` también configura `points_of_sale` por sucursal/ambiente
+- `/settings/fiscal` incorpora prueba segura `WSAA + FEDummy` por ambiente/PV activo para validar onboarding sin ventas ni emisión real
 - todavía faltan pruebas guiadas desde la UI y activación operativa completa por tenant
 
 ---

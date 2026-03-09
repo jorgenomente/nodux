@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import PageShell from '@/app/components/PageShell';
 import { encryptPrivateKeyPem } from '@/lib/fiscal/auth/encrypt-private-key';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
+import { runFiscalConnectionTest } from '@/lib/fiscal/testing/test-fiscal-connection';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
 type SearchParams = {
@@ -14,6 +15,14 @@ type SearchParams = {
   pos_env?: string;
   pto_vta?: string;
   branch_name?: string;
+  test_env?: string;
+  test_pto_vta?: string;
+  test_app?: string;
+  test_db?: string;
+  test_auth?: string;
+  test_cuit?: string;
+  test_expires_at?: string;
+  test_error?: string;
 };
 
 type FiscalEnvironment = 'homo' | 'prod';
@@ -90,6 +99,13 @@ const readUploadedTextFile = async (entry: FormDataEntryValue | null) => {
 };
 
 const sanitizeCuit = (value: string) => value.replace(/\D/g, '');
+
+const isNextRedirectError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') return false;
+  const digest =
+    'digest' in error && typeof error.digest === 'string' ? error.digest : '';
+  return digest.startsWith('NEXT_REDIRECT');
+};
 
 const getContext = async () => {
   const session = await getOrgAdminSession();
@@ -355,6 +371,49 @@ export default async function SettingsFiscalPage({
     redirect(`/settings/fiscal?result=pos_saved&pos_env=${environment}`);
   };
 
+  const runConnectionTest = async (formData: FormData) => {
+    'use server';
+
+    const auth = await getContext();
+    if (!auth) {
+      redirect('/no-access');
+    }
+
+    const environment = String(formData.get('environment') ?? '').trim() as FiscalEnvironment;
+    const ptoVta = Number(String(formData.get('pto_vta') ?? '').trim());
+
+    if (!ENVIRONMENTS.includes(environment)) {
+      redirect('/settings/fiscal?result=invalid_env');
+    }
+
+    if (!Number.isInteger(ptoVta) || ptoVta <= 0) {
+      redirect(`/settings/fiscal?result=test_invalid_pos&test_env=${environment}`);
+    }
+
+    try {
+      const result = await runFiscalConnectionTest({
+        tenantId: auth.orgId,
+        environment,
+        ptoVta,
+      });
+
+      revalidatePath('/settings/fiscal');
+      redirect(
+        `/settings/fiscal?result=test_ok&test_env=${result.environment}&test_pto_vta=${result.ptoVta}&test_cuit=${result.taxpayerCuit}&test_app=${encodeURIComponent(result.appServer ?? '—')}&test_db=${encodeURIComponent(result.dbServer ?? '—')}&test_auth=${encodeURIComponent(result.authServer ?? '—')}&test_expires_at=${encodeURIComponent(result.wsaaExpiresAt)}`,
+      );
+    } catch (error) {
+      if (isNextRedirectError(error)) {
+        throw error;
+      }
+
+      const message =
+        error instanceof Error ? error.message : 'Fiscal connection test failed';
+      redirect(
+        `/settings/fiscal?result=test_error&test_env=${environment}&test_pto_vta=${ptoVta}&test_error=${encodeURIComponent(message)}`,
+      );
+    }
+  };
+
   return (
     <PageShell>
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -418,6 +477,37 @@ export default async function SettingsFiscalPage({
             .
           </p>
         ) : null}
+        {resolvedSearchParams.result === 'test_ok' ? (
+          <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            Prueba segura {ENVIRONMENT_LABELS[(resolvedSearchParams.test_env as FiscalEnvironment) ?? 'prod']} OK para PV{' '}
+            <span className="font-semibold">
+              {String(resolvedSearchParams.test_pto_vta ?? '').padStart(4, '0')}
+            </span>
+            . CUIT {resolvedSearchParams.test_cuit ?? '—'} · WSAA expira{' '}
+            {resolvedSearchParams.test_expires_at
+              ? decodeURIComponent(resolvedSearchParams.test_expires_at)
+              : '—'}{' '}
+            · FEDummy: App={resolvedSearchParams.test_app
+              ? decodeURIComponent(resolvedSearchParams.test_app)
+              : '—'}
+            , DB={resolvedSearchParams.test_db
+              ? decodeURIComponent(resolvedSearchParams.test_db)
+              : '—'}
+            , Auth={resolvedSearchParams.test_auth
+              ? decodeURIComponent(resolvedSearchParams.test_auth)
+              : '—'}
+            .
+          </p>
+        ) : null}
+        {['test_invalid_pos', 'test_error'].includes(resolvedSearchParams.result ?? '') ? (
+          <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            La prueba segura no pudo completarse para{' '}
+            {ENVIRONMENT_LABELS[(resolvedSearchParams.test_env as FiscalEnvironment) ?? 'prod']}
+            {resolvedSearchParams.test_error
+              ? `: ${decodeURIComponent(resolvedSearchParams.test_error)}`
+              : '. Revisa que exista un PV activo y una credencial activa para ese ambiente.'}
+          </p>
+        ) : null}
 
         <section className="grid gap-4 lg:grid-cols-2">
           {ENVIRONMENTS.map((environment) => {
@@ -426,6 +516,12 @@ export default async function SettingsFiscalPage({
             const certificateSummary = credential
               ? parseCertificateSummary(credential.certificate_pem)
               : null;
+            const environmentPoints = pointsOfSale.filter(
+              (item) => item.environment === environment,
+            );
+            const activeEnvironmentPoints = environmentPoints.filter(
+              (item) => item.status === 'active',
+            );
 
             return (
               <article
@@ -568,6 +664,60 @@ export default async function SettingsFiscalPage({
                     Guardar credencial {ENVIRONMENT_LABELS[environment]}
                   </button>
                 </form>
+
+                <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                  <h3 className="text-sm font-semibold text-zinc-900">
+                    Prueba segura {ENVIRONMENT_LABELS[environment]}
+                  </h3>
+                  <p className="mt-1 text-sm text-zinc-600">
+                    Ejecuta `WSAA + FEDummy` con la credencial y un PV activo de este ambiente.
+                    No emite comprobantes reales.
+                  </p>
+
+                  {credential?.status !== 'active' ? (
+                    <p className="mt-3 text-sm text-zinc-500">
+                      Activa la credencial para habilitar la prueba segura.
+                    </p>
+                  ) : activeEnvironmentPoints.length === 0 ? (
+                    <p className="mt-3 text-sm text-zinc-500">
+                      Necesitas al menos un punto de venta activo en{' '}
+                      {ENVIRONMENT_LABELS[environment]} para probar.
+                    </p>
+                  ) : (
+                    <form action={runConnectionTest} className="mt-4 grid gap-4">
+                      <input type="hidden" name="environment" value={environment} />
+
+                      <label className="grid gap-1 text-sm text-zinc-700">
+                        <span className="text-xs font-semibold text-zinc-600">
+                          Punto de venta para prueba
+                        </span>
+                        <select
+                          name="pto_vta"
+                          className="rounded border border-zinc-200 bg-white px-3 py-2 text-sm"
+                          defaultValue={String(activeEnvironmentPoints[0]?.pto_vta ?? '')}
+                        >
+                          {activeEnvironmentPoints.map((item) => {
+                            const branchName =
+                              branches.find((branch) => branch.id === item.location_id)?.name ??
+                              'Sucursal desconocida';
+                            return (
+                              <option key={item.id} value={item.pto_vta}>
+                                {String(item.pto_vta).padStart(4, '0')} · {branchName}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </label>
+
+                      <button
+                        type="submit"
+                        className="w-fit rounded border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-800"
+                      >
+                        Probar WSAA + FEDummy
+                      </button>
+                    </form>
+                  )}
+                </div>
               </article>
             );
           })}

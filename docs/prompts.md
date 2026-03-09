@@ -3357,3 +3357,45 @@ Revisa los datos cargados. Se requiere CUIT válido, certificado `.crt/.pem`, pr
 Revisa los datos cargados. Se requiere CUIT válido, certificado `.crt/.pem`, private key `.key/.pem` y punto de venta positivo.
 
 ok para estos casos entonces el mensaje Revisa el punto de venta fiscal. Debes elegir una sucursal válida, cargar un `pto_vta` positivo y usar un estado permitido. deberia decir ya se esta usando este punto de venta en otra sucursal. y si vamos a moverlo a caballito asi queda todo ahi
+
+## 2026-03-09 11:05 -03 — ARCA ops: runbook y comando estable para prod-safe
+
+**Lote:** arca-lote-4d-fiscal-prod-safe-runbook
+**Objetivo:** Dejar un comando estable y documentado para ejecutar el worker fiscal en `prod-safe` sin depender de comandos `tsx` ad-hoc ni recordar el wiring manual.
+
+**Prompt**
+adelante haz el proximo paso
+
+## 2026-03-09 11:15 -03 — ARCA UI/backend: prueba segura desde settings fiscal
+
+**Lote:** arca-lote-4e-fiscal-settings-connection-test
+**Objetivo:** Permitir validar credenciales nuevas desde `/settings/fiscal` con una prueba segura `WSAA + FEDummy` por ambiente y PV activo, sin depender de terminal ni de jobs pendientes.
+
+**Prompt**
+para que sirve esto   npm run fiscal:worker:prod-safe? para probar cada vez que agregue credenciales nuevas?
+
+excelente implementemos eso entonces
+
+## 2026-03-09 11:30 -03 — ARCA schema/backend/UI: gate de emisión real productiva
+
+**Lote:** arca-lote-4f-fiscal-prod-live-gate
+**Objetivo:** Separar el permiso de encolar jobs `prod` del permiso de ejecutar `FECAESolicitar` real, agregando un gate org-wide explícito para emisión viva y un comando operativo dedicado.
+
+**Prompt**
+habilitemos emision real controlada
+
+## 2026-03-09 11:55 -03 — ARCA backend: sincronización de secuencia con FECompUltimoAutorizado
+
+**Lote:** arca-lote-4g-fiscal-sequence-sync
+**Objetivo:** Corregir el desfase de numeración local vs ARCA real sincronizando `fiscal_sequences` con `FECompUltimoAutorizado` antes de reservar `cbte_nro` en `prod/live`.
+
+**Prompt**
+sincronicemos la secuencia con ARCA
+
+## 2026-03-09 12:20 -03 — ARCA ops: depuración del runner live
+
+**Lote:** arca-lote-4h-fiscal-live-runner-fix
+**Objetivo:** Confirmar el resultado real de la primera emisión viva, eliminar la dependencia operativa de `npx tsx` y dejar el comando `live` estable.
+
+**Prompt**
+depuremos el runner live
