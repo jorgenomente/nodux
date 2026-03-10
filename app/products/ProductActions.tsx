@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { useDismissOnOutsideClick } from '@/app/components/useDismissOnOutsideClick';
 import ProductFormFieldsShared from '@/app/products/ProductFormFieldsShared';
 
 type Notice = { tone: 'success' | 'error'; message: string } | null;
@@ -89,6 +90,8 @@ export default function ProductActions({
   const [notice, setNotice] = useState<Notice>(null);
   const [open, setOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useDismissOnOutsideClick(containerRef, open, () => setOpen(false));
   const primaryOptions = suppliers.some(
     (supplier) => supplier.id === primarySupplierId,
   )
@@ -210,7 +213,7 @@ export default function ProductActions({
   };
 
   return (
-    <div className="space-y-2">
+    <div ref={containerRef} className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"

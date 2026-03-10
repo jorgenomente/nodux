@@ -1,7 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+
+import { useDismissOnOutsideClick } from '@/app/components/useDismissOnOutsideClick';
 
 type Props = {
   supplierId: string;
@@ -44,8 +46,10 @@ export default function SupplierActions({
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const derivedAcceptsCash = preferredPaymentMethod !== 'transfer';
   const derivedAcceptsTransfer = preferredPaymentMethod !== 'cash';
+  useDismissOnOutsideClick(containerRef, open, () => setOpen(false));
   const submitWithRefresh = async (formData: FormData) => {
     await onSubmit(formData);
     setOpen(false);
@@ -53,7 +57,7 @@ export default function SupplierActions({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div ref={containerRef} className="flex flex-wrap items-center gap-2">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}

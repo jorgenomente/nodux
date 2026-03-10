@@ -16,7 +16,10 @@
 
 - Org Admin (OA)
 - Superadmin (SA) dentro de una org (soporte/impersonation controlado)
-- Staff: NO (en MVP, Staff solo `/products/lookup`)
+- Staff con módulo `products` habilitado:
+  - acceso de lectura al listado
+  - transferencia entre sucursales solo si tiene 2 o más sucursales asignadas
+  - sin alta/edición de catálogo ni ajuste manual directo
 
 ## Propósito
 
@@ -155,6 +158,32 @@ Efecto:
 - genera movimiento append-only `manual_adjustment`
 - stock queda consistente para esa sucursal
 
+### A4.b) Transferencia de stock entre sucursales (misma sección)
+
+Formulario “Mover stock entre sucursales”, al final de la sección de ajuste manual.
+
+Campos:
+
+- from_branch_id
+- to_branch_id
+- items[] (`product_id`, `quantity`)
+- reason (text, opcional; default "transferencia entre sucursales")
+
+Disponibilidad:
+
+- OA/SA: disponible cuando la org tiene al menos 2 sucursales activas
+- Staff: disponible solo si
+  - tiene módulo `products` habilitado
+  - tiene 2 o más sucursales asignadas activas
+  - origen y destino pertenecen a sus sucursales asignadas
+
+Efecto:
+
+- operación atómica en DB
+- descuenta stock en origen y suma en destino
+- genera movimientos append-only `branch_transfer` en ambas sucursales
+- audita el evento como transferencia multi-sucursal
+
 ### A5) Definir stock mínimo (global)
 
 - Se define al crear/editar producto
@@ -219,6 +248,13 @@ RPC 2: `rpc_adjust_stock_manual(input)`
 - new_quantity_on_hand
 - reason (text, requerido)
 
+RPC 2.b: `rpc_transfer_stock_between_branches(input)`
+
+- from_branch_id
+- to_branch_id
+- items jsonb[] (`product_id`, `quantity`)
+- reason (text, opcional)
+
 RPC 3: `rpc_upsert_supplier_product(input)`
 
 - supplier_id
@@ -250,10 +286,12 @@ Storage (producto):
 ## Seguridad (RLS)
 
 - OA: puede leer/escribir productos y stock dentro de su org
+- Staff con módulo `products`: puede leer la pantalla y ejecutar transferencias entre
+  sucursales asignadas cuando tiene 2 o más memberships activas
 - Debe validar:
   - branch_id pertenece a org del usuario
-- Staff:
-  - NO acceso a esta pantalla ni a RPCs admin
+  - en transferencia: origen != destino, stock suficiente en origen y ambas
+    sucursales dentro del scope permitido
 
 ---
 

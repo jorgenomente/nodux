@@ -97,7 +97,7 @@ Estado: **baseline**. Este documento define una base de datos mínima coherente 
 
 - `user_role`: `superadmin` | `org_admin` | `staff`
 - `sell_unit_type`: `unit` | `weight` | `bulk`
-- `stock_movement_type`: `sale` | `purchase` | `manual_adjustment` | `expiration_adjustment`
+- `stock_movement_type`: `sale` | `purchase` | `manual_adjustment` | `expiration_adjustment` | `branch_transfer`
 - `supplier_order_status`: `draft` | `sent` | `received` | `reconciled`
 - `special_order_status`: `pending` | `ordered` | `partial` | `delivered` | `cancelled`
 - `payment_method`: `cash` | `debit` | `credit` | `transfer` | `other`
@@ -247,6 +247,11 @@ Constraints:
 - `source_id` (uuid, nullable)
 - `expiration_batch_id` (uuid, nullable)
 - `created_at`
+
+Nota:
+
+- `branch_transfer` usa dos movimientos por operación: salida en origen y entrada
+  en destino, compartiendo `source_id`.
 
 ### 3.5 Ventas (POS)
 
@@ -425,6 +430,7 @@ Constraints:
 
 - `rpc_upsert_product(input)`
 - `rpc_adjust_stock_manual(input)`
+- `rpc_transfer_stock_between_branches(input)`
 - `rpc_create_sale(input)`
 - `rpc_mark_sale_invoiced(input)`
 - `rpc_upsert_supplier(input)`

@@ -56,6 +56,7 @@ type Props = {
   supplierByProduct: Record<string, SupplierByProductEntry>;
   safetyStockGlobalByProduct: Record<string, number | null>;
   safetyStockByProduct: Record<string, SafetyStockByBranchItem[] | undefined>;
+  canEdit: boolean;
   onUpdate: (formData: FormData) => Promise<void>;
 };
 
@@ -96,6 +97,7 @@ export default function ProductListClient({
   supplierByProduct,
   safetyStockGlobalByProduct,
   safetyStockByProduct,
+  canEdit,
   onUpdate,
 }: Props) {
   const formatSafetyStockDisplay = (productId: string) => {
@@ -174,7 +176,7 @@ export default function ProductListClient({
                     {supplierByProduct[String(product.product_id)]?.secondary
                       ?.name ?? 'Sin proveedor'}
                   </div>
-                  {product.product_id ? (
+                  {product.product_id && canEdit ? (
                     <ProductActions
                       productId={String(product.product_id)}
                       name={product.name ?? ''}

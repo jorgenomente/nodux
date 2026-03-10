@@ -18,7 +18,10 @@ sirviendo como base para ventas, vencimientos, pedidos y reportes.
 ## Roles
 
 - Org Admin (OA): acceso completo
-- Staff (ST): acceso solo vía lookup (si módulo habilitado)
+- Staff (ST):
+  - `/products/lookup` para consulta operativa
+  - `/products` en modo lectura si tiene módulo `products` habilitado
+  - transferencia entre sucursales asignadas desde `/products` solo si tiene 2 o más sucursales activas asignadas
 
 ---
 
@@ -140,6 +143,17 @@ Campos clave:
 - Ingreso manual (ej: inventario inicial)
 - Ajuste genera movimiento `manual_adjustment`
 
+### Transferencia entre sucursales (OA / ST acotado)
+
+- Vive dentro de la misma sección de ajuste manual en `/products`
+- Mueve uno o varios artículos en una sola operación
+- Descuenta stock en origen y suma en destino de forma atómica
+- Requiere stock suficiente en la sucursal origen
+- Staff solo puede usarla si:
+  - tiene módulo `products` habilitado
+  - tiene 2 o más sucursales activas asignadas
+  - origen y destino están dentro de sus sucursales asignadas
+
 ### Definir safety stock (OA)
 
 - Se registra safety stock por sucursal
@@ -155,6 +169,7 @@ Tipos:
 - `purchase`
 - `manual_adjustment`
 - `expiration_adjustment`
+- `branch_transfer`
 
 Cada movimiento:
 
@@ -181,7 +196,7 @@ Cada movimiento:
 
 ## Post-MVP (documentado)
 
-- Transferencias masivas entre sucursales (pantalla de movimiento de stock).
+- Pantalla dedicada de movimiento masivo entre sucursales.
 
 ---
 

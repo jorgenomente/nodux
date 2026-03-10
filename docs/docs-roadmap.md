@@ -119,6 +119,8 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada, Fase 7 e
 - Ruta `/products` creada con lectura de `v_products_admin`.
 - Crear, editar, activar/desactivar productos.
 - Ajuste manual de stock via RPC.
+- Transferencia inline entre sucursales dentro de `/products` para OA/SA y staff
+  con 2+ sucursales asignadas.
 
 ### 4.2 POS (Staff/OA)
 

@@ -55,6 +55,7 @@ Estado actual:
 - Hardening anti-duplicado de catálogo en `supabase/migrations/20260305113000_075_products_dedupe_hardening.sql` (`products.name_normalized`, `products.barcode_normalized`, índices únicos por org y normalización de códigos vacíos en `rpc_upsert_product`).
 - Compra por paquete en productos y propagación a contratos de pedidos/onboarding en `supabase/migrations/20260305130500_076_products_purchase_pack_and_orders_views.sql` (`products.purchase_by_pack`, `products.units_per_pack`, check de consistencia y rebuild de `v_products_admin`, `v_products_incomplete_admin`, `v_supplier_product_suggestions`, `v_order_detail_admin`).
 - Fix de promoción de relación proveedor-producto en `supabase/migrations/20260305152000_077_fix_supplier_product_promote_same_supplier.sql`: `rpc_upsert_supplier_product` elimina relación previa del mismo proveedor con tipo opuesto antes de upsert para evitar conflicto de unicidad `(org_id, supplier_id, product_id)`.
+- Transferencia inline de stock entre sucursales en `supabase/migrations/20260310093011_086_stock_branch_transfer_inline.sql`: agrega `stock_movement_type.branch_transfer` y RPC `rpc_transfer_stock_between_branches` con validación OA/SA vs staff por módulo/sucursales, actualización atómica de `stock_items` y auditoría.
 - Base operativa del puente fiscal venta -> job en `supabase/migrations/20260308224500_080_fiscal_enqueue_sale_invoice_and_failed.sql`: agrega `rpc_enqueue_sale_fiscal_invoice` para crear `sale_documents` + `invoice_jobs` con `requested_payload_json` normalizado desde una venta existente, y `fn_fiscal_mark_job_failed` para errores terminales del worker fiscal.
 - Gate org-wide para enqueue fiscal productivo en `supabase/migrations/20260309102000_082_fiscal_prod_enqueue_gate.sql`: agrega `org_preferences.fiscal_prod_enqueue_enabled` y endurece `rpc_enqueue_sale_fiscal_invoice` para rechazar ambiente `prod` si ese flag está desactivado.
 - Render MVP del comprobante fiscal en `supabase/migrations/20260309124500_084_fiscal_render_read_model.sql`: habilita lectura admin de `invoice_jobs` e `invoices`, crea la view `v_sale_fiscal_invoice_admin` y extiende `fn_fiscal_mark_job_failed` para tolerar fallos durante `render_pending`.
@@ -88,7 +89,7 @@ Estado actual:
 
 - `user_role`: `superadmin` | `org_admin` | `staff`
 - `sell_unit_type`: `unit` | `weight` | `bulk`
-- `stock_movement_type`: `sale` | `purchase` | `manual_adjustment` | `expiration_adjustment`
+- `stock_movement_type`: `sale` | `purchase` | `manual_adjustment` | `expiration_adjustment` | `branch_transfer`
 - `supplier_order_status`: `draft` | `sent` | `received` | `reconciled`
 - `special_order_status`: `pending` | `ordered` | `partial` | `delivered` | `cancelled`
 - `payment_method`: `cash` | `card` | `mercadopago` | `debit` | `credit` | `transfer` | `other` | `mixed`
@@ -471,6 +472,11 @@ Salida principal:
 - `source_id` (uuid, nullable)
 - `expiration_batch_id` (uuid, nullable)
 - `created_at`
+
+Notas operativas:
+
+- `branch_transfer` registra una fila negativa en la sucursal origen y una fila
+  positiva en la sucursal destino, enlazadas por el mismo `source_id`.
 
 ---
 

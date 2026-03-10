@@ -12,6 +12,38 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-03-10 11:05 -03 — Products: transferencia de stock entre sucursales dentro de ajuste manual
+
+**Lote:** products-stock-branch-transfer-inline
+**Objetivo:** Agregar en `/products` una acción operativa para mover uno o varios artículos de una sucursal a otra desde la misma sección de ajuste manual, con validación por rol y sucursales asignadas.
+
+**Prompt**
+estoy en /products y me gustaria agregar una funcion mas dentro de ajuste manual de stock. Me gustaria poder mover uno o varios articulos de una sucursal a otra. Esto solo debe estar disponible para staff cuando tiene mas de una sucursal asignada y para admin que mira todas las sucursales. Esto es util para cuando se necesite mover productos de una sucursal a otra sea mas facil descontar el stock de una para sumarlo a la otra. se puede hacer? chequea la documentacion para que todo quede bien. seria en la misma seccion de ajuste manual al final
+
+## 2026-03-10 11:40 -03 — UI: cerrar desplegables al hacer click fuera + cierre de lote y deploy
+
+**Lote:** ui-outside-click-and-release-20260310
+**Objetivo:** Hacer que los desplegables abiertos desde botones se cierren al hacer click fuera y luego cerrar el lote completo con commit, push, db push y deploy a producción.
+
+**Prompt**
+otra cosa que me gustaria es que cuando le doy click a un boton del menu y se me abre el desplegable, poder cerrar ese desplegable haciendo click por fuera del desplegable en cualquier lugar. aplica eso despues comitea todo, haz push, despliega la base de datos con db push y despliegue a prod
+
+## 2026-03-10 09:33 -03 — Docs marketing: libro consolidado en un solo Markdown
+
+**Lote:** docs-marketing-book-20260310
+**Objetivo:** Consolidar todos los documentos de `docs/marketing` en un único archivo `.md` dentro de la misma carpeta.
+
+**Prompt**
+hay muchos documentos dentro de /docs/marketing. yo necesito crear un libro completo con todos los docs de /marketing dentro de un solo .md lo podemos hacer? es simplemente crear un archivo nuevo .md con todo el contenido de los docs de marketing
+
+## 2026-03-10 09:38 -03 — Prod: promoción de usuario a superadmin global
+
+**Lote:** prod-superadmin-paolazerpa21-20260310
+**Objetivo:** Verificar si `paolazerpa21@gmail.com` ya era superadmin en producción y, en caso contrario, promoverlo a `platform_admin` con backfill de membresía activa sobre todas las orgs existentes.
+
+**Prompt**
+puedes chequear el usuario paolazerpa21@gmail.com y confirmar que es superadmin? y si no hacerlo superadmin agregandole membresia a todo lo que existe en prod ahora mismo?
+
 ## 2026-03-09 19:30 -03 — Repo hygiene: ignorar certificados locales de ARCA
 
 **Lote:** repo-gitignore-arca-certificados-20260309

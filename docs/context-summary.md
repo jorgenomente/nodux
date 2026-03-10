@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-03-09 09:55
+Ultima actualizacion: 2026-03-10 11:05
 
 ## Estado general
 
@@ -65,6 +65,7 @@ Ultima actualizacion: 2026-03-09 09:55
 - UI actualizada: /products, /suppliers y /suppliers/[supplierId] con proveedores primario/secundario y safety stock.
 - `/products/lookup` pasa de placeholder a lookup operativo mobile-first para Staff/OA, con búsqueda por nombre en cualquier orden de palabras, lookup por `barcode` exacto, botón `Usar cámara` para escaneo desde dispositivo y fallback `Ingresar código` en navegadores sin soporte, límite de resultados (30) y visualización de precio + stock por sucursal.
 - `/products` refuerza anti-duplicado en alta: sugerencias en tiempo real por nombre, alertas de posible duplicado por nombre/código interno/barcode y bloqueo de guardado ante match exacto; DB endurecida con `name_normalized` y `barcode_normalized` únicos por org.
+- `/products` agrega transferencia inline de stock entre sucursales dentro de “Ajuste manual de stock”: mueve uno o varios artículos en una sola operación, disponible para OA/SA y para staff con módulo `products` habilitado cuando tiene 2 o más sucursales asignadas; la DB registra movimientos `branch_transfer` en origen/destino y audita la operación.
 - Productos incorpora configuración de compra proveedor por paquete (`purchase_by_pack`, `units_per_pack`); `/orders` y `/orders/[orderId]` muestran equivalencias en paquetes al pedir/recibir y `/onboarding` permite aplicar esta configuración en edición masiva.
 - Sugeridos simples en /orders usando ventas 30 dias + safety stock.
 - Productos con vencimiento aproximado (dias) y batches automaticos al recibir pedidos.
@@ -160,7 +161,7 @@ Ultima actualizacion: 2026-03-09 09:55
 
 ## Post-MVP ya registrado
 
-- Pagina para movimiento de stock entre sucursales (transferencias masivas).
+- Pagina dedicada para movimiento masivo de stock entre sucursales.
 - Canal de tienda online conectado a stock NODUX (storefront público por org/sucursal, pedidos online, tracking por link único y gestión interna en `/online-orders`), documentado en `docs/docs-modules-online-store.md` y contratos de pantalla asociados.
 - Fundación DB del canal online aplicada en migración `20260301213000_068_online_store_foundation.sql`: slugs en `orgs/branches`, `products.image_url`, tablas `storefront_*` y `online_orders*`, vista `v_online_orders_admin` y RPCs públicas/internas de storefront/tracking/estado.
 - UI pública inicial del canal online implementada: selector de sucursal por org (`/:orgSlug`), catálogo + carrito + checkout (`/:orgSlug/:branchSlug`) y tracking público por token (`/o/:trackingToken`), con endpoint `POST /api/storefront/order` para crear pedidos online vía RPC.

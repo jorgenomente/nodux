@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import NewProductForm from '@/app/products/NewProductForm';
 import ProductListFilters from '@/app/products/ProductListFilters';
 import ProductListClient from '@/app/products/ProductListClient';
+import StockAdjustmentSection from '@/app/products/StockAdjustmentSection';
 import PageShell from '@/app/components/PageShell';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 import {
@@ -20,6 +21,11 @@ type SupplierOption = {
   name: string;
   is_active: boolean;
   default_markup_pct: number | null;
+};
+
+type BranchOption = {
+  id: string;
+  name: string;
 };
 
 type SupplierProductRow = {
@@ -309,20 +315,47 @@ export default async function ProductsPage({
     )
     .filter(Boolean);
 
+  let branches: BranchOption[] = [];
+
+  if (role === 'staff') {
+    const { data: membershipRows } = await supabase
+      .from('branch_memberships')
+      .select('branch_id')
+      .eq('org_id', orgId)
+      .eq('user_id', session.userId)
+      .eq('is_active', true);
+
+    const branchIds = (membershipRows ?? [])
+      .map((row) => row.branch_id)
+      .filter((value): value is string => typeof value === 'string');
+
+    if (branchIds.length > 0) {
+      const { data: staffBranches } = await supabase
+        .from('branches')
+        .select('id, name')
+        .eq('org_id', orgId)
+        .eq('is_active', true)
+        .in('id', branchIds)
+        .order('name');
+      branches = (staffBranches ?? []) as BranchOption[];
+    }
+  } else {
+    const { data: allBranches } = await dataClient
+      .from('branches')
+      .select('id, name')
+      .eq('org_id', orgId)
+      .eq('is_active', true)
+      .order('name');
+    branches = (allBranches ?? []) as BranchOption[];
+  }
+
   const [
-    branchesResult,
     suppliersResult,
     supplierProductsResult,
     safetyStockResult,
     productsCatalogRaw,
     brandsForSuggestions,
   ] = await Promise.all([
-    dataClient
-      .from('branches')
-      .select('id, name')
-      .eq('org_id', orgId)
-      .eq('is_active', true)
-      .order('name'),
     dataClient
       .from('suppliers' as never)
       .select('id, name, is_active, default_markup_pct')
@@ -370,7 +403,6 @@ export default async function ProductsPage({
     ),
   ]);
 
-  const branches = branchesResult.data ?? [];
   const productsCatalog = (productsCatalogRaw as ProductCatalogRow[]).filter(
     (product) => product.id && product.name,
   );
@@ -926,6 +958,82 @@ export default async function ProductsPage({
     revalidatePath('/products');
   };
 
+  const transferStock = async (formData: FormData): Promise<void> => {
+    'use server';
+
+    const actionSession = await getOrgMemberSession();
+    if (!actionSession?.orgId || !actionSession.effectiveRole) return;
+
+    const supabaseServer = actionSession.isPlatformAdmin
+      ? createAdminSupabaseClient()
+      : actionSession.supabase;
+    const orgId = actionSession.orgId;
+    const fromBranchId = String(formData.get('from_branch_id') ?? '').trim();
+    const toBranchId = String(formData.get('to_branch_id') ?? '').trim();
+    const reason = String(formData.get('transfer_reason') ?? '').trim();
+
+    const productIds = formData
+      .getAll('transfer_product_id')
+      .map((value) => String(value ?? '').trim())
+      .filter(Boolean);
+    const quantities = formData
+      .getAll('transfer_quantity')
+      .map((value) => String(value ?? '').trim());
+
+    if (!fromBranchId || !toBranchId) {
+      throw new Error('Debes seleccionar sucursal origen y destino.');
+    }
+
+    if (fromBranchId === toBranchId) {
+      throw new Error('La sucursal origen y destino deben ser distintas.');
+    }
+
+    if (productIds.length === 0 || productIds.length !== quantities.length) {
+      throw new Error('La lista de artículos a mover es inválida.');
+    }
+
+    const aggregatedItems = new Map<string, number>();
+
+    productIds.forEach((productId, index) => {
+      const quantity = Number(quantities[index] ?? '0');
+      if (Number.isNaN(quantity) || quantity <= 0) {
+        throw new Error('Cada cantidad a mover debe ser mayor a 0.');
+      }
+      aggregatedItems.set(
+        productId,
+        Number((aggregatedItems.get(productId) ?? 0) + quantity),
+      );
+    });
+
+    const items = Array.from(aggregatedItems.entries()).map(
+      ([productId, quantity]) => ({
+        product_id: productId,
+        quantity,
+      }),
+    );
+
+    const { error } = await supabaseServer.rpc(
+      'rpc_transfer_stock_between_branches' as never,
+      {
+        p_org_id: orgId,
+        p_from_branch_id: fromBranchId,
+        p_to_branch_id: toBranchId,
+        p_items: items,
+        p_reason: reason || 'transferencia entre sucursales',
+      } as never,
+    );
+
+    if (error) {
+      throw new Error(error.message || 'No se pudo mover el stock.');
+    }
+
+    revalidatePath('/products');
+  };
+
+  const canManageCatalog = role === 'org_admin';
+  const canAdjustManualStock = canManageCatalog;
+  const canTransferStock = branches.length > 1;
+
   const visibleFrom = totalProducts === 0 ? 0 : pageFrom + 1;
   const visibleTo = Math.min(pageFrom + products.length, totalProducts);
   const productsForList = products.map((product) => ({
@@ -960,101 +1068,45 @@ export default async function ProductsPage({
           </p>
         </header>
 
-        <section className="rounded-2xl bg-white p-6 shadow-sm">
-          <details className="group">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-lg font-semibold text-zinc-900">
-              Nuevo producto
-              <span className="text-sm font-medium text-zinc-500 transition group-open:rotate-180">
-                ▾
-              </span>
-            </summary>
-            <NewProductForm
-              suppliers={suppliers}
-              brandSuggestions={brandSuggestions}
-              productNameSuggestions={productsCatalog.map((product) => ({
-                product_id: product.id,
-                name: product.name,
-                brand: product.brand,
-                barcode: product.barcode,
-                internal_code: product.internal_code,
-                is_active: product.is_active,
-              }))}
-              onSubmit={createProduct}
-            />
-          </details>
-        </section>
+        {canManageCatalog ? (
+          <section className="rounded-2xl bg-white p-6 shadow-sm">
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-lg font-semibold text-zinc-900">
+                Nuevo producto
+                <span className="text-sm font-medium text-zinc-500 transition group-open:rotate-180">
+                  ▾
+                </span>
+              </summary>
+              <NewProductForm
+                suppliers={suppliers}
+                brandSuggestions={brandSuggestions}
+                productNameSuggestions={productsCatalog.map((product) => ({
+                  product_id: product.id,
+                  name: product.name,
+                  brand: product.brand,
+                  barcode: product.barcode,
+                  internal_code: product.internal_code,
+                  is_active: product.is_active,
+                }))}
+                onSubmit={createProduct}
+              />
+            </details>
+          </section>
+        ) : null}
 
-        <section className="rounded-2xl bg-white p-6 shadow-sm">
-          <details className="group">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-lg font-semibold text-zinc-900">
-              Ajuste manual de stock
-              <span className="text-sm font-medium text-zinc-500 transition group-open:rotate-180">
-                ▾
-              </span>
-            </summary>
-            <form
-              action={adjustStock}
-              className="mt-6 grid gap-4 md:grid-cols-2"
-            >
-              <label className="text-sm font-medium text-zinc-700">
-                Producto
-                <select
-                  name="product_id"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  required
-                >
-                  <option value="">Selecciona</option>
-                  {productsForAdjust.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm font-medium text-zinc-700">
-                Sucursal
-                <select
-                  name="branch_id"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  required
-                >
-                  <option value="">Selecciona</option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm font-medium text-zinc-700">
-                Nueva cantidad
-                <input
-                  name="new_quantity"
-                  type="number"
-                  step="0.001"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  defaultValue="0"
-                />
-              </label>
-              <label className="text-sm font-medium text-zinc-700">
-                Motivo
-                <input
-                  name="reason"
-                  className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  placeholder="Ajuste manual"
-                />
-              </label>
-              <div className="md:col-span-2">
-                <button
-                  type="submit"
-                  className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
-                >
-                  Ajustar stock
-                </button>
-              </div>
-            </form>
-          </details>
-        </section>
+        {canAdjustManualStock || canTransferStock ? (
+          <StockAdjustmentSection
+            branches={branches}
+            products={productsForAdjust.map((product) => ({
+              id: product.id,
+              name: product.name,
+            }))}
+            canAdjustManualStock={canAdjustManualStock}
+            canTransferStock={canTransferStock}
+            manualAdjustAction={adjustStock}
+            transferStockAction={transferStock}
+          />
+        ) : null}
 
         <section className="rounded-2xl bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-3">
@@ -1120,6 +1172,7 @@ export default async function ProductsPage({
           supplierByProduct={supplierByProductRecord}
           safetyStockGlobalByProduct={safetyStockGlobalRecord}
           safetyStockByProduct={safetyStockByProductRecord}
+          canEdit={canManageCatalog}
           onUpdate={updateProduct}
         />
       </div>

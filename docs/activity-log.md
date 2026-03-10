@@ -18,6 +18,67 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-03-10 — UI: cierre de desplegables por click afuera
+
+**Tipo:** ui/tests
+**Lote:** ui-outside-click-and-release-20260310
+**Alcance:** frontend
+
+**Resumen**
+Se agregó un hook reutilizable de dismiss por click afuera para los desplegables locales que abren desde botón y renderizan panel inline, aplicándolo en acciones de productos y proveedores. Ahora, cuando el panel está abierto, cualquier click fuera del contenedor lo cierra sin exigir otro click sobre el botón.
+
+**Archivos afectados:**
+
+- app/components/useDismissOnOutsideClick.ts
+- app/products/ProductActions.tsx
+- app/suppliers/SupplierActions.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 — Products: transferencia inline de stock entre sucursales
+
+**Tipo:** db/ui/docs/tests
+**Lote:** products-stock-branch-transfer-inline
+**Alcance:** db | frontend | rls | docs
+
+**Resumen**
+Se agregó en `/products` una nueva acción al final de “Ajuste manual de stock” para mover uno o varios artículos de una sucursal a otra dentro de una sola operación. La lógica crítica quedó en DB con la migración `20260310093011_086_stock_branch_transfer_inline.sql`, que incorpora el movimiento `branch_transfer` y la RPC `rpc_transfer_stock_between_branches` con validación explícita de rol, módulo `products`, memberships de sucursal y stock suficiente en origen. En UI, OA/SA mantienen alta/edición y ajuste manual, mientras que staff con módulo `products` ahora ve `/products` en lectura y solo puede usar la transferencia si tiene 2 o más sucursales activas asignadas.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260310093011_086_stock_branch_transfer_inline.sql
+- app/products/page.tsx
+- app/products/ProductListClient.tsx
+- app/products/StockAdjustmentSection.tsx
+- docs/docs-scope-post-mvp.md
+- docs/docs-app-screens-products.md
+- docs/docs-modules-products-stock.md
+- docs/docs-data-model.md
+- docs/docs-schema-model.md
+- docs/docs-rls-matrix.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset` OK (2026-03-10)
+- `npm run db:rls:smoke` OK (2026-03-10)
+- `psql ... select exists(...)` OK: RPC `rpc_transfer_stock_between_branches` y enum `branch_transfer` existen (2026-03-10)
+- `psql ... select count(*) from public.v_products_admin` OK (2026-03-10)
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
 ## 2026-03-09 19:32 -03 — Repo hygiene: ignore local para certificados ARCA
 
 **Tipo:** infra/docs
@@ -36,6 +97,50 @@ Se agregó una regla en `.gitignore` para ignorar `docs/ARCA/certificados/` y ev
 **Tests / comandos:**
 
 - `git status --short` verificado (2026-03-09)
+
+**Commit:** N/A
+
+## 2026-03-10 09:33 -03 — Docs marketing: consolidacion en libro unico
+
+**Tipo:** docs
+**Lote:** docs-marketing-book-20260310
+**Alcance:** docs
+
+**Resumen**
+Se generó un libro único en Markdown dentro de `docs/Marketing` que compila el contenido completo de todos los documentos fuente de esa carpeta en un solo archivo navegable, con índice inicial y referencia de origen por sección.
+
+**Archivos afectados:**
+
+- docs/Marketing/nodux-marketing-book.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- Verificación de creación y cabecera con `sed -n '1,40p' docs/Marketing/nodux-marketing-book.md` OK (2026-03-10)
+- Conteo de fuentes con script local: 30 documentos compilados desde `docs/Marketing` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 09:38 -03 — Prod ops: alta de superadmin global para paolazerpa21@gmail.com
+
+**Tipo:** infra/docs
+**Lote:** prod-superadmin-paolazerpa21-20260310
+**Alcance:** infra | docs
+
+**Resumen**
+Se verificó en producción el estado del usuario `paolazerpa21@gmail.com`: existía en Auth, no estaba en `platform_admins` y sólo tenía 1 membresía activa en `org_users`. Se promovió a superadmin global mediante `upsert` en `platform_admins` y luego se ejecutó el backfill de membresía org-wide sobre todas las orgs existentes usando `fn_sync_platform_admin_memberships_for_org`.
+
+**Archivos afectados:**
+
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- Verificación previa en prod vía `service_role`: `platform_admin=false`, `active_org_memberships=1`, `total_orgs=3` OK (2026-03-10)
+- Mutación en prod vía `service_role`: `upsert` en `platform_admins` + sync de 3 orgs con `fn_sync_platform_admin_memberships_for_org` OK (2026-03-10)
+- Verificación posterior en prod vía `service_role`: `platform_admin=true`, `active_org_memberships=3`, `total_orgs=3` OK (2026-03-10)
 
 **Commit:** N/A
 
