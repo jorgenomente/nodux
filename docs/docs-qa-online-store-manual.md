@@ -15,7 +15,8 @@ npm run dev
 
 2. Confirmar acceso local en `http://localhost:3000`.
 3. Usuario admin demo: `admin@demo.com / prueba123`.
-4. Usuario staff demo: `staff@demo.com / prueba123`.
+4. Usuario staff demo QA: `staff@demo.com / prueba123`.
+5. Usuario demo publico readonly: `demo-readonly@demo.com / prueba123` solo para `/demo`.
 
 ## Escenario 1 — Configuración inicial storefront
 

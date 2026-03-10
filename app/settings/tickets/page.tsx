@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
 import { getOrgAdminSession } from '@/lib/auth/org-session';
+import LocalPrintAgentPanel from '@/app/settings/tickets/LocalPrintAgentPanel';
 import TicketTemplateEditors from '@/app/settings/tickets/TicketTemplateEditors';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
@@ -243,6 +244,84 @@ export default async function SettingsTicketsPage({
             No se pudo guardar la plantilla. Intenta nuevamente.
           </p>
         ) : null}
+
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+            <div>
+              <p className="text-xs font-semibold tracking-wide text-amber-700 uppercase">
+                Compatibilidad de impresion
+              </p>
+              <h2 className="mt-2 text-lg font-semibold text-zinc-900">
+                Como funciona hoy la impresion termica en NODUX
+              </h2>
+              <p className="mt-2 text-sm text-zinc-700">
+                El ticket no fiscal de <strong>POS</strong> y{' '}
+                <strong>Ventas</strong> se imprime desde el navegador. NODUX no
+                envia bytes ESC/POS crudos directo a la impresora; depende de
+                que el sistema operativo tenga una cola/driver compatible.
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-3">
+                <div className="rounded-xl border border-amber-200 bg-white p-4">
+                  <p className="text-sm font-semibold text-zinc-900">Windows</p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-600">
+                    Recomendado para termicas USB ESC/POS cuando existe driver
+                    del fabricante o uno compatible ya probado.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-amber-200 bg-white p-4">
+                  <p className="text-sm font-semibold text-zinc-900">macOS</p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-600">
+                    Si no hay driver nativo real, el flujo por navegador puede
+                    fallar. Evita colas tipo <strong>Generic PostScript</strong>
+                    .
+                  </p>
+                </div>
+                <div className="rounded-xl border border-amber-200 bg-white p-4">
+                  <p className="text-sm font-semibold text-zinc-900">
+                    Print server
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-600">
+                    Salida simple para cajas Mac: conectar la termica a una PC
+                    Windows/Linux y compartir la cola por red.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-zinc-200 bg-white p-4">
+              <p className="text-sm font-semibold text-zinc-900">
+                Checklist rapido
+              </p>
+              <ul className="mt-3 list-disc space-y-2 pl-4 text-xs leading-5 text-zinc-700">
+                <li>
+                  Verifica primero que la pagina de prueba del sistema operativo
+                  imprima bien.
+                </li>
+                <li>
+                  No uses drivers genericos de laser, matriz o etiquetas para
+                  una termica ESC/POS.
+                </li>
+                <li>Confirma el ancho real del rollo: 72mm u 80mm.</li>
+                <li>
+                  Ajusta ancho, margenes, fuente e interlineado en esta misma
+                  pantalla antes de culpar al ticket.
+                </li>
+                <li>
+                  Caso revisado: la <strong>P-HAS-181</strong> no debe quedar en
+                  macOS como <strong>Generic PostScript Printer</strong>.
+                </li>
+              </ul>
+              <p className="mt-4 text-xs leading-5 text-zinc-600">
+                Referencia operativa completa:{' '}
+                <span className="font-mono text-[11px] text-zinc-700">
+                  docs/printing/thermal-setup.md
+                </span>
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <LocalPrintAgentPanel />
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-6">
           <div className="grid gap-4 md:grid-cols-[280px_1fr]">

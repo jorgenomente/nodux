@@ -30,6 +30,7 @@ Auditar una venta puntual, corregir método de pago cuando hubo error operativo 
 - Método resumen de la venta
 - Empleado asociado (si aplica)
 - Estado fiscal (facturada/no facturada)
+- Cliente vinculado (si existe) con nombre y WhatsApp
 
 ### Bloque ítems
 
@@ -50,6 +51,12 @@ Auditar una venta puntual, corregir método de pago cuando hubo error operativo 
 ### Bloque comprobantes
 
 - Botón “Imprimir ticket” (copia no fiscal)
+- Botón `Compartir ticket por WhatsApp` si la venta tiene `client_phone`
+- Botón `Compartir factura por WhatsApp` si la venta tiene `client_phone` y la factura fiscal está `completed`
+- Estado del link vigente por documento (`activo/revocado/vencido/sin generar`)
+- Metadata mínima del link: creación, último compartido asistido, canal y contador de reenvíos
+- Acciones operativas: `Revocar link` / `Regenerar link`
+- Bloque `Historial de compartidos` con eventos recientes por documento/canal/fecha/actor
 - Botón “Emitir factura” si la venta aún no está facturada
   Debe encolar el job fiscal en ambiente `prod`; no es equivalente al ticket no fiscal.
 - Si existe factura fiscal, mostrar estado real (`render_pending/completed`) y acceso “Ver factura”.
@@ -71,6 +78,8 @@ Salida mínima:
 - `items` (jsonb array)
 - `payments` (jsonb array)
 - lectura auxiliar opcional de `v_sale_fiscal_invoice_admin`
+- lectura auxiliar: `rpc_list_sale_delivery_links(sale_id)`
+- lectura auxiliar: `rpc_list_sale_delivery_events(sale_id, limit)`
 
 ### Escritura
 
@@ -98,6 +107,13 @@ RPC: `rpc_mark_sale_invoiced(...)`
 - `p_sale_id`
 - `p_source` (ej. `sale_detail`, `sales_list`, `pos_checkout`)
 
+RPCs auxiliares de lifecycle:
+
+- `rpc_list_sale_delivery_links(p_sale_id)`
+- `rpc_revoke_sale_delivery_link(p_sale_id, p_document_kind)`
+- `rpc_regenerate_sale_delivery_link(p_sale_id, p_document_kind, p_expires_at nullable)`
+- `rpc_list_sale_delivery_events(p_sale_id, p_limit)`
+
 ## Seguridad (RLS)
 
 - Scope por `org_id`.
@@ -110,3 +126,6 @@ RPC: `rpc_mark_sale_invoiced(...)`
 2. Corregir método y motivo válido.
 3. Ver cambio reflejado en detalle y listado `/sales`.
 4. Ver evento en `/settings/audit-log`.
+5. Revocar un link de ticket y verificar que el `/share/t/:token` viejo deja de responder.
+6. Regenerar el link y verificar que el token nuevo vuelve a responder.
+7. Ver en el detalle eventos `Compartido`, `Abierto` y `Regenerado` cuando aplica.

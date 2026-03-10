@@ -42,6 +42,366 @@ Se agregó un hook reutilizable de dismiss por click afuera para los desplegable
 
 **Commit:** N/A
 
+## 2026-03-10 20:35 -03 — Separación estructural demo pública vs QA local
+
+**Tipo:** infra/docs/tests
+**Lote:** demo-public-org-separation
+**Alcance:** infra
+
+**Resumen**
+Se separó la demo pública readonly de las cuentas demo operativas locales a nivel de organización. `scripts/seed-users.js` ahora crea `Demo Publica Org` para `demo-readonly@demo.com` y `Demo QA Org` para `admin@demo.com` / `staff@demo.com`, evitando que una misma cuenta participe en ambas orgs. Además, el seed reconcilia memberships obsoletas en `org_users` para que corridas repetidas no conserven asignaciones viejas que vuelvan a mezclar `/demo` con QA local.
+
+**Archivos afectados:**
+
+- scripts/seed-users.js
+- docs/docs-demo-users.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `node scripts/seed-users.js` OK (2026-03-10)
+- Verificación `org_users` OK (2026-03-10):
+  - `demo-readonly@demo.com` -> solo `Demo Publica Org`
+  - `admin@demo.com` -> solo `Demo QA Org`
+  - `staff@demo.com` -> solo `Demo QA Org`
+- `node scripts/seed-demo-data.js` OK (2026-03-10)
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+- `npx playwright test e2e/smoke-pos.spec.ts` OK (2026-03-10): 4 passed
+
+**Commit:** N/A
+
+## 2026-03-10 21:05 -03 — Dataset curado para demo pública readonly
+
+**Tipo:** infra/docs/tests
+**Lote:** demo-public-org-showcase-data
+**Alcance:** infra
+
+**Resumen**
+Se extendió `scripts/seed-demo-data.js` para poblar `Demo Publica Org` con un dataset de exhibición independiente de la org QA. La demo pública readonly ahora recibe catálogo, stock, clientes, ventas, proveedores, pedidos y saldos básicos propios, manteniendo `Demo QA Org` para smoke y validaciones operativas. También se ajustó el seed para resolver explícitamente los actores por email (`admin@demo.com` y `demo-readonly@demo.com`) y evitar que la materialización automática del superadmin contamine la autoría visible en la demo.
+
+**Archivos afectados:**
+
+- scripts/seed-demo-data.js
+- docs/docs-demo-users.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `node scripts/seed-demo-data.js` OK (2026-03-10)
+- Verificación directa `Demo Publica Org` OK (2026-03-10):
+  - `suppliers=2`
+  - `products=4`
+  - `clients=2`
+  - `sales=3`
+  - `supplier_orders=2`
+- Verificación directa de autoría OK (2026-03-10): ventas y pedidos públicos quedan con `created_by=demo-readonly@demo.com`
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 21:20 -03 — Smoke readonly de `/demo`
+
+**Tipo:** tests/docs
+**Lote:** demo-public-readonly-smoke
+**Alcance:** frontend | tests
+
+**Resumen**
+Se agregó una suite Playwright específica para la demo readonly. El smoke valida que `/demo` siga siendo público, que la cuenta `demo-readonly@demo.com` opere sobre `Demo Publica Org`, que el catálogo curado sea visible y que un `POST` mutante quede bloqueado por el guard readonly. En paralelo se ajustó `/demo` para usar rutas relativas y se corrigió `POST /demo/enter` para no forzar `app.nodux.app` cuando corre en localhost, evitando diferencias artificiales entre entorno local y producción.
+
+**Archivos afectados:**
+
+- app/demo/page.tsx
+- app/demo/enter/route.ts
+- e2e/smoke-demo-readonly.spec.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+- `npx playwright test e2e/smoke-pos.spec.ts e2e/smoke-demo-readonly.spec.ts` OK (2026-03-10): 5 passed
+
+**Commit:** N/A
+
+## 2026-03-10 21:45 -03 — Auditoría repo-aware de `docs-pos-client-delivery-plan`
+
+**Tipo:** docs
+**Lote:** pos-client-delivery-phase-5-planning
+**Alcance:** docs
+
+**Resumen**
+Se auditó nuevamente `docs/docs-pos-client-delivery-plan.md` contra el estado real del repo después de cerrar ticket share, invoice share, seed fiscal reproducible y smoke readonly. El documento quedó corregido para reflejar que POS post-cobro, `/sales/[saleId]`, `/share/t/:token`, `/share/i/:token` y los smokes asociados ya están implementados. También se redefinió el siguiente lote real del plan: historial de ventas y reenvío de comprobantes desde `/clients`, en lugar de seguir persiguiendo deuda ya resuelta en POS.
+
+**Archivos afectados:**
+
+- docs/docs-pos-client-delivery-plan.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- Sin tests requeridos por tratarse de auditoría y actualización de docs
+
+**Commit:** N/A
+
+## 2026-03-10 20:05 -03 — Seed reproducible y smoke de factura compartible
+
+**Tipo:** infra/tests/docs
+**Lote:** pos-client-delivery-phase-4-invoice-share-seed-smoke
+**Alcance:** backend | infra | tests
+
+**Resumen**
+La fixture fiscal que se había validado manualmente pasó a formar parte del seed demo operativo. `scripts/seed-demo-data.js` ahora crea de forma idempotente una venta fija de `Juan Perez` (`sale_id=8b196ae1-7ec0-4f45-899c-8130d0f96299`) con `sale_items`, `sale_documents`, `invoice_jobs` e `invoices` en estado `authorized + completed`, lo que deja disponible un caso estable para probar `POST /api/sales/[saleId]/invoice-share` y la ruta pública `/share/i/:token`. Además se extendió el smoke de Playwright para pedir el link autenticado y abrir la factura pública renderizada.
+
+**Archivos afectados:**
+
+- scripts/seed-demo-data.js
+- e2e/smoke-pos.spec.ts
+- docs/docs-demo-users.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `node scripts/seed-demo-data.js` OK (2026-03-10)
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+- `npx playwright test e2e/smoke-pos.spec.ts` OK (2026-03-10): 4 passed
+
+**Commit:** N/A
+
+## 2026-03-10 19:20 -03 — POS cliente delivery: factura compartible por link y WhatsApp
+
+**Tipo:** schema/ui/docs/tests
+**Lote:** pos-client-delivery-phase-4-invoice-share
+**Descripción:** Se extendió la entrega digital para soportar factura fiscal compartible. La DB suma la RPC pública `rpc_get_sale_invoice_delivery(...)` sobre `sale_delivery_links`, restringida a facturas autorizadas con `render_status=completed`. En app se agregó el endpoint autenticado `POST /api/sales/[saleId]/invoice-share`, la ruta pública `/share/i/[token]`, se extrajo `SaleFiscalInvoiceDocument` para reutilizar el render interno/público de la factura y se habilitaron CTA `Compartir factura por WhatsApp` en `/sales/[saleId]`, en `/sales/[saleId]/invoice` y en POS cuando `Cobrar y facturar` devuelve factura lista dentro del request.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260310154000_088_sale_delivery_links_ticket_share.sql
+- types/supabase.ts
+- app/api/sales/[saleId]/invoice-share/route.ts
+- app/share/i/[token]/page.tsx
+- app/sales/SaleFiscalInvoiceDocument.tsx
+- app/sales/ShareTicketWhatsappButton.tsx
+- app/sales/[saleId]/invoice/page.tsx
+- app/sales/[saleId]/page.tsx
+- app/pos/PosClient.tsx
+- docs/docs-app-screens-index.md
+- docs/docs-app-screens-sale-detail.md
+- docs/docs-app-screens-sale-invoice.md
+- docs/docs-app-screens-sale-invoice-share.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/docs-pos-client-delivery-plan.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run types:gen` OK (2026-03-10)
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+- Aplicación local de `rpc_get_sale_invoice_delivery(...)` en DB: OK (2026-03-10)
+- Fixture fiscal local insertada sobre venta `8b196ae1-7ec0-4f45-899c-8130d0f96299`: OK (2026-03-10) con `sale_documents + invoice_jobs + invoices` en estado `authorized + completed`
+- Verificación del endpoint `POST /api/sales/[saleId]/invoice-share`: OK (2026-03-10), devuelve `invoiceUrl` + `whatsappUrl`
+- Verificación end-to-end de `/share/i/:token`: OK (2026-03-10), renderiza comprobante fiscal compartido con CAE, número y QR
+
+**Commit:** N/A
+
+## 2026-03-10 18:35 -03 — Demo accounts: separación readonly público vs QA local
+
+**Tipo:** infra/docs
+**Lote:** demo-readonly-account-separation
+**Descripción:** Se separó conceptualmente la cuenta de demo pública readonly de las cuentas demo operativas usadas para QA local. El seed de usuarios ahora contempla `demo-readonly@demo.com` como cuenta dedicada para `/demo`, mientras `admin@demo.com` y `staff@demo.com` quedan reservadas para validar flujos con escritura real. También se actualizaron las docs de usuarios demo y QA para evitar volver a mezclar `DEMO_LOGIN_EMAIL` / `DEMO_READONLY_EMAILS` con los usuarios que usa Playwright o QA manual.
+
+**Archivos afectados:**
+
+- scripts/seed-users.js
+- docs/docs-demo-users.md
+- docs/docs-qa-online-store-manual.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `node scripts/seed-users.js` OK (2026-03-10), crea `demo-readonly@demo.com`
+- Actualización `.env.local`: OK (2026-03-10), `DEMO_LOGIN_EMAIL=demo-readonly@demo.com` y `DEMO_READONLY_EMAILS=demo-readonly@demo.com`
+- Nota operativa: requiere reiniciar el dev server para que `proxy` tome la nueva config de demo readonly
+
+**Commit:** N/A
+
+## 2026-03-10 17:45 -03 — POS cliente delivery: CTA WhatsApp operativo en POS y ventas
+
+**Tipo:** ui/backend/docs/tests
+**Lote:** pos-client-delivery-phase-3-whatsapp-cta
+**Descripción:** Se cerró la primera iteración operativa del compartido asistido de ticket. Se agregó un endpoint autenticado `POST /api/sales/[saleId]/ticket-share` que valida la venta en la org activa, crea o reutiliza el `sale_delivery_link` de `sale_ticket` y devuelve la URL pública junto al `wa.me` prearmado. En UI, `/pos` ahora muestra acciones post-venta con `Nueva venta`, `Ver venta`, `Imprimir ticket` y `Compartir ticket por WhatsApp` cuando la venta quedó asociada a un cliente con teléfono; `/sales/[saleId]` muestra el cliente vinculado y habilita el mismo CTA para reenvío. También se agregó smoke E2E mínimo para el flujo cliente identificado -> cobro -> ticket público compartible.
+
+**Archivos afectados:**
+
+- app/api/sales/[saleId]/ticket-share/route.ts
+- app/pos/page.tsx
+- app/pos/PosClient.tsx
+- app/sales/ShareTicketWhatsappButton.tsx
+- app/sales/[saleId]/page.tsx
+- lib/clients/whatsapp.ts
+- e2e/smoke-pos.spec.ts
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-app-screens-sale-detail.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10) luego de corregir `app/suppliers/[supplierId]/page.tsx:299,422,435` para usar `undefined` en `p_supplier_price` opcional
+- `npx playwright test e2e/smoke-pos.spec.ts` OK (2026-03-10): 3 passed
+- Diagnóstico intermedio: el smoke base inicial fallaba por redirect `307 -> /demo?readonly=1` al usar `staff@demo.com`, confirmando mezcla entre cuenta demo readonly y cuenta QA local
+- Diagnóstico intermedio: el smoke nuevo de share falló inicialmente por `column reference "sale_id" is ambiguous` en `rpc_get_or_create_sale_delivery_link(...)`; quedó corregido en migración y aplicada la función localmente
+
+**Commit:** N/A
+
+## 2026-03-10 18:55 -03 — Ticket share: fix SQL local de RPC por ambigüedad `sale_id`
+
+**Tipo:** schema/tests
+**Lote:** pos-client-delivery-phase-3-whatsapp-cta
+**Descripción:** Se corrigió la función `rpc_get_or_create_sale_delivery_link(...)` porque la actualización de links expirados usaba `where sale_id = p_sale_id`, lo que generaba `column reference "sale_id" is ambiguous` por colisión con la columna de salida del `returns table`. La migración quedó ajustada calificando las columnas con alias (`sdl.sale_id`, `sdl.document_kind`, etc.) y se aplicó el `create or replace function` directamente en la DB local para reprobar el endpoint sin esperar un reset completo.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260310154000_088_sale_delivery_links_ticket_share.sql
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- Reproducción del endpoint `POST /api/sales/[saleId]/ticket-share`: FAIL inicial (2026-03-10) con `column reference "sale_id" is ambiguous`
+- `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -f /tmp/fix_sale_delivery_link.sql` OK (2026-03-10)
+- Reproducción del endpoint `POST /api/sales/[saleId]/ticket-share`: OK (2026-03-10), devuelve `ticketUrl` + `whatsappUrl`
+
+**Commit:** N/A
+
+## 2026-03-10 17:25 -03 — POS cliente delivery: auditoría de avance y plan siguiente
+
+**Tipo:** docs
+**Lote:** pos-client-delivery-phase-3-planning
+**Descripción:** Se auditó `docs/docs-pos-client-delivery-plan.md` contra el estado real del repo para confirmar qué partes del flujo ya quedaron cerradas y cuál es el siguiente cuello operativo. La revisión confirmó que Fase 1 ya está implementada (`/pos`, checkout server-side, `sales.client_id`, `rpc_create_sale`) y que la base de ticket compartible por token también está lista (`sale_delivery_links`, RPCs y `/share/t/[token]`). Se actualizó el plan con un estado auditado y se definió como siguiente lote mínimo cerrar la UX de `Compartir por WhatsApp` en POS y en detalle de venta, junto con smoke específico del flujo.
+
+**Archivos afectados:**
+
+- docs/docs-pos-client-delivery-plan.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- Revisión repo-aware de POS, checkout, migraciones, contratos de pantalla y docs vivas: OK (2026-03-10)
+- Sin tests requeridos por tratarse de lote docs-only
+
+**Commit:** N/A
+
+## 2026-03-10 18:15 -03 — Fix POS local: nombre correcto de RPC de auditoría
+
+**Tipo:** schema/docs
+**Lote:** pos-client-delivery-phase-1-fix
+**Descripción:** Se corrigió la llamada de auditoría dentro de `rpc_create_sale` en la migración `20260310160500_087_pos_sale_client_link.sql`. La versión inicial invocaba `public.log_audit_event(...)`, pero el schema actual expone `public.rpc_log_audit_event(p_org_id, p_action_key, p_entity_type, p_entity_id, p_branch_id, p_metadata, p_actor_user_id)`.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260310160500_087_pos_sale_client_link.sql
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- Sin revalidación completa aún; requiere `npm run db:reset` para recompilar la función SQL local y reprobar POS
+
+**Commit:** N/A
+
+## 2026-03-10 18:05 -03 — Fix POS local: tabla de movimientos en `rpc_create_sale`
+
+**Tipo:** schema/docs
+**Lote:** pos-client-delivery-phase-1-fix
+**Descripción:** Se corrigió la migración `20260310160500_087_pos_sale_client_link.sql` porque la versión inicial de `rpc_create_sale` había quedado escribiendo en `public.movements`, tabla inexistente en el schema actual. El insert vuelve a usar `public.stock_movements` con las columnas reales (`quantity_delta`, `source_type`, `source_id`).
+
+**Archivos afectados:**
+
+- supabase/migrations/20260310160500_087_pos_sale_client_link.sql
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- Sin revalidación completa aún; requiere `npm run db:reset` para recompilar la función SQL local y reprobar POS
+
+**Commit:** N/A
+
+## 2026-03-10 17:00 -03 — POS: fase 1 cliente opcional y vínculo venta-cliente
+
+**Tipo:** schema/ui/docs/tests
+**Lote:** pos-client-delivery-phase-1
+**Descripción:** Se implementó la primera fase del flujo de cliente identificado en POS. `/pos` ahora muestra un bloque opcional para buscar cliente existente o cargar `nombre + WhatsApp`, `POST /api/pos/checkout` resuelve o crea el cliente antes de cobrar, y la venta queda vinculada mediante `sales.client_id`. También se agregó `client_id` a `sales`, se extendió `rpc_create_sale`, y las views de ventas exponen `client_id`, `client_name` y `client_phone` para lectura futura desde ventas/detalle.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260310160500_087_pos_sale_client_link.sql
+- lib/clients/normalize.ts
+- app/api/pos/checkout/route.ts
+- app/pos/PosClient.tsx
+- proxy.ts
+- types/supabase.ts
+- e2e/smoke-pos.spec.ts
+- docs/docs-pos-client-delivery-plan.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-modules-clients.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset` OK (2026-03-10)
+- `npm run db:seed:demo` OK (2026-03-10)
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+- `npx playwright test e2e/smoke-pos.spec.ts` FAIL (2026-03-10): el smoke siguió sin observar `Venta registrada`; durante el diagnóstico apareció un `ERR_TOO_MANY_REDIRECTS` local sobre checkout para staff y luego un `400 Bad Request` en el flujo POS local. Queda pendiente aislar ese fallo E2E en entorno de dev.
+
+**Commit:** N/A
+
+## 2026-03-10 16:05 -03 — Planificación POS: cliente identificado y entrega digital asistida
+
+**Tipo:** docs
+**Lote:** pos-client-delivery-plan
+**Descripción:** Se documentó un plan repo-aware para evolucionar `/pos` con cliente opcional, autocompletado contra `clients`, persistencia de `sales.client_id` desde checkout y entrega digital asistida de ticket/factura por WhatsApp. El documento separa explícitamente fases: identificación del cliente, compartido asistido con link seguro, historial en `/clients` y futuras extensiones de email/automatización, manteniendo fuera del primer lote los envíos automáticos y el marketing.
+
+**Archivos afectados:**
+
+- docs/docs-pos-client-delivery-plan.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- Revisión repo-aware de contratos POS, clients, checkout y modelo `sales.client_id`: OK (2026-03-10)
+- Sin tests requeridos por tratarse de lote docs-only
+
+**Commit:** N/A
+
 ## 2026-03-10 — Products: transferencia inline de stock entre sucursales
 
 **Tipo:** db/ui/docs/tests
@@ -9825,6 +10185,337 @@ Se aplico una optimizacion de bajo riesgo para reducir latencia de navegacion en
 
 **Commit:** N/A
 
+## 2026-03-10 12:15 -03 — Diagnóstico: impresión térmica de ticket
+
+**Tipo:** decision/docs
+**Lote:** ticket-print-diagnostic-20260310
+**Descripción:** Se auditó el flujo real de `Imprimir ticket` en `/sales/[saleId]/ticket` y `/pos`. El hallazgo principal es que la app no emite bytes ESC/POS ni despacha a una cola/driver térmico: ambos caminos renderizan HTML/CSS y delegan la salida a `window.print()`. Esto explica que una impresora ESC/POS P-HAS-181 pueda expulsar papel con texto/códigos si el sistema operativo o el driver la está tratando como impresora genérica/raw o si el navegador le envía un trabajo que el dispositivo no interpreta como raster/texto compatible.
+
+**Archivos afectados:**
+
+- app/sales/PrintTicketButton.tsx
+- app/sales/[saleId]/ticket/page.tsx
+- app/pos/PosClient.tsx
+- package.json
+- docs/ARCA/implementation/afip-arca-render-pipeline.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `rg -n "window.print\\(|Imprimir ticket|escpos|print_jobs|printer_target" app lib docs supabase` OK (2026-03-10)
+- Inspección estática de flujo en `app/sales/[saleId]/ticket/page.tsx` y `app/pos/PosClient.tsx`: OK (2026-03-10)
+- `git status --short` OK, sin cambios previos no relacionados detectados (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 12:35 -03 — Diagnóstico: bundle de drivers P-HAS-181 en macOS
+
+**Tipo:** decision/docs
+**Lote:** ticket-print-diagnostic-20260310
+**Descripción:** Se inspeccionó el material agregado por el usuario para la P-HAS-181. El paquete `impresoras no-fiscales` no incluye driver para macOS; solo aporta `Drivers/Linux/HASAR Driver Linux.tar.gz`, manuales ESC/POS y ejemplos de programación por bytes crudos. El tarball Linux contiene `has_generic.ppd` y un filtro CUPS `rastertozj`, con tamaños 72mm/80mm y resolución 203dpi, lo que confirma que la impresora requiere un pipeline raster/ESC-POS específico. En la Mac del usuario, la cola activa sigue dada de alta como `Generic PostScript Printer`, que es inconsistente con ese pipeline y explica el papel con códigos al imprimir desde el navegador.
+
+**Archivos afectados:**
+
+- impresoras no-fiscales/Drivers/Linux/HASAR Driver Linux.tar.gz
+- impresoras no-fiscales/Ejemplos de programacion/Impresion y corte en Python.py
+- docs/Folleto-P-HAS-181.pdf
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `find 'impresoras no-fiscales' -maxdepth 3 -type f | sort` OK (2026-03-10)
+- `tar -tf 'impresoras no-fiscales/Drivers/Linux/HASAR Driver Linux.tar.gz'` OK (2026-03-10)
+- `tar -xOf ... 'HAS Generic/has_generic.ppd'` OK (2026-03-10)
+- `lpoptions -p USB_printer_USB_Printer` OK (2026-03-10): `printer-make-and-model='Generic PostScript Printer'`
+
+**Commit:** N/A
+
+## 2026-03-10 13:05 -03 — Docs: estrategia operativa de impresión térmica por sistema operativo
+
+**Tipo:** docs/decision
+**Lote:** ticket-print-diagnostic-20260310
+**Descripción:** Se consolidó una guía operativa en `docs/printing/thermal-setup.md` para aclarar el estado real del producto: hoy NODUX imprime tickets no fiscales vía navegador (`window.print()`), no vía ESC/POS crudo. La guía formaliza la recomendación de corto plazo (Windows con driver correcto o print server cuando la caja usa macOS) y la evolución de mediano plazo (bridge local ESC/POS). También se actualizó el contrato de `/settings/tickets` para reservar un bloque de ayuda visible o enlazable con compatibilidad por sistema operativo.
+
+**Archivos afectados:**
+
+- docs/printing/thermal-setup.md
+- docs/docs-app-screens-settings-tickets.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- Revisión documental repo-aware: OK (2026-03-10)
+- Sin tests requeridos por tratarse de lote docs-only
+
+**Commit:** N/A
+
+## 2026-03-10 13:20 -03 — UI: ayuda visible de compatibilidad térmica en `/settings/tickets`
+
+**Tipo:** ui/docs/tests
+**Lote:** ticket-print-diagnostic-20260310
+**Descripción:** Se agregó en `/settings/tickets` un bloque visible de ayuda operativa para impresión térmica. La pantalla ahora explica que NODUX imprime tickets no fiscales vía navegador, diferencia recomendaciones por sistema operativo (Windows, macOS y print server) y muestra un checklist rápido de diagnóstico, incluyendo el caso concreto de la P-HAS-181 mal configurada como `Generic PostScript Printer` en macOS. El objetivo es reducir soporte reactivo y dejar explícitos los límites del flujo actual antes de implementar un bridge local ESC/POS.
+
+**Archivos afectados:**
+
+- app/settings/tickets/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 13:40 -03 — Docs: arquitectura de bridge local ESC/POS
+
+**Tipo:** docs/decision
+**Lote:** ticket-print-diagnostic-20260310
+**Descripción:** Se definió la arquitectura objetivo para salir del modelo actual basado en `window.print()`. La propuesta introduce un bridge local ESC/POS instalado en la caja, con API local, payload estructurado no-HTML, estrategia Windows-first y fallback a browser print. También se dejó un recorte MVP separado: solo ticket no fiscal desde `/pos`, una impresora por caja y sin spooler persistente todavía. La documentación deja explícito que el diseño debe convivir con `print_jobs` para una futura integración fiscal/no fiscal desacoplada.
+
+**Archivos afectados:**
+
+- docs/printing/escpos-bridge-architecture.md
+- docs/printing/escpos-bridge-mvp.md
+- docs/docs-scope-post-mvp.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/docs-app-screens-settings-tickets.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- Revisión de arquitectura existente (`print_jobs`, render pipeline, contratos POS/tickets): OK (2026-03-10)
+- Sin tests requeridos por tratarse de lote docs-only
+
+**Commit:** N/A
+
+## 2026-03-10 14:05 -03 — Docs: consolidación del track en `docs/printing`
+
+**Tipo:** docs/decision
+**Lote:** ticket-print-diagnostic-20260310
+**Descripción:** Se reorganizó el track de impresión en un directorio dedicado `docs/printing/` para mantener el contexto rastreable. Los documentos de setup térmico, arquitectura del bridge y MVP quedaron consolidados allí junto con un índice maestro `docs/printing/README.md`. Se actualizaron las referencias relevantes en contexto, roadmap, contrato de `/settings/tickets`, UI y bitácora.
+
+**Archivos afectados:**
+
+- docs/printing/README.md
+- docs/printing/thermal-setup.md
+- docs/printing/escpos-bridge-architecture.md
+- docs/printing/escpos-bridge-mvp.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/docs-app-screens-settings-tickets.md
+- app/settings/tickets/page.tsx
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- Revisión de referencias con `rg` OK (2026-03-10)
+- Sin tests requeridos por tratarse de lote docs-only
+
+**Commit:** N/A
+
+## 2026-03-10 14:20 -03 — Repo hygiene: limpieza de insumos temporales de impresión
+
+**Tipo:** docs/infra
+**Lote:** ticket-print-diagnostic-20260310
+**Descripción:** Se eliminaron del worktree los insumos temporales usados para diagnóstico local de la impresora térmica que no deben quedar como parte del producto: la carpeta `Impresoras no-fiscales/` y `docs/Folleto-P-HAS-181.pdf`. Se conserva únicamente la documentación útil y mantenible dentro de `docs/printing/`.
+
+**Archivos afectados:**
+
+- Impresoras no-fiscales/
+- docs/Folleto-P-HAS-181.pdf
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `git status --short` OK (2026-03-10)
+- Verificación de ausencia de paths temporales con `find` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 14:35 -03 — MVP web: agente local de impresión con fallback en POS
+
+**Tipo:** ui/docs/tests
+**Lote:** printing-local-agent-mvp-web
+**Descripción:** Se implementó el lado web del MVP del bridge local ESC/POS sin introducir aún un binario nativo en el repo. `/settings/tickets` ahora incluye un panel cliente para configurar localmente el modo de impresión de la caja (`browser` o `local_agent`), la URL del agente, el `printerTarget`, corte y copias, con prueba de conexión y ticket de prueba. `/pos` lee esa configuración desde `localStorage`, intenta imprimir por `POST /print` al agente local cuando el modo directo está activo y, si falla, cae automáticamente al flujo existente del navegador. Se agregó además una utilidad compartida para payload estructurado, healthcheck y dispatch del ticket no fiscal.
+
+**Archivos afectados:**
+
+- lib/printing/local-agent.ts
+- app/settings/tickets/LocalPrintAgentPanel.tsx
+- app/settings/tickets/page.tsx
+- app/pos/PosClient.tsx
+- docs/docs-app-screens-settings-tickets.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 15:05 -03 — MVP nativo: agente local TCP/Ethernet
+
+**Tipo:** backend/docs/tests
+**Lote:** printing-local-agent-mvp-native
+**Descripción:** Se agregó un agente local runnable en el repo (`npm run print:agent`) para empezar a cerrar el loop de impresión directa. El agente expone `GET /health`, `GET /printers` y `POST /print`, crea configuración local en `~/.nodux-print-agent/config.json` y despacha tickets ESC/POS por TCP/Ethernet usando un renderer de texto simple. Este recorte no implementa todavía USB nativo ni instalador Windows; deja operativo el primer transporte serio y compatible con el flujo web ya integrado.
+
+**Archivos afectados:**
+
+- lib/printing/contracts.ts
+- lib/printing/escpos.ts
+- lib/printing/local-agent.ts
+- scripts/local-print-agent.ts
+- package.json
+- app/settings/tickets/LocalPrintAgentPanel.tsx
+- docs/printing/README.md
+- docs/printing/local-agent-setup.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `node --import tsx ./scripts/local-print-agent.ts --help` OK (2026-03-10)
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 15:20 -03 — MVP nativo: soporte USB Windows por cola RAW
+
+**Tipo:** backend/docs/tests
+**Lote:** printing-local-agent-mvp-native
+**Descripción:** Se extendió el agente local para soportar un segundo transporte: `windows_printer`. En este modo, el agente ejecuta un bridge PowerShell en Windows que invoca WinSpool (`OpenPrinter` / `WritePrinter`) y envía bytes ESC/POS crudos a una cola de impresora instalada por nombre exacto. Con esto el MVP ya cubre Ethernet/TCP y Windows USB basado en cola. El lote actualiza también el runbook y la UI para reflejar el alcance real del agente.
+
+**Archivos afectados:**
+
+- scripts/local-print-agent.ts
+- docs/printing/local-agent-setup.md
+- docs/printing/escpos-bridge-mvp.md
+- app/settings/tickets/LocalPrintAgentPanel.tsx
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `node --import tsx ./scripts/local-print-agent.ts --help` OK (2026-03-10)
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+- Verificación funcional de `windows_printer`: BLOCKED en este entorno macOS; requiere prueba en Windows real
+
+**Commit:** N/A
+
+## 2026-03-10 15:35 -03 — Distribución: kit Windows descargable del agente local
+
+**Tipo:** ui/docs/tests
+**Lote:** printing-local-agent-mvp-native
+**Descripción:** Se preparó una primera vía de distribución del agente local para usuarios finales Windows sin acceso al repo: kit descargable `public/downloads/nodux-print-agent-windows.zip`. El paquete incluye un agente JS autocontenido (`local-print-agent.js`), plantilla de configuración, `start-agent.cmd` y README. `/settings/tickets` ahora expone el enlace de descarga y aclara el requisito actual de Node.js 20+ en la PC de destino.
+
+**Archivos afectados:**
+
+- packaging/print-agent/windows/local-print-agent.js
+- packaging/print-agent/windows/config.template.json
+- packaging/print-agent/windows/start-agent.cmd
+- packaging/print-agent/windows/README.txt
+- public/downloads/nodux-print-agent-windows.zip
+- app/settings/tickets/LocalPrintAgentPanel.tsx
+- docs/printing/local-agent-setup.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `zip -j public/downloads/nodux-print-agent-windows.zip ...` OK (2026-03-10)
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+- Verificación manual del kit en Windows: BLOCKED hasta prueba en PC real
+
+**Commit:** N/A
+
+## 2026-03-10 15:45 -03 — Kit Windows: README detallado para usuario no técnico
+
+**Tipo:** docs
+**Lote:** printing-local-agent-mvp-native
+**Descripción:** Se reescribió `packaging/print-agent/windows/README.txt` para que el kit descargable sea entendible por un usuario no técnico. Ahora incluye pasos explícitos de instalación, detección del nombre exacto de impresora en Windows, ejemplos separados para USB y Ethernet, configuración dentro de NODUX y una sección corta de troubleshooting. Luego se regeneró `public/downloads/nodux-print-agent-windows.zip` para incluir la nueva versión del README.
+
+**Archivos afectados:**
+
+- packaging/print-agent/windows/README.txt
+- public/downloads/nodux-print-agent-windows.zip
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `zip -j public/downloads/nodux-print-agent-windows.zip ...` OK (2026-03-10)
+- Verificación de artefacto `ls -l public/downloads/nodux-print-agent-windows.zip` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 15:39 -03 — Links públicos de ticket: base DB + ruta compartible
+
+**Tipo:** schema/ui/docs
+**Lote:** pos-client-delivery-phase-2-ticket-links
+**Descripción:** Se implementó la base para compartir tickets no fiscales por link seguro. La DB suma `sale_delivery_links`, enums de documento/estado, RPC autenticada `rpc_get_or_create_sale_delivery_link(...)` y RPC pública `rpc_get_sale_ticket_delivery(...)`. En app se agregó la ruta pública `/share/t/[token]`, se habilitó el acceso público en `proxy.ts` y se extrajo `SaleTicketDocument` para reutilizar el render del ticket interno sin duplicar layout.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260310154000_088_sale_delivery_links_ticket_share.sql
+- app/sales/SaleTicketDocument.tsx
+- app/sales/[saleId]/ticket/page.tsx
+- app/share/t/[token]/page.tsx
+- proxy.ts
+- docs/docs-app-screens-index.md
+- docs/docs-app-screens-sale-ticket.md
+- docs/docs-app-screens-sale-ticket-share.md
+- docs/docs-pos-client-delivery-plan.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- types/supabase.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset` OK (2026-03-10)
+- `npm run db:seed:demo` OK (2026-03-10)
+- `npm run types:gen` OK (2026-03-10)
+- `psql ... select proname ... sale_delivery ...` OK (2026-03-10)
+- `psql ... select tablename ... sale_delivery_links` OK (2026-03-10)
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+- docs/docs-app-screens-settings-tickets.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- Revisión de arquitectura existente (`print_jobs`, render pipeline, contratos POS/tickets): OK (2026-03-10)
+- Sin tests requeridos por tratarse de lote docs-only
+
+**Commit:** N/A
+
 ## 2026-03-08 22:21 -03 — Seed demo: playground de compras y pagos
 
 **Tipo:** infra/docs/tests
@@ -9866,5 +10557,108 @@ Se aplico una optimizacion de bajo riesgo para reducir latencia de navegacion en
 - `psql ... select ... from public.invoice_jobs where id='07790e9c-4c32-4cb1-a25d-269116dc7c14'`: OK (`job_status=render_pending`, `authorized_at` presente)
 - `psql ... select ... from public.invoices order by created_at desc limit 5`: OK (`CAE=86106905768691`, `result_status=authorized`, `imp_total=20.00`)
 - `psql ... select ... from public.fiscal_sequences ...`: OK (`last_local_reserved=2`, `last_arca_confirmed=2`, `status=healthy`)
+
+**Commit:** N/A
+
+## 2026-03-10 22:15 -03 — Historial de compras del cliente y share desde `/clients`
+
+**Tipo:** backend/ui/docs/tests
+**Lote:** pos-client-delivery-phase-5-client-history
+**Descripción:** Se agregó la RPC `rpc_get_client_sales_history(...)` para exponer compras recientes del cliente con permisos explícitos de módulo `clients` y membership por sucursal para staff. `/clients` ahora muestra el bloque `Compras recientes` con `Ver venta`, `Compartir ticket por WhatsApp` y `Compartir factura por WhatsApp` cuando la factura está lista. Se actualizó el smoke POS para cubrir este recorrido.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260310190000_089_client_sales_history.sql
+- app/clients/page.tsx
+- e2e/smoke-pos.spec.ts
+- docs/docs-app-screens-clients.md
+- docs/docs-pos-client-delivery-plan.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- types/supabase.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset` OK (2026-03-10)
+- `node scripts/seed-demo-data.js` OK (2026-03-10)
+- `npm run types:gen` OK (2026-03-10)
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+- `npx playwright test e2e/smoke-pos.spec.ts` OK, `5 passed` (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 22:55 -03 — Lifecycle operativo de links compartibles
+
+**Tipo:** backend/ui/docs/tests
+**Lote:** pos-client-delivery-phase-6-link-lifecycle
+**Descripción:** Se extendió `sale_delivery_links` con metadata mínima de compartido (`last_shared_at`, `last_shared_channel`, `share_count`) y se agregaron RPCs para listar estado, revocar, regenerar y registrar compartido asistido. `/sales/[saleId]` ahora muestra el estado del link de ticket/factura y permite revocarlo o regenerarlo desde UI. Los endpoints de WhatsApp actualizan la metadata del link y el smoke cubre token viejo inválido + regeneración de uno nuevo.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260310193000_090_sale_delivery_link_lifecycle.sql
+- app/api/sales/[saleId]/ticket-share/route.ts
+- app/api/sales/[saleId]/invoice-share/route.ts
+- app/sales/[saleId]/page.tsx
+- e2e/smoke-pos.spec.ts
+- docs/docs-app-screens-sale-detail.md
+- docs/docs-pos-client-delivery-plan.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset` PARTIAL (2026-03-10): migraciones aplicadas incluyendo `090`, pero el CLI devolvió `502` al reiniciar servicios; se verificó stack local con `npx supabase status` y se continuó con seed manual.
+- `node scripts/seed-users.js` OK (2026-03-10)
+- `node scripts/seed-demo-data.js` OK (2026-03-10)
+- `npm run types:gen` OK (2026-03-10)
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+- `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -f supabase/migrations/20260310193000_090_sale_delivery_link_lifecycle.sql` OK (2026-03-10) para reaplicar hotfix local del enum en `rpc_regenerate_sale_delivery_link`
+- `npx playwright test e2e/smoke-pos.spec.ts` OK, `6 passed` (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 23:20 -03 — Observabilidad explícita de delivery por evento/canal
+
+**Tipo:** backend/ui/docs/tests
+**Lote:** pos-client-delivery-phase-7-delivery-observability
+**Descripción:** Se agregó `sale_delivery_events` para registrar historial operativo de `shared`, `opened`, `revoked` y `regenerated` por ticket/factura, con canal y actor. Los endpoints de share ahora registran eventos `shared`, las rutas públicas `/share/t/:token` y `/share/i/:token` registran `opened`, y `/sales/[saleId]` muestra el bloque `Historial de compartidos` con la trazabilidad reciente.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260310195500_091_sale_delivery_events_observability.sql
+- app/api/sales/[saleId]/ticket-share/route.ts
+- app/api/sales/[saleId]/invoice-share/route.ts
+- app/share/t/[token]/page.tsx
+- app/share/i/[token]/page.tsx
+- app/sales/[saleId]/page.tsx
+- e2e/smoke-pos.spec.ts
+- docs/docs-app-screens-sale-detail.md
+- docs/docs-pos-client-delivery-plan.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset` PARTIAL (2026-03-10): migraciones aplicadas incluyendo `091`, pero el CLI volvió a fallar al reiniciar/consultar metadata local; se validó con `npx supabase status` y se continuó con seeds manuales.
+- `node scripts/seed-users.js` OK (2026-03-10)
+- `node scripts/seed-demo-data.js` OK (2026-03-10)
+- `npm run types:gen` OK (2026-03-10)
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+- `npx playwright test e2e/smoke-pos.spec.ts` OK, `6 passed` (2026-03-10)
 
 **Commit:** N/A

@@ -20,6 +20,94 @@ Formato sugerido:
 **Prompt**
 estoy en /products y me gustaria agregar una funcion mas dentro de ajuste manual de stock. Me gustaria poder mover uno o varios articulos de una sucursal a otra. Esto solo debe estar disponible para staff cuando tiene mas de una sucursal asignada y para admin que mira todas las sucursales. Esto es util para cuando se necesite mover productos de una sucursal a otra sea mas facil descontar el stock de una para sumarlo a la otra. se puede hacer? chequea la documentacion para que todo quede bien. seria en la misma seccion de ajuste manual al final
 
+## 2026-03-10 12:15 -03 — Diagnóstico: flujo de impresión de ticket en térmica ESC/POS
+
+**Lote:** ticket-print-diagnostic-20260310
+**Objetivo:** Auditar el flujo real de impresión desde `Imprimir ticket` para identificar por qué una impresora térmica ESC/POS imprime papel con códigos incomprensibles.
+
+**Prompt**
+ayudame con algo. estoy intentando imprimir un ticket desde imprimir ticket en una impresora termica p-has-181 ESC/POS pero me imprime una gran cantidad de papel con muchos codigos que no entiendo. no se si es un set up pero no funciona bien. podemos chequear todo el flujo de impresion y ver que puede estar fallando?
+
+## 2026-03-10 12:35 -03 — Diagnóstico extendido: bundle de drivers P-HAS-181 y folleto
+
+**Lote:** ticket-print-diagnostic-20260310
+**Objetivo:** Revisar el paquete agregado `impresoras no-fiscales` y `docs/Folleto-P-HAS-181.pdf` para validar si existe soporte macOS o evidencia de protocolo/driver compatible con la impresora térmica.
+
+**Prompt**
+he agregado dos cosas al repo. /impresoras no-fiscales que se supone que tiene los drivers pero es posible que no funcione con macos y tambien Folleto-P-HAS-181.pdf en docs que tiene la descripcion del producto
+
+## 2026-03-10 13:05 -03 — Docs: estrategia operativa para impresión térmica Mac/Windows
+
+**Lote:** ticket-print-diagnostic-20260310
+**Objetivo:** Dejar documentada la salida simple y la evolución recomendada para impresión térmica: browser print con driver correcto o print server en corto plazo, y bridge local ESC/POS a mediano plazo.
+
+**Prompt**
+ok hagamos eso, vamos con lo mas simple y despues lo mas complejo. Lo mas probable es que esto sea usado en computadoras windowns pero yo tengo mac y necesito poder hacer pruebas. Seria ideal que en nodux quizas en configuracion venga un manual o algun script o instalable para macOS para estos casos aunque si el cliente usa MacOs seguramente tenga impresora con sus drivers para macOs y todo funcione bien, que piensas?
+
+## 2026-03-10 13:20 -03 — UI: bloque visible de compatibilidad térmica en Settings
+
+**Lote:** ticket-print-diagnostic-20260310
+**Objetivo:** Exponer dentro de `/settings/tickets` una ayuda visible y operativa sobre compatibilidad térmica por sistema operativo, sin cambiar aún el flujo técnico de impresión.
+
+**Prompt**
+ok adelate
+
+## 2026-03-10 13:40 -03 — Arquitectura: bridge local ESC/POS Windows-first
+
+**Lote:** ticket-print-diagnostic-20260310
+**Objetivo:** Diseñar la arquitectura y el recorte MVP de un bridge local ESC/POS que permita imprimir tickets térmicos sin depender del navegador, empezando por un agente local Windows-first con fallback.
+
+**Prompt**
+si hagamos eso
+
+## 2026-03-10 14:05 -03 — Docs: consolidar printing en carpeta dedicada
+
+**Lote:** ticket-print-diagnostic-20260310
+**Objetivo:** Reorganizar todos los documentos nuevos de impresión dentro de `docs/printing/` y agregar un índice maestro para mantener el contexto agrupado.
+
+**Prompt**
+hagamos primero un doc donde este el plan completo. no se si son los docs que creaste de docs-printing-scpos y todo lo demas. si es asi vamos a agregarlos a una carpeta que se llame printing para tener todo organizado y poder seguirle la pista al contexto
+
+## 2026-03-10 14:20 -03 — Repo hygiene: limpiar insumos temporales de diagnóstico de impresión
+
+**Lote:** ticket-print-diagnostic-20260310
+**Objetivo:** Eliminar del repo los insumos temporales usados para diagnóstico local (`Impresoras no-fiscales/` y `docs/Folleto-P-HAS-181.pdf`) y conservar solo la documentación útil en `docs/printing/`.
+
+**Prompt**
+si, antes de eso vamos a sacar todo lo que agregamos al repo que no necesitamos como la carpeta impresoras no-fiscales y el folleto-p-has-181 y no se que otras cosas consideras que estorban
+
+## 2026-03-10 14:35 -03 — MVP web: configuración local del agente e impresión directa desde POS
+
+**Lote:** printing-local-agent-mvp-web
+**Objetivo:** Implementar el lado web del MVP del bridge local: configuración local por caja en `/settings/tickets`, detección del agente y uso desde `/pos` con fallback al navegador.
+
+**Prompt**
+excelente empecemos entonces
+
+## 2026-03-10 15:05 -03 — MVP nativo: agente local TCP/Ethernet para impresión directa
+
+**Lote:** printing-local-agent-mvp-native
+**Objetivo:** Implementar un agente local real dentro del repo con `health`, `printers` y `print`, usando TCP/Ethernet ESC/POS como primer transporte soportado.
+
+**Prompt**
+ok adelante
+
+## 2026-03-10 15:20 -03 — MVP nativo: soporte USB Windows por cola RAW
+
+**Lote:** printing-local-agent-mvp-native
+**Objetivo:** Extender el agente local para que también pueda enviar bytes ESC/POS crudos a una cola de impresora Windows USB usando el nombre exacto de la impresora instalada.
+
+**Prompt**
+ok si hagamos primero USB windows
+
+## 2026-03-10 15:35 -03 — Distribución: kit Windows descargable desde la app
+
+**Lote:** printing-local-agent-mvp-native
+**Objetivo:** Publicar un kit Windows descargable del agente local desde NODUX para que un usuario final no necesite abrir el repo ni ejecutar scripts internos del proyecto.
+
+**Prompt**
+exacto, necesito saber que hacer exactamente cuando quiera hacer estas prueba
+
 ## 2026-03-10 11:40 -03 — UI: cerrar desplegables al hacer click fuera + cierre de lote y deploy
 
 **Lote:** ui-outside-click-and-release-20260310
@@ -360,6 +448,32 @@ ok continuemos
 
 **Prompt**
 adelante
+
+## 2026-03-10 18:05 -03 — Fix local POS phase 1: rpc_create_sale stock movements
+
+**Lote:** pos-client-delivery-phase-1-fix
+**Objetivo:** Corregir la regresión introducida en la migración de Fase 1 donde `rpc_create_sale` escribía en `public.movements` en vez de la tabla real `public.stock_movements`.
+
+**Prompt**
+intente con admin y me dice {
+"message": "relation \"public.movements\" does not exist",
+"details": null,
+"hint": null,
+"code": "42P01"
+} sabes en que momento empezo a fallar esto? staff deberia poder cobrar
+
+## 2026-03-10 18:15 -03 — Fix local POS phase 1: audit log function name
+
+**Lote:** pos-client-delivery-phase-1-fix
+**Objetivo:** Corregir la segunda regresión de la migración `087`: `rpc_create_sale` llamaba `public.log_audit_event(...)`, pero la función real del schema es `public.rpc_log_audit_event(...)`.
+
+**Prompt**
+{
+"message": "function public.log_audit_event(unknown, unknown, uuid, jsonb, unknown) does not exist",
+"details": null,
+"hint": "No function matches the given name and argument types. You might need to add explicit type casts.",
+"code": "42883"
+}
 
 ## 2026-03-08 22:10 -03 — ARCA Lote 3A backend-only: base WSAA (TRA + signing contract)
 
@@ -3562,3 +3676,123 @@ adelante
 
 mplementemos
 facturacion sincrona con fallback asincrono
+
+## 2026-03-10 16:05 -03 — Plan doc: POS cliente identificado y entrega digital asistida
+
+**Lote:** pos-client-delivery-plan
+**Objetivo:** Documentar un plan repo-aware para capturar cliente opcional en `/pos`, vincular ventas a `clients` y habilitar compartido asistido de ticket/factura por WhatsApp sin romper el MVP ni mezclar automatización.
+
+**Prompt**
+ok lo siguiente que necesito hacer ahora es en /pos justo antes de imprimir ticket colocar un campo de usuario opcional, donde pueda poner el nombre del cliente y su numero de whatsapp. esto con la finalidad de poder enviarle la factura o ticket a la persona a traves de un simple link de whatsapp hacia el numero del tlf del cliente la factura o comprobante para que sea muy sencillo. todavia no se como implementar este flujo, si es que se active despues de cobrar, despues de generar factura. quizas podemos poner en caso de usar cobrar y facturar que se habilite un boton de enviar por whatsapp o imprimir segun sea el caso. en ese caso tambien tenemos que trabajar en el render de un doc pdf enviable por whatsapp, o el render de la factura para imprimir via impresora pos. tambien este usuario y numero de whatsapp deben quedar guardados para futuras compras, si la persona ya dio su whatsapp y quiere la factura o ticket nuevamente por whatsapp, ya ahi con su nombre o su numero debe ser facilmente ubicable para enviarle esto como una especie de dato autocompletado. Tambien podemos habilitar enviar por correo electronico pero en ese caso no se como funcionaria, no se si necesitamos un servicio de envio de correos electronico lo que aumentaria la complejidad por ahora pero quizas sea conveniente para el futuro. Tambien podemos pensar en un limite de facturas diarias enviables por whatsapp ya que whatsapp puede penalizar este tipo de acciones donde se envian mensajes a distintas personas e interpretarlo como spam y bloquear el whatsapp y eso no debe suceder. por ahora no escribas nada. La idea tambien es que si registramos esa venta bajo un usuario particular bien sea su whatsapp y nombre entonces tambien dar de alta una especie de cuenta en clientes y que ahi se mantenga un registro de lo que ha comprado historicamente esa persona, estos datos pueden ser utilizados para marketing o cupones de descuento y usos similares. dime que piensas y cual es la mejor manera de hacer esto que tengo pensado y si es viable
+
+me gusta. vamos a generar un doc con este plan detallado que contemple la estructura de nuestra app para tener todo claro y que no se rompa nada y una vez con eso despues ejecutamos
+
+## 2026-03-10 17:00 -03 — Implementación Fase 1: cliente opcional en POS
+
+**Lote:** pos-client-delivery-phase-1
+**Objetivo:** Implementar la primera fase del plan: captura opcional de cliente en `/pos`, resolución/upsert server-side y persistencia de `sales.client_id` sin tocar todavía WhatsApp asistido ni links públicos.
+
+**Prompt**
+adelante
+
+## 2026-03-10 15:39 -03 — Implementación Fase 2/3 base: links públicos de ticket
+
+**Lote:** pos-client-delivery-phase-2-ticket-links
+**Objetivo:** Implementar la base repo-aware para compartir ticket por WhatsApp sin automatización: tabla de links públicos revocables, RPC pública de ticket y ruta `/share/t/:token`, manteniendo el ticket interno sin romper permisos.
+
+**Prompt**
+ok seguimos asegurate de consultar la documentacion para que no se rompa nada
+
+## 2026-03-10 17:25 -03 — Revisión repo-aware y plan de continuación POS cliente delivery
+
+**Lote:** pos-client-delivery-phase-3-planning
+**Objetivo:** Auditar lo ya implementado en `docs/docs-pos-client-delivery-plan.md` contra el estado real del repo y definir el siguiente lote mínimo para cerrar la UX operativa de compartido asistido.
+
+**Prompt**
+Estamos implementando docs-pos-client-delivery-plan.md chequea lo que se ha hecho hasta ahora y hagamos un plan para seguir
+
+## 2026-03-10 17:45 -03 — Implementación Fase 3: CTA WhatsApp en POS y detalle de venta
+
+**Lote:** pos-client-delivery-phase-3-whatsapp-cta
+**Objetivo:** Cerrar la primera versión operativa del compartido asistido: CTA `Compartir ticket por WhatsApp` en POS post-cobro y en `/sales/[saleId]`, reutilizando `sale_delivery_links` y cubriendo el flujo con smoke mínimo.
+
+**Prompt**
+si adelante
+
+## 2026-03-10 18:35 -03 — Demo accounts: separar readonly público de QA local
+
+**Lote:** demo-readonly-account-separation
+**Objetivo:** Separar la cuenta usada por `/demo` en modo readonly de las cuentas demo operativas usadas para QA local (`admin@demo.com` / `staff@demo.com`) para evitar redirecciones `readonly=1` en smoke y flujos POS.
+
+**Prompt**
+creo que el problema es que se esta confundiendo el demo, la version read only que configuramos y los usuarios demo que son los que usamos para validar todo en local. puede ser?
+
+si exacto hagamos eso
+
+## 2026-03-10 19:20 -03 — Implementación: factura compartible por link y WhatsApp asistido
+
+**Lote:** pos-client-delivery-phase-4-invoice-share
+**Objetivo:** Extender la entrega digital para soportar factura pública `/share/i/:token` y CTA `Compartir factura por WhatsApp` cuando el render fiscal ya está listo, reutilizando `sale_delivery_links`.
+
+**Prompt**
+adelante
+
+## 2026-03-10 20:05 -03 — Seed reproducible y smoke de factura compartible
+
+**Lote:** pos-client-delivery-phase-4-invoice-share-seed-smoke
+**Objetivo:** Convertir la fixture fiscal local en seed reproducible dentro de `scripts/seed-demo-data.js` y cubrir `/share/i/:token` con un smoke Playwright estable.
+
+**Prompt**
+ok hagamos eso probemos
+
+ok hagamos eso
+
+## 2026-03-10 20:35 -03 — Separación estructural demo pública vs QA local
+
+**Lote:** demo-public-org-separation
+**Objetivo:** Separar de forma estructural la demo pública readonly de las cuentas demo operativas locales creando orgs distintas, para evitar ambigüedades de membership y mezcla entre `/demo` y QA real.
+
+**Prompt**
+eso, que queden bien diferenciadas para evitar este tipo de problemas en el futuro
+
+ok hagamos eso
+
+## 2026-03-10 21:20 -03 — Smoke readonly de `/demo`
+
+**Lote:** demo-public-readonly-smoke
+**Objetivo:** Proteger con Playwright el recorrido interactivo readonly de `/demo`, validando entrada a la org pública, datos visibles y bloqueo de escritura.
+
+**Prompt**
+ok hazlo
+
+## 2026-03-10 21:45 -03 — Auditoría repo-aware de `docs-pos-client-delivery-plan`
+
+**Lote:** pos-client-delivery-phase-5-planning
+**Objetivo:** Auditar `docs/docs-pos-client-delivery-plan.md` contra el estado actual del repo y redefinir el siguiente lote real luego de cerrar ticket share, invoice share y smoke.
+
+**Prompt**
+excelente ahora sigamos con docs-pos-client-delivery-plan vamos a auditar lo que ya esta hecho y lo que esta pendiente
+
+## 2026-03-10 22:15 -03 — Implementación Fase 5: historial del cliente y reenvío desde `/clients`
+
+**Lote:** pos-client-delivery-phase-5-client-history
+**Objetivo:** Implementar en `/clients` el historial simple de compras recientes por cliente y habilitar desde ahí `Ver venta`, `Compartir ticket por WhatsApp` y `Compartir factura por WhatsApp` cuando corresponda, con contrato DB explícito y smoke actualizado.
+
+**Prompt**
+ok implementemos
+
+## 2026-03-10 22:55 -03 — Implementación Fase 6: lifecycle de links compartibles
+
+**Lote:** pos-client-delivery-phase-6-link-lifecycle
+**Objetivo:** Agregar lifecycle operativo de `sale_delivery_links` en detalle de venta: estado vigente, metadata mínima de compartido, revocación y regeneración de links de ticket/factura, con smoke del flujo de token invalidado y recreado.
+
+**Prompt**
+ok adelante
+
+## 2026-03-10 23:20 -03 — Implementación Fase 7: observabilidad de delivery
+
+**Lote:** pos-client-delivery-phase-7-delivery-observability
+**Objetivo:** Agregar historial explícito de delivery por evento/canal para ticket/factura, registrando `shared`, `opened`, `revoked` y `regenerated`, y mostrarlo en `/sales/[saleId]`.
+
+**Prompt**
+ok hagamos eso

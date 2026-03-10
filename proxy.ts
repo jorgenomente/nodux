@@ -27,6 +27,7 @@ const STORE_FRONT_RESERVED_SEGMENTS = new Set([
   'superadmin',
   'api',
   'o',
+  'share',
   '_next',
 ]);
 const APP_HOST = 'app.nodux.app';
@@ -79,6 +80,15 @@ const isPublicPath = (pathname: string) =>
 const isPublicTrackingPath = (pathname: string) => {
   const segments = pathname.split('/').filter(Boolean);
   return segments.length === 2 && segments[0] === 'o';
+};
+
+const isPublicSharePath = (pathname: string) => {
+  const segments = pathname.split('/').filter(Boolean);
+  return (
+    segments.length === 3 &&
+    segments[0] === 'share' &&
+    (segments[1] === 't' || segments[1] === 'i')
+  );
 };
 
 const isPublicStorefrontPath = (pathname: string) => {
@@ -210,6 +220,7 @@ export async function proxy(request: NextRequest) {
       !isMarketingPath(pathname) &&
       !isPublicStorefrontPath(pathname) &&
       !isPublicTrackingPath(pathname) &&
+      !isPublicSharePath(pathname) &&
       !isPublicStorefrontApiPath(pathname)
     ) {
       return redirectToHost(request, APP_HOST, pathname);
@@ -221,7 +232,8 @@ export async function proxy(request: NextRequest) {
     (pathname.startsWith('/landing') ||
       (isDemoPath(pathname) && !isDemoEnterPath(pathname)) ||
       isPublicStorefrontPath(pathname) ||
-      isPublicTrackingPath(pathname))
+      isPublicTrackingPath(pathname) ||
+      isPublicSharePath(pathname))
   ) {
     return redirectToHost(request, 'nodux.app', pathname);
   }
@@ -261,6 +273,7 @@ export async function proxy(request: NextRequest) {
     if (pathname === '/login') return response;
     if (isPublicPath(pathname)) return response;
     if (isPublicTrackingPath(pathname)) return response;
+    if (isPublicSharePath(pathname)) return response;
     if (isPublicStorefrontPath(pathname)) return response;
     if (isPublicStorefrontApiPath(pathname)) return response;
     if (isServerAction) return response;
@@ -339,7 +352,15 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  if (isPublicTrackingPath(pathname) || isPublicStorefrontPath(pathname)) {
+  if (pathname.startsWith('/api/')) {
+    return response;
+  }
+
+  if (
+    isPublicTrackingPath(pathname) ||
+    isPublicSharePath(pathname) ||
+    isPublicStorefrontPath(pathname)
+  ) {
     return response;
   }
 

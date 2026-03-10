@@ -131,6 +131,10 @@ Una venta es un registro con:
 - Valida:
   - carrito no vacío
   - stock suficiente (si política de stock lo exige)
+- Cliente opcional:
+  - POS puede buscar cliente existente por nombre o WhatsApp
+  - POS puede capturar `name + phone` mínimo y resolver/create el cliente al cobrar
+  - si se identifica cliente, la venta queda vinculada vía `sales.client_id`
 - Ejecuta RPC server-authoritative (ver Data Contract)
 - Muestra “Venta realizada” + recibo simple (pantalla/modal) + opción “Nueva venta”
 - Si usa “Cobrar y facturar”, POS debe intentar completar el flujo fiscal (`enqueue prod` + worker live + render) dentro del mismo request. Si el comprobante queda listo, la UI debe informarlo de inmediato; si no termina dentro del timeout operativo, la venta puede devolverse como facturada con estado fiscal `En proceso`.
@@ -229,6 +233,9 @@ Una venta es un registro con:
 - Confirmación “Venta registrada”
 - Mostrar total y método
 - Botón “Nueva venta” (resetea carrito)
+- Si la venta tiene cliente con WhatsApp:
+  - CTA `Compartir ticket por WhatsApp`
+  - CTA `Ver venta`
 
 ---
 
@@ -281,6 +288,7 @@ Una venta es un registro con:
   - apply_employee_discount (opcional)
   - employee_discount_pct (opcional; en MVP UI usa valor fijo de preferencias)
   - employee_account_id (opcional; requerido si `apply_employee_discount=true`)
+  - client_id (opcional)
   - payments (opcional): [{ payment_method, amount, payment_device_id? }]
 - Regla crítica:
   - si `payments` existe, la suma de montos debe coincidir exactamente con el total.
@@ -291,6 +299,14 @@ Una venta es un registro con:
   - total
   - receipt_number (opcional)
   - created_at
+
+**Capa app post-cobro**: `POST /api/sales/[saleId]/ticket-share`
+
+- Crea o reutiliza `sale_delivery_links` para `document_kind = sale_ticket`
+- Devuelve:
+  - `ticketUrl`
+  - `whatsappUrl`
+- Se usa para abrir WhatsApp asistido desde la UI operativa
 
 Efectos:
 

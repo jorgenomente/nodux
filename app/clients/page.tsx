@@ -5,7 +5,9 @@ import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
 import ClientSpecialOrderItemsClient from '@/app/clients/ClientSpecialOrderItemsClient';
+import ShareTicketWhatsappButton from '@/app/sales/ShareTicketWhatsappButton';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { formatOperationalPaymentMethod } from '@/lib/payments/catalog';
 
 const STAFF_MODULE_ORDER = [
   'pos',
@@ -89,6 +91,31 @@ type BranchOption = {
   name: string;
 };
 
+type ClientSaleHistoryRow = {
+  sale_id: string;
+  branch_id: string;
+  branch_name: string | null;
+  created_at: string;
+  payment_method_summary: string;
+  total_amount: number;
+  is_invoiced: boolean;
+  invoiced_at: string | null;
+  client_phone: string | null;
+  invoice_result_status:
+    | 'authorized'
+    | 'rejected'
+    | 'observed'
+    | 'pending'
+    | null;
+  invoice_render_status:
+    | 'pending'
+    | 'processing'
+    | 'completed'
+    | 'failed'
+    | null;
+  invoice_ready: boolean;
+};
+
 const specialOrderStatusOptions = [
   { value: 'pending', label: 'Pendiente' },
   { value: 'ordered', label: 'Pedido' },
@@ -99,6 +126,34 @@ const specialOrderStatusOptions = [
 
 const formatDate = (value: string | null) =>
   value ? new Date(value).toLocaleDateString('es-AR') : '—';
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    maximumFractionDigits: 2,
+  }).format(value);
+
+const formatInvoiceState = (
+  sale: Pick<
+    ClientSaleHistoryRow,
+    | 'is_invoiced'
+    | 'invoice_ready'
+    | 'invoice_result_status'
+    | 'invoice_render_status'
+  >,
+) => {
+  if (!sale.is_invoiced) return 'Sin factura';
+  if (sale.invoice_ready) return 'Factura lista';
+  if (sale.invoice_result_status === 'authorized')
+    return 'Autorizada pendiente de render';
+  if (sale.invoice_render_status === 'failed') return 'Render fallido';
+  if (sale.invoice_render_status === 'processing') return 'Renderizando';
+  if (sale.invoice_result_status === 'pending') return 'Pendiente AFIP';
+  if (sale.invoice_result_status === 'observed') return 'Observada';
+  if (sale.invoice_result_status === 'rejected') return 'Rechazada';
+  return 'Factura en preparación';
+};
 
 export default async function ClientsPage({
   searchParams,
@@ -213,6 +268,15 @@ export default async function ClientsPage({
 
   const detailRows = (clientDetailData as ClientDetailRow[]) ?? [];
   const selectedClient = detailRows[0];
+  const { data: clientSalesData } = selectedClientId
+    ? await supabase.rpc('rpc_get_client_sales_history', {
+        p_org_id: orgId,
+        p_client_id: selectedClientId,
+        p_branch_id: (selectedBranchId || null) as unknown as string,
+        p_limit: 10,
+      })
+    : { data: null };
+  const clientSales = (clientSalesData as ClientSaleHistoryRow[]) ?? [];
   const specialOrdersById = new Map<
     string,
     {
@@ -708,6 +772,84 @@ export default async function ClientsPage({
                 </div>
               </form>
             </details>
+
+            <div className="mt-6 border-t border-zinc-100 pt-6">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-zinc-900">
+                  Compras recientes
+                </h3>
+                <span className="text-xs text-zinc-500">
+                  Últimas {clientSales.length} ventas vinculadas
+                </span>
+              </div>
+              {clientSales.length === 0 ? (
+                <div className="mt-3 text-sm text-zinc-500">
+                  Este cliente todavía no tiene ventas registradas.
+                </div>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  {clientSales.map((sale) => {
+                    const canShareTicket = Boolean(sale.client_phone);
+                    const canShareInvoice =
+                      canShareTicket && sale.invoice_ready === true;
+
+                    return (
+                      <div
+                        key={sale.sale_id}
+                        className="rounded border border-zinc-200 p-3"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-zinc-900">
+                              {sale.branch_name || 'Sucursal'} ·{' '}
+                              {formatDate(sale.created_at)}
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              Medio de pago:{' '}
+                              {formatOperationalPaymentMethod(
+                                sale.payment_method_summary,
+                              )}{' '}
+                              · Total: {formatCurrency(sale.total_amount)}
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              Estado fiscal: {formatInvoiceState(sale)}
+                            </p>
+                          </div>
+                          <Link
+                            href={`/sales/${sale.sale_id}`}
+                            className="rounded border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700"
+                          >
+                            Ver venta
+                          </Link>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <ShareTicketWhatsappButton
+                            saleId={sale.sale_id}
+                            disabled={!canShareTicket}
+                            className={`rounded border px-3 py-2 text-xs font-semibold ${
+                              canShareTicket
+                                ? 'border-emerald-300 bg-white text-emerald-700'
+                                : 'cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400'
+                            }`}
+                          />
+                          <ShareTicketWhatsappButton
+                            saleId={sale.sale_id}
+                            endpointPath="invoice-share"
+                            label="Compartir factura por WhatsApp"
+                            disabled={!canShareInvoice}
+                            className={`rounded border px-3 py-2 text-xs font-semibold ${
+                              canShareInvoice
+                                ? 'border-sky-300 bg-white text-sky-700'
+                                : 'cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             <div className="mt-6 border-t border-zinc-100 pt-6">
               <h3 className="text-sm font-semibold text-zinc-900">

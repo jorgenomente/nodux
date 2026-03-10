@@ -46,6 +46,16 @@ const supabase = createClient(url, serviceKey, {
 const ORG_ID = '11111111-1111-1111-1111-111111111111';
 const BRANCH_A = '22222222-2222-2222-2222-222222222222';
 const BRANCH_B = '33333333-3333-3333-3333-333333333333';
+const PUBLIC_DEMO_ORG_ID = '99999999-1111-1111-1111-111111111111';
+const PUBLIC_DEMO_BRANCH_A = '99999999-2222-2222-2222-222222222222';
+const PUBLIC_DEMO_BRANCH_B = '99999999-3333-3333-3333-333333333333';
+const SMOKE_CLIENT_JUAN_ID = '77777777-7777-7777-7777-777777777777';
+const SMOKE_SALE_ID = '8b196ae1-7ec0-4f45-899c-8130d0f96299';
+const SMOKE_SALE_ITEM_ID = '55555555-aaaa-4aaa-8aaa-555555555555';
+const SMOKE_SALE_DOCUMENT_ID = '11111111-aaaa-4aaa-8aaa-111111111111';
+const SMOKE_INVOICE_JOB_ID = '22222222-bbbb-4bbb-8bbb-222222222222';
+const SMOKE_INVOICE_CORRELATION_ID = '33333333-cccc-4ccc-8ccc-333333333333';
+const SMOKE_INVOICE_ID = '44444444-dddd-4ddd-8ddd-444444444444';
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -524,17 +534,27 @@ const purchaseOrderSeeds = [
 ];
 
 (async () => {
-  const { data: adminRow, error: adminError } = await supabase
-    .from('org_users')
-    .select('user_id')
-    .eq('org_id', ORG_ID)
-    .eq('role', 'org_admin')
-    .maybeSingle();
-  if (adminError) throw adminError;
-  if (!adminRow?.user_id) {
-    throw new Error('Org admin user not found for seed');
+  const { data: authUsersPage, error: authUsersError } =
+    await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 200,
+    });
+  if (authUsersError) throw authUsersError;
+  const authUsers = authUsersPage?.users ?? [];
+  const adminAuthUser = authUsers.find(
+    (user) => user.email === 'admin@demo.com',
+  );
+  const publicDemoAuthUser = authUsers.find(
+    (user) => user.email === 'demo-readonly@demo.com',
+  );
+  if (!adminAuthUser?.id) {
+    throw new Error('admin@demo.com not found in Auth for seed');
   }
-  const adminUserId = adminRow.user_id;
+  if (!publicDemoAuthUser?.id) {
+    throw new Error('demo-readonly@demo.com not found in Auth for seed');
+  }
+  const adminUserId = adminAuthUser.id;
+  const publicDemoUserId = publicDemoAuthUser.id;
 
   const { data: existingSuppliers } = await supabase
     .from('suppliers')
@@ -1275,6 +1295,705 @@ const purchaseOrderSeeds = [
     );
   if (specialOrderItemsError) throw specialOrderItemsError;
 
+  const smokeInvoiceProductId = productIdByInternalCode.get('SMOKE-CAFE-500');
+  if (!smokeInvoiceProductId) {
+    throw new Error('Smoke invoice product not found for seed');
+  }
+
+  const smokeSaleCreatedAt = daysAgo(1, 14, 15);
+  const smokeSaleTotalAmount = 11000;
+
+  const { error: deleteFixtureInvoicesError } = await supabase
+    .from('invoices')
+    .delete()
+    .eq('tenant_id', ORG_ID)
+    .eq('sale_id', SMOKE_SALE_ID);
+  if (deleteFixtureInvoicesError) throw deleteFixtureInvoicesError;
+
+  const { error: deleteFixtureInvoiceJobsError } = await supabase
+    .from('invoice_jobs')
+    .delete()
+    .eq('tenant_id', ORG_ID)
+    .eq('sale_id', SMOKE_SALE_ID);
+  if (deleteFixtureInvoiceJobsError) throw deleteFixtureInvoiceJobsError;
+
+  const { error: deleteFixtureSaleDocumentsError } = await supabase
+    .from('sale_documents')
+    .delete()
+    .eq('tenant_id', ORG_ID)
+    .eq('sale_id', SMOKE_SALE_ID);
+  if (deleteFixtureSaleDocumentsError) throw deleteFixtureSaleDocumentsError;
+
+  const { error: deleteFixtureSaleItemsError } = await supabase
+    .from('sale_items')
+    .delete()
+    .eq('org_id', ORG_ID)
+    .eq('sale_id', SMOKE_SALE_ID);
+  if (deleteFixtureSaleItemsError) throw deleteFixtureSaleItemsError;
+
+  const { error: deleteFixtureSaleError } = await supabase
+    .from('sales')
+    .delete()
+    .eq('org_id', ORG_ID)
+    .eq('id', SMOKE_SALE_ID);
+  if (deleteFixtureSaleError) throw deleteFixtureSaleError;
+
+  const { error: smokeSaleError } = await supabase.from('sales').insert({
+    id: SMOKE_SALE_ID,
+    org_id: ORG_ID,
+    branch_id: BRANCH_A,
+    client_id: SMOKE_CLIENT_JUAN_ID,
+    created_by: adminUserId,
+    payment_method: 'cash',
+    subtotal_amount: smokeSaleTotalAmount,
+    discount_amount: 0,
+    discount_pct: 0,
+    cash_discount_amount: 0,
+    cash_discount_pct: 0,
+    employee_discount_applied: false,
+    employee_discount_amount: 0,
+    employee_discount_pct: 0,
+    total_amount: smokeSaleTotalAmount,
+    is_invoiced: true,
+    invoiced_at: smokeSaleCreatedAt,
+    created_at: smokeSaleCreatedAt,
+  });
+  if (smokeSaleError) throw smokeSaleError;
+
+  const { error: smokeSaleItemError } = await supabase
+    .from('sale_items')
+    .insert({
+      id: SMOKE_SALE_ITEM_ID,
+      org_id: ORG_ID,
+      sale_id: SMOKE_SALE_ID,
+      product_id: smokeInvoiceProductId,
+      product_name_snapshot: 'Cafe Molido 500g',
+      unit_price_snapshot: 5500,
+      quantity: 2,
+      line_total: smokeSaleTotalAmount,
+    });
+  if (smokeSaleItemError) throw smokeSaleItemError;
+
+  const { error: smokeSaleDocumentError } = await supabase
+    .from('sale_documents')
+    .insert({
+      id: SMOKE_SALE_DOCUMENT_ID,
+      tenant_id: ORG_ID,
+      sale_id: SMOKE_SALE_ID,
+      document_kind: 'fiscal_invoice',
+      status: 'completed',
+      requested_by_user_id: adminUserId,
+      created_at: smokeSaleCreatedAt,
+      updated_at: smokeSaleCreatedAt,
+    });
+  if (smokeSaleDocumentError) throw smokeSaleDocumentError;
+
+  const { error: smokeInvoiceJobError } = await supabase
+    .from('invoice_jobs')
+    .insert({
+      id: SMOKE_INVOICE_JOB_ID,
+      tenant_id: ORG_ID,
+      sale_id: SMOKE_SALE_ID,
+      sale_document_id: SMOKE_SALE_DOCUMENT_ID,
+      environment: 'homo',
+      point_of_sale_id: null,
+      pto_vta: 1,
+      cbte_tipo: 11,
+      cbte_nro: 1,
+      job_status: 'completed',
+      attempt_count: 1,
+      correlation_id: SMOKE_INVOICE_CORRELATION_ID,
+      requested_payload_json: {
+        fixture: 'invoice-share-smoke',
+      },
+      response_payload_json: {
+        fixture: 'invoice-share-smoke',
+        result: 'authorized',
+      },
+      created_at: smokeSaleCreatedAt,
+      updated_at: smokeSaleCreatedAt,
+      authorized_at: smokeSaleCreatedAt,
+    });
+  if (smokeInvoiceJobError) throw smokeInvoiceJobError;
+
+  const { error: smokeInvoiceError } = await supabase.from('invoices').insert({
+    id: SMOKE_INVOICE_ID,
+    tenant_id: ORG_ID,
+    sale_id: SMOKE_SALE_ID,
+    invoice_job_id: SMOKE_INVOICE_JOB_ID,
+    environment: 'homo',
+    point_of_sale_id: null,
+    pto_vta: 1,
+    cbte_tipo: 11,
+    cbte_nro: 1,
+    doc_tipo: 80,
+    doc_nro: 30123456789,
+    currency: 'PES',
+    currency_rate: 1,
+    imp_total: smokeSaleTotalAmount,
+    imp_neto: smokeSaleTotalAmount,
+    imp_iva: 0,
+    imp_trib: 0,
+    imp_op_ex: 0,
+    imp_tot_conc: 0,
+    cae: '12345678901234',
+    cae_expires_at: isoDateFromOffset(10),
+    result_status: 'authorized',
+    qr_payload_json: {
+      ver: 1,
+      fecha: new Date(smokeSaleCreatedAt).toISOString().slice(0, 10),
+      cuit: 30712345678,
+      ptoVta: 1,
+      tipoCmp: 11,
+      nroCmp: 1,
+      importe: smokeSaleTotalAmount,
+      moneda: 'PES',
+      ctz: 1,
+      tipoDocRec: 80,
+      nroDocRec: 30123456789,
+      tipoCodAut: 'E',
+      codAut: 12345678901234,
+    },
+    pdf_storage_path: `/sales/${SMOKE_SALE_ID}/invoice.pdf`,
+    ticket_storage_path: `/sales/${SMOKE_SALE_ID}/invoice-ticket.pdf`,
+    raw_request_json: {
+      fixture: 'invoice-share-smoke',
+    },
+    raw_response_json: {
+      fixture: 'invoice-share-smoke',
+      cae: '12345678901234',
+    },
+    created_at: smokeSaleCreatedAt,
+    updated_at: smokeSaleCreatedAt,
+  });
+  if (smokeInvoiceError) throw smokeInvoiceError;
+
+  const publicDemoSuppliers = [
+    {
+      id: '99999999-4444-4444-4444-444444444441',
+      name: 'Tostadores Urbanos',
+      contact_name: 'Sofia Rinaldi',
+      phone: '1144001100',
+      email: 'hola@tostadoresurbanos.demo',
+      notes: 'Proveedor destacado del showroom publico',
+      order_frequency: 'weekly',
+      order_day: 'mon',
+      receive_day: 'wed',
+      payment_terms_days: 7,
+      preferred_payment_method: 'transfer',
+      accepts_cash: false,
+      accepts_transfer: true,
+      payment_note: 'Transferencia 48h antes de la entrega',
+      default_markup_pct: 42,
+    },
+    {
+      id: '99999999-4444-4444-4444-444444444442',
+      name: 'Casa del Mate',
+      contact_name: 'Ramiro Luna',
+      phone: '1144002200',
+      email: 'ventas@casadelmate.demo',
+      notes: 'Yerbas e infusionables para demo publica',
+      order_frequency: 'biweekly',
+      order_day: 'thu',
+      receive_day: 'fri',
+      payment_terms_days: 10,
+      preferred_payment_method: 'cash',
+      accepts_cash: true,
+      accepts_transfer: true,
+      payment_note: 'Pago contra entrega showroom',
+      default_markup_pct: 38,
+    },
+  ];
+
+  const publicDemoProducts = [
+    {
+      id: '99999999-5555-5555-5555-555555555551',
+      name: 'Espresso Blend 250g',
+      brand: 'Tostadores Urbanos',
+      internal_code: 'PUBLIC-ESP-250',
+      barcode: '7799001000001',
+      unit_price: 6800,
+      supplier_id: publicDemoSuppliers[0].id,
+    },
+    {
+      id: '99999999-5555-5555-5555-555555555552',
+      name: 'Cold Brew Listo 1L',
+      brand: 'Tostadores Urbanos',
+      internal_code: 'PUBLIC-CB-1L',
+      barcode: '7799001000002',
+      unit_price: 5200,
+      supplier_id: publicDemoSuppliers[0].id,
+    },
+    {
+      id: '99999999-5555-5555-5555-555555555553',
+      name: 'Yerba Clasica 500g',
+      brand: 'Casa del Mate',
+      internal_code: 'PUBLIC-YER-500',
+      barcode: '7799002000001',
+      unit_price: 3100,
+      supplier_id: publicDemoSuppliers[1].id,
+    },
+    {
+      id: '99999999-5555-5555-5555-555555555554',
+      name: 'Blend Hierbas Digestivas',
+      brand: 'Casa del Mate',
+      internal_code: 'PUBLIC-HERB-200',
+      barcode: '7799002000002',
+      unit_price: 2900,
+      supplier_id: publicDemoSuppliers[1].id,
+    },
+  ];
+
+  const publicDemoClients = [
+    {
+      id: '99999999-6666-6666-6666-666666666661',
+      name: 'Valentina Nuñez',
+      phone: '1155001100',
+      email: 'valentina@demo-publico.com',
+    },
+    {
+      id: '99999999-6666-6666-6666-666666666662',
+      name: 'Lucas Medina',
+      phone: '1155002200',
+      email: 'lucas@demo-publico.com',
+    },
+  ];
+
+  const publicDemoSales = [
+    {
+      id: '99999999-7777-7777-7777-777777777771',
+      branch_id: PUBLIC_DEMO_BRANCH_A,
+      client_id: publicDemoClients[0].id,
+      created_at: daysAgo(0, 10, 15),
+      total_amount: 13600,
+      items: [
+        {
+          id: '99999999-8888-8888-8888-888888888871',
+          product_id: publicDemoProducts[0].id,
+          product_name_snapshot: publicDemoProducts[0].name,
+          unit_price_snapshot: 6800,
+          quantity: 2,
+          line_total: 13600,
+        },
+      ],
+    },
+    {
+      id: '99999999-7777-7777-7777-777777777772',
+      branch_id: PUBLIC_DEMO_BRANCH_B,
+      client_id: publicDemoClients[1].id,
+      created_at: daysAgo(1, 17, 40),
+      total_amount: 9100,
+      items: [
+        {
+          id: '99999999-8888-8888-8888-888888888872',
+          product_id: publicDemoProducts[1].id,
+          product_name_snapshot: publicDemoProducts[1].name,
+          unit_price_snapshot: 5200,
+          quantity: 1,
+          line_total: 5200,
+        },
+        {
+          id: '99999999-8888-8888-8888-888888888873',
+          product_id: publicDemoProducts[3].id,
+          product_name_snapshot: publicDemoProducts[3].name,
+          unit_price_snapshot: 3900,
+          quantity: 1,
+          line_total: 3900,
+        },
+      ],
+    },
+    {
+      id: '99999999-7777-7777-7777-777777777773',
+      branch_id: PUBLIC_DEMO_BRANCH_A,
+      client_id: null,
+      created_at: daysAgo(4, 12, 5),
+      total_amount: 6200,
+      items: [
+        {
+          id: '99999999-8888-8888-8888-888888888874',
+          product_id: publicDemoProducts[2].id,
+          product_name_snapshot: publicDemoProducts[2].name,
+          unit_price_snapshot: 3100,
+          quantity: 2,
+          line_total: 6200,
+        },
+      ],
+    },
+  ];
+
+  const publicDemoOrders = [
+    {
+      id: '99999999-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+      supplier_id: publicDemoSuppliers[0].id,
+      branch_id: PUBLIC_DEMO_BRANCH_A,
+      status: 'sent',
+      notes: 'Pedido de cafe para reposicion del showroom central',
+      created_at: daysAgo(1, 9, 30),
+      sent_at: daysAgo(1, 9, 45),
+      expected_receive_on: isoDateFromOffset(1),
+      items: [
+        {
+          id: '99999999-bbbb-bbbb-bbbb-bbbbbbbbbbb1',
+          product_id: publicDemoProducts[0].id,
+          ordered_qty: 8,
+          received_qty: 0,
+          unit_cost: 4100,
+        },
+        {
+          id: '99999999-bbbb-bbbb-bbbb-bbbbbbbbbbb2',
+          product_id: publicDemoProducts[1].id,
+          ordered_qty: 6,
+          received_qty: 0,
+          unit_cost: 3300,
+        },
+      ],
+      payable: {
+        due_on: isoDateFromOffset(2),
+        invoice_reference: 'DP-REM-0001',
+        invoice_note: 'Pago transferencia antes de la entrega',
+        selected_payment_method: 'transfer',
+        preferred_payment_method: 'transfer',
+        invoice_amount: 52600,
+        paid_amount: 0,
+        outstanding_amount: 52600,
+        status: 'pending',
+      },
+    },
+    {
+      id: '99999999-aaaa-aaaa-aaaa-aaaaaaaaaaa2',
+      supplier_id: publicDemoSuppliers[1].id,
+      branch_id: PUBLIC_DEMO_BRANCH_B,
+      status: 'reconciled',
+      notes: 'Pedido controlado con saldo parcial pendiente',
+      created_at: daysAgo(6, 10, 0),
+      sent_at: daysAgo(6, 10, 15),
+      received_at: daysAgo(4, 13, 0),
+      reconciled_at: daysAgo(3, 14, 10),
+      expected_receive_on: isoDateFromOffset(-4),
+      items: [
+        {
+          id: '99999999-bbbb-bbbb-bbbb-bbbbbbbbbbb3',
+          product_id: publicDemoProducts[2].id,
+          ordered_qty: 10,
+          received_qty: 10,
+          unit_cost: 1900,
+        },
+        {
+          id: '99999999-bbbb-bbbb-bbbb-bbbbbbbbbbb4',
+          product_id: publicDemoProducts[3].id,
+          ordered_qty: 7,
+          received_qty: 7,
+          unit_cost: 1650,
+        },
+      ],
+      payable: {
+        due_on: isoDateFromOffset(-1),
+        invoice_reference: 'DP-FAC-0002',
+        invoice_note: 'Saldo visible en demo publica',
+        selected_payment_method: 'cash',
+        preferred_payment_method: 'cash',
+        invoice_amount: 30650,
+        paid_amount: 12000,
+        outstanding_amount: 18650,
+        status: 'partial',
+      },
+    },
+  ];
+
+  const publicDemoSpecialOrders = [
+    {
+      id: '99999999-cccc-cccc-cccc-ccccccccccc1',
+      client_id: publicDemoClients[0].id,
+      branch_id: PUBLIC_DEMO_BRANCH_A,
+      description: 'Reserva de espresso blend para retiro',
+      notes: 'Cliente frecuente showroom',
+      status: 'pending',
+      items: [
+        {
+          id: '99999999-dddd-dddd-dddd-ddddddddddd1',
+          product_id: publicDemoProducts[0].id,
+          supplier_id: publicDemoSuppliers[0].id,
+          requested_qty: 2,
+        },
+      ],
+    },
+    {
+      id: '99999999-cccc-cccc-cccc-ccccccccccc2',
+      client_id: publicDemoClients[1].id,
+      branch_id: PUBLIC_DEMO_BRANCH_B,
+      description: 'Combo yerba + hierbas listo para entrega',
+      notes: 'Pedido ordenado desde la semana pasada',
+      status: 'ordered',
+      items: [
+        {
+          id: '99999999-dddd-dddd-dddd-ddddddddddd2',
+          product_id: publicDemoProducts[2].id,
+          supplier_id: publicDemoSuppliers[1].id,
+          requested_qty: 3,
+        },
+      ],
+    },
+  ];
+
+  const { error: publicSuppliersError } = await supabase
+    .from('suppliers')
+    .upsert(
+      publicDemoSuppliers.map((supplier) => ({
+        id: supplier.id,
+        org_id: PUBLIC_DEMO_ORG_ID,
+        name: supplier.name,
+        contact_name: supplier.contact_name,
+        phone: supplier.phone,
+        email: supplier.email,
+        notes: supplier.notes,
+        is_active: true,
+        order_frequency: supplier.order_frequency,
+        order_day: supplier.order_day,
+        receive_day: supplier.receive_day,
+        payment_terms_days: supplier.payment_terms_days,
+        preferred_payment_method: supplier.preferred_payment_method,
+        accepts_cash: supplier.accepts_cash,
+        accepts_transfer: supplier.accepts_transfer,
+        payment_note: supplier.payment_note,
+        default_markup_pct: supplier.default_markup_pct,
+      })),
+      { onConflict: 'id' },
+    );
+  if (publicSuppliersError) throw publicSuppliersError;
+
+  const { error: publicProductsError } = await supabase.from('products').upsert(
+    publicDemoProducts.map((product) => ({
+      id: product.id,
+      org_id: PUBLIC_DEMO_ORG_ID,
+      name: product.name,
+      brand: product.brand,
+      internal_code: product.internal_code,
+      barcode: product.barcode,
+      sell_unit_type: 'unit',
+      uom: 'unit',
+      unit_price: product.unit_price,
+      purchase_by_pack: false,
+      units_per_pack: null,
+      shelf_life_days: 180,
+      is_active: true,
+    })),
+    { onConflict: 'id' },
+  );
+  if (publicProductsError) throw publicProductsError;
+
+  const { error: publicSupplierProductsError } = await supabase
+    .from('supplier_products')
+    .upsert(
+      publicDemoProducts.map((product, idx) => ({
+        org_id: PUBLIC_DEMO_ORG_ID,
+        supplier_id: product.supplier_id,
+        product_id: product.id,
+        supplier_sku: `PUBLIC-SKU-${idx + 1}`,
+        supplier_product_name: product.name,
+        relation_type: 'primary',
+        supplier_price: roundCurrency(product.unit_price * 0.62),
+      })),
+      { onConflict: 'org_id,supplier_id,product_id' },
+    );
+  if (publicSupplierProductsError) throw publicSupplierProductsError;
+
+  const { error: publicStockError } = await supabase.from('stock_items').upsert(
+    publicDemoProducts.flatMap((product, idx) => [
+      {
+        org_id: PUBLIC_DEMO_ORG_ID,
+        branch_id: PUBLIC_DEMO_BRANCH_A,
+        product_id: product.id,
+        quantity_on_hand: 18 - idx * 2,
+        safety_stock: 4,
+      },
+      {
+        org_id: PUBLIC_DEMO_ORG_ID,
+        branch_id: PUBLIC_DEMO_BRANCH_B,
+        product_id: product.id,
+        quantity_on_hand: 14 - idx,
+        safety_stock: 3,
+      },
+    ]),
+    { onConflict: 'org_id,branch_id,product_id' },
+  );
+  if (publicStockError) throw publicStockError;
+
+  const { error: publicClientsError } = await supabase.from('clients').upsert(
+    publicDemoClients.map((client) => ({
+      id: client.id,
+      org_id: PUBLIC_DEMO_ORG_ID,
+      name: client.name,
+      phone: client.phone,
+      email: client.email,
+      notes: 'Cliente demostracion publica',
+      is_active: true,
+    })),
+    { onConflict: 'id' },
+  );
+  if (publicClientsError) throw publicClientsError;
+
+  const { error: publicSalesError } = await supabase.from('sales').upsert(
+    publicDemoSales.map((sale) => ({
+      id: sale.id,
+      org_id: PUBLIC_DEMO_ORG_ID,
+      branch_id: sale.branch_id,
+      client_id: sale.client_id,
+      created_by: publicDemoUserId,
+      payment_method: 'cash',
+      subtotal_amount: sale.total_amount,
+      discount_amount: 0,
+      discount_pct: 0,
+      cash_discount_amount: 0,
+      cash_discount_pct: 0,
+      employee_discount_applied: false,
+      employee_discount_amount: 0,
+      employee_discount_pct: 0,
+      total_amount: sale.total_amount,
+      is_invoiced: false,
+      invoiced_at: null,
+      created_at: sale.created_at,
+    })),
+    { onConflict: 'id' },
+  );
+  if (publicSalesError) throw publicSalesError;
+
+  const { error: publicSaleItemsError } = await supabase
+    .from('sale_items')
+    .upsert(
+      publicDemoSales.flatMap((sale) =>
+        sale.items.map((item) => ({
+          id: item.id,
+          org_id: PUBLIC_DEMO_ORG_ID,
+          sale_id: sale.id,
+          product_id: item.product_id,
+          product_name_snapshot: item.product_name_snapshot,
+          unit_price_snapshot: item.unit_price_snapshot,
+          quantity: item.quantity,
+          line_total: item.line_total,
+        })),
+      ),
+      { onConflict: 'id' },
+    );
+  if (publicSaleItemsError) throw publicSaleItemsError;
+
+  const { error: publicOrdersError } = await supabase
+    .from('supplier_orders')
+    .upsert(
+      publicDemoOrders.map((order) => ({
+        id: order.id,
+        org_id: PUBLIC_DEMO_ORG_ID,
+        branch_id: order.branch_id,
+        supplier_id: order.supplier_id,
+        status: order.status,
+        notes: order.notes,
+        created_by: publicDemoUserId,
+        created_at: order.created_at,
+        updated_at: order.reconciled_at ?? order.received_at ?? order.sent_at,
+        sent_at: order.sent_at ?? null,
+        received_at: order.received_at ?? null,
+        reconciled_at: order.reconciled_at ?? null,
+        controlled_by_name:
+          order.status === 'reconciled' ? 'Demo Readonly' : null,
+        controlled_by_user_id:
+          order.status === 'reconciled' ? publicDemoUserId : null,
+        expected_receive_on: order.expected_receive_on,
+      })),
+      { onConflict: 'id' },
+    );
+  if (publicOrdersError) throw publicOrdersError;
+
+  const { error: publicOrderItemsError } = await supabase
+    .from('supplier_order_items')
+    .upsert(
+      publicDemoOrders.flatMap((order) =>
+        order.items.map((item) => ({
+          id: item.id,
+          org_id: PUBLIC_DEMO_ORG_ID,
+          order_id: order.id,
+          product_id: item.product_id,
+          ordered_qty: item.ordered_qty,
+          received_qty: item.received_qty,
+          unit_cost: item.unit_cost,
+        })),
+      ),
+      { onConflict: 'id' },
+    );
+  if (publicOrderItemsError) throw publicOrderItemsError;
+
+  const { data: publicPayables, error: publicPayablesError } = await supabase
+    .from('supplier_payables')
+    .select('id, order_id')
+    .eq('org_id', PUBLIC_DEMO_ORG_ID)
+    .in(
+      'order_id',
+      publicDemoOrders.map((order) => order.id),
+    );
+  if (publicPayablesError) throw publicPayablesError;
+
+  for (const order of publicDemoOrders) {
+    const payable = (publicPayables ?? []).find(
+      (row) => row.order_id === order.id,
+    );
+    if (!payable) continue;
+
+    const { error: payableUpdateError } = await supabase
+      .from('supplier_payables')
+      .update({
+        due_on: order.payable.due_on,
+        invoice_reference: order.payable.invoice_reference,
+        invoice_note: order.payable.invoice_note,
+        selected_payment_method: order.payable.selected_payment_method,
+        preferred_payment_method: order.payable.preferred_payment_method,
+        invoice_amount: order.payable.invoice_amount,
+        paid_amount: order.payable.paid_amount,
+        outstanding_amount: order.payable.outstanding_amount,
+        status: order.payable.status,
+        paid_at: order.payable.paid_amount > 0 ? daysAgo(2, 15, 5) : null,
+        updated_by: publicDemoUserId,
+      })
+      .eq('id', payable.id)
+      .eq('org_id', PUBLIC_DEMO_ORG_ID);
+    if (payableUpdateError) throw payableUpdateError;
+  }
+
+  const { error: publicSpecialOrdersError } = await supabase
+    .from('client_special_orders')
+    .upsert(
+      publicDemoSpecialOrders.map((order) => ({
+        id: order.id,
+        org_id: PUBLIC_DEMO_ORG_ID,
+        branch_id: order.branch_id,
+        client_id: order.client_id,
+        description: order.description,
+        quantity: null,
+        status: order.status,
+        created_by: publicDemoUserId,
+        notes: order.notes,
+      })),
+      { onConflict: 'id' },
+    );
+  if (publicSpecialOrdersError) throw publicSpecialOrdersError;
+
+  const { error: publicSpecialOrderItemsError } = await supabase
+    .from('client_special_order_items')
+    .upsert(
+      publicDemoSpecialOrders.flatMap((order) =>
+        order.items.map((item) => ({
+          id: item.id,
+          org_id: PUBLIC_DEMO_ORG_ID,
+          special_order_id: order.id,
+          product_id: item.product_id,
+          supplier_id: item.supplier_id,
+          requested_qty: item.requested_qty,
+          fulfilled_qty: order.status === 'ordered' ? 0 : 0,
+          is_ordered: order.status === 'ordered',
+          ordered_at: order.status === 'ordered' ? daysAgo(3, 11, 0) : null,
+        })),
+      ),
+      { onConflict: 'id' },
+    );
+  if (publicSpecialOrderItemsError) throw publicSpecialOrderItemsError;
+
   console.log('Demo data seeded:');
   console.log('- Suppliers:', suppliers.length);
   console.log('- Products:', products.length);
@@ -1282,6 +2001,12 @@ const purchaseOrderSeeds = [
   console.log('- Smoke products:', smokeProducts.length);
   console.log('- Smoke clients:', clientsSeed.length);
   console.log('- Smoke special orders:', specialOrdersSeed.length);
+  console.log('- Smoke fiscal invoice sale:', SMOKE_SALE_ID);
+  console.log('- Public demo suppliers:', publicDemoSuppliers.length);
+  console.log('- Public demo products:', publicDemoProducts.length);
+  console.log('- Public demo clients:', publicDemoClients.length);
+  console.log('- Public demo sales:', publicDemoSales.length);
+  console.log('- Public demo orders:', publicDemoOrders.length);
   console.log('- Expiration batches:', expirationBatchesPayload.length);
   console.log('- Sales:', salesPayload.length);
   console.log('- Purchase orders:', orderPayload.length);

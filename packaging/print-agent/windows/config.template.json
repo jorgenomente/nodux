@@ -1,0 +1,14 @@
+{
+  "listenHost": "127.0.0.1",
+  "listenPort": 4891,
+  "printers": [
+    {
+      "id": "cashier-usb",
+      "name": "Caja USB Windows",
+      "transport": "windows_printer",
+      "printerName": "NOMBRE_EXACTO_DE_LA_IMPRESORA",
+      "paperWidthMm": 80,
+      "supportsCut": true
+    }
+  ]
+}

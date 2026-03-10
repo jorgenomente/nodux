@@ -31,6 +31,10 @@ Estado actual:
 - Puente fiscal venta -> job y transición `failed` agregados en `supabase/migrations/20260308224500_080_fiscal_enqueue_sale_invoice_and_failed.sql` (`rpc_enqueue_sale_fiscal_invoice`, `fn_fiscal_mark_job_failed`; sin apertura de lectura pública sobre tablas fiscales, ejecución autenticada sólo para miembros con acceso POS en la sucursal de la venta o OA/SA).
 - Gates org-wide fiscales productivos agregados en `supabase/migrations/20260309102000_082_fiscal_prod_enqueue_gate.sql` y `supabase/migrations/20260309113000_083_fiscal_prod_live_gate.sql` (`org_preferences.fiscal_prod_enqueue_enabled` y `org_preferences.fiscal_prod_live_enabled`; sin cambios de policy, reusan RLS existente de `org_preferences`; el primero endurece `rpc_enqueue_sale_fiscal_invoice` en ambiente `prod` y el segundo endurece el worker `live` antes de `FECAESolicitar`).
 - Render fiscal MVP agregado en `supabase/migrations/20260309124500_084_fiscal_render_read_model.sql`: `invoice_jobs` e `invoices` abren lectura sólo para OA/SA vía nuevas policies `*_select_org_admin` / `*_select_platform_admin`, y la view `v_sale_fiscal_invoice_admin` se expone con `security_invoker=true` para consulta del comprobante desde ventas.
+- Identificación opcional de cliente en checkout POS agregada en `supabase/migrations/20260310160500_087_pos_sale_client_link.sql`: `sales` incorpora `client_id`, `rpc_create_sale` valida que el cliente pertenezca a la org y las views de ventas exponen `client_name/client_phone` sin abrir nuevas policies.
+- Historial de ventas del cliente agregado en `supabase/migrations/20260310190000_089_client_sales_history.sql`: `rpc_get_client_sales_history` usa `security definer`, exige módulo `clients` para staff y restringe resultados a branches con membership activa, evitando depender del `select` org-wide sobre `sales`.
+- Lifecycle de links compartibles agregado en `supabase/migrations/20260310193000_090_sale_delivery_link_lifecycle.sql`: `sale_delivery_links` suma metadata mínima de compartido y nuevas RPCs `rpc_list_sale_delivery_links`, `rpc_revoke_sale_delivery_link`, `rpc_regenerate_sale_delivery_link`, `rpc_mark_sale_delivery_link_shared`, todas autenticadas y restringidas a miembros de la org de la venta.
+- Observabilidad de delivery agregada en `supabase/migrations/20260310195500_091_sale_delivery_events_observability.sql`: `sale_delivery_events` registra `shared/revoked/regenerated/opened` por documento/canal y se expone vía RPC autenticada `rpc_list_sale_delivery_events`, mientras el append se centraliza en `rpc_append_sale_delivery_event`.
 - Onboarding de datos maestros agregado en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks` y RPCs de importación/validación/aplicación).
 - Resolver de productos incompletos para onboarding agregado en `supabase/migrations/20260224201000_057_onboarding_products_incomplete_view.sql` (`v_products_incomplete_admin` con `security_invoker=true`; respeta RLS existente de `products` y `supplier_products`).
 - `supplier_products.supplier_price` agregado en `supabase/migrations/20260225111500_058_supplier_product_price.sql` junto con extensión de `rpc_upsert_supplier_product` y `v_supplier_detail_admin` (sin cambios de policy; reusa RLS existente de `supplier_products`).
@@ -110,6 +114,8 @@ Estado actual:
 | `online_order_status_history`        | read/insert/update   | read/insert/update   | read/insert (limitado)        | Historial de estados de pedido online                                  |
 | `online_order_tracking_tokens`       | read/insert/update   | read/insert/update   | read/insert/update (limitado) | Token público de tracking                                              |
 | `online_order_payment_proofs`        | read/insert/update   | read/insert/update   | read/insert/update (limitado) | Comprobantes de transferencia/QR                                       |
+| `sale_delivery_links`                | read/insert/update   | read/insert/update   | read/insert/update (limitado) | Links públicos revocables para ticket/factura de venta                 |
+| `sale_delivery_events`               | read/insert          | read/insert          | read/insert (limitado)        | Historial operativo de compartidos y aperturas de links                |
 | `clients`                            | read/insert/update   | read/insert/update   | read/insert/update (limitado) | ST solo en branch asignada                                             |
 | `client_special_orders`              | read/insert/update   | read/insert/update   | read/insert/update (limitado) | ST solo su branch                                                      |
 | `client_special_order_items`         | read/insert/update   | read/insert/update   | read/insert/update (limitado) | ST solo su branch                                                      |
@@ -134,6 +140,7 @@ Estado actual:
 ## Endpoints criticos que deben validar modulos
 
 - `rpc_create_sale` -> requiere modulo `pos` habilitado, permite pagos divididos (`payments`), descuento cash solo en pago 100% efectivo y descuento empleado con cuenta activa de la sucursal.
+  - acepta `p_client_id` opcional; si viene informado debe pertenecer a la org activa y estar activo.
   - valida política de combinación entre descuento cash y empleado desde `org_preferences.employee_discount_combinable_with_cash_discount`.
   - para `card` y `mercadopago` exige `payment_device_id` válido en la sucursal.
 - `rpc_mark_sale_invoiced` -> OA/SA y ST con módulo `pos` habilitado (en sucursal de la venta); marca la venta como facturada y audita `sale_marked_invoiced`.
@@ -158,6 +165,7 @@ Estado actual:
 - `rpc_update_supplier_payable` y `rpc_register_supplier_payment` -> solo OA/SA en org activa.
   - `rpc_register_supplier_payment` con método `cash` agrega egreso automático en sesión abierta de caja.
 - `rpc_create_special_order` -> OA o ST con modulo `clients` habilitado.
+- `rpc_get_client_sales_history` -> OA/SA y ST con modulo `clients` habilitado; para staff sólo devuelve ventas de branches donde tiene membership activa.
 - `rpc_create_data_import_job` -> solo OA/SA en org activa; crea job de onboarding.
 - `rpc_upsert_data_import_row` -> solo OA/SA en org activa; registra o corrige filas de job.
 - `rpc_validate_data_import_job` -> solo OA/SA en org activa; valida filas y calcula conteos.
@@ -166,6 +174,15 @@ Estado actual:
 - `rpc_get_public_storefront_products` -> público (anon/authenticated), lectura acotada a catálogo activo por slug org/sucursal.
 - `rpc_create_online_order` -> público (anon/authenticated), crea pedido online en estado `pending` con validación de stock.
 - `rpc_get_online_order_tracking` -> público (anon/authenticated), tracking por token activo/no expirado.
+- `rpc_get_or_create_sale_delivery_link` -> autenticado miembro de org; crea o reutiliza token activo por venta/documento y valida factura lista para `sale_invoice`.
+- `rpc_list_sale_delivery_links` -> autenticado miembro de org; devuelve el último estado por documento compartible de la venta.
+- `rpc_revoke_sale_delivery_link` -> autenticado miembro de org; revoca el link activo vigente de ticket/factura.
+- `rpc_regenerate_sale_delivery_link` -> autenticado miembro de org; rota el token vigente y crea un nuevo link activo.
+- `rpc_mark_sale_delivery_link_shared` -> autenticado miembro de org; registra metadata mínima de compartido asistido por canal.
+- `rpc_append_sale_delivery_event` -> autenticado miembro de org; registra evento operativo de `shared/revoked/regenerated/opened`.
+- `rpc_list_sale_delivery_events` -> autenticado miembro de org; devuelve historial reciente de delivery por venta.
+- `rpc_get_sale_ticket_delivery` -> público (anon/authenticated), ticket no fiscal por token activo/no expirado.
+- `rpc_get_sale_invoice_delivery` -> público (anon/authenticated), factura fiscal por token activo/no expirado sólo si está autorizada y con render `completed`.
 - `rpc_set_online_order_status` -> autenticado miembro de org, con transiciones válidas y auditoría `online_order_status_set`.
 - Carga pública de comprobante en `/o/:trackingToken` (server action): valida token activo/no expirado, sube a `online-order-proofs` con service role e inserta en `online_order_payment_proofs` para revisión interna.
 - `rpc_superadmin_create_org` -> solo SA global.

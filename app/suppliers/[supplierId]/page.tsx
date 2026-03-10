@@ -297,7 +297,7 @@ export default async function SupplierDetailPage({
       p_supplier_product_name: supplierProductName,
       p_relation_type: normalizedRelationType,
       p_supplier_price:
-        supplierPriceRaw === '' ? null : Number(supplierPriceRaw),
+        supplierPriceRaw === '' ? undefined : Number(supplierPriceRaw),
     });
 
     revalidatePath(`/suppliers/${supplierId}`);
@@ -420,7 +420,7 @@ export default async function SupplierDetailPage({
         p_supplier_product_name: primarySupplierProductName,
         p_relation_type: 'primary',
         p_supplier_price:
-          supplierPriceRaw === '' ? null : Number(supplierPriceRaw),
+          supplierPriceRaw === '' ? undefined : Number(supplierPriceRaw),
       });
     }
 
@@ -432,7 +432,7 @@ export default async function SupplierDetailPage({
         p_supplier_sku: '',
         p_supplier_product_name: '',
         p_relation_type: 'secondary',
-        p_supplier_price: null,
+        p_supplier_price: undefined,
       });
     }
 

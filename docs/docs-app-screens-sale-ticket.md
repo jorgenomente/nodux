@@ -57,3 +57,4 @@ Salida mínima:
 
 - El ticket emitido desde esta pantalla es una copia no fiscal.
 - La facturación fiscal se gestiona en el flujo de `Emitir factura`.
+- Existe además una variante pública por token en `/share/t/:token` para entrega digital al cliente, con contrato separado.

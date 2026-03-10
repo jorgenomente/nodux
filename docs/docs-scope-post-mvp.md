@@ -50,6 +50,7 @@ Idea → Epic → Lote → Código.
 - Lotes / seriales
 - Multi-depósito
 - Integraciones externas
+- Bridge local de impresión térmica ESC/POS
 
 ---
 

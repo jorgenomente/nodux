@@ -61,6 +61,11 @@ Ruta pública adicional (institucional, fuera del flujo operativo MVP):
   - Roles: Público
   - Tipo: Utility
   - Propósito: mostrar recorrido de producto con datos ficticios en modo solo lectura
+- `/share/t/:token`
+- `/share/i/:token`
+  - Roles: Público
+  - Tipo: Utility
+  - Propósito: abrir un ticket no fiscal compartido por link seguro
 
 ---
 

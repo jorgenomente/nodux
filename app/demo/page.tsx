@@ -61,8 +61,6 @@ const resolveNotice = (
 
 export default async function PublicDemoPage({ searchParams }: DemoPageProps) {
   const params = await searchParams;
-  const appLoginHref = 'https://app.nodux.app/login';
-  const appDemoEnterHref = 'https://app.nodux.app/demo/enter';
   const notice = resolveNotice(params.error, params.readonly);
 
   return (
@@ -83,7 +81,7 @@ export default async function PublicDemoPage({ searchParams }: DemoPageProps) {
               Volver a landing
             </Link>
             <Link
-              href={appLoginHref}
+              href="/login"
               className="rounded-full bg-amber-300 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-amber-200"
             >
               Ingresar a la app
@@ -110,7 +108,7 @@ export default async function PublicDemoPage({ searchParams }: DemoPageProps) {
                 {notice}
               </div>
             ) : null}
-            <form action={appDemoEnterHref} method="post" className="mt-5">
+            <form action="/demo/enter" method="post" className="mt-5">
               <button
                 type="submit"
                 className="rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"

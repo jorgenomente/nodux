@@ -9,6 +9,7 @@ import {
   type SaleFiscalInvoiceRow,
 } from '@/app/sales/fiscal-document';
 import SalePaymentCorrectionForm from '@/app/sales/SalePaymentCorrectionForm';
+import ShareTicketWhatsappButton from '@/app/sales/ShareTicketWhatsappButton';
 import { formatOperationalPaymentMethod } from '@/lib/payments/catalog';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 import { triggerFiscalWorker } from '@/lib/fiscal/worker/trigger-worker';
@@ -40,6 +41,9 @@ type SaleDetailRow = {
   employee_discount_pct: number;
   is_invoiced: boolean;
   invoiced_at: string | null;
+  client_id: string | null;
+  client_name: string | null;
+  client_phone: string | null;
   total_amount: number;
   items: unknown;
   payments: unknown;
@@ -68,6 +72,32 @@ type SalePayment = {
   payment_device_id: string | null;
   payment_device_name: string | null;
   payment_device_provider: string | null;
+  created_at: string;
+};
+
+type SaleDeliveryLinkRow = {
+  sale_delivery_link_id: string;
+  sale_id: string;
+  document_kind: 'sale_ticket' | 'sale_invoice';
+  token: string;
+  status: 'active' | 'revoked' | 'expired';
+  created_at: string;
+  expires_at: string | null;
+  last_shared_at: string | null;
+  last_shared_channel: 'whatsapp' | null;
+  share_count: number;
+};
+
+type SaleDeliveryEventRow = {
+  sale_delivery_event_id: string;
+  sale_delivery_link_id: string | null;
+  sale_id: string;
+  document_kind: 'sale_ticket' | 'sale_invoice';
+  event_kind: 'shared' | 'revoked' | 'regenerated' | 'opened';
+  channel: 'whatsapp' | 'public_link' | null;
+  actor_user_id: string | null;
+  actor_display_name: string | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -132,6 +162,32 @@ const formatDateTime = (value: string) => {
 
 const formatPaymentMethod = (value: string) =>
   formatOperationalPaymentMethod(value);
+
+const formatDeliveryStatus = (status: SaleDeliveryLinkRow['status']) => {
+  if (status === 'active') return 'Activo';
+  if (status === 'revoked') return 'Revocado';
+  return 'Vencido';
+};
+
+const formatDeliveryChannel = (
+  value: SaleDeliveryLinkRow['last_shared_channel'],
+) => {
+  if (value === 'whatsapp') return 'WhatsApp';
+  return '—';
+};
+
+const formatDeliveryEventKind = (value: SaleDeliveryEventRow['event_kind']) => {
+  if (value === 'shared') return 'Compartido';
+  if (value === 'revoked') return 'Revocado';
+  if (value === 'regenerated') return 'Regenerado';
+  return 'Abierto';
+};
+
+const formatDeliveryEventChannel = (value: SaleDeliveryEventRow['channel']) => {
+  if (value === 'whatsapp') return 'WhatsApp';
+  if (value === 'public_link') return 'Link público';
+  return '—';
+};
 
 export default async function SaleDetailPage({
   params,
@@ -201,6 +257,26 @@ export default async function SaleDetailPage({
     .eq('branch_id', sale.branch_id)
     .order('device_name');
   const paymentDevices = (paymentDevicesData ?? []) as PaymentDevice[];
+  const { data: deliveryLinksData } = await supabase.rpc(
+    'rpc_list_sale_delivery_links' as never,
+    {
+      p_sale_id: saleId,
+    } as never,
+  );
+  const deliveryLinks = (deliveryLinksData ?? []) as SaleDeliveryLinkRow[];
+  const { data: deliveryEventsData } = await supabase.rpc(
+    'rpc_list_sale_delivery_events' as never,
+    {
+      p_sale_id: saleId,
+      p_limit: 20,
+    } as never,
+  );
+  const deliveryEvents = (deliveryEventsData ?? []) as SaleDeliveryEventRow[];
+  const deliveryLinkByKind = new Map(
+    deliveryLinks.map((row) => [row.document_kind, row] as const),
+  );
+  const ticketDeliveryLink = deliveryLinkByKind.get('sale_ticket') ?? null;
+  const invoiceDeliveryLink = deliveryLinkByKind.get('sale_invoice') ?? null;
 
   const correctPaymentMethod = async (formData: FormData) => {
     'use server';
@@ -328,6 +404,97 @@ export default async function SaleDetailPage({
     redirect(`/sales/${saleId}?notice=invoice_queued`);
   };
 
+  const revokeDeliveryLink = async (formData: FormData) => {
+    'use server';
+
+    const actionSession = await getOrgMemberSession();
+    if (!actionSession?.orgId || actionSession.effectiveRole === 'staff') {
+      redirect('/no-access');
+    }
+
+    const documentKind = String(formData.get('document_kind') ?? '').trim();
+    if (documentKind !== 'sale_ticket' && documentKind !== 'sale_invoice') {
+      redirect(`/sales/${saleId}?notice=link_error:invalid_document_kind`);
+    }
+
+    const { error } = await actionSession.supabase.rpc(
+      'rpc_revoke_sale_delivery_link' as never,
+      {
+        p_sale_id: saleId,
+        p_document_kind: documentKind,
+      } as never,
+    );
+
+    revalidatePath(`/sales/${saleId}`);
+
+    if (error) {
+      redirect(
+        `/sales/${saleId}?notice=link_error:${encodeURIComponent(error.message)}`,
+      );
+    }
+
+    await actionSession.supabase.rpc(
+      'rpc_append_sale_delivery_event' as never,
+      {
+        p_sale_id: saleId,
+        p_document_kind: documentKind,
+        p_event_kind: 'revoked',
+        p_channel: null,
+        p_metadata: {
+          source: 'sale_detail',
+        },
+      } as never,
+    );
+
+    redirect(`/sales/${saleId}?notice=link_revoked:${documentKind}`);
+  };
+
+  const regenerateDeliveryLink = async (formData: FormData) => {
+    'use server';
+
+    const actionSession = await getOrgMemberSession();
+    if (!actionSession?.orgId || actionSession.effectiveRole === 'staff') {
+      redirect('/no-access');
+    }
+
+    const documentKind = String(formData.get('document_kind') ?? '').trim();
+    if (documentKind !== 'sale_ticket' && documentKind !== 'sale_invoice') {
+      redirect(`/sales/${saleId}?notice=link_error:invalid_document_kind`);
+    }
+
+    const { error } = await actionSession.supabase.rpc(
+      'rpc_regenerate_sale_delivery_link' as never,
+      {
+        p_sale_id: saleId,
+        p_document_kind: documentKind,
+        p_expires_at: null,
+      } as never,
+    );
+
+    revalidatePath(`/sales/${saleId}`);
+
+    if (error) {
+      redirect(
+        `/sales/${saleId}?notice=link_error:${encodeURIComponent(error.message)}`,
+      );
+    }
+
+    await actionSession.supabase.rpc(
+      'rpc_append_sale_delivery_event' as never,
+      {
+        p_sale_id: saleId,
+        p_document_kind: documentKind,
+        p_event_kind: 'regenerated',
+        p_channel: null,
+        p_metadata: {
+          source: 'sale_detail',
+        },
+      } as never,
+    );
+
+    redirect(`/sales/${saleId}?notice=link_regenerated:${documentKind}`);
+  };
+
   const notice =
     typeof resolvedSearchParams?.notice === 'string'
       ? resolvedSearchParams.notice
@@ -370,6 +537,26 @@ export default async function SaleDetailPage({
             procesamiento.
           </p>
         ) : null}
+        {notice === 'link_revoked:sale_ticket' ? (
+          <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            Link de ticket revocado.
+          </p>
+        ) : null}
+        {notice === 'link_revoked:sale_invoice' ? (
+          <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            Link de factura revocado.
+          </p>
+        ) : null}
+        {notice === 'link_regenerated:sale_ticket' ? (
+          <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            Link de ticket regenerado.
+          </p>
+        ) : null}
+        {notice === 'link_regenerated:sale_invoice' ? (
+          <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            Link de factura regenerado.
+          </p>
+        ) : null}
         {notice === 'missing_fields' ? (
           <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
             Completa método y motivo para aplicar la corrección.
@@ -383,6 +570,11 @@ export default async function SaleDetailPage({
         {notice.startsWith('error:') ? (
           <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
             Error: {decodeURIComponent(notice.replace('error:', ''))}
+          </p>
+        ) : null}
+        {notice.startsWith('link_error:') ? (
+          <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            Error: {decodeURIComponent(notice.replace('link_error:', ''))}
           </p>
         ) : null}
         <section className="grid gap-3 md:grid-cols-4">
@@ -439,6 +631,100 @@ export default async function SaleDetailPage({
         </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <h2 className="text-lg font-semibold text-zinc-900">Cliente</h2>
+          {sale.client_id ? (
+            <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-1 text-sm text-zinc-700">
+                <p>
+                  <span className="font-semibold text-zinc-900">Nombre:</span>{' '}
+                  {sale.client_name ?? '—'}
+                </p>
+                <p>
+                  <span className="font-semibold text-zinc-900">WhatsApp:</span>{' '}
+                  {sale.client_phone ?? '—'}
+                </p>
+              </div>
+              {sale.client_phone ? (
+                <ShareTicketWhatsappButton saleId={saleId} />
+              ) : (
+                <p className="text-xs text-zinc-500">
+                  La venta está vinculada a un cliente, pero no tiene WhatsApp
+                  cargado para compartir el ticket.
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-zinc-500">
+              Esta venta no quedó vinculada a un cliente.
+            </p>
+          )}
+        </section>
+
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-900">
+                Historial de compartidos
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Trazabilidad reciente de ticket y factura por canal y evento.
+              </p>
+            </div>
+            <span className="text-xs text-zinc-500">
+              {deliveryEvents.length} eventos recientes
+            </span>
+          </div>
+          {deliveryEvents.length === 0 ? (
+            <p className="mt-4 text-sm text-zinc-500">
+              Todavía no hay eventos de delivery para esta venta.
+            </p>
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-zinc-50 text-xs text-zinc-500 uppercase">
+                  <tr>
+                    <th className="px-3 py-2">Fecha</th>
+                    <th className="px-3 py-2">Documento</th>
+                    <th className="px-3 py-2">Evento</th>
+                    <th className="px-3 py-2">Canal</th>
+                    <th className="px-3 py-2">Actor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deliveryEvents.map((event) => (
+                    <tr
+                      key={event.sale_delivery_event_id}
+                      className="border-t border-zinc-100"
+                    >
+                      <td className="px-3 py-2 text-zinc-700">
+                        {formatDateTime(event.created_at)}
+                      </td>
+                      <td className="px-3 py-2 text-zinc-700">
+                        {event.document_kind === 'sale_ticket'
+                          ? 'Ticket'
+                          : 'Factura'}
+                      </td>
+                      <td className="px-3 py-2 text-zinc-700">
+                        {formatDeliveryEventKind(event.event_kind)}
+                      </td>
+                      <td className="px-3 py-2 text-zinc-700">
+                        {formatDeliveryEventChannel(event.channel)}
+                      </td>
+                      <td className="px-3 py-2 text-zinc-700">
+                        {event.actor_display_name ??
+                          (event.channel === 'public_link'
+                            ? 'Cliente / acceso público'
+                            : '—')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5">
           <h2 className="text-lg font-semibold text-zinc-900">
             Ticket y facturación
           </h2>
@@ -463,6 +749,22 @@ export default async function SaleDetailPage({
             >
               Imprimir ticket
             </Link>
+            {sale.client_phone ? (
+              <ShareTicketWhatsappButton
+                saleId={saleId}
+                className="rounded border border-emerald-300 px-3 py-2 text-sm text-emerald-700"
+              />
+            ) : null}
+            {sale.client_phone &&
+            fiscalInvoice?.render_status === 'completed' &&
+            fiscalInvoice.result_status === 'authorized' ? (
+              <ShareTicketWhatsappButton
+                saleId={saleId}
+                endpointPath="invoice-share"
+                label="Compartir factura por WhatsApp"
+                className="rounded border border-emerald-300 px-3 py-2 text-sm text-emerald-700"
+              />
+            ) : null}
             {fiscalInvoice ? (
               <Link
                 href={`/sales/${saleId}/invoice`}
@@ -485,6 +787,135 @@ export default async function SaleDetailPage({
                 {fiscalInvoice ? 'Factura emitida' : 'Facturación iniciada'}
               </span>
             )}
+          </div>
+
+          <div className="mt-6 grid gap-3 md:grid-cols-2">
+            {[
+              {
+                title: 'Link de ticket',
+                kind: 'sale_ticket' as const,
+                row: ticketDeliveryLink,
+                isReady: true,
+              },
+              {
+                title: 'Link de factura',
+                kind: 'sale_invoice' as const,
+                row: invoiceDeliveryLink,
+                isReady:
+                  fiscalInvoice?.render_status === 'completed' &&
+                  fiscalInvoice.result_status === 'authorized',
+              },
+            ].map((card) => (
+              <article
+                key={card.kind}
+                className="rounded-xl border border-zinc-200 bg-zinc-50 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-zinc-900">
+                      {card.title}
+                    </h3>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Estado:{' '}
+                      {card.row
+                        ? formatDeliveryStatus(card.row.status)
+                        : 'Sin generar'}
+                    </p>
+                  </div>
+                  {card.row?.status === 'active' ? (
+                    <span className="rounded bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">
+                      Vigente
+                    </span>
+                  ) : (
+                    <span className="rounded bg-zinc-200 px-2 py-1 text-xs font-medium text-zinc-700">
+                      Sin link activo
+                    </span>
+                  )}
+                </div>
+                {!card.isReady ? (
+                  <p className="mt-3 text-xs text-zinc-500">
+                    La factura todavía no está lista para compartir.
+                  </p>
+                ) : (
+                  <>
+                    <dl className="mt-3 space-y-1 text-xs text-zinc-600">
+                      <div className="flex items-center justify-between gap-3">
+                        <dt>Creado</dt>
+                        <dd>
+                          {card.row ? formatDateTime(card.row.created_at) : '—'}
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <dt>Vence</dt>
+                        <dd>
+                          {card.row?.expires_at
+                            ? formatDateTime(card.row.expires_at)
+                            : 'Sin vencimiento'}
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <dt>Último compartido</dt>
+                        <dd>
+                          {card.row?.last_shared_at
+                            ? formatDateTime(card.row.last_shared_at)
+                            : 'Nunca'}
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <dt>Canal</dt>
+                        <dd>
+                          {formatDeliveryChannel(
+                            card.row?.last_shared_channel ?? null,
+                          )}
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <dt>Reenvíos asistidos</dt>
+                        <dd>{card.row?.share_count ?? 0}</dd>
+                      </div>
+                    </dl>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <form action={regenerateDeliveryLink}>
+                        <input
+                          type="hidden"
+                          name="document_kind"
+                          value={card.kind}
+                        />
+                        <button
+                          type="submit"
+                          className="rounded border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700"
+                        >
+                          {card.row?.status === 'active'
+                            ? card.kind === 'sale_ticket'
+                              ? 'Regenerar link de ticket'
+                              : 'Regenerar link de factura'
+                            : card.kind === 'sale_ticket'
+                              ? 'Generar link de ticket'
+                              : 'Generar link de factura'}
+                        </button>
+                      </form>
+                      {card.row?.status === 'active' ? (
+                        <form action={revokeDeliveryLink}>
+                          <input
+                            type="hidden"
+                            name="document_kind"
+                            value={card.kind}
+                          />
+                          <button
+                            type="submit"
+                            className="rounded border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700"
+                          >
+                            {card.kind === 'sale_ticket'
+                              ? 'Revocar link de ticket'
+                              : 'Revocar link de factura'}
+                          </button>
+                        </form>
+                      ) : null}
+                    </div>
+                  </>
+                )}
+              </article>
+            ))}
           </div>
         </section>
 

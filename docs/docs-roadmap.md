@@ -132,6 +132,10 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada, Fase 7 e
 
 - POS implementado en `/pos` con selector de sucursal, busqueda/escaneo y carrito.
 - RPC `rpc_create_sale` valida modulo `pos` para Staff.
+- POS ya permite identificar cliente opcional en checkout y persiste `sales.client_id`.
+- Base de entrega digital cerrada operativamente: `sale_delivery_links` + rutas públicas `/share/t/:token` y `/share/i/:token`, con CTA `Compartir por WhatsApp` para ticket en POS/detalle y para factura cuando el render fiscal está listo.
+- Detalle de venta ahora también administra lifecycle del link compartible: estado vigente, último compartido asistido, revocación y regeneración de ticket/factura.
+- Detalle de venta ahora también expone historial de delivery por evento/canal (`shared`, `opened`, `revoked`, `regenerated`) para soporte y administración.
 
 ### 4.3 Proveedores + Pedidos a proveedor
 
@@ -164,8 +168,9 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada, Fase 7 e
 **Notas**:
 
 - /clients implementado con lista, detalle y pedidos especiales con ítems.
+- /clients ahora también muestra compras recientes del cliente y reusa CTAs de share de ticket/factura hacia WhatsApp.
 - Integración POS para entrega/cobro.
-- RPCs usadas: rpc_list_clients, rpc_get_client_detail, rpc_upsert_client, rpc_create_special_order, rpc_set_special_order_status, rpc_get_special_order_for_pos.
+- RPCs usadas: rpc_list_clients, rpc_get_client_detail, rpc_get_client_sales_history, rpc_upsert_client, rpc_create_special_order, rpc_set_special_order_status, rpc_get_special_order_for_pos.
 
 ### 4.6 Dashboard (OA)
 
@@ -430,6 +435,12 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada, Fase 7 e
 - 2026-03-01: se agregan plantillas de impresión por sucursal en `branches` (`ticket_header_text`, `ticket_footer_text`, `fiscal_ticket_note_text`) y se integran en POS + `/sales/[saleId]/ticket` para ticket no fiscal configurable por sucursal.
 - 2026-03-01: configuración de impresión se desacopla de `/settings/branches` y pasa a `/settings/tickets` con guía explícita de formato para rollo térmico 80mm y separación de ticket no fiscal vs leyenda fiscal de prueba.
 - 2026-03-01: impresión de tickets agrega parámetros de layout por sucursal (`ticket_paper_width_mm`, márgenes, `ticket_font_size_px`, `ticket_line_height`) para ajustar recortes/offset de impresoras térmicas; `/settings/tickets`, POS y `/sales/[saleId]/ticket` aplican la configuración.
+- 2026-03-10: se documenta estrategia operativa de impresión térmica por SO en `docs/printing/thermal-setup.md`: corto plazo con browser print + driver correcto/print server, y mediano plazo con bridge local ESC/POS.
+- 2026-03-10: se documenta arquitectura del bridge local ESC/POS en `docs/printing/escpos-bridge-architecture.md` y su MVP inicial en `docs/printing/escpos-bridge-mvp.md`, con enfoque Windows-first, fallback a browser print e integración futura con `print_jobs`.
+- 2026-03-10: se implementa el lado web del MVP del bridge local: config local por caja en `/settings/tickets`, detector del agente y dispatch desde `/pos` con fallback automático a browser print. Queda pendiente construir y distribuir el agente nativo.
+- 2026-03-10: se implementa y publica un kit Windows descargable del agente local (`/downloads/nodux-print-agent-windows.zip`) con soporte TCP/Ethernet y colas USB Windows RAW por nombre de impresora. Queda pendiente evolucionar a instalador nativo/autostart y mejorar soporte USB.
+- 2026-03-10: se define el plan de evolución para cliente opcional en POS + entrega digital asistida de comprobantes por WhatsApp, reutilizando `clients`, persistiendo `sales.client_id` desde checkout y postergando email/automatización a fases posteriores (`docs/docs-pos-client-delivery-plan.md`).
+- 2026-03-10: se implementa la Fase 1 de cliente identificado en POS: bloque opcional de cliente en `/pos`, lookup/autofill contra `clients`, persistencia de `sales.client_id` desde `POST /api/pos/checkout` y enriquecimiento de `v_sales_admin` / `v_sale_detail_admin` con datos básicos del cliente.
 - 2026-03-01: PM-1 (canal online) inicia fundación DB en migración `20260301213000_068_online_store_foundation.sql` con slugs públicos (`orgs/branches`), `storefront_settings`, `storefront_domains`, `online_orders*`, `v_online_orders_admin` y RPCs de storefront/checkout/tracking/estado.
 - 2026-03-01: PM-2 inicia con comprobantes online v1: bucket `online-order-proofs` (migración `20260302101500_069_online_order_proofs_storage_bucket.sql`), carga pública desde `/o/:trackingToken` y revisión interna (aprobar/rechazar + nota) en `/online-orders`.
 - 2026-03-02: `/settings` incorpora sección "Tienda online" para QA/operación: muestra `storefront_settings.is_enabled`, `org_slug` y links públicos por org/sucursal (`/:orgSlug`, `/:orgSlug/:branchSlug`).

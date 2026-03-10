@@ -18,6 +18,10 @@ type EmployeeAccount = {
   name: string;
 };
 
+type OrgRow = {
+  name: string | null;
+};
+
 type BranchOption = {
   id: string;
   name: string;
@@ -93,6 +97,12 @@ export default async function PosPage({
   const role = session.effectiveRole;
   const orgId = session.orgId;
   const userId = session.userId;
+  const { data: orgData } = await dataClient
+    .from('orgs')
+    .select('name')
+    .eq('id', orgId)
+    .maybeSingle();
+  const orgName = ((orgData ?? null) as OrgRow | null)?.name ?? 'NODUX';
 
   if (role === 'staff') {
     const { data: modules } = await supabase.rpc(
@@ -303,6 +313,7 @@ export default async function PosPage({
     <PageShell>
       <PosClient
         orgId={orgId}
+        orgName={orgName}
         role={role === 'staff' ? 'staff' : 'org_admin'}
         branches={branches}
         defaultBranchId={defaultBranchId}

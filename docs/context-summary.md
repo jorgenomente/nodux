@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-03-10 11:05
+Ultima actualizacion: 2026-03-10 22:15
 
 ## Estado general
 
@@ -60,6 +60,8 @@ Ultima actualizacion: 2026-03-10 11:05
 - Nueva ruta pública `/landing` implementada para explicar qué es NODUX (propuesta de valor, módulos core y CTA a login/demo) sin interferir con el flujo autenticado.
 - Nueva ruta pública `/demo` implementada como recorrido seguro de producto (solo lectura y datos ficticios), accesible desde `/landing`.
 - `/demo` agrega entrypoint `Probar demo interactiva`: login automático con cuenta demo de entorno y bloqueo de escritura para ese usuario (modo solo lectura en `proxy`).
+- La cuenta readonly pública quedó separada de las cuentas QA locales a nivel de org: `demo-readonly@demo.com` vive en `Demo Publica Org`, mientras `admin@demo.com` y `staff@demo.com` operan solo sobre `Demo QA Org`, evitando mezclar la demo pública con smoke/escritura local.
+- `scripts/seed-demo-data.js` ahora también puebla `Demo Publica Org` con un dataset curado de exhibición (catálogo, ventas, proveedores, pedidos y clientes) para que la demo interactiva readonly no dependa de la org QA.
 - Se separa navegación por host en producción: `nodux.app` (landing pública) y `app.nodux.app` (login + app interna), evitando mezclar operación con marketing.
 - Canonical de marketing definido: `www.nodux.app` redirige a `nodux.app` para evitar duplicidad SEO.
 - UI actualizada: /products, /suppliers y /suppliers/[supplierId] con proveedores primario/secundario y safety stock.
@@ -139,6 +141,13 @@ Ultima actualizacion: 2026-03-10 11:05
 - `/settings/branches` agrega plantilla de impresión por sucursal (`ticket_header_text`, `ticket_footer_text`, `fiscal_ticket_note_text`) y POS + `/sales/[saleId]/ticket` pasan a usar esa configuración al imprimir.
 - Se separa la gestión en `/settings/tickets` para centralizar edición de impresión, diferenciando ticket no fiscal vs leyenda fiscal de prueba con guía operativa de formato 80mm.
 - `/settings/tickets` agrega configuración fina de layout por sucursal (ancho en mm, márgenes, tamaño de fuente e interlineado) y POS + `/sales/[saleId]/ticket` usan esos parámetros en CSS de impresión para corregir tickets recortados/descentrados según impresora.
+- Se documentó setup operativo de impresión térmica en `docs/printing/thermal-setup.md`: el flujo actual sigue siendo browser-print (`window.print()`), Windows queda como entorno recomendado para térmicas USB ESC/POS sin driver macOS, y para Mac se recomienda print server o futuro bridge local.
+- Se definió la arquitectura objetivo del bridge local ESC/POS en `docs/printing/escpos-bridge-architecture.md` y su recorte MVP en `docs/printing/escpos-bridge-mvp.md`: Windows-first, ticket no fiscal desde `/pos`, detector local + fallback a browser print, con futura integración a `print_jobs`.
+- MVP web ya implementado: `/settings/tickets` permite configurar localmente por navegador el modo `browser` vs `local_agent`, URL del agente y printer target; `/pos` intenta `POST /print` al agente local y cae automáticamente al navegador si falla. Sigue pendiente el ejecutable nativo del agente.
+- MVP nativo inicial ya implementado en el repo como `npm run print:agent`: expone `health`/`printers`/`print`, despacha tickets ESC/POS por TCP/Ethernet y también puede enviar RAW a una cola Windows USB mediante `windows_printer` usando el nombre exacto de la impresora instalada. La configuración local vive en `~/.nodux-print-agent/config.json`.
+- También quedó publicado un kit Windows descargable desde la app en `/downloads/nodux-print-agent-windows.zip`, con agente JS autocontenido, `start-agent.cmd` y plantilla de configuración. Sigue requiriendo Node.js 20+ en la PC de destino.
+- Se documentó el plan repo-aware para evolucionar `/pos` con cliente opcional, persistencia de `sales.client_id`, compartido asistido de ticket/factura por WhatsApp y base futura de historial/entrega en `docs/docs-pos-client-delivery-plan.md`.
+- Fase 1 de ese plan ya quedó implementada: `/pos` permite buscar/cargar cliente opcional (nombre + WhatsApp), `POST /api/pos/checkout` resuelve/upserta cliente y persiste `sales.client_id`, y las views `v_sales_admin` / `v_sale_detail_admin` ahora exponen `client_id`, `client_name` y `client_phone`.
 - Dashboard agrega KPIs de facturación diaria: monto/cantidad facturado, no facturado y porcentaje facturado sobre ventas del día.
 - `/sales` ahora incluye acceso directo a `/sales/statistics`, con análisis por período/sucursal: top y bottom de productos, relevancia de proveedores y tendencias por día/semana/mes.
 - `/sales/statistics` separa la analítica en dos desplegables independientes (`Ventas de artículos` y `Proveedores y pagos`) para consultar por separado rendimiento comercial vs pagos/deuda/frecuencia de proveedores.
@@ -178,6 +187,10 @@ Ultima actualizacion: 2026-03-10 11:05
 - Permisos staff incorporan `__full_access__` como baseline: habilita por defecto todos los módulos listados en la pantalla y permite quitar acceso puntual por módulo (denylist).
 - Se inició hardening ruta-por-ruta para staff: `proxy` y guards de páginas clave ahora resuelven acceso por `module_key` habilitado (home y acceso a `/dashboard`, `/sales`, `/sales/statistics`, `/products`, `/suppliers`, `/orders`, `/orders/calendar`, `/payments`, `/onboarding`, `/settings` y detalles de ventas/pedidos/proveedores).
 - Iteración de flujo online aplicada: checkout público ahora solicita `nombre + WhatsApp + dirección`, fija pago en `pagar al retirar`, muestra CTA para notificar pedido por WhatsApp a la tienda (teléfono configurable por sucursal) y tracking `/o/:trackingToken` ahora incluye resumen completo (cliente, ítems y total).
+- POS ya permite identificar cliente opcional al cobrar y persistir `sales.client_id`; además quedó cerrada la primera iteración operativa de entrega digital con `sale_delivery_links`, ticket público `/share/t/:token`, factura pública `/share/i/:token`, CTA `Compartir ticket por WhatsApp` en POS/detalle y CTA `Compartir factura por WhatsApp` cuando el render fiscal está listo.
+- `/clients` ahora muestra historial simple de compras recientes por cliente usando `rpc_get_client_sales_history`, con acceso a `Ver venta` y reenvío asistido de ticket/factura por WhatsApp cuando hay teléfono y comprobante listo.
+- `/sales/[saleId]` ahora administra el lifecycle del link compartible de ticket/factura: muestra estado del último link por documento, registra metadata mínima de share asistido (`share_count`, canal, fecha), y permite revocar/regenerar tokens desde UI interna.
+- La observabilidad del delivery ya no depende sólo de metadata agregada: `sale_delivery_events` registra `shared`, `opened`, `revoked` y `regenerated`, y `/sales/[saleId]` muestra ese historial reciente por documento/canal/actor.
 - Flujo operativo de cobro online reforzado: `/online-orders` muestra detalle de artículos y habilita `Cobrar en POS`; `/pos?online_order_id=:id` precarga carrito con ítems snapshot del pedido y, al cobrar, avanza estado online a `delivered`.
 - En `/onboarding`, el apply de importación ahora matchea productos existentes solo por `barcode`/`internal_code` (sin fallback por nombre) y la deduplicación previa del archivo sigue la misma regla para evitar merges ambiguos por nombre.
 - `/onboarding` incorpora edición masiva de productos con búsqueda/paginación server-side y aplicación por lote sobre seleccionados o todos los resultados filtrados; soporta patch de marca, proveedor primario/secundario, shelf life, precio proveedor y precio unitario.

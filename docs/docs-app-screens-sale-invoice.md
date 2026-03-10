@@ -22,6 +22,7 @@ Visualizar, reimprimir y auditar el comprobante fiscal autorizado de una venta.
 - Ir a ventas
 - Toggle entre vista A4 y ticket fiscal
 - Acción `Imprimir`
+- Si la factura está lista y la venta tiene `client_phone`: CTA `Compartir factura por WhatsApp`
 
 ### Documento
 
@@ -73,6 +74,10 @@ Salida mínima:
 - Scope por `org_id`.
 - Sólo OA/SA pueden leer `invoice_jobs` e `invoices`.
 - Staff no accede a esta ruta ni a la view fiscal.
+
+## Notas
+
+- Existe una variante pública por token en `/share/i/:token` para entrega digital al cliente, con contrato separado.
 
 ## Smoke tests
 

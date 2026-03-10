@@ -47,10 +47,25 @@ UI
   - `ticket_margin_left_mm` (number)
   - `ticket_font_size_px` (number)
   - `ticket_line_height` (number)
+- Bloque `Bridge local ESC/POS (MVP web)`
+  - modo local de impresión: `browser` | `local_agent`
+  - `agentUrl`
+  - `printerTarget`
+  - `copies`
+  - `cut`
+  - `cashDrawer`
+  - botón `Probar conexión`
+  - botón `Imprimir ticket de prueba`
+  - nota explícita: la configuración es local de la caja/navegador, no global de org
 - Bloque de guía visible de formato para impresión térmica 80mm:
   - texto plano
   - recomendación de ancho por línea
   - uso de saltos de línea manuales
+- Bloque de ayuda operativa visible o enlazable:
+  - diferencias entre impresión por navegador vs ESC/POS
+  - recomendación por sistema operativo
+  - referencia a `docs/printing/thermal-setup.md`
+  - referencia de evolución técnica a `docs/printing/escpos-bridge-architecture.md`
 - CTA `Guardar plantilla`
 
 Reglas de formato (UX)
@@ -98,6 +113,8 @@ Integraciones de salida
 
 - `/pos` usa la plantilla de la sucursal activa al imprimir ticket.
 - `/sales/[saleId]/ticket` usa la plantilla de la sucursal de la venta.
+- La guía operativa de setup y compatibilidad térmica vive en `docs/printing/thermal-setup.md`.
+- El MVP web del bridge local se configura en el navegador de cada caja desde `/settings/tickets`; `/pos` lee esa configuración local y hace fallback a browser print si el agente no responde.
 
 Edge cases
 
@@ -111,3 +128,4 @@ Smoke tests
 - TK-02: cambiar a sucursal B con texto distinto y validar que no mezcla contenido.
 - TK-03: guardar leyenda fiscal de prueba y validar render en `/sales/[saleId]/ticket`.
 - TK-04: configurar margen izquierdo/derecho y validar que el ticket no se corte a la derecha.
+- TK-05: revisar bloque/manual de ayuda y confirmar que explicita límites de macOS con térmicas ESC/POS sin driver nativo.

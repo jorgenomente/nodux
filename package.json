@@ -10,6 +10,7 @@
     "fiscal:worker": "node --import tsx ./scripts/fiscal-worker.ts",
     "fiscal:worker:prod-safe": "FISCAL_EXECUTION_MODE=prod-safe FISCAL_DRY_RUN=false node --import tsx ./scripts/fiscal-worker.ts",
     "fiscal:worker:live": "FISCAL_EXECUTION_MODE=live FISCAL_DRY_RUN=false node --import tsx ./scripts/fiscal-worker.ts",
+    "print:agent": "node --import tsx ./scripts/local-print-agent.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:reset": "npx supabase db reset && node scripts/seed-users.js",

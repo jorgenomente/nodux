@@ -59,6 +59,12 @@ Estado actual:
 - Base operativa del puente fiscal venta -> job en `supabase/migrations/20260308224500_080_fiscal_enqueue_sale_invoice_and_failed.sql`: agrega `rpc_enqueue_sale_fiscal_invoice` para crear `sale_documents` + `invoice_jobs` con `requested_payload_json` normalizado desde una venta existente, y `fn_fiscal_mark_job_failed` para errores terminales del worker fiscal.
 - Gate org-wide para enqueue fiscal productivo en `supabase/migrations/20260309102000_082_fiscal_prod_enqueue_gate.sql`: agrega `org_preferences.fiscal_prod_enqueue_enabled` y endurece `rpc_enqueue_sale_fiscal_invoice` para rechazar ambiente `prod` si ese flag está desactivado.
 - Render MVP del comprobante fiscal en `supabase/migrations/20260309124500_084_fiscal_render_read_model.sql`: habilita lectura admin de `invoice_jobs` e `invoices`, crea la view `v_sale_fiscal_invoice_admin` y extiende `fn_fiscal_mark_job_failed` para tolerar fallos durante `render_pending`.
+- Identificación opcional de cliente en checkout POS en `supabase/migrations/20260310160500_087_pos_sale_client_link.sql`: agrega `sales.client_id`, extiende `rpc_create_sale` para persistir cliente y enriquece `v_sales_admin`/`v_sale_detail_admin` con datos básicos del cliente vinculado.
+- Entrega digital de ticket por link seguro en `supabase/migrations/20260310154000_088_sale_delivery_links_ticket_share.sql`: agrega `sale_delivery_links`, RPC autenticada `rpc_get_or_create_sale_delivery_link(...)` y RPC pública `rpc_get_sale_ticket_delivery(...)`.
+- Entrega digital de factura por link seguro en la misma base de `sale_delivery_links`: se suma RPC pública `rpc_get_sale_invoice_delivery(...)`, ruta `/share/i/:token` y endpoint app autenticado para WhatsApp asistido sólo cuando la factura está autorizada y con `render_status=completed`.
+- Historial de ventas por cliente para `/clients` en `supabase/migrations/20260310190000_089_client_sales_history.sql`: agrega `rpc_get_client_sales_history(...)` como contrato repo-aware para compras recientes y reenvío de ticket/factura desde el detalle del cliente.
+- Lifecycle operativo de links compartibles en `supabase/migrations/20260310193000_090_sale_delivery_link_lifecycle.sql`: `sale_delivery_links` suma metadata mínima de compartido (`last_shared_at`, `last_shared_channel`, `share_count`) y RPCs para listar estado, revocar, regenerar y registrar compartido asistido.
+- Observabilidad de delivery en `supabase/migrations/20260310195500_091_sale_delivery_events_observability.sql`: agrega `sale_delivery_events` y RPCs para append/listado de eventos operativos (`shared`, `revoked`, `regenerated`, `opened`) por ticket/factura.
 - Hardening de RPCs de usuarios para preservar actor de auditoría en alta/edición de membresía en `supabase/migrations/20260301162000_064_users_membership_rpcs_auth_context.sql` (`rpc_invite_user_to_org`, `rpc_update_user_membership` como `security definer` con validación explícita de rol/org/sucursales).
 - Hotfix de `rpc_invite_user_to_org` por ambigüedad de `user_id` en producción en `supabase/migrations/20260301170000_065_fix_rpc_invite_user_to_org_ambiguous_user_id.sql` y `supabase/migrations/20260301171500_066_fix_rpc_invite_user_to_org_out_param_conflict.sql` (se elimina conflicto de OUT param y queda salida `invited_user_id`).
 - Onboarding de datos maestros (jobs/rows de importación + vista de pendientes + RPCs de importación) en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks`, `rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
@@ -489,6 +495,7 @@ Notas operativas:
 - `id` (uuid, PK)
 - `org_id` (uuid, FK)
 - `branch_id` (uuid, FK)
+- `client_id` (uuid, nullable FK -> clients.id)
 - `created_by` (uuid, FK -> auth.users.id)
 - `payment_method` (payment_method)
 - `subtotal_amount` (numeric)
@@ -505,6 +512,46 @@ Notas operativas:
 - `invoiced_at` (timestamptz, nullable)
 - `total_amount` (numeric)
 - `created_at`
+
+---
+
+### sale_delivery_links
+
+**Proposito**: links públicos revocables para compartir documentos de una venta.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `sale_id` (uuid, FK -> sales.id)
+- `document_kind` (sale_delivery_document_kind)
+- `token` (text, unique)
+- `status` (sale_delivery_link_status)
+- `created_by_user_id` (uuid, nullable FK -> auth.users.id)
+- `created_at` (timestamptz)
+- `expires_at` (timestamptz, nullable)
+- `last_shared_at` (timestamptz, nullable)
+- `last_shared_channel` (text, nullable; hoy `whatsapp`)
+- `share_count` (integer >= 0)
+
+---
+
+### sale_delivery_events
+
+**Proposito**: historial operativo de compartidos y aperturas de links de ticket/factura.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, FK)
+- `sale_id` (uuid, FK -> sales.id)
+- `sale_delivery_link_id` (uuid, nullable FK -> sale_delivery_links.id)
+- `document_kind` (sale_delivery_document_kind)
+- `event_kind` (text; `shared`, `revoked`, `regenerated`, `opened`)
+- `channel` (text nullable; hoy `whatsapp` o `public_link`)
+- `actor_user_id` (uuid, nullable FK -> auth.users.id)
+- `metadata` (jsonb)
+- `created_at` (timestamptz)
 
 ---
 
@@ -858,6 +905,7 @@ Notas operativas:
 - `org_id` (uuid, FK)
 - `name` (text)
 - `phone` (text, nullable)
+- Nota operativa: el teléfono se reutiliza en POS como identificador preferido para autocompletado y entrega digital asistida.
 - `email` (text, nullable)
 - `notes` (text, nullable)
 - `is_active` (boolean)
@@ -1036,12 +1084,18 @@ Ver contratos en `docs/docs-schema-model.md`:
 - Views de lectura por pantalla (dashboard, products, suppliers, orders, expirations, settings)
 - View de caja operativa: `v_cashbox_session_current`
 - Views de ventas: `v_sales_admin`, `v_sale_detail_admin`
+  - incluyen `client_id`, `client_name`, `client_phone` cuando la venta fue identificada en POS
+- Tabla de entrega pública de ventas: `sale_delivery_links`
 - View de estadísticas de ventas: `v_sales_statistics_items`
 - View de gestión de pedidos online: `v_online_orders_admin`
 - Views de superadmin global: `v_superadmin_orgs`, `v_superadmin_org_detail`
 - RPCs para escrituras (POS, stock, orders, permissions, clients)
+  - `rpc_create_sale(...)` acepta `p_client_id` opcional para vincular la venta a un cliente existente o creado durante checkout
+  - `rpc_get_or_create_sale_delivery_link(...)` crea o reutiliza un link activo por venta/documento
 - RPCs de caja: `rpc_open_cash_session(...)`, `rpc_add_cash_session_movement(...)`, `rpc_get_cash_session_summary(...)`, `rpc_close_cash_session(...)`
 - RPCs storefront público: `rpc_get_public_storefront_branches(...)`, `rpc_get_public_storefront_products(...)`, `rpc_create_online_order(...)` (checkout con dirección y pago al retirar), `rpc_get_online_order_tracking(...)` (incluye cliente, total e ítems)
+- RPC pública de ticket compartible: `rpc_get_sale_ticket_delivery(...)`
+- RPC pública de factura compartible: `rpc_get_sale_invoice_delivery(...)`
 - RPC de operación interna de pedidos online: `rpc_set_online_order_status(...)`
 - RPCs de conciliación/corrección ventas: `rpc_get_cash_session_payment_breakdown(...)`, `rpc_get_cash_session_reconciliation_rows(...)`, `rpc_upsert_cash_session_reconciliation_inputs(...)`, `rpc_correct_sale_payment_method(...)`
 - RPC de facturación diferida de ventas: `rpc_mark_sale_invoiced(...)`

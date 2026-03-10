@@ -1,6 +1,6 @@
 # Screen Contract — Clients (Org Admin + Staff, scope limitado)
 
-**Estado actual**: implementado (lista + detalle + pedidos especiales con ítems).
+**Estado actual**: implementado (lista + detalle + historial simple de compras + pedidos especiales con ítems).
 
 ## Guía rápida (para diseño)
 
@@ -66,6 +66,8 @@ Cada row:
 ### Sección B — Detalle cliente (panel inline)
 
 - Datos cliente
+- Lista de compras recientes del cliente (últimas N)
+- CTA por venta: `Ver venta`, `Compartir ticket por WhatsApp`, `Compartir factura por WhatsApp` cuando corresponda
 - Lista de pedidos especiales del cliente (últimos N)
 - CTA: “Nuevo pedido especial”
 
@@ -144,6 +146,20 @@ clients[]:
 
 Detalle: `rpc_get_client_detail(client_id)` al seleccionar cliente (incluye ítems).
 
+Historial simple MVP: `rpc_get_client_sales_history(org_id, client_id, branch_id nullable, limit)`
+
+Salida:
+
+- `sale_id`
+- `branch_id`, `branch_name`
+- `created_at`
+- `payment_method_summary`
+- `total_amount`
+- `is_invoiced`, `invoiced_at`
+- `client_phone`
+- `invoice_result_status`, `invoice_render_status`
+- `invoice_ready`
+
 ### Escrituras
 
 RPC: `rpc_upsert_client(input)`
@@ -197,3 +213,7 @@ CL-02: ST con módulo habilitado crea pedido especial solo en su sucursal
 CL-03: ST sin módulo → redirect a fallback / no-access
 
 CL-04: Cambiar estado del pedido y verlo reflejado en dashboard (cuando exista integración)
+
+CL-05: Cliente con ventas previas ve `Compras recientes` y puede abrir `Ver venta`
+
+CL-06: Si la venta tiene teléfono y ticket/factura listos, se muestran CTAs de reenvío por WhatsApp

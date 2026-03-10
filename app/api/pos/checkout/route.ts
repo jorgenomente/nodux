@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 
+import { normalizeClientPhone } from '@/lib/clients/normalize';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
+import type { OrgSession } from '@/lib/auth/org-session';
 import { runFiscalWorkerOnce } from '@/lib/fiscal/worker/run-worker';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
@@ -29,7 +32,18 @@ type CheckoutBody = {
   applyEmployeeDiscount?: boolean;
   employeeDiscountPct?: number | null;
   employeeAccountId?: string | null;
+  client?: {
+    clientId?: string | null;
+    name?: string | null;
+    phone?: string | null;
+  } | null;
   mode?: 'charge_only' | 'charge_and_invoice';
+};
+
+type ClientLookupRow = {
+  id: string;
+  name: string;
+  phone: string | null;
 };
 
 type EnqueueFiscalResponse = {
@@ -138,6 +152,79 @@ const sleep = async (ms: number) =>
     setTimeout(resolve, ms);
   });
 
+const resolveCheckoutClientId = async (params: {
+  body: CheckoutBody;
+  accessToken: string;
+  supabase: OrgSession['supabase'];
+}) => {
+  const input = params.body.client;
+  const clientId = String(input?.clientId ?? '').trim();
+  const rawName = String(input?.name ?? '').trim();
+  const normalizedPhone = normalizeClientPhone(input?.phone);
+
+  if (!clientId && !rawName && !normalizedPhone) {
+    return null;
+  }
+
+  let matchedClient: ClientLookupRow | null = null;
+
+  if (clientId) {
+    const { data } = await params.supabase
+      .from('clients')
+      .select('id, name, phone')
+      .eq('org_id', params.body.orgId)
+      .eq('id', clientId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    matchedClient = (data as ClientLookupRow | null) ?? null;
+  }
+
+  if (!matchedClient && normalizedPhone) {
+    const { data } = await params.supabase
+      .from('clients')
+      .select('id, name, phone')
+      .eq('org_id', params.body.orgId)
+      .eq('is_active', true)
+      .limit(20)
+      .ilike('phone', `%${normalizedPhone}%`);
+
+    matchedClient =
+      ((data as ClientLookupRow[] | null) ?? []).find(
+        (row) => normalizeClientPhone(row.phone) === normalizedPhone,
+      ) ?? null;
+  }
+
+  if (!matchedClient && !rawName) {
+    return null;
+  }
+
+  const effectiveClientId = matchedClient?.id ?? randomUUID();
+  const effectiveName = rawName || matchedClient?.name || 'Cliente';
+  const effectivePhone =
+    normalizedPhone || normalizeClientPhone(matchedClient?.phone);
+
+  const { error } = await callAuthedRpc<Array<{ client_id?: string | null }>>({
+    accessToken: params.accessToken,
+    rpcName: 'rpc_upsert_client',
+    payload: {
+      p_client_id: effectiveClientId,
+      p_org_id: params.body.orgId,
+      p_name: effectiveName,
+      p_phone: effectivePhone,
+      p_email: '',
+      p_notes: '',
+      p_is_active: true,
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Could not upsert client');
+  }
+
+  return effectiveClientId;
+};
+
 const attemptSynchronousFiscalCompletion = async (params: {
   orgId: string;
   saleId: string;
@@ -242,6 +329,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  let resolvedClientId: string | null = null;
+  try {
+    resolvedClientId = await resolveCheckoutClientId({
+      body,
+      accessToken: authSession.access_token,
+      supabase: session.supabase,
+    });
+  } catch {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'No pudimos registrar o actualizar el cliente antes de cobrar.',
+      },
+      { status: 400 },
+    );
+  }
+
   const { data, error } = await callAuthedRpc<
     Array<{ sale_id?: string | null; total?: number | null }>
   >({
@@ -266,6 +370,7 @@ export async function POST(request: NextRequest) {
       p_employee_account_id: body.applyEmployeeDiscount
         ? (body.employeeAccountId ?? undefined)
         : undefined,
+      p_client_id: resolvedClientId ?? undefined,
     },
   });
 

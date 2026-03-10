@@ -20,11 +20,15 @@ export async function POST(request: NextRequest) {
   }
 
   const appUrl = new URL(request.url);
-  appUrl.hostname = 'app.nodux.app';
+  const isLocalHost =
+    appUrl.hostname === '127.0.0.1' || appUrl.hostname === 'localhost';
+  if (!isLocalHost) {
+    appUrl.hostname = 'app.nodux.app';
+    appUrl.protocol = 'https:';
+    appUrl.port = '';
+  }
   appUrl.pathname = '/';
   appUrl.search = '';
-  appUrl.protocol = 'https:';
-  appUrl.port = '';
 
   const response = NextResponse.redirect(appUrl, 303);
 

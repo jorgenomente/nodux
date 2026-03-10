@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { normalizeClientPhone } from '@/lib/clients/normalize';
 import {
   detectMercadoPagoChannel,
   methodRequiresDevice,
@@ -9,6 +10,13 @@ import {
   type MercadoPagoChannel,
   type PosPaymentMethod,
 } from '@/lib/payments/catalog';
+import {
+  checkLocalPrintAgent,
+  printViaLocalAgent,
+  readLocalPrintSettings,
+  type LocalPrintSettings,
+} from '@/lib/printing/local-agent';
+import type { PrintableTicketSnapshot } from '@/lib/printing/contracts';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 type BranchOption = {
@@ -52,34 +60,7 @@ type SplitPaymentEntry = {
 
 type CheckoutMode = 'charge_only' | 'charge_and_invoice';
 
-type TicketSnapshot = {
-  branchName: string;
-  ticketHeaderText?: string | null;
-  ticketFooterText?: string | null;
-  fiscalTicketNoteText?: string | null;
-  printConfig?: {
-    paperWidthMm?: number | null;
-    marginTopMm?: number | null;
-    marginRightMm?: number | null;
-    marginBottomMm?: number | null;
-    marginLeftMm?: number | null;
-    fontSizePx?: number | null;
-    lineHeight?: number | null;
-  };
-  createdAtIso: string;
-  items: Array<{
-    name: string;
-    quantity: number;
-    unit_price: number;
-    line_total: number;
-  }>;
-  subtotal: number;
-  discount: number;
-  total: number;
-  isPaid: boolean;
-  isInvoiced: boolean;
-  saleId?: string;
-};
+type TicketSnapshot = PrintableTicketSnapshot;
 
 type PaymentDevice = {
   id: string;
@@ -92,8 +73,17 @@ type EmployeeAccount = {
   name: string;
 };
 
+type PosClientOption = {
+  client_id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  active_special_orders_count: number | null;
+};
+
 type Props = {
   orgId: string;
+  orgName: string;
   role: 'org_admin' | 'staff';
   branches: BranchOption[];
   defaultBranchId: string | null;
@@ -362,6 +352,7 @@ const ACTIVE_BRANCH_COOKIE = 'nodux_active_branch_id';
 
 export default function PosClient({
   orgId,
+  orgName,
   role,
   branches,
   defaultBranchId,
@@ -446,7 +437,19 @@ export default function PosClient({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [debugMessage, setDebugMessage] = useState<string | null>(null);
+  const [localPrintSettings, setLocalPrintSettings] =
+    useState<LocalPrintSettings>(readLocalPrintSettings);
+  const [localPrintAgentReachable, setLocalPrintAgentReachable] = useState<
+    boolean | null
+  >(null);
   const [lastTicket, setLastTicket] = useState<TicketSnapshot | null>(null);
+  const [lastSaleShareState, setLastSaleShareState] = useState<{
+    saleId: string;
+    clientName: string | null;
+    clientPhone: string | null;
+    invoiceReady: boolean;
+  } | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
   const [specialOrderId, setSpecialOrderId] = useState<string | null>(
     specialOrder?.specialOrderId ?? null,
   );
@@ -471,8 +474,65 @@ export default function PosClient({
   const [onlineOrderCustomerName, setOnlineOrderCustomerName] = useState<
     string | null
   >(onlineOrder?.customerName ?? null);
+  const [clientLookupTerm, setClientLookupTerm] = useState('');
+  const [clientLookupLoading, setClientLookupLoading] = useState(false);
+  const [clientLookupResults, setClientLookupResults] = useState<
+    PosClientOption[]
+  >([]);
+  const [selectedClient, setSelectedClient] = useState<PosClientOption | null>(
+    null,
+  );
+  const [clientNameInput, setClientNameInput] = useState(
+    specialOrder?.clientName ?? onlineOrder?.customerName ?? '',
+  );
+  const [clientPhoneInput, setClientPhoneInput] = useState('');
   const showSearchHint =
     searchTerm.trim().length > 0 && searchTerm.trim().length < 3;
+  const showClientLookupHint =
+    clientLookupTerm.trim().length > 0 && clientLookupTerm.trim().length < 2;
+
+  useEffect(() => {
+    const settings = localPrintSettings;
+
+    if (settings.mode !== 'local_agent') {
+      return;
+    }
+
+    let active = true;
+
+    void checkLocalPrintAgent(settings.agentUrl)
+      .then((health) => {
+        if (!active) return;
+        setLocalPrintAgentReachable(health.ok);
+      })
+      .catch(() => {
+        if (!active) return;
+        setLocalPrintAgentReachable(false);
+      });
+
+    const syncSettings = () => {
+      const nextSettings = readLocalPrintSettings();
+      setLocalPrintSettings(nextSettings);
+
+      if (nextSettings.mode !== 'local_agent') {
+        setLocalPrintAgentReachable(null);
+        return;
+      }
+
+      void checkLocalPrintAgent(nextSettings.agentUrl)
+        .then((health) => setLocalPrintAgentReachable(health.ok))
+        .catch(() => setLocalPrintAgentReachable(false));
+    };
+
+    window.addEventListener('focus', syncSettings);
+    window.addEventListener('storage', syncSettings);
+
+    return () => {
+      active = false;
+      window.removeEventListener('focus', syncSettings);
+      window.removeEventListener('storage', syncSettings);
+    };
+  }, [localPrintSettings]);
 
   const subtotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.unit_price * item.quantity, 0),
@@ -806,6 +866,34 @@ export default function PosClient({
     [orgId, supabase],
   );
 
+  const loadClients = useCallback(
+    async (term: string) => {
+      const trimmed = term.trim();
+      if (!trimmed || trimmed.length < 2) {
+        setClientLookupResults([]);
+        setClientLookupLoading(false);
+        return;
+      }
+
+      setClientLookupLoading(true);
+      const { data, error } = await supabase.rpc('rpc_list_clients', {
+        p_org_id: orgId,
+        p_branch_id: (activeBranchId || null) as unknown as string,
+        p_search: trimmed as unknown as string,
+        p_limit: 8,
+        p_offset: 0,
+      });
+
+      if (error) {
+        setClientLookupResults([]);
+      } else {
+        setClientLookupResults((data as PosClientOption[]) ?? []);
+      }
+      setClientLookupLoading(false);
+    },
+    [activeBranchId, orgId, supabase],
+  );
+
   const addToCart = useCallback((product: ProductCatalogItem) => {
     setSuccessMessage(null);
     setErrorMessage(null);
@@ -932,7 +1020,15 @@ export default function PosClient({
     return () => clearTimeout(handle);
   }, [activeBranchId, loadProducts, searchTerm]);
 
-  const handlePrintTicket = () => {
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      void loadClients(clientLookupTerm);
+    }, 250);
+
+    return () => clearTimeout(handle);
+  }, [clientLookupTerm, loadClients]);
+
+  const handlePrintTicket = async () => {
     const draftTicket: TicketSnapshot | null =
       cart.length > 0
         ? {
@@ -970,9 +1066,88 @@ export default function PosClient({
       return;
     }
 
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    if (localPrintSettings?.mode === 'local_agent') {
+      try {
+        await printViaLocalAgent(draftTicket, localPrintSettings);
+        setLocalPrintAgentReachable(true);
+        setSuccessMessage(
+          'Ticket enviado al agente local para impresion directa.',
+        );
+        return;
+      } catch {
+        setLocalPrintAgentReachable(false);
+        setErrorMessage(
+          'No se pudo imprimir por el agente local. Se usara la impresion por navegador como fallback.',
+        );
+      }
+    }
+
     const opened = openTicketPrintWindow(draftTicket);
     if (!opened) {
       setErrorMessage('Habilita pop-ups para imprimir el ticket.');
+      return;
+    }
+    setSuccessMessage('Ticket enviado al flujo de impresion del navegador.');
+  };
+
+  const resetForNewSale = () => {
+    setSuccessMessage(null);
+    setErrorMessage(null);
+    setDebugMessage(null);
+    setLastTicket(null);
+    setLastSaleShareState(null);
+  };
+
+  const handleShareLastTicketByWhatsApp = async () => {
+    if (!lastSaleShareState?.saleId || shareLoading) {
+      return;
+    }
+
+    setShareLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch(
+        `/api/sales/${lastSaleShareState.saleId}/ticket-share`,
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+        },
+      );
+
+      const payload = (await response.json().catch(() => null)) as {
+        ok?: boolean;
+        whatsappUrl?: string;
+        error?: string;
+      } | null;
+
+      if (!response.ok || !payload?.ok || !payload.whatsappUrl) {
+        throw new Error(
+          payload?.error ?? 'No pudimos preparar el link de WhatsApp.',
+        );
+      }
+
+      const opened = window.open(
+        payload.whatsappUrl,
+        '_blank',
+        'noopener,noreferrer',
+      );
+      if (!opened) {
+        throw new Error('Habilita pop-ups para abrir WhatsApp.');
+      }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'No pudimos preparar el link de WhatsApp.',
+      );
+    } finally {
+      setShareLoading(false);
     }
   };
 
@@ -1034,6 +1209,16 @@ export default function PosClient({
       product_id: item.product_id,
       quantity: item.quantity,
     }));
+    const trimmedClientName = clientNameInput.trim();
+    const normalizedClientPhone = normalizeClientPhone(clientPhoneInput);
+    const clientPayload =
+      selectedClient || trimmedClientName || normalizedClientPhone
+        ? {
+            clientId: selectedClient?.client_id ?? null,
+            name: trimmedClientName || null,
+            phone: normalizedClientPhone || null,
+          }
+        : null;
 
     const paymentsPayload = isSplitPayment
       ? splitPaymentRows.map((payment) => ({
@@ -1096,6 +1281,7 @@ export default function PosClient({
         applyEmployeeDiscount,
         employeeDiscountPct: applyEmployeeDiscount ? employeeDiscountPct : null,
         employeeAccountId: applyEmployeeDiscount ? employeeAccountId : null,
+        client: clientPayload,
         mode,
       }),
     });
@@ -1149,17 +1335,23 @@ export default function PosClient({
                 ? 'Debes seleccionar un dispositivo para tarjeta o MercadoPago.'
                 : error.message.includes('invalid payment device')
                   ? 'El dispositivo seleccionado no es válido para esta sucursal.'
-                  : error.message.includes('employee account required')
-                    ? 'Debes seleccionar un empleado.'
-                    : error.message.includes('invalid employee account')
-                      ? 'La cuenta de empleado no es válida para esta sucursal.'
-                      : error.message.includes('employee discount disabled')
-                        ? 'El descuento de empleado está deshabilitado.'
-                        : error.message.includes(
-                              'employee discount cannot be combined with cash discount',
-                            )
-                          ? 'No se permite combinar descuento efectivo con descuento de empleado.'
-                          : 'No pudimos registrar la venta.';
+                  : error.message.includes('invalid client')
+                    ? 'El cliente seleccionado no es válido para esta organización.'
+                    : error.message.includes(
+                          'No pudimos registrar o actualizar el cliente antes de cobrar.',
+                        )
+                      ? 'No pudimos guardar los datos del cliente antes de cobrar.'
+                      : error.message.includes('employee account required')
+                        ? 'Debes seleccionar un empleado.'
+                        : error.message.includes('invalid employee account')
+                          ? 'La cuenta de empleado no es válida para esta sucursal.'
+                          : error.message.includes('employee discount disabled')
+                            ? 'El descuento de empleado está deshabilitado.'
+                            : error.message.includes(
+                                  'employee discount cannot be combined with cash discount',
+                                )
+                              ? 'No se permite combinar descuento efectivo con descuento de empleado.'
+                              : 'No pudimos registrar la venta.';
       setErrorMessage(message);
       setDebugMessage(
         process.env.NODE_ENV !== 'production'
@@ -1184,6 +1376,10 @@ export default function PosClient({
     } | null;
     const saleId = String(sale?.sale_id ?? '').trim();
     const totalAmount = Number(sale?.total ?? total);
+    const effectiveClientName =
+      trimmedClientName || selectedClient?.name || null;
+    const effectiveClientPhone =
+      normalizedClientPhone || selectedClient?.phone || null;
     if (fiscalErrorFromServer) {
       setErrorMessage(fiscalErrorFromServer);
     }
@@ -1266,6 +1462,16 @@ export default function PosClient({
         lineHeight: activeBranchConfig?.ticket_line_height,
       },
     });
+    setLastSaleShareState(
+      saleId
+        ? {
+            saleId,
+            clientName: effectiveClientName,
+            clientPhone: effectiveClientPhone,
+            invoiceReady: Boolean(invoiceUrlFromServer),
+          }
+        : null,
+    );
     setCart([]);
     setIsSplitPayment(false);
     setSplitPayments([
@@ -1287,6 +1493,11 @@ export default function PosClient({
     setApplyCashDiscount(false);
     setApplyEmployeeDiscount(false);
     setEmployeeAccountId('');
+    setSelectedClient(null);
+    setClientLookupTerm('');
+    setClientLookupResults([]);
+    setClientNameInput('');
+    setClientPhoneInput('');
     setSpecialOrderId(null);
     setSpecialOrderClientName(null);
     setOnlineOrderId(null);
@@ -1401,6 +1612,135 @@ export default function PosClient({
             </div>
           </div>
         ) : null}
+        <div className="mt-4 rounded-xl border border-zinc-200 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900">
+                Cliente opcional
+              </h2>
+              <p className="text-xs text-zinc-500">
+                Vincula la venta a un cliente para futuras compras y entrega
+                digital.
+              </p>
+            </div>
+            {(selectedClient ||
+              clientNameInput.trim() ||
+              clientPhoneInput.trim()) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedClient(null);
+                  setClientLookupTerm('');
+                  setClientLookupResults([]);
+                  setClientNameInput('');
+                  setClientPhoneInput('');
+                }}
+                className="text-xs font-semibold text-zinc-500 hover:text-zinc-800"
+              >
+                Quitar cliente
+              </button>
+            )}
+          </div>
+
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
+            <div>
+              <label
+                className="text-xs font-semibold text-zinc-600"
+                htmlFor="client_lookup"
+              >
+                Buscar cliente existente
+              </label>
+              <input
+                id="client_lookup"
+                value={clientLookupTerm}
+                onChange={(event) => setClientLookupTerm(event.target.value)}
+                placeholder="Nombre o WhatsApp"
+                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+              />
+              <div className="mt-2 flex flex-col gap-2">
+                {clientLookupLoading ? (
+                  <div className="text-xs text-zinc-500">Buscando...</div>
+                ) : clientLookupResults.length > 0 ? (
+                  clientLookupResults.map((client) => (
+                    <button
+                      key={client.client_id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedClient(client);
+                        setClientNameInput(client.name);
+                        setClientPhoneInput(client.phone ?? '');
+                        setClientLookupTerm(client.phone ?? client.name);
+                        setClientLookupResults([]);
+                      }}
+                      className={`rounded-lg border px-3 py-2 text-left text-sm ${
+                        selectedClient?.client_id === client.client_id
+                          ? 'border-zinc-900 bg-zinc-50'
+                          : 'border-zinc-200 hover:border-zinc-400'
+                      }`}
+                    >
+                      <div className="font-semibold text-zinc-900">
+                        {client.name}
+                      </div>
+                      <div className="text-xs text-zinc-500">
+                        {client.phone || 'Sin WhatsApp'}
+                      </div>
+                    </button>
+                  ))
+                ) : showClientLookupHint ? (
+                  <div className="text-xs text-zinc-500">
+                    Escribi al menos 2 caracteres para buscar.
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              <div>
+                <label
+                  className="text-xs font-semibold text-zinc-600"
+                  htmlFor="client_name"
+                >
+                  Nombre del cliente
+                </label>
+                <input
+                  id="client_name"
+                  value={clientNameInput}
+                  onChange={(event) => setClientNameInput(event.target.value)}
+                  placeholder="Ej. Ana Pérez"
+                  className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label
+                  className="text-xs font-semibold text-zinc-600"
+                  htmlFor="client_phone"
+                >
+                  WhatsApp
+                </label>
+                <input
+                  id="client_phone"
+                  value={clientPhoneInput}
+                  onChange={(event) => setClientPhoneInput(event.target.value)}
+                  placeholder="Ej. 5491122334455"
+                  className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                />
+              </div>
+              {selectedClient ? (
+                <p className="text-xs text-emerald-700">
+                  Cliente seleccionado: {selectedClient.name}
+                </p>
+              ) : clientNameInput.trim() || clientPhoneInput.trim() ? (
+                <p className="text-xs text-zinc-500">
+                  Si no existe, se creará o actualizará al cobrar.
+                </p>
+              ) : (
+                <p className="text-xs text-zinc-500">
+                  Puedes cobrar sin cargar cliente.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-[1.2fr_1fr]">
           <div className="rounded-xl border border-zinc-200 p-4">
@@ -2041,6 +2381,138 @@ export default function PosClient({
                   {successMessage}
                 </div>
               )}
+              {lastSaleShareState?.saleId ? (
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+                  <p className="text-xs font-semibold tracking-[0.14em] text-emerald-800 uppercase">
+                    Acciones post-venta
+                  </p>
+                  <p className="mt-1 text-xs text-emerald-900">
+                    {lastSaleShareState.clientName
+                      ? `Cliente: ${lastSaleShareState.clientName}`
+                      : `Comprobante de ${orgName}`}
+                    {lastSaleShareState.clientPhone
+                      ? ` · WhatsApp: ${lastSaleShareState.clientPhone}`
+                      : ' · Sin WhatsApp cargado'}
+                  </p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={resetForNewSale}
+                      className="rounded border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700"
+                    >
+                      Nueva venta
+                    </button>
+                    <a
+                      href={`/sales/${lastSaleShareState.saleId}`}
+                      className="rounded border border-zinc-300 bg-white px-4 py-3 text-center text-sm font-semibold text-zinc-700"
+                    >
+                      Ver venta
+                    </a>
+                    <button
+                      type="button"
+                      onClick={handlePrintTicket}
+                      className="rounded border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700"
+                    >
+                      Imprimir ticket
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleShareLastTicketByWhatsApp}
+                      disabled={
+                        shareLoading || !lastSaleShareState.clientPhone?.trim()
+                      }
+                      className={`rounded px-4 py-3 text-sm font-semibold ${
+                        shareLoading || !lastSaleShareState.clientPhone?.trim()
+                          ? 'cursor-not-allowed border border-zinc-200 bg-zinc-100 text-zinc-400'
+                          : 'border border-emerald-300 bg-white text-emerald-700'
+                      }`}
+                    >
+                      {shareLoading
+                        ? 'Preparando WhatsApp...'
+                        : 'Compartir ticket por WhatsApp'}
+                    </button>
+                    {lastSaleShareState.invoiceReady ? (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!lastSaleShareState?.saleId || shareLoading) {
+                            return;
+                          }
+                          setShareLoading(true);
+                          setErrorMessage(null);
+                          try {
+                            const response = await fetch(
+                              `/api/sales/${lastSaleShareState.saleId}/invoice-share`,
+                              {
+                                method: 'POST',
+                                headers: {
+                                  'content-type': 'application/json',
+                                },
+                              },
+                            );
+                            const payload = (await response
+                              .json()
+                              .catch(() => null)) as {
+                              ok?: boolean;
+                              whatsappUrl?: string;
+                              error?: string;
+                            } | null;
+                            if (
+                              !response.ok ||
+                              !payload?.ok ||
+                              !payload.whatsappUrl
+                            ) {
+                              throw new Error(
+                                payload?.error ??
+                                  'No pudimos preparar el link de la factura.',
+                              );
+                            }
+                            const opened = window.open(
+                              payload.whatsappUrl,
+                              '_blank',
+                              'noopener,noreferrer',
+                            );
+                            if (!opened) {
+                              throw new Error(
+                                'Habilita pop-ups para abrir WhatsApp.',
+                              );
+                            }
+                          } catch (error) {
+                            setErrorMessage(
+                              error instanceof Error
+                                ? error.message
+                                : 'No pudimos preparar el link de la factura.',
+                            );
+                          } finally {
+                            setShareLoading(false);
+                          }
+                        }}
+                        disabled={
+                          shareLoading ||
+                          !lastSaleShareState.clientPhone?.trim()
+                        }
+                        className={`rounded px-4 py-3 text-sm font-semibold ${
+                          shareLoading ||
+                          !lastSaleShareState.clientPhone?.trim()
+                            ? 'cursor-not-allowed border border-zinc-200 bg-zinc-100 text-zinc-400'
+                            : 'border border-emerald-300 bg-white text-emerald-700'
+                        }`}
+                      >
+                        {shareLoading
+                          ? 'Preparando WhatsApp...'
+                          : 'Compartir factura por WhatsApp'}
+                      </button>
+                    ) : null}
+                  </div>
+                  {!lastSaleShareState.clientPhone?.trim() ? (
+                    <p className="mt-2 text-xs text-zinc-600">
+                      Esta venta no tiene WhatsApp cargado; puedes reenviar el
+                      ticket luego desde Ventas cuando el cliente tenga
+                      teléfono.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
 
               <button
                 type="button"
@@ -2054,6 +2526,26 @@ export default function PosClient({
               >
                 Imprimir ticket
               </button>
+              {localPrintSettings?.mode === 'local_agent' ? (
+                <p
+                  className={`mt-2 text-xs ${
+                    localPrintAgentReachable === false
+                      ? 'text-amber-700'
+                      : 'text-zinc-500'
+                  }`}
+                >
+                  {localPrintAgentReachable === true
+                    ? `Modo directo activo (${localPrintSettings.printerTarget}).`
+                    : localPrintAgentReachable === false
+                      ? 'Agente local no disponible. Si falla la impresion directa, se usara el navegador.'
+                      : 'Verificando disponibilidad del agente local...'}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-zinc-500">
+                  Modo navegador activo. Puedes cambiarlo en Settings &gt;
+                  Tickets e impresion.
+                </p>
+              )}
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <button
                   type="button"

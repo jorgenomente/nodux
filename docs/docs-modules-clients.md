@@ -13,6 +13,7 @@
 Gestionar clientes y pedidos especiales sin descontar stock hasta el cobro:
 
 - registrar clientes
+- identificar opcionalmente clientes desde POS para vincular ventas
 - crear pedidos especiales con ítems reales
 - coordinar con pedidos a proveedor
 - entregar y cobrar desde POS
