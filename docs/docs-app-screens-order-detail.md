@@ -104,6 +104,7 @@ RPC status change:
   - received_qty por item (default = ordered_qty)
   - fecha/hora de recepción editable
   - nombre de quien controla (obligatorio) + autofirma
+  - el submit final no se dispara con tecla `Enter`; la confirmación ocurre solo por click explícito en `Confirmar recepción` / `Confirmar control`
 - Confirmar recepción/control:
   - registra received_at (manual)
   - registra controlado por (nombre + user)
@@ -131,6 +132,12 @@ RPC status change:
   - default: categorías actuales del producto
   - editable como texto con hashtags
   - al confirmar recepción se actualiza inmediatamente el maestro del producto.
+- Campos adicionales en recepción para completar maestro:
+  - `marca` (`products.brand`): default a la marca actual del producto, editable desde la recepción y persistida al confirmar.
+    - mientras se escribe, la UI sugiere marcas ya registradas en la org para reducir duplicados por mayúsculas/minúsculas, espacios o variantes de escritura.
+  - `categoria` (`products.category_tags`): además de ser editable en recepción, su input muestra hashtags ya registrados y coincidencias parecidas para mantener consistencia del maestro.
+  - `vencimiento aproximado (dias)` (`products.shelf_life_days`): default al valor actual del producto, editable desde la recepción y persistido al confirmar.
+  - `fecha exacta de vencimiento`: input calendario por ítem que calcula automáticamente `vencimiento aproximado (dias)` usando la fecha/hora de recepción como base.
 - Este ajuste de precio de venta es independiente del remito/factura y del cálculo de cuentas por pagar.
 - Compatibilidad legacy:
   - si existe un pedido en estado `received` (flujo anterior), el control final lo pasa a `reconciled` guardando fecha y firma.
@@ -147,6 +154,18 @@ RPC status change:
 - Segundo entry point factura/remito:
   - en la misma pantalla existe “Registrar factura/remito (opcional)” con los mismos campos operativos de `/payments`.
   - permite capturar número, monto, vencimiento, método seleccionado, foto y nota al momento de recibir/controlar.
+- Segundo entry point agregar productos:
+  - debajo de la aclaración de `PRECIO VENTA (UNITARIO)` existe CTA visible `¿Hay productos en el remito que no están en esta lista? Agrega productos aquí`.
+  - abre modal con dos pestañas:
+    - `Productos existentes`: buscador, selección múltiple y opción por producto para vincular el proveedor actual como `primario`, `secundario` o no asignarlo, además de completar `Nombre de articulo en el proveedor` y `SKU`.
+    - `Nuevo producto`: alta rápida mínima dentro del mismo flujo de recepción.
+      - `Nombre de articulo en la tienda` muestra sugerencias del catálogo y alertas de posible duplicado semántico.
+      - `Marca` y `Categoria` muestran sugerencias del maestro existente para evitar variantes nuevas innecesarias.
+  - al confirmar:
+    - el producto se agrega realmente al pedido (`supplier_order_items`) con `ordered_qty = 0` para distinguirlo del pedido original
+    - si corresponde, también se persiste la relación en `supplier_products`
+    - si es producto nuevo, además se crea/actualiza el maestro (`products`) y puede guardar `Cantidad de resguardo` para la sucursal del pedido
+  - después de agregarlo, el ítem aparece en la grilla normal de recepción/control con sus campos operativos (`received_qty`, costo, precio venta, categoría, etc.).
 
 ### A4) Actualizar estado manual (draft/sent)
 

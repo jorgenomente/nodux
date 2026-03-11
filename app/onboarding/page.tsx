@@ -2299,14 +2299,19 @@ export default async function OnboardingPage({
     resolverRowsQuery,
     bulkCountQuery,
     bulkRowsQuery,
-    supabase
-      .from('products' as never)
-      .select('brand')
-      .eq('org_id', orgId)
-      .eq('is_active', true)
-      .not('brand', 'is', null)
-      .order('brand')
-      .limit(5000),
+    fetchAllPages(
+      (from, to) =>
+        supabase
+          .from('products' as never)
+          .select(
+            'id, name, brand, category_tags, internal_code, barcode, is_active',
+          )
+          .eq('org_id', orgId)
+          .eq('is_active', true)
+          .order('name')
+          .range(from, to),
+      { label: 'onboarding_products_suggestions' },
+    ),
   ]);
 
   const tasks = (tasksResult.data ?? []) as OnboardingTaskRow[];
@@ -2359,11 +2364,40 @@ export default async function OnboardingPage({
     (safetyStockResult.data as StockSafetyRow[] | null) ?? [];
   const brandSuggestions = Array.from(
     new Set(
-      ((brandsResult.data ?? []) as Array<{ brand?: string | null }>)
+      (brandsResult as Array<{ brand?: string | null }>)
         .map((product) => String(product.brand ?? '').trim())
         .filter(Boolean),
     ),
   ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+  const categoryTagSuggestions = Array.from(
+    new Set(
+      (brandsResult as Array<{ category_tags?: string[] | null }>).flatMap(
+        (product) =>
+          Array.isArray(product.category_tags)
+            ? product.category_tags
+                .map((tag) => String(tag ?? '').trim())
+                .filter(Boolean)
+            : [],
+      ),
+    ),
+  ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+  const productNameSuggestions = (
+    brandsResult as Array<{
+      id?: string;
+      name?: string;
+      brand?: string | null;
+      barcode?: string | null;
+      internal_code?: string | null;
+      is_active?: boolean | null;
+    }>
+  ).map((product) => ({
+    product_id: String(product.id ?? ''),
+    name: String(product.name ?? ''),
+    brand: product.brand ?? null,
+    barcode: product.barcode ?? null,
+    internal_code: product.internal_code ?? null,
+    is_active: Boolean(product.is_active),
+  }));
 
   const bulkRelations =
     (bulkRelationsResult.data as SupplierProductRelationRow[] | null) ?? [];
@@ -2950,6 +2984,8 @@ export default async function OnboardingPage({
                           <ProductFormFieldsShared
                             suppliers={suppliers}
                             brandSuggestions={brandSuggestions}
+                            categoryTagSuggestions={categoryTagSuggestions}
+                            productNameSuggestions={productNameSuggestions}
                             compact
                             includeImageField={false}
                             fields={{

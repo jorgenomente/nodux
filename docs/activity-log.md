@@ -18,6 +18,247 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-03-11 12:23 -03 — Orders: copy `marcarlo como enviado` en modal PDF
+
+**Tipo:** ui/docs
+**Lote:** orders-pdf-modal-sent-copy
+**Descripción:** Se ajustó el copy del modal de preparación de pedido en `/orders` para que el texto posterior a `Guardar PDF` deje de decir `registrar el pedido ahora mismo` y pase a `marcarlo como enviado`.
+
+**Archivos afectados:**
+
+- app/orders/OrderDraftShareActions.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 15:12 -03 — Sugerencias compartidas para nombre, marca y categoría en productos/recepción
+
+**Tipo:** ui/docs/tests
+**Lote:** products-shared-suggestions-name-brand-category
+**Descripción:** Se extendió la lógica anti-duplicado del catálogo a los formularios compartidos de producto y al alta rápida desde remito. `Nombre de articulo en la tienda` ahora muestra coincidencias por tokens del catálogo; `Marca` y `Categoria` muestran sugerencias existentes y coincidencias parecidas. Esto quedó aplicado en alta/edición de `/products`, resolvedor de `/onboarding`, recepción de `/orders/[orderId]` y el modal `Agregar productos al remito`.
+
+**Archivos afectados:**
+
+- app/products/ProductFormFieldsShared.tsx
+- app/products/NewProductForm.tsx
+- app/products/ProductActions.tsx
+- app/products/ProductListClient.tsx
+- app/products/page.tsx
+- app/suppliers/[supplierId]/page.tsx
+- app/onboarding/page.tsx
+- app/orders/ReceiveItemsPricingClient.tsx
+- app/orders/ReceiveOrderAddProductsButton.tsx
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-products.md
+- docs/docs-app-screens-order-detail.md
+- docs/docs-modules-supplier-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 15:00 -03 — Orders: sugerencias de marca en recepción
+
+**Tipo:** ui/docs/tests
+**Lote:** orders-receive-brand-suggestions
+**Descripción:** Se conectó el input `Marca` de la recepción/control en `/orders/[orderId]` con el catálogo de marcas ya registradas en la org. Ahora muestra autocompletado por `datalist`, detecta match exacto y sugiere `Marcas parecidas` mientras se escribe, siguiendo la misma lógica de higiene de catálogo usada en `/products`.
+
+**Archivos afectados:**
+
+- app/orders/[orderId]/page.tsx
+- app/orders/ReceiveItemsPricingClient.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/docs-modules-supplier-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 14:53 -03 — Orders: bloqueo de submit por Enter en recepción
+
+**Tipo:** ui/docs/tests
+**Lote:** orders-receive-disable-enter-submit
+**Descripción:** Se agregó un guard client-side sobre el formulario `Recibir y controlar mercadería` para bloquear submit por tecla `Enter` en inputs de la pantalla. El flujo ahora solo se confirma mediante click explícito en `Confirmar recepción` o `Confirmar control`, reduciendo cierres accidentales mientras se cargan datos del remito.
+
+**Archivos afectados:**
+
+- app/orders/PreventEnterSubmit.tsx
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 14:48 -03 — Orders: fecha exacta de vencimiento en recepción
+
+**Tipo:** ui/docs/tests
+**Lote:** orders-receive-exact-expiry-date
+**Descripción:** Se agregó a la recepción/control de `/orders/[orderId]` un input tipo calendario `Fecha exacta de vencimiento` por artículo. Al cargarlo, la UI calcula automáticamente `Vencimiento aproximado (dias)` tomando como base la fecha/hora de recepción actual; si esa fecha cambia, el cálculo se actualiza. En backend, al confirmar recepción se vuelve a derivar `products.shelf_life_days` desde esa fecha exacta para persistir el dato del maestro sin depender solo del cálculo cliente.
+
+**Archivos afectados:**
+
+- app/orders/[orderId]/page.tsx
+- app/orders/ReceiveItemsPricingClient.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/docs-modules-supplier-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 13:39 -03 — Payments: badge de factura/remito ya registrada
+
+**Tipo:** ui/docs/tests
+**Lote:** payments-invoice-registered-badge
+**Descripción:** Se agregó en la tarjeta de `/payments` una indicación visual junto al desplegable `Registrar factura/remito` cuando la cuenta por pagar ya tiene datos cargados de factura/remito. La señal busca hacer visible que ese pedido ya completó esa información previamente, incluyendo el flujo donde se registra desde recepción en `/orders/[orderId]`.
+
+**Archivos afectados:**
+
+- app/payments/page.tsx
+- docs/docs-app-screens-payments.md
+- docs/docs-modules-supplier-payments.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 13:31 -03 — Orders: marca y vencimiento aproximado en recepción
+
+**Tipo:** ui/docs/tests
+**Lote:** orders-receive-master-data-brand-shelf-life
+**Descripción:** Se extendió la recepción/control de `/orders/[orderId]` para que cada ítem permita editar también `Marca` y `Vencimiento aproximado (dias)`, además de `Categoria` y `Precio venta`. Los valores se precargan desde `products` y, al confirmar recepción, se persisten en el maestro junto con el resto de metadata operativa, siguiendo la lógica de completar catálogo progresivamente desde el remito real.
+
+**Archivos afectados:**
+
+- app/orders/[orderId]/page.tsx
+- app/orders/ReceiveItemsPricingClient.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/docs-modules-supplier-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 13:24 -03 — Orders: lista con scroll y copy introductorio en modal de recepción
+
+**Tipo:** ui/docs/tests
+**Lote:** orders-receive-extra-products-scroll-copy
+**Descripción:** Se encapsuló la lista de productos existentes del modal `Agregar productos al remito` dentro de un contenedor con scroll propio para evitar que el alto del modal crezca con todo el catálogo. También se reemplazó el texto introductorio por una versión más clara: `Si corresponde, puedes asignar este proveedor a los articulos que selecciones`.
+
+**Archivos afectados:**
+
+- app/orders/ReceiveOrderAddProductsButton.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 13:18 -03 — Orders: copy de asignación de proveedor en recepción
+
+**Tipo:** ui/docs/tests
+**Lote:** orders-receive-extra-products-copy
+**Descripción:** Se ajustó el label del modal `Agregar productos al remito` para reemplazar `Relación con {proveedor}` por `Asignar este articulo a {proveedor}`, mejorando la comprensión del selector de relación proveedor-producto tanto para artículos existentes como para alta rápida.
+
+**Archivos afectados:**
+
+- app/orders/ReceiveOrderAddProductsButton.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 13:13 -03 — Orders: agregar productos extra del remito en recepción
+
+**Tipo:** ui/docs/tests
+**Lote:** orders-receive-extra-products-entrypoint
+**Descripción:** En `/orders/[orderId]` se agregó un segundo entry point dentro de recepción/control para sumar productos que aparecen en el remito pero no en el pedido original. Debajo de la aclaración de `PRECIO VENTA (UNITARIO)` ahora existe un CTA que abre un modal con dos pestañas: `Productos existentes` (buscador, selección múltiple, relación primario/secundario/no asignar con el proveedor actual, `Nombre de articulo en el proveedor` y `SKU`) y `Nuevo producto` (alta rápida mínima dentro del mismo flujo). Al confirmar, el producto se inserta realmente en `supplier_order_items` con `ordered_qty = 0`, puede persistir relación en `supplier_products`, y si es alta nueva también crea/actualiza el maestro con metadata operativa y `Cantidad de resguardo` en la sucursal del pedido.
+
+**Archivos afectados:**
+
+- app/orders/[orderId]/page.tsx
+- app/orders/ReceiveItemsPricingClient.tsx
+- app/orders/ReceiveOrderAddProductsButton.tsx
+- docs/docs-app-screens-order-detail.md
+- docs/docs-modules-supplier-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 12:20 -03 — Orders: submit actions dentro del modal tras `Guardar PDF`
+
+**Tipo:** ui/docs
+**Lote:** orders-pdf-modal-submit-entrypoint
+**Descripción:** Se ajustó el modal de preparación de pedido en `/orders` para que, después de usar `Guardar PDF`, aparezcan ahí mismo `Guardar borrador` y `Enviar pedido` como segundo entry point del submit. Esto permite cerrar el flujo operativo sin volver al pie del formulario.
+
+**Archivos afectados:**
+
+- app/orders/OrderDraftShareActions.tsx
+- docs/docs-app-screens-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+
+**Commit:** N/A
+
 ## 2026-03-11 12:07 -03 — Orders: fix de `Guardar PDF` sin popup `about:blank`
 
 **Tipo:** ui/docs

@@ -37,6 +37,7 @@ Operar pagos de pedidos por sucursal con trazabilidad y visibilidad de urgencias
 - al enviar/recibir/controlar pedido, se sincroniza la cuenta por pagar.
 - `/orders` muestra `payment_state`, vencimiento y saldo.
 - `/payments` muestra además `order_status` para distinguir pendiente por recibir vs controlado.
+- si la factura/remito ya fue cargada previamente desde recepción/control u otro entry point, `/payments` lo señala visualmente en la tarjeta para evitar duplicidad operativa.
 
 4. Métodos de pago MVP:
 

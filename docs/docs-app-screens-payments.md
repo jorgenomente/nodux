@@ -60,6 +60,7 @@ Cada card muestra:
 Acciones por card:
 
 - acciones de factura y pago en secciones colapsables (desplegable por botón) para reducir carga visual en listado.
+- en el desplegable `Registrar factura/remito`, si la cuenta ya tiene datos cargados (`invoice_reference`, monto, foto o nota), la UI muestra un badge visible tipo `Factura registrada en recepción` para indicar que ese pedido ya fue completado previamente y evitar trabajo duplicado.
 - actualizar datos de factura (`invoice_amount`, `due_on`, método seleccionado, observación, foto/remito URL)
 - actualizar datos de factura/remito (`invoice_reference`, `invoice_amount`, `due_on`, método seleccionado, observación, foto/remito URL)
 - registrar pago (`amount`, `paid_at` fecha/hora, `payment_method`, cuenta de transferencia opcional, referencia, nota)

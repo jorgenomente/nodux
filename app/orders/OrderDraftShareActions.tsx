@@ -87,6 +87,7 @@ export default function OrderDraftShareActions({
     'print',
   );
   const [selectedColumns, setSelectedColumns] = useState(defaultColumns);
+  const [hasPrintedPdf, setHasPrintedPdf] = useState(false);
 
   const selectedItems = useMemo(
     () => items.filter((item) => Number.isFinite(item.qty) && item.qty > 0),
@@ -103,6 +104,7 @@ export default function OrderDraftShareActions({
 
   const openModal = (action: 'print' | 'whatsapp') => {
     setPreferredAction(action);
+    setHasPrintedPdf(false);
     setOpen(true);
   };
 
@@ -246,6 +248,7 @@ export default function OrderDraftShareActions({
 
   const handlePrint = () => {
     if (selectedItems.length === 0 || !hasSelectedColumns) return;
+    setHasPrintedPdf(true);
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
     iframe.style.right = '0';
@@ -350,7 +353,10 @@ export default function OrderDraftShareActions({
               </div>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false);
+                  setHasPrintedPdf(false);
+                }}
                 className="rounded border border-zinc-300 px-3 py-2 text-sm text-zinc-700"
               >
                 Cerrar
@@ -466,10 +472,28 @@ export default function OrderDraftShareActions({
               </section>
             </div>
 
+            {preferredAction === 'print' && hasPrintedPdf && submitActions ? (
+              <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                <p className="text-sm font-semibold text-emerald-900">
+                  PDF preparado
+                </p>
+                <p className="mt-1 text-sm text-emerald-700">
+                  Si ya está listo para enviarse al proveedor, puedes guardarlo
+                  como borrador o marcarlo como enviado.
+                </p>
+                <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+                  {submitActions}
+                </div>
+              </div>
+            ) : null}
+
             <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false);
+                  setHasPrintedPdf(false);
+                }}
                 className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700"
               >
                 Cerrar

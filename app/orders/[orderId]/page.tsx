@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
@@ -6,7 +7,9 @@ import AmountInputAR from '@/app/components/AmountInputAR';
 import PageShell from '@/app/components/PageShell';
 import { parseProductCategoryTags } from '@/app/products/product-category-tags';
 import OrderSuggestionsClient from '@/app/orders/OrderSuggestionsClient';
+import PreventEnterSubmit from '@/app/orders/PreventEnterSubmit';
 import ReceiveItemsPricingClient from '@/app/orders/ReceiveItemsPricingClient';
+import ReceiveOrderAddProductsButton from '@/app/orders/ReceiveOrderAddProductsButton';
 import ReceiveActionsRow from '@/app/orders/ReceiveActionsRow';
 import InvoiceImageField from '@/app/payments/InvoiceImageField';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
@@ -16,6 +19,7 @@ import {
   resolveStaffHome,
 } from '@/lib/auth/staff-modules';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
+import { fetchAllPages } from '@/lib/supabase/fetch-all-pages';
 
 type OrderDetailRow = {
   order_id: string;
@@ -84,6 +88,8 @@ type ProductPriceRow = {
   id: string;
   unit_price: number | null;
   category_tags: string[] | null;
+  brand: string | null;
+  shelf_life_days: number | null;
 };
 
 type OrgPreferencesMarkupRow = {
@@ -95,6 +101,26 @@ type SupplierProductPriceRow = {
   supplier_id: string;
   relation_type: 'primary' | 'secondary';
   supplier_price: number | null;
+};
+
+type ProductCatalogOptionRow = {
+  id: string;
+  name: string;
+  brand: string | null;
+  category_tags: string[] | null;
+  barcode: string | null;
+  internal_code: string | null;
+  is_active: boolean;
+};
+
+type SupplierProductRelationRow = {
+  product_id: string;
+  relation_type: 'primary' | 'secondary';
+  supplier_product_name: string | null;
+};
+
+type BrandSuggestionRow = {
+  brand: string | null;
 };
 
 const formatStatusLabel = (status: string) => {
@@ -125,6 +151,35 @@ const formatCurrency = (value: number) =>
 const ESTIMATE_NOTE =
   'Aproximado. El monto real se confirma con remito/factura.';
 const normalizeNotice = (value: string) => value.replaceAll(' ', '_');
+
+const throwIfError = (
+  error: { message: string } | null,
+  context: string,
+): void => {
+  if (error) {
+    throw new Error(`${context}: ${error.message}`);
+  }
+};
+
+const mapProductUpsertError = (error: { message?: string; code?: string }) => {
+  const message = String(error.message ?? '').toLowerCase();
+  if (error.code === '23505' || message.includes('duplicate key')) {
+    if (message.includes('products_org_barcode_normalized_uq')) {
+      return 'Ya existe otro producto con ese código de barras (normalizado).';
+    }
+    if (message.includes('products_org_name_normalized_uq')) {
+      return 'Ya existe otro producto con un nombre equivalente.';
+    }
+    if (message.includes('products_org_internal_code_uq')) {
+      return 'Ya existe otro producto con ese código interno.';
+    }
+    if (message.includes('products_org_barcode_uq')) {
+      return 'Ya existe otro producto con ese código de barras.';
+    }
+    return 'Ya existe un producto duplicado en este catálogo.';
+  }
+  return error.message ?? 'No se pudo guardar el producto.';
+};
 
 const statusOptions = [
   { value: 'draft', label: 'Borrador' },
@@ -281,7 +336,7 @@ export default async function OrderDetailPage({
     suggestionIds && suggestionIds.length > 0
       ? await supabase
           .from('products')
-          .select('id, unit_price, category_tags')
+          .select('id, unit_price, category_tags, brand, shelf_life_days')
           .eq('org_id', orgId)
           .in('id', suggestionIds)
       : { data: [] };
@@ -296,10 +351,17 @@ export default async function OrderDetailPage({
       : { data: [] };
   const priceByProduct = new Map<string, number>();
   const categoryTagsByProduct = new Map<string, string[]>();
+  const brandByProduct = new Map<string, string>();
+  const shelfLifeByProduct = new Map<string, number | null>();
   (suggestionPrices as ProductPriceRow[] | null)?.forEach((row) => {
     if (!row.id) return;
     priceByProduct.set(row.id, Number(row.unit_price ?? 0));
     categoryTagsByProduct.set(row.id, row.category_tags ?? []);
+    brandByProduct.set(row.id, String(row.brand ?? ''));
+    shelfLifeByProduct.set(
+      row.id,
+      row.shelf_life_days == null ? null : Number(row.shelf_life_days),
+    );
   });
   const priceByProductRecord: Record<string, number> = {};
   priceByProduct.forEach((value, key) => {
@@ -308,6 +370,14 @@ export default async function OrderDetailPage({
   const categoryTagsByProductRecord: Record<string, string[]> = {};
   categoryTagsByProduct.forEach((value, key) => {
     categoryTagsByProductRecord[key] = value;
+  });
+  const brandByProductRecord: Record<string, string> = {};
+  brandByProduct.forEach((value, key) => {
+    brandByProductRecord[key] = value;
+  });
+  const shelfLifeByProductRecord: Record<string, number | null> = {};
+  shelfLifeByProduct.forEach((value, key) => {
+    shelfLifeByProductRecord[key] = value;
   });
   const supplierPriceByProductRecord: Record<string, number> = {};
   (supplierProductPrices as SupplierProductPriceRow[] | null)?.forEach(
@@ -323,6 +393,99 @@ export default async function OrderDetailPage({
     if (!item.product_id) return;
     existingItemQuantities[item.product_id] = Number(item.ordered_qty ?? 0);
   });
+  const canReceive = order.status === 'sent' || order.status === 'received';
+  const receiveProductCatalog = canReceive
+    ? await fetchAllPages<ProductCatalogOptionRow>(
+        (from, to) =>
+          supabase
+            .from('products')
+            .select(
+              'id, name, brand, category_tags, barcode, internal_code, is_active',
+            )
+            .eq('org_id', orgId)
+            .eq('is_active', true)
+            .order('name')
+            .range(from, to),
+        {
+          label: 'order_receive_products',
+        },
+      )
+    : [];
+  const receiveSupplierRelations = canReceive
+    ? await fetchAllPages<SupplierProductRelationRow>(
+        (from, to) =>
+          supabase
+            .from('supplier_products')
+            .select('product_id, relation_type, supplier_product_name')
+            .eq('org_id', orgId)
+            .eq('supplier_id', order.supplier_id)
+            .range(from, to),
+        {
+          label: 'order_receive_supplier_products',
+        },
+      )
+    : [];
+  const receiveBrandSuggestions = canReceive
+    ? await fetchAllPages<BrandSuggestionRow>(
+        (from, to) =>
+          supabase
+            .from('products' as never)
+            .select('brand')
+            .eq('org_id', orgId)
+            .eq('is_active', true)
+            .not('brand', 'is', null)
+            .range(from, to),
+        {
+          label: 'order_receive_brand_suggestions',
+        },
+      )
+    : [];
+  const receiveSupplierRelationByProduct = new Map<
+    string,
+    SupplierProductRelationRow
+  >();
+  receiveSupplierRelations.forEach((row) => {
+    if (!row.product_id) return;
+    receiveSupplierRelationByProduct.set(row.product_id, row);
+  });
+  const receiveProductOptions = receiveProductCatalog.map((product) => {
+    const relation = receiveSupplierRelationByProduct.get(product.id);
+    return {
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      barcode: product.barcode,
+      internalCode: product.internal_code,
+      supplierProductName: relation?.supplier_product_name ?? null,
+      currentRelationType: relation?.relation_type ?? null,
+    };
+  });
+  const receiveProductNameSuggestions = receiveProductCatalog.map((product) => ({
+    product_id: product.id,
+    name: product.name,
+    brand: product.brand,
+    barcode: product.barcode,
+    internal_code: product.internal_code,
+    is_active: product.is_active,
+  }));
+  const receiveBrandSuggestionValues = Array.from(
+    new Set(
+      receiveBrandSuggestions
+        .map((row) => String(row.brand ?? '').trim())
+        .filter(Boolean),
+    ),
+  ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+  const receiveCategoryTagSuggestionValues = Array.from(
+    new Set(
+      receiveProductCatalog.flatMap((product) =>
+        Array.isArray(product.category_tags)
+          ? product.category_tags
+              .map((tag) => String(tag ?? '').trim())
+              .filter(Boolean)
+          : [],
+      ),
+    ),
+  ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
 
   const saveDraftItems = async (formData: FormData) => {
     'use server';
@@ -545,16 +708,59 @@ export default async function OrderDetailPage({
         const categoryTags = parseProductCategoryTags(
           String(formData.get(`category_tags_${item.order_item_id}`) ?? ''),
         );
+        const brand = String(
+          formData.get(`brand_${item.order_item_id}`) ?? '',
+        ).trim();
+        const shelfLifeDaysRaw = String(
+          formData.get(`shelf_life_days_${item.order_item_id}`) ?? '',
+        ).trim();
+        const exactExpiryDateRaw = String(
+          formData.get(`exact_expiry_date_${item.order_item_id}`) ?? '',
+        ).trim();
+        const shelfLifeDaysFromInput =
+          shelfLifeDaysRaw === '' ? null : Number(shelfLifeDaysRaw);
+        let shelfLifeDaysFromExactDate: number | null = null;
+        if (exactExpiryDateRaw) {
+          const receivedDateBase = receivedAtRaw
+            ? new Date(receivedAtRaw)
+            : new Date();
+          const receivedDate = new Date(
+            `${receivedDateBase.toISOString().slice(0, 10)}T00:00:00`,
+          );
+          const exactExpiryDate = new Date(`${exactExpiryDateRaw}T00:00:00`);
+          if (
+            !Number.isNaN(receivedDate.getTime()) &&
+            !Number.isNaN(exactExpiryDate.getTime())
+          ) {
+            shelfLifeDaysFromExactDate = Math.max(
+              0,
+              Math.round(
+                (exactExpiryDate.getTime() - receivedDate.getTime()) /
+                  (24 * 60 * 60 * 1000),
+              ),
+            );
+          }
+        }
         if (!item.order_item_id) return null;
         return {
           order_item_id: item.order_item_id,
           product_id: item.product_id,
           category_tags: categoryTags,
+          brand,
           received_qty:
             Number.isFinite(receivedQty) && receivedQty >= 0 ? receivedQty : 0,
           unit_cost: Number.isFinite(unitCost) && unitCost >= 0 ? unitCost : 0,
           unit_price:
             Number.isFinite(unitPrice) && unitPrice >= 0 ? unitPrice : 0,
+          shelf_life_days:
+            shelfLifeDaysFromExactDate !== null
+              ? shelfLifeDaysFromExactDate
+              : shelfLifeDaysFromInput === null
+                ? null
+                : Number.isFinite(shelfLifeDaysFromInput) &&
+                    shelfLifeDaysFromInput >= 0
+                  ? shelfLifeDaysFromInput
+                  : null,
         };
       })
       .filter(
@@ -564,9 +770,11 @@ export default async function OrderDetailPage({
           order_item_id: string;
           product_id: string | null;
           category_tags: string[];
+          brand: string;
           received_qty: number;
           unit_cost: number;
           unit_price: number;
+          shelf_life_days: number | null;
         } => Boolean(value),
       );
 
@@ -592,6 +800,8 @@ export default async function OrderDetailPage({
             .update({
               unit_price: Number(item.unit_price ?? 0),
               category_tags: item.category_tags,
+              brand: item.brand || null,
+              shelf_life_days: item.shelf_life_days,
             })
             .eq('org_id', orgId)
             .eq('id', String(item.product_id)),
@@ -993,8 +1203,286 @@ export default async function OrderDetailPage({
     redirect(`/orders/${orderId}?notice=expected_receive_updated`);
   };
 
+  const addExistingProductsToReceiveOrder = async (formData: FormData) => {
+    'use server';
+
+    const supabaseServer = await createServerSupabaseClient();
+    const rawItems = String(formData.get('items_json') ?? '[]').trim();
+    let parsedItems: Array<{
+      productId: string;
+      supplierRelation?: 'none' | 'primary' | 'secondary';
+      supplierProductName?: string;
+      supplierSku?: string;
+    }> = [];
+    try {
+      const payload = JSON.parse(rawItems);
+      if (Array.isArray(payload)) {
+        parsedItems = payload as typeof parsedItems;
+      }
+    } catch {
+      parsedItems = [];
+    }
+
+    const sanitizedItems = parsedItems
+      .map((item) => ({
+        productId: String(item.productId ?? '').trim(),
+        supplierRelation: (
+          item.supplierRelation === 'primary' ||
+          item.supplierRelation === 'secondary'
+            ? item.supplierRelation
+            : 'none'
+        ) as 'none' | 'primary' | 'secondary',
+        supplierProductName: String(item.supplierProductName ?? '').trim(),
+        supplierSku: String(item.supplierSku ?? '').trim(),
+      }))
+      .filter((item) => item.productId);
+
+    if (sanitizedItems.length === 0) {
+      redirect(`/orders/${orderId}?notice=no_products_selected`);
+    }
+
+    const productIds = sanitizedItems.map((item) => item.productId);
+    const { data: currentSupplierRows } = await supabaseServer
+      .from('supplier_products')
+      .select(
+        'product_id, supplier_price, supplier_product_name, supplier_sku, relation_type',
+      )
+      .eq('org_id', orgId)
+      .eq('supplier_id', order.supplier_id)
+      .in('product_id', productIds);
+    const supplierRowByProduct = new Map<
+      string,
+      {
+        supplier_price: number | null;
+        supplier_product_name: string | null;
+        supplier_sku: string | null;
+      }
+    >();
+    (
+      currentSupplierRows as Array<{
+        product_id: string;
+        supplier_price: number | null;
+        supplier_product_name: string | null;
+        supplier_sku: string | null;
+      }> | null
+    )?.forEach((row) => {
+      supplierRowByProduct.set(row.product_id, {
+        supplier_price: row.supplier_price,
+        supplier_product_name: row.supplier_product_name,
+        supplier_sku: row.supplier_sku,
+      });
+    });
+
+    await Promise.all(
+      sanitizedItems.map(async (item) => {
+        const currentSupplierMeta = supplierRowByProduct.get(item.productId);
+        await supabaseServer.rpc('rpc_upsert_supplier_order_item', {
+          p_org_id: orgId,
+          p_order_id: orderId,
+          p_product_id: item.productId,
+          p_ordered_qty: 0,
+          p_unit_cost: Number(currentSupplierMeta?.supplier_price ?? 0),
+        });
+
+        if (item.supplierRelation === 'none') return;
+
+        const { error } = await supabaseServer.rpc(
+          'rpc_upsert_supplier_product',
+          {
+            p_org_id: orgId,
+            p_supplier_id: order.supplier_id,
+            p_product_id: item.productId,
+            p_supplier_sku: item.supplierSku || currentSupplierMeta?.supplier_sku || '',
+            p_supplier_product_name:
+              item.supplierProductName ||
+              currentSupplierMeta?.supplier_product_name ||
+              '',
+            p_relation_type: item.supplierRelation,
+            p_supplier_price:
+              currentSupplierMeta?.supplier_price == null
+                ? undefined
+                : Number(currentSupplierMeta.supplier_price),
+          },
+        );
+        throwIfError(error, 'No se pudo vincular proveedor al producto');
+      }),
+    );
+
+    revalidatePath(`/orders/${orderId}`);
+    revalidatePath('/orders');
+    revalidatePath('/products');
+    revalidatePath(`/suppliers/${order.supplier_id}`);
+    redirect(`/orders/${orderId}?notice=receive_products_added`);
+  };
+
+  const createProductFromReceiveOrder = async (formData: FormData) => {
+    'use server';
+
+    const supabaseServer = await createServerSupabaseClient();
+    const admin = createAdminSupabaseClient();
+    const productId = randomUUID();
+    const name = String(formData.get('name') ?? '').trim();
+    const brand = String(formData.get('brand') ?? '').trim();
+    const internalCode = String(formData.get('internal_code') ?? '').trim();
+    const barcode = String(formData.get('barcode') ?? '').trim();
+    const categoryTags = parseProductCategoryTags(
+      String(formData.get('category_tags') ?? ''),
+    );
+    const unitPrice = Number(String(formData.get('unit_price') ?? '0').trim());
+    const supplierPriceRaw = String(formData.get('supplier_price') ?? '').trim();
+    const supplierPrice =
+      supplierPriceRaw === '' ? null : Number(supplierPriceRaw);
+    const sellUnitType = String(
+      formData.get('sell_unit_type') ?? 'unit',
+    ) as 'unit' | 'weight' | 'bulk';
+    const uom = String(formData.get('uom') ?? 'unit').trim() || 'unit';
+    const purchaseByPack = formData.get('purchase_by_pack') === 'on';
+    const unitsPerPackRaw = String(formData.get('units_per_pack') ?? '').trim();
+    const unitsPerPack =
+      purchaseByPack && unitsPerPackRaw !== '' ? Number(unitsPerPackRaw) : null;
+    const shelfLifeDaysRaw = String(
+      formData.get('shelf_life_days') ?? '',
+    ).trim();
+    const shelfLifeDays =
+      shelfLifeDaysRaw === '' ? null : Number(shelfLifeDaysRaw);
+    const safetyStockRaw = String(formData.get('safety_stock') ?? '').trim();
+    const safetyStock =
+      safetyStockRaw === '' ? null : Number(safetyStockRaw);
+    const supplierRelationRaw = String(
+      formData.get('supplier_relation') ?? 'primary',
+    ).trim();
+    const supplierRelation =
+      supplierRelationRaw === 'primary' || supplierRelationRaw === 'secondary'
+        ? supplierRelationRaw
+        : 'none';
+    const supplierProductName = String(
+      formData.get('supplier_product_name') ?? '',
+    ).trim();
+    const supplierSku = String(formData.get('supplier_sku') ?? '').trim();
+
+    if (!name) {
+      throw new Error('Debes completar el nombre del producto.');
+    }
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      throw new Error('El precio unitario debe ser mayor o igual a 0.');
+    }
+    if (
+      supplierPrice !== null &&
+      (!Number.isFinite(supplierPrice) || supplierPrice < 0)
+    ) {
+      throw new Error('El precio proveedor debe ser mayor o igual a 0.');
+    }
+    if (
+      purchaseByPack &&
+      (unitsPerPack == null || !Number.isFinite(unitsPerPack) || unitsPerPack < 2)
+    ) {
+      throw new Error('Si se compra por paquete, debes indicar al menos 2 unidades por paquete.');
+    }
+    if (
+      shelfLifeDays !== null &&
+      (!Number.isFinite(shelfLifeDays) || shelfLifeDays < 0)
+    ) {
+      throw new Error('El vencimiento aproximado debe ser mayor o igual a 0.');
+    }
+    if (
+      safetyStock !== null &&
+      (!Number.isFinite(safetyStock) || safetyStock < 0)
+    ) {
+      throw new Error('La cantidad de resguardo debe ser mayor o igual a 0.');
+    }
+
+    const { error: upsertProductError } = await supabaseServer.rpc(
+      'rpc_upsert_product',
+      {
+        p_product_id: productId,
+        p_org_id: orgId,
+        p_name: name,
+        p_internal_code: internalCode,
+        p_barcode: barcode,
+        p_sell_unit_type: sellUnitType,
+        p_uom: uom,
+        p_unit_price: unitPrice,
+        p_is_active: true,
+        p_shelf_life_days: shelfLifeDays,
+      },
+    );
+    if (upsertProductError) {
+      throw new Error(mapProductUpsertError(upsertProductError));
+    }
+
+    const { error: metadataError } = await admin
+      .from('products' as never)
+      .update(
+        {
+          brand: brand || null,
+          category_tags: categoryTags,
+          purchase_by_pack: purchaseByPack,
+          units_per_pack: purchaseByPack ? unitsPerPack : null,
+        } as never,
+      )
+      .eq('org_id', orgId)
+      .eq('id', productId);
+    throwIfError(metadataError, 'No se pudo guardar metadata del producto');
+
+    if (supplierRelation !== 'none') {
+      const { error: upsertSupplierError } = await supabaseServer.rpc(
+        'rpc_upsert_supplier_product',
+        {
+          p_org_id: orgId,
+          p_supplier_id: order.supplier_id,
+          p_product_id: productId,
+          p_supplier_sku: supplierSku,
+          p_supplier_product_name: supplierProductName,
+          p_relation_type: supplierRelation,
+          p_supplier_price:
+            supplierPrice === null ? undefined : Number(supplierPrice),
+        },
+      );
+      throwIfError(
+        upsertSupplierError,
+        'No se pudo guardar relación del proveedor',
+      );
+    }
+
+    if (safetyStock !== null) {
+      const { error: safetyStockError } = await supabaseServer.rpc(
+        'rpc_set_safety_stock',
+        {
+          p_org_id: orgId,
+          p_branch_id: order.branch_id,
+          p_product_id: productId,
+          p_safety_stock: safetyStock,
+        },
+      );
+      throwIfError(
+        safetyStockError,
+        'No se pudo guardar cantidad de resguardo',
+      );
+    }
+
+    const { error: upsertOrderItemError } = await supabaseServer.rpc(
+      'rpc_upsert_supplier_order_item',
+      {
+        p_org_id: orgId,
+        p_order_id: orderId,
+        p_product_id: productId,
+        p_ordered_qty: 0,
+        p_unit_cost: supplierPrice ?? 0,
+      },
+    );
+    throwIfError(
+      upsertOrderItemError,
+      'No se pudo agregar el producto al pedido',
+    );
+
+    revalidatePath(`/orders/${orderId}`);
+    revalidatePath('/orders');
+    revalidatePath('/products');
+    revalidatePath(`/suppliers/${order.supplier_id}`);
+    redirect(`/orders/${orderId}?notice=receive_product_created`);
+  };
+
   const canEdit = order.status === 'draft';
-  const canReceive = order.status === 'sent' || order.status === 'received';
   const canSetManualStatus =
     order.status === 'draft' || order.status === 'sent';
   const canSetExpectedReceive =
@@ -1042,6 +1530,11 @@ export default async function OrderDetailPage({
         default_unit_price: productUnitPrice > 0 ? productUnitPrice : 0,
         category_tags:
           categoryTagsByProductRecord[productId] ?? item.category_tags ?? [],
+        default_brand: brandByProductRecord[productId] ?? '',
+        default_shelf_life_days:
+          shelfLifeByProductRecord[productId] == null
+            ? ''
+            : String(shelfLifeByProductRecord[productId]),
         markup_pct:
           supplierDefaultMarkupPct > 0 ? supplierDefaultMarkupPct : 40,
       };
@@ -1157,12 +1650,33 @@ export default async function OrderDetailPage({
                               : resolvedSearchParams?.notice ===
                                   'expected_receive_updated'
                                 ? {
-                                    tone: 'success',
-                                    message: 'Fecha estimada actualizada.',
-                                  }
+                                  tone: 'success',
+                                  message: 'Fecha estimada actualizada.',
+                                }
                                 : resolvedSearchParams?.notice ===
-                                    'draft_items_saved'
+                                    'receive_products_added'
                                   ? {
+                                      tone: 'success',
+                                      message:
+                                        'Productos agregados al pedido para continuar la recepción.',
+                                    }
+                                  : resolvedSearchParams?.notice ===
+                                      'receive_product_created'
+                                    ? {
+                                        tone: 'success',
+                                        message:
+                                          'Producto creado y agregado al pedido para continuar la recepción.',
+                                      }
+                                    : resolvedSearchParams?.notice ===
+                                        'no_products_selected'
+                                      ? {
+                                          tone: 'error',
+                                          message:
+                                            'Selecciona al menos un producto para agregar al pedido.',
+                                        }
+                                  : resolvedSearchParams?.notice ===
+                                      'draft_items_saved'
+                                    ? {
                                       tone: 'success',
                                       message: 'Items del borrador guardados.',
                                     }
@@ -1506,73 +2020,91 @@ export default async function OrderDetailPage({
               </details>
             ) : null}
             <form action={receiveOrder} className="mt-4 space-y-4">
-              <div className="grid gap-3 md:grid-cols-2">
-                <label className="text-sm text-zinc-600">
-                  Fecha y hora de recepción
-                  <input
-                    name="received_at"
-                    type="datetime-local"
-                    defaultValue={receiveAtInitialValue}
-                    className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                  />
-                </label>
-                <label className="text-sm text-zinc-600">
-                  Controlado por (nombre)
-                  <input
-                    name="controlled_by_name"
-                    defaultValue={controlledByInitialValue}
-                    className={`mt-1 w-full rounded border px-3 py-2 text-sm ${
-                      isControlledByMissingNotice
-                        ? 'border-rose-400 bg-rose-50'
-                        : 'border-zinc-200'
-                    }`}
-                    placeholder="Ej: Juan Perez"
-                  />
-                  {isControlledByMissingNotice ? (
-                    <span className="mt-1 block text-xs text-rose-600">
-                      Este campo es obligatorio para confirmar control.
+              <PreventEnterSubmit>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="text-sm text-zinc-600">
+                    Fecha y hora de recepción
+                    <input
+                      name="received_at"
+                      type="datetime-local"
+                      defaultValue={receiveAtInitialValue}
+                      className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="text-sm text-zinc-600">
+                    Controlado por (nombre)
+                    <input
+                      name="controlled_by_name"
+                      defaultValue={controlledByInitialValue}
+                      className={`mt-1 w-full rounded border px-3 py-2 text-sm ${
+                        isControlledByMissingNotice
+                          ? 'border-rose-400 bg-rose-50'
+                          : 'border-zinc-200'
+                      }`}
+                      placeholder="Ej: Juan Perez"
+                    />
+                    {isControlledByMissingNotice ? (
+                      <span className="mt-1 block text-xs text-rose-600">
+                        Este campo es obligatorio para confirmar control.
+                      </span>
+                    ) : null}
+                    <span className="mt-1 block text-xs text-zinc-400">
+                      Autofirma: {userLabel}
                     </span>
-                  ) : null}
-                  <span className="mt-1 block text-xs text-zinc-400">
-                    Autofirma: {userLabel}
-                  </span>
-                </label>
-              </div>
-              {order.status === 'received' ? (
-                <p className="text-xs text-zinc-500">
-                  Pedido legado en estado <code>received</code>: esta acción
-                  solo registra el control final (fecha/firma) y lo cierra como
-                  recibido y controlado.
-                </p>
-              ) : null}
-              {isCashSupplier ? (
-                <p className="text-xs text-zinc-500">
-                  Este proveedor opera en efectivo. Si ya pagaste al momento de
-                  la entrega, usa el botón “Pago en efectivo realizado”.
-                </p>
-              ) : null}
-              <ReceiveItemsPricingClient
-                items={receiveItems}
-                disableQtyEditing={order.status === 'received'}
-                defaultApplyTax={initialApplyTax}
-                defaultTaxPct={initialTaxPct}
-                defaultApplyDiscount={initialApplyDiscount}
-                defaultDiscountAmount={initialDiscountAmount}
-              />
-              <ReceiveActionsRow
-                isCashSupplier={isCashSupplier}
-                isPayableAlreadyPaid={isPayableAlreadyPaid}
-                currentPaidAmount={Number(payableStatus?.paid_amount ?? 0)}
-                initialMarkCashPayment={initialMarkCashPayment}
-                initialCashPaidAmount={initialCashPaidAmount}
-                initialIsPartialPayment={initialIsPartialPayment}
-                initialPartialTotalAmount={initialPartialTotalAmount}
-                submitLabel={
-                  order.status === 'received'
-                    ? 'Confirmar control'
-                    : 'Confirmar recepción'
-                }
-              />
+                  </label>
+                </div>
+                {order.status === 'received' ? (
+                  <p className="text-xs text-zinc-500">
+                    Pedido legado en estado <code>received</code>: esta acción
+                    solo registra el control final (fecha/firma) y lo cierra
+                    como recibido y controlado.
+                  </p>
+                ) : null}
+                {isCashSupplier ? (
+                  <p className="text-xs text-zinc-500">
+                    Este proveedor opera en efectivo. Si ya pagaste al momento
+                    de la entrega, usa el botón “Pago en efectivo realizado”.
+                  </p>
+                ) : null}
+                <ReceiveItemsPricingClient
+                  items={receiveItems}
+                  brandSuggestions={receiveBrandSuggestionValues}
+                  categoryTagSuggestions={receiveCategoryTagSuggestionValues}
+                  disableQtyEditing={order.status === 'received'}
+                  defaultApplyTax={initialApplyTax}
+                  defaultTaxPct={initialTaxPct}
+                  defaultApplyDiscount={initialApplyDiscount}
+                  defaultDiscountAmount={initialDiscountAmount}
+                  helperSlot={
+                    <ReceiveOrderAddProductsButton
+                      supplierName={order.supplier_name ?? 'este proveedor'}
+                      products={receiveProductOptions}
+                      productNameSuggestions={receiveProductNameSuggestions}
+                      brandSuggestions={receiveBrandSuggestionValues}
+                      categoryTagSuggestions={receiveCategoryTagSuggestionValues}
+                      currentOrderProductIds={receiveItems.map(
+                        (item) => item.product_id,
+                      )}
+                      onAddExistingProducts={addExistingProductsToReceiveOrder}
+                      onCreateProduct={createProductFromReceiveOrder}
+                    />
+                  }
+                />
+                <ReceiveActionsRow
+                  isCashSupplier={isCashSupplier}
+                  isPayableAlreadyPaid={isPayableAlreadyPaid}
+                  currentPaidAmount={Number(payableStatus?.paid_amount ?? 0)}
+                  initialMarkCashPayment={initialMarkCashPayment}
+                  initialCashPaidAmount={initialCashPaidAmount}
+                  initialIsPartialPayment={initialIsPartialPayment}
+                  initialPartialTotalAmount={initialPartialTotalAmount}
+                  submitLabel={
+                    order.status === 'received'
+                      ? 'Confirmar control'
+                      : 'Confirmar recepción'
+                  }
+                />
+              </PreventEnterSubmit>
             </form>
           </section>
         ) : null}

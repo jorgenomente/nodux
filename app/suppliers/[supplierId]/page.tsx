@@ -133,12 +133,14 @@ export default async function SupplierDetailPage({
         (from, to) =>
           supabase
             .from('products' as never)
-            .select('brand')
+            .select(
+              'id, name, brand, category_tags, internal_code, barcode, is_active',
+            )
             .eq('org_id', orgId)
             .eq('is_active', true)
-            .not('brand', 'is', null)
+            .order('name')
             .range(from, to),
-        { label: 'supplier_detail_page_brands' },
+        { label: 'supplier_detail_page_products_catalog' },
       ),
     ]);
   const paymentAccountsData = paymentAccountsResult.data;
@@ -151,11 +153,47 @@ export default async function SupplierDetailPage({
     new Set(
       brandsForSuggestions
         .map((product) =>
-          String((product as { brand?: string | null }).brand ?? '').trim(),
+          String(
+            (
+              product as {
+                brand?: string | null;
+              }
+            ).brand ?? '',
+          ).trim(),
         )
         .filter(Boolean),
     ),
   ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+  const categoryTagSuggestions = Array.from(
+    new Set(
+      brandsForSuggestions.flatMap((product) =>
+        Array.isArray(
+          (
+            product as {
+              category_tags?: string[] | null;
+            }
+          ).category_tags,
+        )
+          ? (
+              product as {
+                category_tags?: string[] | null;
+              }
+            ).category_tags
+              ?.map((tag) => String(tag ?? '').trim())
+              .filter(Boolean) ?? []
+          : [],
+      ),
+    ),
+  ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+  const productNameSuggestions = brandsForSuggestions.map((product) => ({
+    product_id: String((product as { id?: string }).id ?? ''),
+    name: String((product as { name?: string }).name ?? ''),
+    brand: (product as { brand?: string | null }).brand ?? null,
+    barcode: (product as { barcode?: string | null }).barcode ?? null,
+    internal_code:
+      (product as { internal_code?: string | null }).internal_code ?? null,
+    is_active: Boolean((product as { is_active?: boolean | null }).is_active),
+  }));
   const products = (detailRows as unknown as SupplierDetailRow[])
     .filter((row) => row.product_id)
     .map((row) => ({
@@ -812,6 +850,8 @@ export default async function SupplierDetailPage({
           <NewProductForm
             suppliers={suppliers}
             brandSuggestions={brandSuggestions}
+            categoryTagSuggestions={categoryTagSuggestions}
+            productNameSuggestions={productNameSuggestions}
             onSubmit={createProductFromSupplier}
             defaults={{ primarySupplierId: supplierId }}
             lockPrimarySupplier

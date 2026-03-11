@@ -127,6 +127,9 @@ Reglas anti-duplicado (obligatorias):
   a partir de `brand` + `name` (si `brand` está vacío no genera).
 - En `brand`, la UI muestra alertas/sugerencias de marcas existentes o parecidas
   para reducir duplicados por variaciones ortográficas.
+- En `categoria`, la UI sugiere hashtags ya usados en el catálogo y muestra
+  coincidencias parecidas mientras se escribe para evitar duplicados o variantes
+  casi iguales.
 - Configuración de compra proveedor:
   - si `purchase_by_pack=true`, `units_per_pack` debe ser entero > 1.
   - si `purchase_by_pack=false`, `units_per_pack` debe quedar `null`.

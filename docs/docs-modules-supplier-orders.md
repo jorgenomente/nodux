@@ -158,6 +158,29 @@ En detalle de pedido (`/orders/[orderId]`), el estado `draft` usa edición batch
   - fallback `%` por defecto de la org (`org_preferences.default_supplier_markup_pct`).
 - Al confirmar recepción/control, se actualiza `products.unit_price` inmediatamente para evitar ajuste manual posterior.
 - Esta actualización es operativa de catálogo y no modifica lógica de remito/factura.
+- En el mismo paso, la recepción también puede completar o corregir metadata del maestro del producto:
+  - `products.brand`
+  - `products.category_tags`
+  - `products.shelf_life_days`
+- El input `Marca` en recepción usa catálogo de marcas existente en la org para sugerir coincidencias mientras se escribe y ayudar a mantener un maestro limpio.
+- El input `Categoria` en recepción usa hashtags ya registrados en la org y alerta coincidencias parecidas para evitar categorías duplicadas o casi iguales.
+- Si el usuario conoce la fecha exacta de vencimiento del remito, la UI permite cargarla y derivar automáticamente `products.shelf_life_days` en base a la fecha efectiva de recepción.
+- Objetivo operativo: que el maestro se complete progresivamente mientras entra mercadería real, sin obligar a abrir `/products` para cada ajuste.
+
+### R4.4) Productos extra del remito
+
+- En `/orders/[orderId]` durante recepción/control existe un segundo entry point para sumar productos que llegaron en el remito pero no estaban en el pedido original.
+- El modal permite:
+  - buscar y agregar uno o varios productos existentes
+  - definir si el proveedor actual queda como `primary`, `secondary` o sin relación en `supplier_products`
+  - completar allí mismo `supplier_product_name` y `supplier_sku`
+  - crear un producto nuevo mínimo sin salir del flujo
+  - mientras se completa el producto nuevo, `name`, `brand` y `category_tags` usan sugerencias del maestro existente para prevenir duplicados
+- Cuando se agrega un producto desde recepción:
+  - se persiste en `supplier_order_items` con `ordered_qty = 0` y luego se carga `received_qty` en la misma grilla de control
+  - si se elige relación del proveedor, se persiste con `rpc_upsert_supplier_product(...)`
+  - si es producto nuevo, además se crea el maestro y puede fijarse `stock_items.safety_stock` para la sucursal del pedido
+- Objetivo operativo: permitir que el maestro de productos y relaciones proveedor-producto se complete progresivamente desde la recepción real de mercadería.
 
 ### R4.1) Integración con pagos por proveedor
 

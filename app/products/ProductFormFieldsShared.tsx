@@ -72,6 +72,7 @@ type Props = {
   suppliers: SupplierOption[];
   brandSuggestions?: string[];
   productNameSuggestions?: ProductNameSuggestion[];
+  categoryTagSuggestions?: string[];
   fields: FieldNameMap;
   defaults?: DefaultValueMap;
   compact?: boolean;
@@ -118,6 +119,7 @@ export default function ProductFormFieldsShared({
   suppliers,
   brandSuggestions = [],
   productNameSuggestions = [],
+  categoryTagSuggestions = [],
   fields,
   defaults,
   compact = false,
@@ -128,6 +130,7 @@ export default function ProductFormFieldsShared({
 }: Props) {
   const brandSuggestionsListId = useId();
   const productSuggestionsListId = useId();
+  const categorySuggestionsListId = useId();
   const [primarySupplierId, setPrimarySupplierId] = useState(
     defaults?.primarySupplierId ?? '',
   );
@@ -136,6 +139,9 @@ export default function ProductFormFieldsShared({
   const initialCategoryTags = Array.isArray(defaults?.categoryTags)
     ? formatProductCategoryTags(defaults.categoryTags)
     : (defaults?.categoryTags ?? '');
+  const [categoryTagsValue, setCategoryTagsValue] = useState(
+    initialCategoryTags,
+  );
   const [barcodeValue, setBarcodeValue] = useState(defaults?.barcode ?? '');
   const [internalCodeValue, setInternalCodeValue] = useState(
     defaults?.internalCode ?? '',
@@ -179,6 +185,16 @@ export default function ProductFormFieldsShared({
   const brandTokens = tokenize(brandValue);
   const normalizedBarcodeValue = normalizeBarcode(barcodeValue);
   const normalizedInternalCodeValue = normalizeText(internalCodeValue);
+  const activeCategoryToken = (() => {
+    const tokens = categoryTagsValue
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
+    const lastToken = tokens.at(-1) ?? '';
+    return lastToken
+      ? `#${normalizeText(lastToken.replace(/^#/, '')).replace(/\s+/g, '')}`
+      : '';
+  })();
   const normalizedBrandCatalog = useMemo(
     () =>
       brandSuggestions
@@ -189,6 +205,22 @@ export default function ProductFormFieldsShared({
         }))
         .filter((brand) => brand.normalized),
     [brandSuggestions],
+  );
+  const normalizedCategoryCatalog = useMemo(
+    () =>
+      categoryTagSuggestions
+        .map((tag) => {
+          const normalized = normalizeText(tag.replace(/^#/, '')).replace(
+            /\s+/g,
+            '',
+          );
+          return {
+            raw: normalized ? `#${normalized}` : '',
+            normalized: normalized ? `#${normalized}` : '',
+          };
+        })
+        .filter((tag) => tag.normalized),
+    [categoryTagSuggestions],
   );
   const suggestedProducts = useMemo(() => {
     if (typedTokens.length === 0) return [] as ProductNameSuggestion[];
@@ -286,6 +318,26 @@ export default function ProductFormFieldsShared({
       .slice(0, 4)
       .map((brand) => brand.raw);
   }, [brandTokens, normalizedBrandCatalog, normalizedBrandValue]);
+  const exactCategoryMatch = useMemo(() => {
+    if (!activeCategoryToken) return null;
+    return (
+      normalizedCategoryCatalog.find(
+        (tag) => tag.normalized === activeCategoryToken,
+      ) ?? null
+    );
+  }, [activeCategoryToken, normalizedCategoryCatalog]);
+  const similarCategories = useMemo(() => {
+    if (!activeCategoryToken) return [] as string[];
+    return normalizedCategoryCatalog
+      .filter(
+        (tag) =>
+          tag.normalized !== activeCategoryToken &&
+          (tag.normalized.includes(activeCategoryToken) ||
+            activeCategoryToken.includes(tag.normalized)),
+      )
+      .slice(0, 6)
+      .map((tag) => tag.raw);
+  }, [activeCategoryToken, normalizedCategoryCatalog]);
   useEffect(() => {
     onNameDuplicateStateChange?.(
       exactNameDuplicate ||
@@ -399,13 +451,32 @@ export default function ProductFormFieldsShared({
         {PRODUCT_FORM_LABELS.categoryTags}
         <input
           name={fields.categoryTags}
-          defaultValue={initialCategoryTags}
+          value={categoryTagsValue}
+          onChange={(event) => setCategoryTagsValue(event.target.value)}
           className={inputClass}
           placeholder="#keto #fitness #sintacc"
+          list={categorySuggestionsListId}
         />
         <span className="mt-2 block text-xs text-zinc-500">
           Usa hashtags separados por espacio. Ej: #keto #sinazucar.
         </span>
+        {categoryTagSuggestions.length > 0 ? (
+          <datalist id={categorySuggestionsListId}>
+            {categoryTagSuggestions.map((tag) => (
+              <option key={tag} value={tag} />
+            ))}
+          </datalist>
+        ) : null}
+        {exactCategoryMatch ? (
+          <span className="mt-2 block text-xs text-amber-700">
+            Categoria ya existente: <strong>{exactCategoryMatch.raw}</strong>.
+          </span>
+        ) : null}
+        {!exactCategoryMatch && similarCategories.length > 0 ? (
+          <span className="mt-2 block text-xs text-amber-700">
+            Categorias parecidas: {similarCategories.join(' · ')}
+          </span>
+        ) : null}
       </label>
       <label className={labelClass}>
         {PRODUCT_FORM_LABELS.internalCode}

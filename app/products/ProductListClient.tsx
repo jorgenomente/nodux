@@ -56,6 +56,15 @@ type Props = {
   products: ProductRow[];
   suppliers: SupplierOption[];
   brandSuggestions: string[];
+  categoryTagSuggestions?: string[];
+  productNameSuggestions?: Array<{
+    product_id: string;
+    name: string;
+    brand?: string | null;
+    barcode?: string | null;
+    internal_code?: string | null;
+    is_active?: boolean;
+  }>;
   supplierByProduct: Record<string, SupplierByProductEntry>;
   safetyStockGlobalByProduct: Record<string, number | null>;
   safetyStockByProduct: Record<string, SafetyStockByBranchItem[] | undefined>;
@@ -97,6 +106,8 @@ export default function ProductListClient({
   products,
   suppliers,
   brandSuggestions,
+  categoryTagSuggestions = [],
+  productNameSuggestions = [],
   supplierByProduct,
   safetyStockGlobalByProduct,
   safetyStockByProduct,
@@ -299,6 +310,8 @@ export default function ProductListClient({
                       }
                       suppliers={suppliers}
                       brandSuggestions={brandSuggestions}
+                      categoryTagSuggestions={categoryTagSuggestions}
+                      productNameSuggestions={productNameSuggestions}
                       onSubmit={onUpdate}
                     />
                   ) : null}

@@ -4146,3 +4146,93 @@ ahora que lo pienso no tiene mucho sentido que sea obligatorio el nombre del pro
 
 **Prompt**
 el boton de guardar PDF no parece funcionar me dice about:blank en una ventanita nueva
+
+## 2026-03-11 12:20 -03 — Orders: submit actions después de `Guardar PDF`
+
+**Lote:** orders-pdf-modal-submit-entrypoint
+**Objetivo:** Mostrar dentro del modal de `/orders` los botones `Guardar borrador` y `Enviar pedido` después de usar `Guardar PDF`, como segundo entry point del submit del formulario.
+
+**Prompt**
+ok en el modal de preparar pedido donde se guarda el pdf me gustaria que despues de darle click guardar pdf me aparezcan los botones de guardar como borrador o enviar pedido como un segundo entry point de estos botones en el formulario de nuevo pedido, mas que todo porque en ese punto si ya guarde el pdf es porque voy a hacer el pedido y me gustaria que entonces guardarlo como tal en la app
+
+## 2026-03-11 12:23 -03 — Orders: copy `marcarlo como enviado`
+
+**Lote:** orders-pdf-modal-sent-copy
+**Objetivo:** Ajustar en el modal de `/orders` el texto explicativo posterior a `Guardar PDF` para reemplazar `registrar el pedido ahora mismo` por `marcarlo como enviado`.
+
+**Prompt**
+ahora Si ya está listo para enviarse al proveedor, puedes guardarlo como borrador o registrar el pedido ahora mismo. al final cambiemos registrar el el pedido por marcarlo como enviado
+
+## 2026-03-11 13:13 -03 — Orders: agregar productos extra en recepción
+
+**Lote:** orders-receive-extra-products-entrypoint
+**Objetivo:** Permitir en `/orders/[orderId]` agregar productos que aparecen en el remito pero no en el pedido original, con buscador de productos existentes, alta rápida de producto nuevo y opción de vincular el proveedor actual como primario o secundario dentro del mismo flujo de recepción.
+
+**Prompt**
+ahora en /orders/id a la hora de hacer la recepcion del pedido que sucede si necesito agregar un producto que por alguna razon aparece en el remito pero no en el pedido? supongamos que se equivocaron y mandaron algo de 250g y era de 500g. supongamos que igual se acepta el producto, necesito poder agregar ese producto alli mismo al remito para que coincida con el remito fisico, entonces me gustaria poder tener un boton para agregar producto, entonces podemos agregar debajo de *PRECIO VENTA (UNITARIO): Este sera el precio de venta en el sistema. un texto que diga, hay Hay productos en el remito que no estan en esta lista? agrega productos aqui y entonces se me abra un modal donde tenga un busador y pueda seleccionar uno o varios productos y los pueda agregar, que me de la opcion de asignar proveedor primario a este producto con la opcion del proveedor en el que estoy haciendo el pedido o tambien agregar proveedor secundario. si el producto no existen entonces que haya un boton de nuevo producto y me de un segundo entry point del agregar producto nuevo y lo pueda agregar alli en caso de que sea algo totalmente nuevo. tiene sentido? antes de implementar nada dime que te parece y si me entiendes
+
+Si la idea de esto es que se vaya llenando poco a poco el master de articulos mientras se van recibiendo los pedidos asi como la informacion de proveedores y cada producto. implemente
+
+## 2026-03-11 13:18 -03 — Orders: copy más claro en asignación de proveedor en recepción
+
+**Lote:** orders-receive-extra-products-copy
+**Objetivo:** Ajustar el label del modal de recepción para que la acción de relación proveedor-producto se entienda como una asignación explícita al proveedor actual.
+
+**Prompt**
+perfecto estoy en el modal y veo que dice Relación con Cafes del Puerto SRL en la parte de Agregar productos al remito. no se entiende muy bien. Mejor pongamos algo como asignar a este articulo a [nombre del proveedor
+
+## 2026-03-11 13:24 -03 — Orders: lista scrollable + copy introductorio en modal de recepción
+
+**Lote:** orders-receive-extra-products-scroll-copy
+**Objetivo:** Evitar que el modal de `Agregar productos al remito` crezca con todo el catálogo, encerrando la lista en una sección scrollable propia y aclarando el texto introductorio sobre la asignación opcional del proveedor actual.
+
+**Prompt**
+tambien estoy notando que en ese modal salen todos los productos de una vez, y el tamano se hace tan grande como la cantidad de productos, vamos a encerrar la lista de productos en su propia seccion con su propio escroll para evitar que el modal sea excesivamente largo y vamos a modificar el texto que dice Si corresponde, también deja vinculada la relación con Cafes del Puerto SRL. por Si corresponde, puedes asignar este proveedor a los articulos que selecciones
+
+## 2026-03-11 13:31 -03 — Orders: completar marca y vencimiento aproximado desde recepción
+
+**Lote:** orders-receive-master-data-brand-shelf-life
+**Objetivo:** Extender `/orders/[orderId]` para que, al confirmar recepción, también se puedan cargar `Marca` y `Vencimiento aproximado (dias)` por producto, precargando el valor actual del maestro y persistiéndolo en `products` junto con categoría y precio de venta.
+
+**Prompt**
+perfecto y asi como agregamos un nuevo campo de categoria en /orders/id en el formulario cuando se confirma la recepcion del producto vamos tambien a asignarle un campo mas que es el de fecha de vencimiento aproxiamda (en dias) y este dato va a llenar automaticamente el dato de Vencimiento aproximado (dias) que se coloca en la descripcion del articulo cuando lo creamos o editamos, y asi de esta manera tambien estariamos llenando ese dato del maestro. de la misma manera alli mismo agreguemos el input de marca asi tambien ese dato lo podemos llenar en ese punto y asi nos va quedando guardado todo siguiendo la misma logica. De esta manera a medida que los productos se vayan recibiendo, si se llenan todos estos inputs la primera vez, la proxima vez ya vendran relleneos porque los datos ya habran sido cargados. se entiende?
+
+## 2026-03-11 13:39 -03 — Payments: indicar factura/remito ya cargado
+
+**Lote:** payments-invoice-registered-badge
+**Objetivo:** Hacer que `/payments` muestre una indicación visible en la tarjeta cuando el pedido ya tiene datos de factura/remito cargados previamente, especialmente desde la recepción en `/orders/[orderId]`.
+
+**Prompt**
+perfecto otra cosita que me gustaria mejorar es que alli mismo e el formulario yo puedo registrar remito, eso esta justo debajo de donde dice Recibir y controlar mercadería. me gustaria que si efectivamente alli yo registro el remito y le doy guardar datos de factura remito entonces si yo voy a /payments en la tarjeta del pago que corresponde a ese pedido me tiene que salir en Registrar factura/remito al lado un check o alguna indicacion que me diga factura registrada en recepcion. asi ya yo entiendo que los datos fueron llenados porque ahora mismo no me lo indica
+
+## 2026-03-11 14:48 -03 — Orders: fecha exacta de vencimiento como calculadora de días
+
+**Lote:** orders-receive-exact-expiry-date
+**Objetivo:** Agregar en `/orders/[orderId]` un input calendario de fecha exacta de vencimiento por ítem durante la recepción, para calcular automáticamente `Vencimiento aproximado (dias)` desde la fecha de recepción y persistir ese valor en el maestro del producto.
+
+**Prompt**
+bien ahora en /orders/id en el formulario de Recibir y controlar mercadería agregamos un input de vencimiento aproximado (dias). me gustaria agregar un boton de calendario donde uno pueda colocar la fecha exacta de vencimiento y automaticamente me cuente los dias a partir del dia que lo estamos recibiendo asi no tengo que estar contando sino con revisar la fecha y colocarla ahi tambien me sirve. Y bueno que quede ahi de dato guardado para futuras recepciones y el master de productos
+
+## 2026-03-11 14:53 -03 — Orders: desactivar submit por Enter en recepción
+
+**Lote:** orders-receive-disable-enter-submit
+**Objetivo:** Evitar que el formulario de `Recibir y controlar mercadería` confirme accidentalmente al presionar `Enter`, dejando el submit solo por click explícito en el botón final.
+
+**Prompt**
+tambien esta pagina la tecla enter intenta confirmar recepcion. vamos a desactivar para que el boton solo funcione si le hago click en confirmar recepcion
+
+## 2026-03-11 15:00 -03 — Orders: sugerencias de marca en recepción
+
+**Lote:** orders-receive-brand-suggestions
+**Objetivo:** Hacer que el input `Marca` en la recepción de `/orders/[orderId]` sugiera marcas ya registradas en la org, con coincidencias parecidas mientras se escribe, para reducir duplicados del maestro.
+
+**Prompt**
+tambien para evitar crear nuevas marcas y duplicado de informacion inncecesaria, al momento de escribir la marca, deberia aparecerme sugerencias abajo de marcas que ya han sido registradas previamente por ejemplo si un producto es marca Badia y ya esa marca fue registrada en algun producto previamente, entonces si yo escribo Bad deberia arrojarme un sugerido de Badia, asi me aseguro que esta bien escrito y se registra bajo algo ya existente y evito maracas con mayusuculas y minisculas de diferencia o espacios o que se yo, la idea es que me haga match con lo que voy escribiendo sin importar el orden. me explico?
+
+## 2026-03-11 15:12 -03 — Productos/recepción: extender sugerencias anti-duplicado a nombre, marca y categoría
+
+**Lote:** products-shared-suggestions-name-brand-category
+**Objetivo:** Aplicar la misma lógica de sugerencias y prevención de duplicados al formulario de `Agregar productos al remito` y a los entry points compartidos de alta/edición de productos, incluyendo `Nombre de articulo en la tienda`, `Marca` y `Categoria`.
+
+**Prompt**
+esta misma logica la vamos a aplicar para el formulario de Agregar productos al remito para el input de Nombre de articulo en la tienda. Al escribir este nuevo articulo que estoy agregando deberian aparecerme sugerencias parecidas segun lo que ya esta registrado como nombres de articulos para asegurarme de que no estoy creando un producto duplicado en caso de que haya demasiada coincidencia, lo mismo para el de marca, li mismo para categoria, deberian salirme de sugerencia categorias ya creadas al momento de escribir asi evito crear duplicados o muy similares, aplica esto en todos los inputs hablados supongo que como son componentes reutilizados se aplica esta misma logica en todos sus puntos? serian en el formulario de nuevo articulo, en editar informacion de articulo, en recepcion de pedidos y no se cual otro me queda por fuera

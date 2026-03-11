@@ -767,6 +767,12 @@ export default async function PaymentsPage({
     const currentRequiredMethod =
       supplierRequiredMethodById.get(payable.supplier_id) ??
       payable.preferred_payment_method;
+    const hasInvoiceData = Boolean(
+      payable.invoice_reference?.trim() ||
+        payable.invoice_photo_url?.trim() ||
+        payable.invoice_note?.trim() ||
+        payable.invoice_amount != null,
+    );
 
     return (
       <article
@@ -856,7 +862,14 @@ export default async function PaymentsPage({
 
           <details className="rounded border border-zinc-200 p-3">
             <summary className="cursor-pointer text-xs font-semibold tracking-wide text-zinc-700 uppercase">
-              Registrar factura/remito
+              <span className="inline-flex flex-wrap items-center gap-2">
+                <span>Registrar factura/remito</span>
+                {hasInvoiceData ? (
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold tracking-normal text-emerald-700 normal-case">
+                    Factura registrada en recepción
+                  </span>
+                ) : null}
+              </span>
             </summary>
             <form action={updatePayable} className="mt-3 grid gap-2">
               <input

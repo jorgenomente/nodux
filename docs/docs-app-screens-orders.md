@@ -135,6 +135,7 @@ Reglas del modal de impresión/WhatsApp:
 - debe quedar al menos una columna seleccionada para poder imprimir o compartir
 - el documento/PDF debe incluir nombre del proveedor y presentarse con layout claro, ordenado y legible
 - WhatsApp debe armarse con `Cantidad a pedir | Articulo`, usando primero `supplier_product_name` si existe y sino `product_name`
+- después de usar `Guardar PDF`, el modal debe ofrecer como segundo entry point `Guardar borrador` y `Enviar pedido`
 
 Entry point auxiliar:
 

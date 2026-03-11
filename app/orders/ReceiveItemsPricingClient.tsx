@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import { useEffect, useId, useState } from 'react';
 
 import { formatProductCategoryTags } from '@/app/products/product-category-tags';
 
@@ -9,6 +10,8 @@ type ReceiveItem = {
   product_id: string;
   product_name: string | null;
   category_tags: string[];
+  default_brand: string;
+  default_shelf_life_days: string;
   purchase_by_pack: boolean;
   units_per_pack: number | null;
   ordered_qty: number;
@@ -21,11 +24,14 @@ type ReceiveItem = {
 
 type Props = {
   items: ReceiveItem[];
+  brandSuggestions?: string[];
+  categoryTagSuggestions?: string[];
   disableQtyEditing?: boolean;
   defaultApplyTax?: boolean;
   defaultTaxPct?: number;
   defaultApplyDiscount?: boolean;
   defaultDiscountAmount?: number;
+  helperSlot?: ReactNode;
 };
 
 const formatCurrency = (value: number) =>
@@ -50,16 +56,65 @@ const formatPackageHint = ({
   return `${packages} paquete${packages === 1 ? '' : 's'} (x${unitsPerPack})`;
 };
 
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+const toDateInputValue = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const offsetMs = parsed.getTimezoneOffset() * 60 * 1000;
+  return new Date(parsed.getTime() - offsetMs).toISOString().slice(0, 10);
+};
+
+const computeShelfLifeDays = (receivedAt: string, expiryDate: string) => {
+  const receivedDateValue = toDateInputValue(receivedAt);
+  if (!receivedDateValue || !expiryDate) return '';
+  const receivedDate = new Date(`${receivedDateValue}T00:00:00`);
+  const exactExpiryDate = new Date(`${expiryDate}T00:00:00`);
+  if (
+    Number.isNaN(receivedDate.getTime()) ||
+    Number.isNaN(exactExpiryDate.getTime())
+  ) {
+    return '';
+  }
+  const diffDays = Math.round(
+    (exactExpiryDate.getTime() - receivedDate.getTime()) / DAY_IN_MS,
+  );
+  return String(Math.max(diffDays, 0));
+};
+
+const normalizeText = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const tokenize = (value: string) =>
+  normalizeText(value)
+    .split(' ')
+    .map((token) => token.trim())
+    .filter(Boolean);
+
 export default function ReceiveItemsPricingClient({
   items,
+  brandSuggestions = [],
+  categoryTagSuggestions = [],
   disableQtyEditing = false,
   defaultApplyTax = false,
   defaultTaxPct = 21,
   defaultApplyDiscount = false,
   defaultDiscountAmount = 0,
+  helperSlot,
 }: Props) {
+  const brandSuggestionsListId = useId();
+  const categorySuggestionsListId = useId();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'rows' | 'cards'>('cards');
+  const [receivedAtValue, setReceivedAtValue] = useState('');
   const [receivedQtyByItem, setReceivedQtyByItem] = useState<
     Record<string, string>
   >(() => {
@@ -102,8 +157,87 @@ export default function ReceiveItemsPricingClient({
     });
     return next;
   });
+  const [brandByItem, setBrandByItem] = useState<Record<string, string>>(() => {
+    const next: Record<string, string> = {};
+    items.forEach((item) => {
+      next[item.order_item_id] = item.default_brand ?? '';
+    });
+    return next;
+  });
+  const [shelfLifeDaysByItem, setShelfLifeDaysByItem] = useState<
+    Record<string, string>
+  >(() => {
+    const next: Record<string, string> = {};
+    items.forEach((item) => {
+      next[item.order_item_id] = item.default_shelf_life_days ?? '';
+    });
+    return next;
+  });
+  const [exactExpiryDateByItem, setExactExpiryDateByItem] = useState<
+    Record<string, string>
+  >(() => {
+    const next: Record<string, string> = {};
+    items.forEach((item) => {
+      next[item.order_item_id] = '';
+    });
+    return next;
+  });
+  const normalizedBrandCatalog = brandSuggestions
+    .map((brand) => ({
+      raw: brand,
+      normalized: normalizeText(brand),
+      tokens: tokenize(brand),
+    }))
+    .filter((brand) => brand.normalized);
+  const normalizedCategoryCatalog = categoryTagSuggestions
+    .map((tag) => {
+      const normalized = normalizeText(tag.replace(/^#/, '')).replace(
+        /\s+/g,
+        '',
+      );
+      return {
+        raw: normalized ? `#${normalized}` : '',
+        normalized: normalized ? `#${normalized}` : '',
+      };
+    })
+    .filter((tag) => tag.normalized);
 
-  const totals = useMemo(() => {
+  useEffect(() => {
+    const input = document.querySelector<HTMLInputElement>(
+      'input[name="received_at"]',
+    );
+    if (!input) return;
+
+    const syncReceivedAt = () => {
+      const nextReceivedAtValue = input.value;
+      setReceivedAtValue(nextReceivedAtValue);
+      setShelfLifeDaysByItem((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        items.forEach((item) => {
+          const exactDate = exactExpiryDateByItem[item.order_item_id] ?? '';
+          if (!exactDate) return;
+          const computed = computeShelfLifeDays(nextReceivedAtValue, exactDate);
+          if (next[item.order_item_id] !== computed) {
+            next[item.order_item_id] = computed;
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    };
+
+    syncReceivedAt();
+    input.addEventListener('input', syncReceivedAt);
+    input.addEventListener('change', syncReceivedAt);
+
+    return () => {
+      input.removeEventListener('input', syncReceivedAt);
+      input.removeEventListener('change', syncReceivedAt);
+    };
+  }, [exactExpiryDateByItem, items]);
+
+  const totals = (() => {
     const subtotalWithoutTax = items.reduce((total, item) => {
       const qtyRaw = receivedQtyByItem[item.order_item_id] ?? '0';
       const unitCostRaw = unitCostByItem[item.order_item_id] ?? '0';
@@ -131,17 +265,9 @@ export default function ReceiveItemsPricingClient({
       discountAmount: safeDiscount,
       totalInvoice,
     };
-  }, [
-    applyDiscount,
-    applyTax,
-    discountAmount,
-    items,
-    receivedQtyByItem,
-    taxPct,
-    unitCostByItem,
-  ]);
+  })();
 
-  const filteredItems = useMemo(() => {
+  const filteredItems = (() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return items;
     const tokens = query.split(/\s+/).filter(Boolean);
@@ -149,7 +275,97 @@ export default function ReceiveItemsPricingClient({
       const name = (item.product_name ?? '').toLowerCase();
       return tokens.every((token) => name.includes(token));
     });
-  }, [items, searchQuery]);
+  })();
+
+  const getBrandSuggestionsLabel = (value: string) => {
+    const normalizedBrandValue = normalizeText(value);
+    const brandTokens = tokenize(value);
+    if (!normalizedBrandValue || brandTokens.length === 0) return null;
+
+    const exactBrandMatch =
+      normalizedBrandCatalog.find(
+        (brand) => brand.normalized === normalizedBrandValue,
+      ) ?? null;
+    if (exactBrandMatch) {
+      return (
+        <span className="mt-1 block text-[11px] text-amber-700">
+          Marca ya existente: <strong>{exactBrandMatch.raw}</strong>.
+        </span>
+      );
+    }
+
+    const similarBrands = normalizedBrandCatalog
+      .map((brand) => {
+        const intersection = brandTokens.filter((token) =>
+          brand.tokens.includes(token),
+        ).length;
+        const union = new Set([...brandTokens, ...brand.tokens]).size;
+        const jaccard = union === 0 ? 0 : intersection / union;
+        const contains =
+          brand.normalized.includes(normalizedBrandValue) ||
+          normalizedBrandValue.includes(brand.normalized);
+        const score = jaccard + (contains ? 0.6 : 0);
+        return { raw: brand.raw, score };
+      })
+      .filter(
+        (brand) =>
+          brand.score >= 0.65 &&
+          normalizeText(brand.raw) !== normalizedBrandValue,
+      )
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4)
+      .map((brand) => brand.raw);
+
+    if (similarBrands.length === 0) return null;
+
+    return (
+      <span className="mt-1 block text-[11px] text-amber-700">
+        Marcas parecidas: {similarBrands.join(' · ')}
+      </span>
+    );
+  };
+
+  const getCategorySuggestionsLabel = (value: string) => {
+    const tokens = value
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
+    const lastToken = tokens.at(-1) ?? '';
+    const activeCategoryToken = lastToken
+      ? `#${normalizeText(lastToken.replace(/^#/, '')).replace(/\s+/g, '')}`
+      : '';
+    if (!activeCategoryToken) return null;
+
+    const exactCategoryMatch =
+      normalizedCategoryCatalog.find(
+        (tag) => tag.normalized === activeCategoryToken,
+      ) ?? null;
+    if (exactCategoryMatch) {
+      return (
+        <span className="mt-1 block text-[11px] text-amber-700">
+          Categoria ya existente: <strong>{exactCategoryMatch.raw}</strong>.
+        </span>
+      );
+    }
+
+    const similarCategories = normalizedCategoryCatalog
+      .filter(
+        (tag) =>
+          tag.normalized !== activeCategoryToken &&
+          (tag.normalized.includes(activeCategoryToken) ||
+            activeCategoryToken.includes(tag.normalized)),
+      )
+      .slice(0, 6)
+      .map((tag) => tag.raw);
+
+    if (similarCategories.length === 0) return null;
+
+    return (
+      <span className="mt-1 block text-[11px] text-amber-700">
+        Categorias parecidas: {similarCategories.join(' · ')}
+      </span>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -195,7 +411,7 @@ export default function ReceiveItemsPricingClient({
                 key={item.order_item_id}
                 className="rounded border border-zinc-200 p-3"
               >
-                <div className="grid gap-2 md:grid-cols-6">
+                <div className="grid gap-2 md:grid-cols-8">
                   <div className="text-sm text-zinc-700">
                     {item.product_name}
                   </div>
@@ -301,8 +517,76 @@ export default function ReceiveItemsPricingClient({
                         }))
                       }
                       placeholder="#keto #fitness"
+                      list={categorySuggestionsListId}
                       className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
                     />
+                    {getCategorySuggestionsLabel(
+                      categoryTagsByItem[item.order_item_id] ?? '',
+                    )}
+                  </label>
+                  <label className="text-xs text-zinc-600">
+                    Marca
+                    <input
+                      name={`brand_${item.order_item_id}`}
+                      type="text"
+                      value={brandByItem[item.order_item_id] ?? ''}
+                      onChange={(event) =>
+                        setBrandByItem((prev) => ({
+                          ...prev,
+                          [item.order_item_id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Ej: La Virginia"
+                      list={brandSuggestionsListId}
+                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                    />
+                    {getBrandSuggestionsLabel(
+                      brandByItem[item.order_item_id] ?? '',
+                    )}
+                  </label>
+                  <label className="text-xs text-zinc-600">
+                    Vencimiento aproximado (dias)
+                    <input
+                      name={`shelf_life_days_${item.order_item_id}`}
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={shelfLifeDaysByItem[item.order_item_id] ?? ''}
+                      onChange={(event) =>
+                        setShelfLifeDaysByItem((prev) => ({
+                          ...prev,
+                          [item.order_item_id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Ej: 30"
+                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                    />
+                  </label>
+                  <label className="text-xs text-zinc-600">
+                    Fecha exacta de vencimiento
+                    <input
+                      name={`exact_expiry_date_${item.order_item_id}`}
+                      type="date"
+                      value={exactExpiryDateByItem[item.order_item_id] ?? ''}
+                      onChange={(event) => {
+                        const nextDate = event.target.value;
+                        setExactExpiryDateByItem((prev) => ({
+                          ...prev,
+                          [item.order_item_id]: nextDate,
+                        }));
+                        setShelfLifeDaysByItem((prev) => ({
+                          ...prev,
+                          [item.order_item_id]: computeShelfLifeDays(
+                            receivedAtValue,
+                            nextDate,
+                          ),
+                        }));
+                      }}
+                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                    />
+                    <span className="mt-1 block text-[11px] text-zinc-500">
+                      Calcula automáticamente los días desde la recepción.
+                    </span>
                   </label>
                 </div>
               </div>
@@ -418,8 +702,76 @@ export default function ReceiveItemsPricingClient({
                         }))
                       }
                       placeholder="#keto #fitness"
+                      list={categorySuggestionsListId}
                       className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
                     />
+                    {getCategorySuggestionsLabel(
+                      categoryTagsByItem[item.order_item_id] ?? '',
+                    )}
+                  </label>
+                  <label className="text-xs text-zinc-600">
+                    Marca
+                    <input
+                      name={`brand_${item.order_item_id}`}
+                      type="text"
+                      value={brandByItem[item.order_item_id] ?? ''}
+                      onChange={(event) =>
+                        setBrandByItem((prev) => ({
+                          ...prev,
+                          [item.order_item_id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Ej: La Virginia"
+                      list={brandSuggestionsListId}
+                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                    />
+                    {getBrandSuggestionsLabel(
+                      brandByItem[item.order_item_id] ?? '',
+                    )}
+                  </label>
+                  <label className="text-xs text-zinc-600">
+                    Vencimiento aproximado (dias)
+                    <input
+                      name={`shelf_life_days_${item.order_item_id}`}
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={shelfLifeDaysByItem[item.order_item_id] ?? ''}
+                      onChange={(event) =>
+                        setShelfLifeDaysByItem((prev) => ({
+                          ...prev,
+                          [item.order_item_id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Ej: 30"
+                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                    />
+                  </label>
+                  <label className="text-xs text-zinc-600">
+                    Fecha exacta de vencimiento
+                    <input
+                      name={`exact_expiry_date_${item.order_item_id}`}
+                      type="date"
+                      value={exactExpiryDateByItem[item.order_item_id] ?? ''}
+                      onChange={(event) => {
+                        const nextDate = event.target.value;
+                        setExactExpiryDateByItem((prev) => ({
+                          ...prev,
+                          [item.order_item_id]: nextDate,
+                        }));
+                        setShelfLifeDaysByItem((prev) => ({
+                          ...prev,
+                          [item.order_item_id]: computeShelfLifeDays(
+                            receivedAtValue,
+                            nextDate,
+                          ),
+                        }));
+                      }}
+                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                    />
+                    <span className="mt-1 block text-[11px] text-zinc-500">
+                      Calcula automáticamente los días desde la recepción.
+                    </span>
                   </label>
                 </div>
               </div>
@@ -430,9 +782,24 @@ export default function ReceiveItemsPricingClient({
           </div>
         ) : null}
       </div>
+      {brandSuggestions.length > 0 ? (
+        <datalist id={brandSuggestionsListId}>
+          {brandSuggestions.map((brand) => (
+            <option key={brand} value={brand} />
+          ))}
+        </datalist>
+      ) : null}
+      {categoryTagSuggestions.length > 0 ? (
+        <datalist id={categorySuggestionsListId}>
+          {categoryTagSuggestions.map((tag) => (
+            <option key={tag} value={tag} />
+          ))}
+        </datalist>
+      ) : null}
       <p className="text-xs text-zinc-500">
         *PRECIO VENTA (UNITARIO): Este sera el precio de venta en el sistema.
       </p>
+      {helperSlot}
 
       <div className="rounded border border-zinc-200 p-3">
         <div className="space-y-3">

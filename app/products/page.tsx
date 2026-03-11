@@ -426,6 +426,25 @@ export default async function ProductsPage({
         .filter(Boolean),
     ),
   ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+  const categoryTagSuggestions = Array.from(
+    new Set(
+      productsCatalog.flatMap((product) =>
+        Array.isArray(product.category_tags)
+          ? product.category_tags
+              .map((tag) => String(tag ?? '').trim())
+              .filter(Boolean)
+          : [],
+      ),
+    ),
+  ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+  const productNameSuggestions = productsCatalog.map((product) => ({
+    product_id: product.id,
+    name: product.name,
+    brand: product.brand,
+    barcode: product.barcode,
+    internal_code: product.internal_code,
+    is_active: product.is_active,
+  }));
 
   const supplierLookup = new Map<string, SupplierOption>(
     suppliers.map((supplier) => [supplier.id, supplier]),
@@ -1096,14 +1115,8 @@ export default async function ProductsPage({
               <NewProductForm
                 suppliers={suppliers}
                 brandSuggestions={brandSuggestions}
-                productNameSuggestions={productsCatalog.map((product) => ({
-                  product_id: product.id,
-                  name: product.name,
-                  brand: product.brand,
-                  barcode: product.barcode,
-                  internal_code: product.internal_code,
-                  is_active: product.is_active,
-                }))}
+                categoryTagSuggestions={categoryTagSuggestions}
+                productNameSuggestions={productNameSuggestions}
                 onSubmit={createProduct}
               />
             </details>
@@ -1185,6 +1198,8 @@ export default async function ProductsPage({
           products={productsForList}
           suppliers={suppliers}
           brandSuggestions={brandSuggestions}
+          categoryTagSuggestions={categoryTagSuggestions}
+          productNameSuggestions={productNameSuggestions}
           supplierByProduct={supplierByProductRecord}
           safetyStockGlobalByProduct={safetyStockGlobalRecord}
           safetyStockByProduct={safetyStockByProductRecord}

@@ -15,6 +15,7 @@ type SupplierOption = {
 type Props = {
   suppliers: SupplierOption[];
   brandSuggestions: string[];
+  categoryTagSuggestions?: string[];
   productNameSuggestions?: Array<{
     product_id: string;
     name: string;
@@ -33,6 +34,7 @@ type Props = {
 export default function NewProductForm({
   suppliers,
   brandSuggestions,
+  categoryTagSuggestions = [],
   productNameSuggestions = [],
   onSubmit,
   defaults,
@@ -77,6 +79,7 @@ export default function NewProductForm({
         suppliers={suppliers}
         brandSuggestions={brandSuggestions}
         productNameSuggestions={productNameSuggestions}
+        categoryTagSuggestions={categoryTagSuggestions}
         onNameDuplicateStateChange={setIsNameDuplicate}
         defaults={defaults}
         lockPrimarySupplier={lockPrimarySupplier}

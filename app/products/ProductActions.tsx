@@ -61,6 +61,15 @@ type Props = {
   primarySupplierProductName: string;
   suppliers: SupplierOption[];
   brandSuggestions: string[];
+  categoryTagSuggestions?: string[];
+  productNameSuggestions?: Array<{
+    product_id: string;
+    name: string;
+    brand?: string | null;
+    barcode?: string | null;
+    internal_code?: string | null;
+    is_active?: boolean;
+  }>;
   onSubmit: (formData: FormData) => Promise<void>;
 };
 
@@ -87,6 +96,8 @@ export default function ProductActions({
   primarySupplierProductName,
   suppliers,
   brandSuggestions,
+  categoryTagSuggestions = [],
+  productNameSuggestions = [],
   onSubmit,
 }: Props) {
   const router = useRouter();
@@ -247,6 +258,8 @@ export default function ProductActions({
           <ProductFormFieldsShared
             suppliers={primaryOptions}
             brandSuggestions={brandSuggestions}
+            categoryTagSuggestions={categoryTagSuggestions}
+            productNameSuggestions={productNameSuggestions}
             compact
             fields={{
               name: 'edit_name',

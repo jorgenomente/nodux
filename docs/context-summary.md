@@ -1,6 +1,6 @@
 # Context Summary (NODUX)
 
-Ultima actualizacion: 2026-03-10 22:15
+Ultima actualizacion: 2026-03-11 13:13
 
 ## Estado general
 
@@ -67,6 +67,7 @@ Ultima actualizacion: 2026-03-10 22:15
 - UI actualizada: /products, /suppliers y /suppliers/[supplierId] con proveedores primario/secundario y safety stock.
 - `/products/lookup` pasa de placeholder a lookup operativo mobile-first para Staff/OA, con búsqueda por nombre en cualquier orden de palabras, lookup por `barcode` exacto, botón `Usar cámara` para escaneo desde dispositivo y fallback `Ingresar código` en navegadores sin soporte, límite de resultados (30) y visualización de precio + stock por sucursal.
 - `/products` refuerza anti-duplicado en alta: sugerencias en tiempo real por nombre, alertas de posible duplicado por nombre/código interno/barcode y bloqueo de guardado ante match exacto; DB endurecida con `name_normalized` y `barcode_normalized` únicos por org.
+- La lógica de higiene de catálogo ahora también sugiere `brand` y `category_tags` existentes en formularios compartidos de producto, onboarding y recepción, y el alta rápida de productos desde remito también alerta por nombres parecidos para reducir duplicados semánticos.
 - `/products` agrega transferencia inline de stock entre sucursales dentro de “Ajuste manual de stock”: mueve uno o varios artículos en una sola operación, disponible para OA/SA y para staff con módulo `products` habilitado cuando tiene 2 o más sucursales asignadas; la DB registra movimientos `branch_transfer` en origen/destino y audita la operación.
 - Productos incorpora configuración de compra proveedor por paquete (`purchase_by_pack`, `units_per_pack`); `/orders` y `/orders/[orderId]` muestran equivalencias en paquetes al pedir/recibir y `/onboarding` permite aplicar esta configuración en edición masiva.
 - Sugeridos simples en /orders usando ventas 30 dias + safety stock.
@@ -158,12 +159,17 @@ Ultima actualizacion: 2026-03-10 22:15
 - Pagos a proveedor por sucursal agregados: `supplier_payables` por pedido y `supplier_payments` como movimientos.
 - `/payments` ahora incluye pedidos `sent` (pendiente por recibir) ademas de `received/reconciled` (controlado), con backfill para historicos.
 - `/payments` registra numero de factura/remito (`invoice_reference`) y permite registrar pago con fecha/hora (`paid_at`).
+- `/payments` ahora indica visualmente en cada tarjeta cuando la factura/remito ya fue registrada previamente, para que el usuario vea de inmediato que ese pedido ya cargó esos datos.
 - `/orders` ahora muestra estado de pago y saldo pendiente; `/payments` concentra pendientes, vencidos y registro de pagos.
 - `/orders/[orderId]` en estado `draft` ahora usa editor batch de items con lista completa de sugeridos, buscador y guardado único de la nueva lista.
 - `/orders/[orderId]` muestra monto estimado total en header/recepción y costo estimado por item (unitario + subtotal).
 - `/orders/[orderId]` en recepción/control agrega segundo entry point para registrar factura/remito (número, monto, vencimiento, método, foto, nota) y soporta pago efectivo parcial con total declarado + restante proyectado.
 - `/orders/[orderId]` en recepción/control ahora permite confirmar costo proveedor unitario por ítem (desde remito/factura), calcular total operativo con IVA/descuento opcionales y persistir `supplier_price` vigente en `supplier_products` para próximos pedidos.
 - `/orders/[orderId]` ahora permite ajustar `precio unitario de venta` por ítem al confirmar recepción, actualizando `products.unit_price` en el acto con sugerido por `% de ganancia` proveedor/fallback org.
+- `/orders/[orderId]` también permite completar desde recepción `Marca`, `Categoria` y `Vencimiento aproximado (dias)` por ítem, precargando lo ya existente en el maestro y persistiendo esos datos en `products` al confirmar.
+- En esa misma recepción, cada ítem puede cargar además una `fecha exacta de vencimiento`; la UI calcula automáticamente los días desde la fecha de recepción y guarda ese valor derivado en `products.shelf_life_days`.
+- El campo `Marca` en recepción ahora sugiere marcas ya registradas en la org y muestra coincidencias parecidas para evitar duplicados de catálogo.
+- En `/orders/[orderId]`, el formulario de recepción/control ya no confirma por tecla `Enter`; el cierre del flujo requiere click explícito en el botón de confirmación.
 - En armado de pedido (`/orders` y `/orders/[orderId]` en draft), costo unitario usa por defecto precio proveedor registrado con check opcional para recalcular por `% ganancia` sugerido.
 - `/orders` ahora permite archivar únicamente pedidos `draft`: salen del listado operativo principal, quedan agrupados en `Archivados` al final de la pantalla y se pueden restaurar mientras sigan en borrador.
 - `/settings/preferences` incorpora `default_supplier_markup_pct` para definir el margen global por defecto (ej. 41.5%) usado en sugeridos cuando no hay margen específico de proveedor.
@@ -172,6 +178,8 @@ Ultima actualizacion: 2026-03-10 22:15
 - `/orders` ahora permite editar inline `Stock de resguardo` por artículo mientras se arma un pedido y persiste ese valor en la sucursal seleccionada al guardar borrador o enviar pedido.
 - `/orders` suma acciones operativas `Imprimir` y `Enviar por WhatsApp` al armar un pedido, con modal para elegir columnas, generar un PDF browser-print claro y editar allí mismo el `Nombre de articulo en el proveedor` antes de guardar/compartir.
 - En ese modal de `/orders`, `Producto` ya no es obligatorio: el usuario puede exportar/compartir usando solo `Nombre en proveedor` u otras columnas, siempre que quede al menos una columna seleccionada.
+- Tras usar `Guardar PDF` en el modal de `/orders`, la UI muestra ahí mismo `Guardar borrador` y `Enviar pedido` como segundo entry point para cerrar el flujo operativo.
+- `/orders/[orderId]` en recepción/control ahora permite agregar productos extra del remito desde un modal (`productos existentes` o `nuevo producto`), insertándolos realmente en el pedido con `ordered_qty = 0` y opcionalmente vinculando al proveedor actual como primario o secundario.
 - `/products` renombra el campo operativo `Stock minimo` a `Cantidad de resguardo`.
 - Proveedores incorporan perfil de pago: plazo (días), método de pago preferido (cash/transfer), datos de pago/notas y cuentas de transferencia.
 - En `/payments`, la foto de factura/remito se comprime automáticamente (JPG liviano) y se guarda en Storage (`supplier-invoices`).
