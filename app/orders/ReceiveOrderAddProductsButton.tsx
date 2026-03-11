@@ -113,9 +113,9 @@ export default function ReceiveOrderAddProductsButton({
     () =>
       Boolean(
         normalizedTypedName &&
-          productNameSuggestions.some(
-            (product) => normalizeText(product.name) === normalizedTypedName,
-          ),
+        productNameSuggestions.some(
+          (product) => normalizeText(product.name) === normalizedTypedName,
+        ),
       ),
     [normalizedTypedName, productNameSuggestions],
   );
@@ -131,7 +131,9 @@ export default function ReceiveOrderAddProductsButton({
         ).length;
         const union = new Set([...typedNameTokens, ...productTokens]).size;
         const jaccard = union === 0 ? 0 : intersection / union;
-        const contains = normalizeText(product.name).includes(normalizedTypedName);
+        const contains = normalizeText(product.name).includes(
+          normalizedTypedName,
+        );
         const startsWith = normalizeText(product.name).startsWith(
           normalizedTypedName,
         );
@@ -385,116 +387,119 @@ export default function ReceiveOrderAddProductsButton({
             ) : (
               <div className="max-h-[52vh] overflow-y-auto rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
                 <div className="space-y-3">
-                {availableProducts.map((product) => {
-                  const selected = selectedProducts[product.id];
-                  return (
-                    <div
-                      key={product.id}
-                      className="rounded-2xl border border-zinc-200 p-4"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <label className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(selected)}
-                            onChange={(event) =>
-                              toggleProduct(product, event.target.checked)
-                            }
-                            className="mt-1 h-4 w-4 rounded border-zinc-300"
-                          />
-                          <div>
-                            <p className="text-sm font-semibold text-zinc-900">
-                              {product.name}
-                            </p>
-                            <p className="mt-1 text-xs text-zinc-500">
-                              {product.brand ? `${product.brand} · ` : ''}
-                              {product.internalCode
-                                ? `Cod. ${product.internalCode} · `
-                                : ''}
-                              {product.barcode
-                                ? `Barcode ${product.barcode}`
-                                : 'Sin barcode'}
-                            </p>
+                  {availableProducts.map((product) => {
+                    const selected = selectedProducts[product.id];
+                    return (
+                      <div
+                        key={product.id}
+                        className="rounded-2xl border border-zinc-200 p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <label className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(selected)}
+                              onChange={(event) =>
+                                toggleProduct(product, event.target.checked)
+                              }
+                              className="mt-1 h-4 w-4 rounded border-zinc-300"
+                            />
+                            <div>
+                              <p className="text-sm font-semibold text-zinc-900">
+                                {product.name}
+                              </p>
+                              <p className="mt-1 text-xs text-zinc-500">
+                                {product.brand ? `${product.brand} · ` : ''}
+                                {product.internalCode
+                                  ? `Cod. ${product.internalCode} · `
+                                  : ''}
+                                {product.barcode
+                                  ? `Barcode ${product.barcode}`
+                                  : 'Sin barcode'}
+                              </p>
+                            </div>
+                          </label>
+                          <div className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-600">
+                            Relación actual:{' '}
+                            {product.currentRelationType === 'primary'
+                              ? 'Primario'
+                              : product.currentRelationType === 'secondary'
+                                ? 'Secundario'
+                                : 'Sin asignar'}
                           </div>
-                        </label>
-                        <div className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-600">
-                          Relación actual:{' '}
-                          {product.currentRelationType === 'primary'
-                            ? 'Primario'
-                            : product.currentRelationType === 'secondary'
-                              ? 'Secundario'
-                              : 'Sin asignar'}
                         </div>
-                      </div>
 
-                      {selected ? (
-                        <div className="mt-4 grid gap-3 md:grid-cols-3">
-                          <label className="text-sm text-zinc-600">
-                            Asignar este articulo a {supplierName}
-                            <select
-                              value={selected.supplierRelation}
-                              onChange={(event) =>
-                                setSelectedProducts((prev) => ({
-                                  ...prev,
-                                  [product.id]: {
-                                    ...prev[product.id],
-                                    supplierRelation: event.target.value as
-                                      | 'none'
-                                      | 'primary'
-                                      | 'secondary',
-                                  },
-                                }))
-                              }
-                              className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
-                            >
-                              {relationOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="text-sm text-zinc-600">
-                            Nombre de articulo en el proveedor
-                            <input
-                              type="text"
-                              value={selected.supplierProductName}
-                              onChange={(event) =>
-                                setSelectedProducts((prev) => ({
-                                  ...prev,
-                                  [product.id]: {
-                                    ...prev[product.id],
-                                    supplierProductName: event.target.value,
-                                  },
-                                }))
-                              }
-                              className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
-                              placeholder="Ej: Cafe molido 500g"
-                            />
-                          </label>
-                          <label className="text-sm text-zinc-600">
-                            SKU en proveedor (opcional)
-                            <input
-                              type="text"
-                              value={selected.supplierSku}
-                              onChange={(event) =>
-                                setSelectedProducts((prev) => ({
-                                  ...prev,
-                                  [product.id]: {
-                                    ...prev[product.id],
-                                    supplierSku: event.target.value,
-                                  },
-                                }))
-                              }
-                              className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
-                              placeholder="Ej: CAF-500"
-                            />
-                          </label>
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
+                        {selected ? (
+                          <div className="mt-4 grid gap-3 md:grid-cols-3">
+                            <label className="text-sm text-zinc-600">
+                              Asignar este articulo a {supplierName}
+                              <select
+                                value={selected.supplierRelation}
+                                onChange={(event) =>
+                                  setSelectedProducts((prev) => ({
+                                    ...prev,
+                                    [product.id]: {
+                                      ...prev[product.id],
+                                      supplierRelation: event.target.value as
+                                        | 'none'
+                                        | 'primary'
+                                        | 'secondary',
+                                    },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                              >
+                                {relationOptions.map((option) => (
+                                  <option
+                                    key={option.value}
+                                    value={option.value}
+                                  >
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="text-sm text-zinc-600">
+                              Nombre de articulo en el proveedor
+                              <input
+                                type="text"
+                                value={selected.supplierProductName}
+                                onChange={(event) =>
+                                  setSelectedProducts((prev) => ({
+                                    ...prev,
+                                    [product.id]: {
+                                      ...prev[product.id],
+                                      supplierProductName: event.target.value,
+                                    },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                                placeholder="Ej: Cafe molido 500g"
+                              />
+                            </label>
+                            <label className="text-sm text-zinc-600">
+                              SKU en proveedor (opcional)
+                              <input
+                                type="text"
+                                value={selected.supplierSku}
+                                onChange={(event) =>
+                                  setSelectedProducts((prev) => ({
+                                    ...prev,
+                                    [product.id]: {
+                                      ...prev[product.id],
+                                      supplierSku: event.target.value,
+                                    },
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                                placeholder="Ej: CAF-500"
+                              />
+                            </label>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -517,9 +522,7 @@ export default function ReceiveOrderAddProductsButton({
                   disabled={selectedCount === 0 || isAddingExisting}
                   className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isAddingExisting
-                    ? 'Agregando...'
-                    : 'Agregar al pedido'}
+                  {isAddingExisting ? 'Agregando...' : 'Agregar al pedido'}
                 </button>
               </div>
             </div>
@@ -571,16 +574,15 @@ export default function ReceiveOrderAddProductsButton({
                 <input
                   name="category_tags"
                   value={categoryTagsValue}
-                  onChange={(event) =>
-                    setCategoryTagsValue(event.target.value)
-                  }
+                  onChange={(event) => setCategoryTagsValue(event.target.value)}
                   list={categorySuggestionsListId}
                   className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
                   placeholder="#cafe #molido"
                 />
                 {exactCategoryMatch ? (
                   <span className="mt-1 block text-xs text-amber-700">
-                    Categoria ya existente: <strong>{exactCategoryMatch.raw}</strong>.
+                    Categoria ya existente:{' '}
+                    <strong>{exactCategoryMatch.raw}</strong>.
                   </span>
                 ) : similarCategories.length > 0 ? (
                   <span className="mt-1 block text-xs text-amber-700">
@@ -697,7 +699,9 @@ export default function ReceiveOrderAddProductsButton({
                   <input
                     type="checkbox"
                     checked={shelfLifeNoApplies}
-                    onChange={(event) => setShelfLifeNoApplies(event.target.checked)}
+                    onChange={(event) =>
+                      setShelfLifeNoApplies(event.target.checked)
+                    }
                   />
                   No aplica vencimiento
                 </label>

@@ -769,9 +769,9 @@ export default async function PaymentsPage({
       payable.preferred_payment_method;
     const hasInvoiceData = Boolean(
       payable.invoice_reference?.trim() ||
-        payable.invoice_photo_url?.trim() ||
-        payable.invoice_note?.trim() ||
-        payable.invoice_amount != null,
+      payable.invoice_photo_url?.trim() ||
+      payable.invoice_note?.trim() ||
+      payable.invoice_amount != null,
     );
 
     return (

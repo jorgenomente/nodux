@@ -460,14 +460,16 @@ export default async function OrderDetailPage({
       currentRelationType: relation?.relation_type ?? null,
     };
   });
-  const receiveProductNameSuggestions = receiveProductCatalog.map((product) => ({
-    product_id: product.id,
-    name: product.name,
-    brand: product.brand,
-    barcode: product.barcode,
-    internal_code: product.internal_code,
-    is_active: product.is_active,
-  }));
+  const receiveProductNameSuggestions = receiveProductCatalog.map(
+    (product) => ({
+      product_id: product.id,
+      name: product.name,
+      brand: product.brand,
+      barcode: product.barcode,
+      internal_code: product.internal_code,
+      is_active: product.is_active,
+    }),
+  );
   const receiveBrandSuggestionValues = Array.from(
     new Set(
       receiveBrandSuggestions
@@ -1226,12 +1228,10 @@ export default async function OrderDetailPage({
     const sanitizedItems = parsedItems
       .map((item) => ({
         productId: String(item.productId ?? '').trim(),
-        supplierRelation: (
-          item.supplierRelation === 'primary' ||
-          item.supplierRelation === 'secondary'
-            ? item.supplierRelation
-            : 'none'
-        ) as 'none' | 'primary' | 'secondary',
+        supplierRelation: (item.supplierRelation === 'primary' ||
+        item.supplierRelation === 'secondary'
+          ? item.supplierRelation
+          : 'none') as 'none' | 'primary' | 'secondary',
         supplierProductName: String(item.supplierProductName ?? '').trim(),
         supplierSku: String(item.supplierSku ?? '').trim(),
       }))
@@ -1292,7 +1292,8 @@ export default async function OrderDetailPage({
             p_org_id: orgId,
             p_supplier_id: order.supplier_id,
             p_product_id: item.productId,
-            p_supplier_sku: item.supplierSku || currentSupplierMeta?.supplier_sku || '',
+            p_supplier_sku:
+              item.supplierSku || currentSupplierMeta?.supplier_sku || '',
             p_supplier_product_name:
               item.supplierProductName ||
               currentSupplierMeta?.supplier_product_name ||
@@ -1329,12 +1330,15 @@ export default async function OrderDetailPage({
       String(formData.get('category_tags') ?? ''),
     );
     const unitPrice = Number(String(formData.get('unit_price') ?? '0').trim());
-    const supplierPriceRaw = String(formData.get('supplier_price') ?? '').trim();
+    const supplierPriceRaw = String(
+      formData.get('supplier_price') ?? '',
+    ).trim();
     const supplierPrice =
       supplierPriceRaw === '' ? null : Number(supplierPriceRaw);
-    const sellUnitType = String(
-      formData.get('sell_unit_type') ?? 'unit',
-    ) as 'unit' | 'weight' | 'bulk';
+    const sellUnitType = String(formData.get('sell_unit_type') ?? 'unit') as
+      | 'unit'
+      | 'weight'
+      | 'bulk';
     const uom = String(formData.get('uom') ?? 'unit').trim() || 'unit';
     const purchaseByPack = formData.get('purchase_by_pack') === 'on';
     const unitsPerPackRaw = String(formData.get('units_per_pack') ?? '').trim();
@@ -1346,8 +1350,7 @@ export default async function OrderDetailPage({
     const shelfLifeDays =
       shelfLifeDaysRaw === '' ? null : Number(shelfLifeDaysRaw);
     const safetyStockRaw = String(formData.get('safety_stock') ?? '').trim();
-    const safetyStock =
-      safetyStockRaw === '' ? null : Number(safetyStockRaw);
+    const safetyStock = safetyStockRaw === '' ? null : Number(safetyStockRaw);
     const supplierRelationRaw = String(
       formData.get('supplier_relation') ?? 'primary',
     ).trim();
@@ -1374,9 +1377,13 @@ export default async function OrderDetailPage({
     }
     if (
       purchaseByPack &&
-      (unitsPerPack == null || !Number.isFinite(unitsPerPack) || unitsPerPack < 2)
+      (unitsPerPack == null ||
+        !Number.isFinite(unitsPerPack) ||
+        unitsPerPack < 2)
     ) {
-      throw new Error('Si se compra por paquete, debes indicar al menos 2 unidades por paquete.');
+      throw new Error(
+        'Si se compra por paquete, debes indicar al menos 2 unidades por paquete.',
+      );
     }
     if (
       shelfLifeDays !== null &&
@@ -1412,14 +1419,12 @@ export default async function OrderDetailPage({
 
     const { error: metadataError } = await admin
       .from('products' as never)
-      .update(
-        {
-          brand: brand || null,
-          category_tags: categoryTags,
-          purchase_by_pack: purchaseByPack,
-          units_per_pack: purchaseByPack ? unitsPerPack : null,
-        } as never,
-      )
+      .update({
+        brand: brand || null,
+        category_tags: categoryTags,
+        purchase_by_pack: purchaseByPack,
+        units_per_pack: purchaseByPack ? unitsPerPack : null,
+      } as never)
       .eq('org_id', orgId)
       .eq('id', productId);
     throwIfError(metadataError, 'No se pudo guardar metadata del producto');
@@ -1650,9 +1655,9 @@ export default async function OrderDetailPage({
                               : resolvedSearchParams?.notice ===
                                   'expected_receive_updated'
                                 ? {
-                                  tone: 'success',
-                                  message: 'Fecha estimada actualizada.',
-                                }
+                                    tone: 'success',
+                                    message: 'Fecha estimada actualizada.',
+                                  }
                                 : resolvedSearchParams?.notice ===
                                     'receive_products_added'
                                   ? {
@@ -1674,32 +1679,33 @@ export default async function OrderDetailPage({
                                           message:
                                             'Selecciona al menos un producto para agregar al pedido.',
                                         }
-                                  : resolvedSearchParams?.notice ===
-                                      'draft_items_saved'
-                                    ? {
-                                      tone: 'success',
-                                      message: 'Items del borrador guardados.',
-                                    }
-                                  : resolvedSearchParams?.notice ===
-                                      'received_and_cash_paid'
-                                    ? {
-                                        tone: 'success',
-                                        message:
-                                          'Recepción/control confirmado y pago en efectivo registrado.',
-                                      }
-                                    : resolvedSearchParams?.notice ===
-                                        'invoice_saved'
-                                      ? {
-                                          tone: 'success',
-                                          message:
-                                            'Datos de factura/remito guardados.',
-                                        }
-                                      : resolvedSearchParams?.notice
+                                      : resolvedSearchParams?.notice ===
+                                          'draft_items_saved'
                                         ? {
-                                            tone: 'error',
-                                            message: `Error: ${resolvedSearchParams.notice.replaceAll('_', ' ')}`,
+                                            tone: 'success',
+                                            message:
+                                              'Items del borrador guardados.',
                                           }
-                                        : null;
+                                        : resolvedSearchParams?.notice ===
+                                            'received_and_cash_paid'
+                                          ? {
+                                              tone: 'success',
+                                              message:
+                                                'Recepción/control confirmado y pago en efectivo registrado.',
+                                            }
+                                          : resolvedSearchParams?.notice ===
+                                              'invoice_saved'
+                                            ? {
+                                                tone: 'success',
+                                                message:
+                                                  'Datos de factura/remito guardados.',
+                                              }
+                                            : resolvedSearchParams?.notice
+                                              ? {
+                                                  tone: 'error',
+                                                  message: `Error: ${resolvedSearchParams.notice.replaceAll('_', ' ')}`,
+                                                }
+                                              : null;
 
   return (
     <PageShell>
@@ -2081,7 +2087,9 @@ export default async function OrderDetailPage({
                       products={receiveProductOptions}
                       productNameSuggestions={receiveProductNameSuggestions}
                       brandSuggestions={receiveBrandSuggestionValues}
-                      categoryTagSuggestions={receiveCategoryTagSuggestionValues}
+                      categoryTagSuggestions={
+                        receiveCategoryTagSuggestionValues
+                      }
                       currentOrderProductIds={receiveItems.map(
                         (item) => item.product_id,
                       )}

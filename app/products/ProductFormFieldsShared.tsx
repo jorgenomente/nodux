@@ -139,9 +139,8 @@ export default function ProductFormFieldsShared({
   const initialCategoryTags = Array.isArray(defaults?.categoryTags)
     ? formatProductCategoryTags(defaults.categoryTags)
     : (defaults?.categoryTags ?? '');
-  const [categoryTagsValue, setCategoryTagsValue] = useState(
-    initialCategoryTags,
-  );
+  const [categoryTagsValue, setCategoryTagsValue] =
+    useState(initialCategoryTags);
   const [barcodeValue, setBarcodeValue] = useState(defaults?.barcode ?? '');
   const [internalCodeValue, setInternalCodeValue] = useState(
     defaults?.internalCode ?? '',

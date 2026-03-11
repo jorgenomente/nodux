@@ -174,13 +174,13 @@ export default async function SupplierDetailPage({
             }
           ).category_tags,
         )
-          ? (
+          ? ((
               product as {
                 category_tags?: string[] | null;
               }
             ).category_tags
               ?.map((tag) => String(tag ?? '').trim())
-              .filter(Boolean) ?? []
+              .filter(Boolean) ?? [])
           : [],
       ),
     ),
