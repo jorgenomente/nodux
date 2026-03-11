@@ -54,6 +54,7 @@ Estado actual:
 - Imágenes de producto comprimidas y bucket dedicado en `supabase/migrations/20260303134000_074_product_images_bucket_and_products_view_image.sql` (`storage.buckets.product-images`, policies admin/superadmin y `v_products_admin.image_url`).
 - Hardening anti-duplicado de catálogo en `supabase/migrations/20260305113000_075_products_dedupe_hardening.sql` (`products.name_normalized`, `products.barcode_normalized`, índices únicos por org y normalización de códigos vacíos en `rpc_upsert_product`).
 - Compra por paquete en productos y propagación a contratos de pedidos/onboarding en `supabase/migrations/20260305130500_076_products_purchase_pack_and_orders_views.sql` (`products.purchase_by_pack`, `products.units_per_pack`, check de consistencia y rebuild de `v_products_admin`, `v_products_incomplete_admin`, `v_supplier_product_suggestions`, `v_order_detail_admin`).
+- Categorías por hashtags en productos y storefront en `supabase/migrations/20260311121000_093_product_category_tags_storefront.sql` (`products.category_tags`, trigger de normalización, rebuild de `v_products_admin`/`v_products_incomplete_admin`/`v_order_detail_admin` y extensión de `rpc_get_public_storefront_products`).
 - Fix de promoción de relación proveedor-producto en `supabase/migrations/20260305152000_077_fix_supplier_product_promote_same_supplier.sql`: `rpc_upsert_supplier_product` elimina relación previa del mismo proveedor con tipo opuesto antes de upsert para evitar conflicto de unicidad `(org_id, supplier_id, product_id)`.
 - Transferencia inline de stock entre sucursales en `supabase/migrations/20260310093011_086_stock_branch_transfer_inline.sql`: agrega `stock_movement_type.branch_transfer` y RPC `rpc_transfer_stock_between_branches` con validación OA/SA vs staff por módulo/sucursales, actualización atómica de `stock_items` y auditoría.
 - Base operativa del puente fiscal venta -> job en `supabase/migrations/20260308224500_080_fiscal_enqueue_sale_invoice_and_failed.sql`: agrega `rpc_enqueue_sale_fiscal_invoice` para crear `sale_documents` + `invoice_jobs` con `requested_payload_json` normalizado desde una venta existente, y `fn_fiscal_mark_job_failed` para errores terminales del worker fiscal.
@@ -413,6 +414,7 @@ Salida principal:
 - `org_id` (uuid, FK)
 - `name` (text)
 - `brand` (text, nullable)
+- `category_tags` (text[], not null, default `{}`)
 - `internal_code` (text, nullable)
 - `barcode` (text, nullable)
 - `name_normalized` (text, generated stored)
@@ -1096,6 +1098,7 @@ Ver contratos en `docs/docs-schema-model.md`:
   - `rpc_get_or_create_sale_delivery_link(...)` crea o reutiliza un link activo por venta/documento
 - RPCs de caja: `rpc_open_cash_session(...)`, `rpc_add_cash_session_movement(...)`, `rpc_get_cash_session_summary(...)`, `rpc_close_cash_session(...)`
 - RPCs storefront público: `rpc_get_public_storefront_branches(...)`, `rpc_get_public_storefront_products(...)`, `rpc_create_online_order(...)` (checkout con dirección y pago al retirar), `rpc_get_online_order_tracking(...)` (incluye cliente, total e ítems)
+- `rpc_get_public_storefront_products(...)` expone `category_tags` por producto para filtros del catálogo público.
 - RPC pública de ticket compartible: `rpc_get_sale_ticket_delivery(...)`
 - RPC pública de factura compartible: `rpc_get_sale_invoice_delivery(...)`
 - RPC de operación interna de pedidos online: `rpc_set_online_order_status(...)`

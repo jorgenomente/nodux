@@ -86,6 +86,7 @@ Campos clave:
 
 - Precio único por producto (MVP)
 - Snapshot en venta
+- `category_tags` globales por producto permiten clasificar el artículo para storefront y reutilizar esa metadata desde distintos entry points internos.
 
 ### R4) Activación
 
@@ -137,6 +138,8 @@ Campos clave:
   - sell_unit_type coherente
   - precio ≥ 0
 - vencimiento aproximado (días) opcional
+- categorías opcionales por hashtags persistidas en el maestro del producto
+- la imagen también puede operarse desde el listado: click/tap sobre la miniatura abre modal rápido de vista ampliada + cambio de foto, manteniendo compresión JPG liviana antes de persistir
 
 ### Ajuste de stock (OA)
 

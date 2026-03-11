@@ -108,6 +108,7 @@ RPC status change:
   - registra received_at (manual)
   - registra controlado por (nombre + user)
   - permite editar `precio proveedor unitario` por item al momento del remito/factura
+  - permite completar/ajustar `categoria` por item (hashtags del maestro)
   - status → `reconciled` (Controlado)
   - genera movimientos purchase por item (stock +)
   - genera batches de vencimiento si el producto tiene `shelf_life_days`
@@ -126,6 +127,10 @@ RPC status change:
   - default: precio de venta actual del catálogo
   - sugerido: precio proveedor confirmado + `% ganancia` del proveedor (o fallback de preferencias org)
   - al confirmar recepción se actualiza inmediatamente el catálogo global del producto.
+- Campo adicional en recepción: `categoria` (`products.category_tags`):
+  - default: categorías actuales del producto
+  - editable como texto con hashtags
+  - al confirmar recepción se actualiza inmediatamente el maestro del producto.
 - Este ajuste de precio de venta es independiente del remito/factura y del cálculo de cuentas por pagar.
 - Compatibilidad legacy:
   - si existe un pedido en estado `received` (flujo anterior), el control final lo pasa a `reconciled` guardando fecha y firma.

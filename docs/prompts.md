@@ -20,6 +20,25 @@ Formato sugerido:
 **Prompt**
 estoy en /products y me gustaria agregar una funcion mas dentro de ajuste manual de stock. Me gustaria poder mover uno o varios articulos de una sucursal a otra. Esto solo debe estar disponible para staff cuando tiene mas de una sucursal asignada y para admin que mira todas las sucursales. Esto es util para cuando se necesite mover productos de una sucursal a otra sea mas facil descontar el stock de una para sumarlo a la otra. se puede hacer? chequea la documentacion para que todo quede bien. seria en la misma seccion de ajuste manual al final
 
+## 2026-03-11 11:08 -03 — Products: modal rápido para ver/cambiar foto desde el listado
+
+**Lote:** products-image-modal-inline
+**Objetivo:** Simplificar la edición de imagen en `/products` permitiendo abrir un modal al tocar la foto del artículo para verla más grande y, si el usuario puede editar, seleccionar una foto nueva o tomar una foto, manteniendo compresión JPG liviana antes de guardar.
+
+**Prompt**
+me gustaria trabajar sobre /products me gustaria que en el listado de articulos la edicion de la imagen de articulo sea mas sencilla me gustaria que si hago click en la foto se me abra un modal de editar foto o ver foto para verla mas grande o para seleccionar foto o tomar foto. Que te parece chequea todo bien la documentaacion e implementemos esto, recuerda que la foto debe ser reducida de tamano para minimizar el impacto de almacenamiento
+
+## 2026-03-11 11:35 -03 — Products/Storefront/Onboarding/Orders: categorías por hashtags
+
+**Lote:** products-category-tags-storefront-filter
+**Objetivo:** Agregar categorías de producto basadas en hashtags al maestro de artículos para poder filtrarlas en la tienda online y editarlas desde `/products`, onboarding masivo y recepción de `/orders/[orderId]`, manteniendo la información persistida por defecto en el producto.
+
+**Prompt**
+otro cambio estructural que quiero hacer es el siguiente: necesito agregar un filtro de categoria a la pagina online, lo mas logico que se me ocurre es agregar un nuevo input en la informacion del articulo que diga categoria: y alli pueda escribir con # la categoria del articulo por ejemplo #keto #fitness# #sintacc y asi sea mas facil filtrar los productos en la tienda online para los usuarios que la visiten. tambien de esta manera en oboarding debemos agregar esta opcion en edicion masiva de productos siguiendo la misma logica de las opciones de edicion que ya existen. de esta misma manera este input me gustaria agregarlo a orders/[id] en la recepcion del producto. En este momento tenemos Cantidad recibida
+Precio proveedor (unitario)
+Precio venta (unitario)
+ademas me deberia salir este de categoria asi este dato se puede ir llenando de manera continua mientras se reciben los nuevos productos pero una vez guardada esa info ya deberia venir por defecto cargada, cargarse en la info del articulo y por supuesto en el maestro de productos y asi se filtra de esa manera en la tienda online chequea la documentacion y la app para asegurarte de que entiendes todo para que no se rompa nada en la implementacion de esto
+
 ## 2026-03-10 23:35 -03 — Orders: archivar borradores desde `/orders`
 
 **Lote:** orders-draft-archive
@@ -4103,3 +4122,27 @@ en /orders hay un texto que dice Mostrando: Cafes del Puerto SRL · Sucursal Cab
 
 **Prompt**
 me gustaria tambien que en /orders en armar un nuevo pedido la columna Stock de resguardo sea editable, por si quiero cambiar esa cantidad de resguardo no tenga que ir manualmente al producto darle editar y cambiar esa cantidad, sino que lo pueda hacer alli mismo y que se guarde al momento de guardar borrador o enviar pedido y ahora ese dato quede definido alli para las caracteristicas de ese articulo, seria como una especie de segundo entry point para editar el stock minimo de ese artifuclo. Vamos tambien a cambiar en /products en editar producto el input que dice stock minimo por cantidad de resguardo
+
+## 2026-03-11 10:30 -03 — Orders: impresión configurable + WhatsApp + nombre proveedor inline
+
+**Lote:** orders-print-whatsapp-supplier-product-name
+**Objetivo:** Agregar en `/orders` acciones `Imprimir` y `Enviar por WhatsApp` dentro del armado de pedido, con modal de preparación que permita elegir columnas del documento, generar un PDF browser-print claro, armar texto para WhatsApp y editar inline `supplier_product_name` como segundo entry point operativo.
+
+**Prompt**
+vamos a trabajar sobre /orders en el formulario de armar nuevo pedido al lado de guardar borrador me gustaria agregar dos cosas, un boton que diga imprimir y esto me abra un modal donde yo pueda decidir que columnas quiero guardar en este pdf asi puedo evitar informacion innecesaria que tengo ahi, que vengan por defecto seleccionadas las de producto, que esa sea obligatorio. despues que venga tambien preseleccionado cantidad a pedir, pero puedo seleccionar el resto si quiero que se vean en mi documento a guardar. Que sea un documento con buenos estilos, organizado, claro, bien disenado. que tenga el nombre del proveedor de ese pedido. ademas de eso tambien me gustaria que haya un boton de enviar por whatsapp y que me precargue el pedido con cantidad a pedir en la primera columna y el nombre del articulo en la segunda columna, esto para que yo pueda facilmente al crear el pedido darle click alli y si el proveedor entiende los articulos y si esta bien hecho ahi mismo lo pueda ver. tambien me gustaria que en el modal me aparezca la lista de articulos y al lado un input que diga nombre de articulo en el proveedor y alli yo ponga el nombre por el cual el proveedor entiende ese producto porque es posibl que se llame distinto en mi tienda y el proveedor lo entienda de otra manera. en ese caso entonce alli yo pueda agregarlo y sea como un segundo entry point para editar el input del articulo que dice Nombre de articulo en proveedor (opcional) en editar articulo
+
+## 2026-03-11 12:02 -03 — Orders: producto no obligatorio en exportación
+
+**Lote:** orders-share-columns-product-optional
+**Objetivo:** Permitir en el modal de impresión/WhatsApp de `/orders` que la columna `Producto` deje de ser obligatoria, manteniendo solo la validación de al menos una columna seleccionada.
+
+**Prompt**
+ahora que lo pienso no tiene mucho sentido que sea obligatorio el nombre del producto para las columnas de xportacion porque si yo he definido nombre del articulo en proveedor entonces me convendria usar esa columna. asi que vamos a quitar eso que sea obligatorio el nombre del producto por si no lo quiero
+
+## 2026-03-11 12:07 -03 — Orders: fix `Guardar PDF`
+
+**Lote:** orders-print-pdf-iframe-fix
+**Objetivo:** Corregir `Guardar PDF` en el modal de `/orders` para evitar la ventana `about:blank` y disparar el diálogo de impresión/PDF desde un `iframe` oculto con el documento generado.
+
+**Prompt**
+el boton de guardar PDF no parece funcionar me dice about:blank en una ventanita nueva

@@ -1,6 +1,9 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
+
+import OrderDraftShareActions from '@/app/orders/OrderDraftShareActions';
 
 type SuggestionRow = {
   product_id: string;
@@ -14,6 +17,9 @@ type SuggestionRow = {
   cycle_days?: number | null;
   suggested_qty: number | null;
   primary_supplier_name?: string | null;
+  supplier_product_name?: string | null;
+  supplier_sku?: string | null;
+  supplier_price?: number | null;
 };
 
 type Props = {
@@ -27,6 +33,9 @@ type Props = {
   initialQuantities?: Record<string, number>;
   showingSummary?: string | null;
   supplierPaymentPreferenceNote?: string | null;
+  supplierName?: string;
+  branchName?: string;
+  submitActions?: ReactNode;
   specialOrders?: Array<{
     item_id: string;
     client_name: string | null;
@@ -100,6 +109,9 @@ export default function OrderSuggestionsClient({
   initialQuantities,
   showingSummary,
   supplierPaymentPreferenceNote,
+  supplierName = 'Proveedor',
+  branchName = 'Sucursal',
+  submitActions,
   specialOrders = [],
 }: Props) {
   const averageColumnLabel = resolveAverageColumnLabel(avgMode, suggestions);
@@ -155,6 +167,15 @@ export default function OrderSuggestionsClient({
       return next;
     },
   );
+  const [supplierProductNames, setSupplierProductNames] = useState<
+    Record<string, string>
+  >(() => {
+    const next: Record<string, string> = {};
+    suggestions.forEach((row) => {
+      next[row.product_id] = String(row.supplier_product_name ?? '');
+    });
+    return next;
+  });
 
   const filteredSuggestions = suggestions.filter((row) => {
     const query = searchQuery.trim().toLowerCase();
@@ -272,6 +293,16 @@ export default function OrderSuggestionsClient({
     }));
   };
 
+  const handleSupplierProductNameChange = (
+    productId: string,
+    value: string,
+  ) => {
+    setSupplierProductNames((prev) => ({
+      ...prev,
+      [productId]: value,
+    }));
+  };
+
   if (suggestions.length === 0) {
     return (
       <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
@@ -324,6 +355,52 @@ export default function OrderSuggestionsClient({
           />
         );
       })}
+      {suggestions.map((row) => {
+        const qtyRaw = quantities[row.product_id] ?? '0';
+        return (
+          <input
+            key={`qty-hidden-${row.product_id}`}
+            type="hidden"
+            name={`qty_${row.product_id}`}
+            value={qtyRaw}
+          />
+        );
+      })}
+      {suggestions.map((row) => (
+        <input
+          key={`relation-type-${row.product_id}`}
+          type="hidden"
+          name={`relation_type_${row.product_id}`}
+          value={row.relation_type}
+        />
+      ))}
+      {suggestions.map((row) => (
+        <input
+          key={`supplier-sku-${row.product_id}`}
+          type="hidden"
+          name={`supplier_sku_${row.product_id}`}
+          value={row.supplier_sku ?? ''}
+        />
+      ))}
+      {suggestions.map((row) => (
+        <input
+          key={`supplier-price-${row.product_id}`}
+          type="hidden"
+          name={`supplier_price_${row.product_id}`}
+          value={String(
+            row.supplier_price ?? supplierPriceByProduct[row.product_id] ?? 0,
+          )}
+        />
+      ))}
+      {suggestions.map((row) => (
+        <input
+          key={`supplier-product-name-${row.product_id}`}
+          type="hidden"
+          name={`supplier_product_name_${row.product_id}`}
+          value={supplierProductNames[row.product_id] ?? ''}
+        />
+      ))}
+
       {specialOrders.length > 0 ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <p className="text-xs font-semibold text-amber-700 uppercase">
@@ -482,7 +559,6 @@ export default function OrderSuggestionsClient({
                     <td className="px-3 py-2 font-semibold">{suggestedQty}</td>
                     <td className="px-3 py-2">
                       <input
-                        name={`qty_${row.product_id}`}
                         type="number"
                         min="0"
                         step="1"
@@ -596,7 +672,6 @@ export default function OrderSuggestionsClient({
                     <td className="px-3 py-2 font-semibold">{suggestedQty}</td>
                     <td className="px-3 py-2">
                       <input
-                        name={`qty_${row.product_id}`}
                         type="number"
                         min="0"
                         step="1"
@@ -717,7 +792,6 @@ export default function OrderSuggestionsClient({
                   <label className="flex items-center justify-between gap-2">
                     <span>Cantidad a pedir</span>
                     <input
-                      name={`qty_${row.product_id}`}
                       type="number"
                       min="0"
                       step="1"
@@ -846,7 +920,6 @@ export default function OrderSuggestionsClient({
                   <label className="flex items-center justify-between gap-2">
                     <span>Cantidad a pedir</span>
                     <input
-                      name={`qty_${row.product_id}`}
                       type="number"
                       min="0"
                       step="1"
@@ -921,6 +994,35 @@ export default function OrderSuggestionsClient({
           <span className="font-semibold text-zinc-900">{totalItems}</span>
         </div>
       </div>
+      <OrderDraftShareActions
+        supplierName={supplierName}
+        branchName={branchName}
+        averageColumnLabel={averageColumnLabel}
+        items={suggestions.map((row) => {
+          const rendered = renderRow(row);
+          return {
+            productId: row.product_id,
+            productName: row.product_name || 'Producto',
+            supplierProductName: supplierProductNames[row.product_id] ?? '',
+            qty:
+              rendered.currentQtyRaw === ''
+                ? 0
+                : Number(rendered.currentQtyRaw),
+            stockOnHand: Number(row.stock_on_hand ?? 0),
+            safetyStock: Number(safetyStocks[row.product_id] ?? 0),
+            averageSales: rendered.avgCycle,
+            suggestedQty: rendered.suggestedQty,
+            unitPrice: rendered.unitPrice,
+            unitCost:
+              rendered.currentUnitCostRaw === ''
+                ? 0
+                : Number(rendered.currentUnitCostRaw),
+            subtotal: rendered.subtotal,
+          };
+        })}
+        onSupplierProductNameChange={handleSupplierProductNameChange}
+        submitActions={submitActions}
+      />
     </div>
   );
 }

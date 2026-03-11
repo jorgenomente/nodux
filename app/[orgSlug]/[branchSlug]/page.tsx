@@ -14,6 +14,7 @@ type StorefrontProductRow = {
   unit_price: number;
   stock_on_hand: number;
   image_url: string | null;
+  category_tags: string[] | null;
   is_available: boolean;
   whatsapp_phone: string | null;
   pickup_instructions: string | null;
@@ -103,6 +104,7 @@ export default async function BranchStorefrontPage({
     unit_price: Number(row.unit_price),
     stock_on_hand: Number(row.stock_on_hand),
     image_url: row.image_url,
+    category_tags: row.category_tags ?? [],
     is_available: row.is_available,
   }));
 

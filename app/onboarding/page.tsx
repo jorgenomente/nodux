@@ -10,6 +10,7 @@ import BulkProductSelectionActions from '@/app/onboarding/BulkProductSelectionAc
 import PageShell from '@/app/components/PageShell';
 import OnboardingFormPendingState from '@/app/onboarding/OnboardingFormPendingState';
 import { PRODUCT_FORM_LABELS } from '@/app/products/product-form-contract';
+import { parseProductCategoryTags } from '@/app/products/product-category-tags';
 import ProductFormFieldsShared from '@/app/products/ProductFormFieldsShared';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 import {
@@ -87,6 +88,7 @@ type ProductRow = {
   id: string;
   name: string | null;
   brand: string | null;
+  category_tags: string[] | null;
   internal_code: string | null;
   barcode: string | null;
   purchase_by_pack: boolean | null;
@@ -152,6 +154,8 @@ type BulkDraftState = {
   selectedProductIds?: string[];
   applyBrand?: boolean;
   bulkBrand?: string;
+  applyCategoryTags?: boolean;
+  bulkCategoryTags?: string;
   applyPrimarySupplier?: boolean;
   bulkPrimarySupplierId?: string;
   applySecondarySupplier?: boolean;
@@ -1507,6 +1511,9 @@ export default async function OnboardingPage({
     const productId = String(formData.get('product_id') ?? '').trim();
     const name = String(formData.get('name') ?? '').trim();
     const brand = String(formData.get('brand') ?? '').trim();
+    const categoryTags = parseProductCategoryTags(
+      String(formData.get('category_tags') ?? ''),
+    );
     const internalCode = String(formData.get('internal_code') ?? '').trim();
     const barcode = String(formData.get('barcode') ?? '').trim();
     const purchaseByPack = formData.get('purchase_by_pack') === 'on';
@@ -1596,6 +1603,7 @@ export default async function OnboardingPage({
       .from('products' as never)
       .update({
         brand: brand || null,
+        category_tags: categoryTags,
         purchase_by_pack: purchaseByPack,
         units_per_pack: purchaseByPack ? unitsPerPack : null,
       } as never)
@@ -1729,6 +1737,7 @@ export default async function OnboardingPage({
     }
 
     const applyBrand = formData.get('apply_brand') === 'on';
+    const applyCategoryTags = formData.get('apply_category_tags') === 'on';
     const applyPrimarySupplier =
       formData.get('apply_primary_supplier') === 'on';
     const applySecondarySupplier =
@@ -1740,6 +1749,7 @@ export default async function OnboardingPage({
 
     if (
       !applyBrand &&
+      !applyCategoryTags &&
       !applyPrimarySupplier &&
       !applySecondarySupplier &&
       !applyShelfLifeDays &&
@@ -1758,6 +1768,9 @@ export default async function OnboardingPage({
         '/onboarding?result=invalid&message=bulk_brand_required#bulk-products',
       );
     }
+    const categoryTags = parseProductCategoryTags(
+      String(formData.get('bulk_category_tags') ?? ''),
+    );
 
     const primarySupplierId = String(
       formData.get('bulk_primary_supplier_id') ?? '',
@@ -1859,6 +1872,9 @@ export default async function OnboardingPage({
     const productPatch: Record<string, unknown> = {};
     if (applyBrand) {
       productPatch.brand = brand;
+    }
+    if (applyCategoryTags) {
+      productPatch.category_tags = categoryTags;
     }
     if (applyShelfLifeDays) {
       productPatch.shelf_life_days = shelfLifeDays;
@@ -2219,7 +2235,7 @@ export default async function OnboardingPage({
   let resolverRowsQuery = supabase
     .from('v_products_incomplete_admin' as never)
     .select(
-      'id, name, brand, internal_code, barcode, purchase_by_pack, units_per_pack, sell_unit_type, uom, unit_price, shelf_life_days, has_primary_supplier, missing_primary_supplier, missing_shelf_life, missing_identifier',
+      'id, name, brand, category_tags, internal_code, barcode, purchase_by_pack, units_per_pack, sell_unit_type, uom, unit_price, shelf_life_days, has_primary_supplier, missing_primary_supplier, missing_shelf_life, missing_identifier',
     )
     .eq('org_id', orgId)
     .order('name')
@@ -2240,7 +2256,7 @@ export default async function OnboardingPage({
   let bulkRowsQuery = supabase
     .from('products' as never)
     .select(
-      'id, name, brand, internal_code, barcode, purchase_by_pack, units_per_pack, unit_price, shelf_life_days, is_active',
+      'id, name, brand, category_tags, internal_code, barcode, purchase_by_pack, units_per_pack, unit_price, shelf_life_days, is_active',
     )
     .eq('org_id', orgId)
     .order('name')
@@ -2939,6 +2955,7 @@ export default async function OnboardingPage({
                             fields={{
                               name: 'name',
                               brand: 'brand',
+                              categoryTags: 'category_tags',
                               internalCode: 'internal_code',
                               barcode: 'barcode',
                               purchaseByPack: 'purchase_by_pack',
@@ -2958,6 +2975,7 @@ export default async function OnboardingPage({
                             defaults={{
                               name: product.name ?? '',
                               brand: product.brand ?? '',
+                              categoryTags: product.category_tags ?? [],
                               internalCode: product.internal_code ?? '',
                               barcode: product.barcode ?? '',
                               purchaseByPack: Boolean(
@@ -3333,6 +3351,30 @@ export default async function OnboardingPage({
                     />
                     No aplica vencimiento (usar 0)
                   </label>
+                </div>
+              </div>
+
+              <div className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 md:grid-cols-[260px_1fr] md:items-center">
+                <label className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+                  <input
+                    type="checkbox"
+                    name="apply_category_tags"
+                    defaultChecked={Boolean(bulkDraftState?.applyCategoryTags)}
+                  />
+                  Aplicar categoria
+                </label>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    name="bulk_category_tags"
+                    placeholder="#keto #fitness #sintacc"
+                    defaultValue={bulkDraftState?.bulkCategoryTags ?? ''}
+                    className="w-full rounded-lg border border-zinc-300 px-2 py-2 text-sm"
+                  />
+                  <p className="text-xs text-zinc-500">
+                    Usa hashtags separados por espacio. Si lo dejas vacío y lo
+                    aplicas, limpias las categorías actuales.
+                  </p>
                 </div>
               </div>
 

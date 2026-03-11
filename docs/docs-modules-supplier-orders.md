@@ -183,6 +183,7 @@ En detalle de pedido (`/orders/[orderId]`), el estado `draft` usa edición batch
 - Se recomienda mostrar sugerido como ayuda, no obligatorio
 - En `/orders`, el ajuste `Margen de ganancia (%)` debe precargar primero el `% de ganancia deseado` del proveedor (`suppliers.default_markup_pct`) y usar el default org-wide (`org_preferences.default_supplier_markup_pct`) solo si el proveedor no lo definió
 - En `/orders`, `Stock de resguardo` funciona como segundo entry point operativo para editar `stock_items.safety_stock` del artículo en la sucursal seleccionada; el cambio se persiste al guardar borrador o enviar pedido.
+- En `/orders`, el modal de impresión/WhatsApp funciona también como segundo entry point para editar `supplier_products.supplier_product_name` del proveedor seleccionado; el cambio se persiste al guardar borrador o enviar pedido.
 - Si producto `purchase_by_pack=true`, la UI muestra equivalencia sugerida en
   paquetes (`suggested_qty / units_per_pack`) y equivalencia de cantidad cargada.
   Persistencia sigue en unidades.

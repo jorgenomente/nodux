@@ -13,6 +13,7 @@
 Abrir un canal de venta online conectado al inventario real de NODUX:
 
 - catálogo público por organización/sucursal
+- filtro público por categorías de producto (`products.category_tags`)
 - pedido online por cliente final
 - gestión operativa del pedido por staff/admin
 - tracking público por link único
@@ -108,6 +109,7 @@ Storage asociado:
 ## Reglas de negocio (invariantes)
 
 - R1) El storefront siempre está scopeado a una org (y opcional sucursal).
+- R1.b) Las categorías visibles y filtrables provienen del maestro `products.category_tags`.
 - R2) El precio de checkout usa snapshot para preservar auditoría.
 - R3) No se descuenta stock al crear pedido online; se descuenta al cerrar venta (POS o flujo equivalente).
 - R4) Cada cambio de estado debe quedar auditado.

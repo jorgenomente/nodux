@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
 import NewProductForm from '@/app/products/NewProductForm';
+import { parseProductCategoryTags } from '@/app/products/product-category-tags';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 import {
   hasStaffModuleEnabled,
@@ -331,6 +332,9 @@ export default async function SupplierDetailPage({
     const orgId = actionSession.orgId;
     const name = String(formData.get('name') ?? '').trim();
     const brand = String(formData.get('brand') ?? '').trim();
+    const categoryTags = parseProductCategoryTags(
+      String(formData.get('category_tags') ?? ''),
+    );
     const internalCode = String(formData.get('internal_code') ?? '').trim();
     const barcode = String(formData.get('barcode') ?? '').trim();
     const purchaseByPack = formData.get('purchase_by_pack') === 'on';
@@ -405,6 +409,7 @@ export default async function SupplierDetailPage({
       .from('products' as never)
       .update({
         brand: brand || null,
+        category_tags: categoryTags,
         purchase_by_pack: purchaseByPack,
         units_per_pack: purchaseByPack ? unitsPerPack : null,
       } as never)

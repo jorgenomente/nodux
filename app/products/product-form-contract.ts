@@ -1,6 +1,7 @@
 export const PRODUCT_FORM_LABELS = {
   productName: 'Nombre de articulo en la tienda',
   brand: 'Marca',
+  categoryTags: 'Categoria',
   internalCode: 'Codigo interno',
   barcode: 'Codigo de barras',
   sellUnitType: 'Unidad de venta',

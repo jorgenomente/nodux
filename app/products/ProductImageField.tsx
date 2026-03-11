@@ -120,7 +120,7 @@ const blobToDataUrl = (blob: Blob): Promise<string> =>
     reader.readAsDataURL(blob);
   });
 
-const compressImageToDataUrl = async (file: File): Promise<string> => {
+export const compressImageToDataUrl = async (file: File): Promise<string> => {
   let decoded: DecodedImage;
   try {
     decoded = await decodeImage(file);

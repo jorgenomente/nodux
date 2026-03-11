@@ -61,6 +61,8 @@ const collectBulkDraftSnapshot = () => {
     ).map((input) => input.value),
     applyBrand: checked('apply_brand'),
     bulkBrand: byName('bulk_brand')?.value ?? '',
+    applyCategoryTags: checked('apply_category_tags'),
+    bulkCategoryTags: byName('bulk_category_tags')?.value ?? '',
     applyPrimarySupplier: checked('apply_primary_supplier'),
     bulkPrimarySupplierId: byName('bulk_primary_supplier_id')?.value ?? '',
     applySecondarySupplier: checked('apply_secondary_supplier'),

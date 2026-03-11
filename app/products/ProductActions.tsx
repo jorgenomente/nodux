@@ -12,6 +12,7 @@ type EditPayload = {
   productId: string;
   name: string;
   brand: string;
+  categoryTags: string;
   internalCode: string;
   barcode: string;
   purchaseByPack: boolean;
@@ -41,6 +42,7 @@ type Props = {
   productId: string;
   name: string;
   brand: string | null;
+  categoryTags: string[] | null;
   internalCode: string | null;
   barcode: string | null;
   purchaseByPack: boolean;
@@ -66,6 +68,7 @@ export default function ProductActions({
   productId,
   name,
   brand,
+  categoryTags,
   internalCode,
   barcode,
   purchaseByPack,
@@ -112,6 +115,7 @@ export default function ProductActions({
     formData.append('product_id', payload.productId);
     formData.append('edit_name', payload.name);
     formData.append('edit_brand', payload.brand);
+    formData.append('edit_category_tags', payload.categoryTags);
     formData.append('edit_internal_code', payload.internalCode);
     formData.append('edit_barcode', payload.barcode);
     if (payload.purchaseByPack) {
@@ -173,6 +177,7 @@ export default function ProductActions({
       productId,
       name,
       brand: brand ?? '',
+      categoryTags: (categoryTags ?? []).join(' '),
       internalCode: internalCode ?? '',
       barcode: barcode ?? '',
       purchaseByPack,
@@ -246,6 +251,7 @@ export default function ProductActions({
             fields={{
               name: 'edit_name',
               brand: 'edit_brand',
+              categoryTags: 'edit_category_tags',
               internalCode: 'edit_internal_code',
               barcode: 'edit_barcode',
               purchaseByPack: 'edit_purchase_by_pack',
@@ -266,6 +272,7 @@ export default function ProductActions({
             defaults={{
               name,
               brand: brand ?? '',
+              categoryTags: categoryTags ?? [],
               internalCode: internalCode ?? '',
               barcode: barcode ?? '',
               purchaseByPack,

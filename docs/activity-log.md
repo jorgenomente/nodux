@@ -18,6 +18,69 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-03-11 12:07 -03 — Orders: fix de `Guardar PDF` sin popup `about:blank`
+
+**Tipo:** ui/docs
+**Lote:** orders-print-pdf-iframe-fix
+**Descripción:** Se reemplazó el flujo de `Guardar PDF` del modal de `/orders`: en lugar de abrir una ventana `about:blank`, ahora genera el documento en un `iframe` oculto y dispara el diálogo de impresión/guardar PDF desde ahí. Esto evita la ventanita vacía y mantiene el mismo layout del documento.
+
+**Archivos afectados:**
+
+- app/orders/OrderDraftShareActions.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 12:02 -03 — Orders: `Producto` opcional en modal de exportación
+
+**Tipo:** ui/docs
+**Lote:** orders-share-columns-product-optional
+**Descripción:** Se ajustó el modal de `Imprimir` / `Enviar por WhatsApp` en `/orders` para que la columna `Producto` deje de ser obligatoria. Ahora el usuario puede exportar o compartir usando solo `Nombre en proveedor` u otras columnas, siempre que quede al menos una columna seleccionada.
+
+**Archivos afectados:**
+
+- app/orders/OrderDraftShareActions.tsx
+- docs/docs-app-screens-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 10:30 -03 — Orders: impresión configurable + WhatsApp + nombre proveedor inline
+
+**Tipo:** ui/docs
+**Lote:** orders-print-whatsapp-supplier-product-name
+**Descripción:** Se agregaron al armado de `/orders` dos acciones operativas nuevas: `Imprimir` y `Enviar por WhatsApp`. Ambas abren un modal de preparación donde se pueden elegir columnas del documento, revisar únicamente los artículos con cantidad > 0 y editar `Nombre de articulo en el proveedor` como segundo entry point operativo. El flujo de impresión genera un documento browser-print con diseño claro y nombre del proveedor, mientras que WhatsApp arma un texto simple en formato `Cantidad | Articulo`, priorizando `supplier_product_name` si existe. Los cambios de `supplier_product_name` se persisten al guardar borrador o enviar pedido.
+
+**Archivos afectados:**
+
+- app/orders/OrderDraftShareActions.tsx
+- app/orders/OrderSuggestionsClient.tsx
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/docs-modules-supplier-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+- `npx playwright test` NOT RUN (2026-03-11): no existe smoke dedicado de `/orders` para este flujo en el repo
+
+**Commit:** N/A
+
 ## 2026-03-11 10:18 -03 — Orders: resguardo editable inline + rename en products
 
 **Tipo:** ui/docs
@@ -44,6 +107,84 @@ Breve descripcion de que se hizo y por que.
 - `npm run lint` OK (2026-03-11)
 - `npm run build` OK (2026-03-11)
 - `npx playwright test` NOT RUN (2026-03-11): no existe smoke dedicado de `/orders`/`/products` para este flujo en el repo
+
+**Commit:** N/A
+
+## 2026-03-11 11:20 -03 — Products: modal rápido para foto desde el listado
+
+**Tipo:** ui/docs
+**Lote:** products-image-modal-inline
+**Descripción:** Se agregó un entry point directo sobre la miniatura de cada artículo en `/products`: al hacer click/tap se abre un modal con vista ampliada de la foto. Para usuarios con edición habilitada, el mismo modal permite seleccionar una imagen, tomar una foto con cámara o quitarla, reutilizando la compresión previa a JPG liviano antes de guardar para reducir impacto de almacenamiento.
+
+**Archivos afectados:**
+
+- app/products/ProductImageField.tsx
+- app/products/ProductImageQuickActions.tsx
+- app/products/ProductListClient.tsx
+- docs/docs-app-screens-products.md
+- docs/docs-modules-products-stock.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+- `npx playwright test` NOT RUN (2026-03-11): no existe smoke dedicado de `/products` para este modal en el repo
+
+**Commit:** N/A
+
+## 2026-03-11 12:35 -03 — Products/Storefront: categorías por hashtags y filtro público
+
+**Tipo:** schema/ui/docs/tests
+**Lote:** products-category-tags-storefront-filter
+**Descripción:** Se agregó `products.category_tags` como metadata global de producto basada en hashtags normalizados, con trigger DB para limpiar/deduplicar valores. El dato ahora se puede editar desde `/products`, el resolvedor y la edición masiva de `/onboarding`, y desde la recepción de `/orders/[orderId]`. Además, el storefront público expone esas categorías y las usa para filtrar el catálogo sin crear una taxonomía paralela.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260311121000_093_product_category_tags_storefront.sql
+- docs/schema.sql
+- types/supabase.ts
+- app/products/product-category-tags.ts
+- app/products/product-form-contract.ts
+- app/products/ProductFormFieldsShared.tsx
+- app/products/NewProductForm.tsx
+- app/products/ProductActions.tsx
+- app/products/ProductImageQuickActions.tsx
+- app/products/ProductListClient.tsx
+- app/products/page.tsx
+- app/suppliers/[supplierId]/page.tsx
+- app/onboarding/page.tsx
+- app/onboarding/BulkCreateSupplierModal.tsx
+- app/orders/ReceiveItemsPricingClient.tsx
+- app/orders/[orderId]/page.tsx
+- app/[orgSlug]/[branchSlug]/page.tsx
+- app/[orgSlug]/[branchSlug]/StorefrontBranchClient.tsx
+- docs/docs-app-screens-products.md
+- docs/docs-app-screens-onboarding.md
+- docs/docs-app-screens-order-detail.md
+- docs/docs-app-screens-online-storefront-public.md
+- docs/docs-modules-products-stock.md
+- docs/docs-modules-online-store.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset` OK (2026-03-11)
+- `npm run db:seed:demo` OK (2026-03-11)
+- `npm run db:schema:snapshot` OK (2026-03-11)
+- `npm run types:gen` OK (2026-03-11)
+- `npm run db:rls:smoke` OK (2026-03-11)
+- `psql ...` OK (2026-03-11): columna `products.category_tags` creada, `v_products_admin` responde y `rpc_get_public_storefront_products(...)` devuelve `category_tags` en storefront demo habilitado localmente
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+- `npx playwright test` NOT RUN (2026-03-11): no existe smoke específico para este flujo transversal en el repo
 
 **Commit:** N/A
 

@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 import NewProductForm from '@/app/products/NewProductForm';
+import { parseProductCategoryTags } from '@/app/products/product-category-tags';
 import ProductListFilters from '@/app/products/ProductListFilters';
 import ProductListClient from '@/app/products/ProductListClient';
 import StockAdjustmentSection from '@/app/products/StockAdjustmentSection';
@@ -57,6 +58,7 @@ type ProductCatalogRow = {
   id: string;
   name: string;
   brand: string | null;
+  category_tags: string[] | null;
   internal_code: string | null;
   barcode: string | null;
   purchase_by_pack: boolean | null;
@@ -199,6 +201,7 @@ const updateProductMetadata = async ({
   orgId,
   productId,
   brand,
+  categoryTags,
   imageUrl,
   purchaseByPack,
   unitsPerPack,
@@ -206,6 +209,7 @@ const updateProductMetadata = async ({
   orgId: string;
   productId: string;
   brand: string;
+  categoryTags: string[];
   imageUrl: string | null;
   purchaseByPack: boolean;
   unitsPerPack: number | null;
@@ -215,6 +219,7 @@ const updateProductMetadata = async ({
     .from('products' as never)
     .update({
       brand: brand || null,
+      category_tags: categoryTags,
       image_url: imageUrl,
       purchase_by_pack: purchaseByPack,
       units_per_pack: purchaseByPack ? unitsPerPack : null,
@@ -223,7 +228,7 @@ const updateProductMetadata = async ({
     .eq('id', productId);
   if (error) {
     throw new Error(
-      `No se pudo guardar marca/imagen del producto: ${error.message}`,
+      `No se pudo guardar metadatos del producto: ${error.message}`,
     );
   }
 };
@@ -383,7 +388,7 @@ export default async function ProductsPage({
         dataClient
           .from('products' as never)
           .select(
-            'id, name, brand, internal_code, barcode, purchase_by_pack, units_per_pack, is_active',
+            'id, name, brand, category_tags, internal_code, barcode, purchase_by_pack, units_per_pack, is_active',
           )
           .eq('org_id', orgId)
           .order('name')
@@ -504,6 +509,9 @@ export default async function ProductsPage({
       : actionSession.supabase;
     const name = String(formData.get('name') ?? '').trim();
     const brand = String(formData.get('brand') ?? '').trim();
+    const categoryTags = parseProductCategoryTags(
+      String(formData.get('category_tags') ?? ''),
+    );
     const internalCode = String(formData.get('internal_code') ?? '').trim();
     const barcode = String(formData.get('barcode') ?? '').trim();
     const purchaseByPack = formData.get('purchase_by_pack') === 'on';
@@ -612,6 +620,7 @@ export default async function ProductsPage({
       orgId,
       productId,
       brand,
+      categoryTags,
       imageUrl,
       purchaseByPack,
       unitsPerPack,
@@ -698,6 +707,9 @@ export default async function ProductsPage({
     const productId = String(formData.get('product_id') ?? '').trim();
     const name = String(formData.get('edit_name') ?? '').trim();
     const brand = String(formData.get('edit_brand') ?? '').trim();
+    const categoryTags = parseProductCategoryTags(
+      String(formData.get('edit_category_tags') ?? ''),
+    );
     const internalCode = String(
       formData.get('edit_internal_code') ?? '',
     ).trim();
@@ -824,6 +836,7 @@ export default async function ProductsPage({
       orgId,
       productId,
       brand,
+      categoryTags,
       imageUrl: nextImageUrl,
       purchaseByPack,
       unitsPerPack,

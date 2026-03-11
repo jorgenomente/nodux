@@ -53,6 +53,7 @@ Gestionar el catálogo de productos y el stock por sucursal, con operación real
 Cada row:
 
 - nombre
+- foto del artículo (tap/click abre modal de vista ampliada; si el usuario puede editar, desde ahí puede seleccionar foto, tomar foto o quitarla)
 - SKU interno / barcode (si existe)
 - precio actual
 - stock total
@@ -87,6 +88,7 @@ Campos mínimos:
 
 - name (requerido)
 - brand (opcional)
+- categoria (opcional; hashtags normalizados como `#keto #sintacc`)
 - internal_code (opcional, recomendado)
 - barcode (opcional)
 - purchase_by_pack (checkbox, default false)
@@ -135,6 +137,8 @@ Reglas anti-duplicado (obligatorias):
 
 - mismos campos
 - permite reemplazar imagen o quitar imagen actual
+- permite editar categorías del artículo para storefront y filtros operativos
+- desde el listado, click/tap sobre la foto abre modal rápido para verla más grande y editarla sin desplegar todo el formulario
 - no eliminar; solo `is_active=false`
 - cantidad de resguardo editable desde listado (aplica a todas las sucursales activas)
 
@@ -210,6 +214,7 @@ Salida mínima por fila:
 - product_id
 - name
 - brand
+- category_tags[]
 - internal_code
 - barcode
 - purchase_by_pack

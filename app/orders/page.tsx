@@ -68,6 +68,9 @@ type SuggestionRow = {
   cycle_days?: number | null;
   suggested_qty: number | null;
   primary_supplier_name?: string | null;
+  supplier_product_name?: string | null;
+  supplier_sku?: string | null;
+  supplier_price?: number | null;
 };
 
 type SafetyStockUpdate = {
@@ -87,6 +90,8 @@ type OrgPreferencesMarkupRow = {
 type SupplierProductPriceRow = {
   product_id: string;
   supplier_price: number | null;
+  supplier_sku?: string | null;
+  supplier_product_name?: string | null;
 };
 
 type SupplierPrimaryRelationRow = {
@@ -501,7 +506,9 @@ export default async function OrdersPage({
     draftSupplierId && suggestionIds && suggestionIds.length > 0
       ? await supabase
           .from('supplier_products')
-          .select('product_id, supplier_price')
+          .select(
+            'product_id, supplier_price, supplier_sku, supplier_product_name',
+          )
           .eq('org_id', orgId)
           .eq('supplier_id', draftSupplierId)
           .in('product_id', suggestionIds)
@@ -541,6 +548,16 @@ export default async function OrdersPage({
       );
     },
   );
+  const supplierProductMetaByProduct = new Map<
+    string,
+    SupplierProductPriceRow
+  >();
+  (supplierProductPrices as SupplierProductPriceRow[] | null)?.forEach(
+    (row) => {
+      if (!row.product_id) return;
+      supplierProductMetaByProduct.set(row.product_id, row);
+    },
+  );
   const suggestionsWithPrimarySupplier = (
     (suggestions as SuggestionRow[] | null) ?? []
   ).map((row) => ({
@@ -549,6 +566,13 @@ export default async function OrdersPage({
       row.relation_type === 'secondary'
         ? (primarySupplierNameByProduct.get(row.product_id) ?? null)
         : null,
+    supplier_product_name:
+      supplierProductMetaByProduct.get(row.product_id)?.supplier_product_name ??
+      null,
+    supplier_sku:
+      supplierProductMetaByProduct.get(row.product_id)?.supplier_sku ?? null,
+    supplier_price:
+      supplierProductMetaByProduct.get(row.product_id)?.supplier_price ?? null,
   }));
 
   const createOrder = async (formData: FormData) => {
@@ -608,6 +632,67 @@ export default async function OrdersPage({
       );
     };
 
+    const supplierProductNameUpdates = Array.from(formData.entries())
+      .filter(([key]) => key.startsWith('supplier_product_name_'))
+      .map(([key, value]) => {
+        const productId = key.replace('supplier_product_name_', '');
+        return {
+          productId,
+          supplierProductName: String(value ?? '').trim(),
+          relationType:
+            String(formData.get(`relation_type_${productId}`) ?? 'primary') ||
+            'primary',
+          supplierSku: String(
+            formData.get(`supplier_sku_${productId}`) ?? '',
+          ).trim(),
+          supplierPriceRaw: String(
+            formData.get(`supplier_price_${productId}`) ?? '',
+          ).trim(),
+        };
+      })
+      .filter((entry) => Boolean(entry.productId));
+
+    const persistSupplierProductNameUpdates = async () => {
+      if (supplierProductNameUpdates.length === 0) return;
+
+      await Promise.all(
+        supplierProductNameUpdates.map(
+          async ({
+            productId,
+            supplierProductName,
+            relationType,
+            supplierSku,
+            supplierPriceRaw,
+          }) => {
+            const supplierPrice =
+              supplierPriceRaw === '' ? null : Number(supplierPriceRaw);
+            const { error } = await supabaseServer.rpc(
+              'rpc_upsert_supplier_product',
+              {
+                p_org_id: orgId,
+                p_supplier_id: supplierId,
+                p_product_id: productId,
+                p_supplier_sku: supplierSku,
+                p_supplier_product_name: supplierProductName,
+                p_relation_type:
+                  relationType === 'secondary' ? 'secondary' : 'primary',
+                p_supplier_price:
+                  supplierPrice != null && Number.isFinite(supplierPrice)
+                    ? supplierPrice
+                    : undefined,
+              },
+            );
+
+            if (error) {
+              throw new Error(
+                `No se pudo actualizar nombre de articulo en proveedor para ${productId}: ${error.message}`,
+              );
+            }
+          },
+        ),
+      );
+    };
+
     const items = Array.from(formData.entries())
       .filter(([key]) => key.startsWith('qty_'))
       .map(([key, value]) => ({
@@ -618,6 +703,7 @@ export default async function OrdersPage({
       .filter((entry) => entry.productId && entry.qty > 0);
 
     await persistSafetyStockUpdates();
+    await persistSupplierProductNameUpdates();
 
     if (items.length === 0) {
       revalidatePath('/orders');
@@ -1121,7 +1207,29 @@ export default async function OrdersPage({
                         supplierPaymentPreferenceNote={
                           supplierPaymentPreferenceNote
                         }
+                        supplierName={selectedSupplier?.name ?? 'Proveedor'}
+                        branchName={selectedBranch?.name ?? 'Sucursal'}
                         showingSummary={`${selectedSupplier?.name ?? 'Proveedor'} · ${selectedBranch?.name ?? 'Sucursal'} · Margen: ${safeMarginPct.toFixed(2)}% · Promedio: ${showingAvgModeLabel}`}
+                        submitActions={
+                          <>
+                            <button
+                              type="submit"
+                              name="order_action"
+                              value="draft"
+                              className="rounded border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700"
+                            >
+                              Guardar borrador
+                            </button>
+                            <button
+                              type="submit"
+                              name="order_action"
+                              value="sent"
+                              className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
+                            >
+                              Enviar pedido
+                            </button>
+                          </>
+                        }
                         specialOrders={
                           specialOrderItemsWithBranch as Array<
                             SpecialOrderItemRow & { branch_name: string | null }
@@ -1137,24 +1245,6 @@ export default async function OrdersPage({
                           className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
                         />
                       </label>
-                      <div className="flex flex-wrap items-center justify-end gap-3">
-                        <button
-                          type="submit"
-                          name="order_action"
-                          value="draft"
-                          className="rounded border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700"
-                        >
-                          Guardar borrador
-                        </button>
-                        <button
-                          type="submit"
-                          name="order_action"
-                          value="sent"
-                          className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
-                        >
-                          Enviar pedido
-                        </button>
-                      </div>
                     </form>
                   </OrderDraftCreateFormClient>
                 </div>

@@ -170,6 +170,8 @@ Ultima actualizacion: 2026-03-10 22:15
 - `/orders` ahora precarga `Ajustes de sugeridos > Margen de ganancia (%)` con el `% de ganancia deseado` del proveedor seleccionado y usa `default_supplier_markup_pct` de la org solo como fallback.
 - `/orders` ahora aclara en el bloque `Mostrando` la frecuencia efectiva cuando el promedio queda en `Segun proveedor` (ej. `Segun proveedor (semanal)`).
 - `/orders` ahora permite editar inline `Stock de resguardo` por artículo mientras se arma un pedido y persiste ese valor en la sucursal seleccionada al guardar borrador o enviar pedido.
+- `/orders` suma acciones operativas `Imprimir` y `Enviar por WhatsApp` al armar un pedido, con modal para elegir columnas, generar un PDF browser-print claro y editar allí mismo el `Nombre de articulo en el proveedor` antes de guardar/compartir.
+- En ese modal de `/orders`, `Producto` ya no es obligatorio: el usuario puede exportar/compartir usando solo `Nombre en proveedor` u otras columnas, siempre que quede al menos una columna seleccionada.
 - `/products` renombra el campo operativo `Stock minimo` a `Cantidad de resguardo`.
 - Proveedores incorporan perfil de pago: plazo (días), método de pago preferido (cash/transfer), datos de pago/notas y cuentas de transferencia.
 - En `/payments`, la foto de factura/remito se comprime automáticamente (JPG liviano) y se guarda en Storage (`supplier-invoices`).
@@ -182,6 +184,8 @@ Ultima actualizacion: 2026-03-10 22:15
 - UI pública inicial del canal online implementada: selector de sucursal por org (`/:orgSlug`), catálogo + carrito + checkout (`/:orgSlug/:branchSlug`) y tracking público por token (`/o/:trackingToken`), con endpoint `POST /api/storefront/order` para crear pedidos online vía RPC.
 - Storefront público compacta cards de catálogo para mostrar más productos por pantalla en mobile/desktop (`/:orgSlug/:branchSlug`).
 - `/products` incorpora carga de imagen por producto (alta/edición) con compresión previa a JPG liviano; se guarda en Storage bucket público `product-images` y persiste `products.image_url`.
+- `/products` ahora permite tocar/clickear la foto de cada artículo en el listado para abrir un modal de vista ampliada y, para OA/SA, cambiarla o tomar una nueva sin abrir el formulario completo; la compresión previa a JPG liviano se mantiene.
+- Productos ahora soportan `category_tags` por hashtags (`#keto #fitness #sintacc`) persistidas en el maestro; se editan desde `/products`, `/onboarding` y recepción de `/orders/[orderId]`, y el storefront público las usa para filtrar catálogo.
 - UI interna inicial de pedidos online implementada en `/online-orders` (OA/ST con módulo habilitado), con filtros por sucursal/estado/búsqueda y transición de estados vía `rpc_set_online_order_status`.
 - Comprobantes de pago online v1 implementados: carga pública desde `/o/:trackingToken` (archivo imagen) con persistencia en `online_order_payment_proofs` y revisión interna en `/online-orders` (aprobar/rechazar + nota), soportado por bucket privado `online-order-proofs` (migración `20260302101500_069_online_order_proofs_storage_bucket.sql`).
 - `/settings` ahora muestra sección "Tienda online" con estado de storefront (`is_enabled`), `orgSlug` y links públicos por org/sucursal para facilitar QA operativo sin abrir SQL/Studio.

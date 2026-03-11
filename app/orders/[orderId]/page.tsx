@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import AmountInputAR from '@/app/components/AmountInputAR';
 import PageShell from '@/app/components/PageShell';
+import { parseProductCategoryTags } from '@/app/products/product-category-tags';
 import OrderSuggestionsClient from '@/app/orders/OrderSuggestionsClient';
 import ReceiveItemsPricingClient from '@/app/orders/ReceiveItemsPricingClient';
 import ReceiveActionsRow from '@/app/orders/ReceiveActionsRow';
@@ -35,6 +36,7 @@ type OrderDetailRow = {
   order_item_id: string | null;
   product_id: string | null;
   product_name: string | null;
+  category_tags?: string[] | null;
   purchase_by_pack?: boolean | null;
   units_per_pack?: number | null;
   ordered_qty: number | null;
@@ -81,6 +83,7 @@ type SuggestionRow = {
 type ProductPriceRow = {
   id: string;
   unit_price: number | null;
+  category_tags: string[] | null;
 };
 
 type OrgPreferencesMarkupRow = {
@@ -278,7 +281,7 @@ export default async function OrderDetailPage({
     suggestionIds && suggestionIds.length > 0
       ? await supabase
           .from('products')
-          .select('id, unit_price')
+          .select('id, unit_price, category_tags')
           .eq('org_id', orgId)
           .in('id', suggestionIds)
       : { data: [] };
@@ -292,13 +295,19 @@ export default async function OrderDetailPage({
           .in('product_id', suggestionIds)
       : { data: [] };
   const priceByProduct = new Map<string, number>();
+  const categoryTagsByProduct = new Map<string, string[]>();
   (suggestionPrices as ProductPriceRow[] | null)?.forEach((row) => {
     if (!row.id) return;
     priceByProduct.set(row.id, Number(row.unit_price ?? 0));
+    categoryTagsByProduct.set(row.id, row.category_tags ?? []);
   });
   const priceByProductRecord: Record<string, number> = {};
   priceByProduct.forEach((value, key) => {
     priceByProductRecord[key] = value;
+  });
+  const categoryTagsByProductRecord: Record<string, string[]> = {};
+  categoryTagsByProduct.forEach((value, key) => {
+    categoryTagsByProductRecord[key] = value;
   });
   const supplierPriceByProductRecord: Record<string, number> = {};
   (supplierProductPrices as SupplierProductPriceRow[] | null)?.forEach(
@@ -533,10 +542,14 @@ export default async function OrderDetailPage({
         const unitPrice = Number(
           formData.get(`unit_price_${item.order_item_id}`) ?? 0,
         );
+        const categoryTags = parseProductCategoryTags(
+          String(formData.get(`category_tags_${item.order_item_id}`) ?? ''),
+        );
         if (!item.order_item_id) return null;
         return {
           order_item_id: item.order_item_id,
           product_id: item.product_id,
+          category_tags: categoryTags,
           received_qty:
             Number.isFinite(receivedQty) && receivedQty >= 0 ? receivedQty : 0,
           unit_cost: Number.isFinite(unitCost) && unitCost >= 0 ? unitCost : 0,
@@ -550,6 +563,7 @@ export default async function OrderDetailPage({
         ): value is {
           order_item_id: string;
           product_id: string | null;
+          category_tags: string[];
           received_qty: number;
           unit_cost: number;
           unit_price: number;
@@ -577,6 +591,7 @@ export default async function OrderDetailPage({
             .from('products')
             .update({
               unit_price: Number(item.unit_price ?? 0),
+              category_tags: item.category_tags,
             })
             .eq('org_id', orgId)
             .eq('id', String(item.product_id)),
@@ -1025,6 +1040,8 @@ export default async function OrderDetailPage({
                 : 0,
         suggested_unit_cost: suggestedUnitCost > 0 ? suggestedUnitCost : 0,
         default_unit_price: productUnitPrice > 0 ? productUnitPrice : 0,
+        category_tags:
+          categoryTagsByProductRecord[productId] ?? item.category_tags ?? [],
         markup_pct:
           supplierDefaultMarkupPct > 0 ? supplierDefaultMarkupPct : 40,
       };

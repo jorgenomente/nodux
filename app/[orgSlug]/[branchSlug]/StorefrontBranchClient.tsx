@@ -3,6 +3,11 @@
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
 
+import {
+  formatProductCategoryTags,
+  productMatchesCategory,
+} from '@/app/products/product-category-tags';
+
 const normalizePhoneForWhatsApp = (value: string) =>
   value.replace(/[^\d]/g, '');
 
@@ -12,6 +17,7 @@ type StorefrontProduct = {
   unit_price: number;
   stock_on_hand: number;
   image_url: string | null;
+  category_tags: string[];
   is_available: boolean;
 };
 
@@ -43,6 +49,7 @@ export default function StorefrontBranchClient({
   products,
 }: StorefrontBranchClientProps) {
   const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [cart, setCart] = useState<Record<string, number>>({});
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -53,13 +60,27 @@ export default function StorefrontBranchClient({
     message: '',
   });
 
+  const availableCategories = useMemo(() => {
+    const tags = new Set<string>();
+    products.forEach((product) => {
+      product.category_tags.forEach((tag) => tags.add(tag));
+    });
+    return Array.from(tags).sort((a, b) => a.localeCompare(b));
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return products;
-    return products.filter((product) =>
-      product.product_name.toLowerCase().includes(query),
-    );
-  }, [products, search]);
+    return products.filter((product) => {
+      const matchesQuery =
+        !query ||
+        product.product_name.toLowerCase().includes(query) ||
+        product.category_tags.some((tag) => tag.toLowerCase().includes(query));
+      return (
+        matchesQuery &&
+        productMatchesCategory(product.category_tags, selectedCategory)
+      );
+    });
+  }, [products, search, selectedCategory]);
 
   const cartItems = useMemo(() => {
     return Object.entries(cart)
@@ -238,6 +259,35 @@ export default function StorefrontBranchClient({
               placeholder="Buscar producto"
               className="mt-4 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm ring-orange-200 transition outline-none focus:ring"
             />
+            {availableCategories.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory('')}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                    selectedCategory === ''
+                      ? 'border-orange-600 bg-orange-600 text-white'
+                      : 'border-orange-200 bg-orange-50 text-orange-700'
+                  }`}
+                >
+                  Todas
+                </button>
+                {availableCategories.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setSelectedCategory(tag)}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                      selectedCategory === tag
+                        ? 'border-orange-600 bg-orange-600 text-white'
+                        : 'border-orange-200 bg-orange-50 text-orange-700'
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -276,6 +326,10 @@ export default function StorefrontBranchClient({
                     ${Number(product.unit_price).toFixed(2)}
                   </p>
                   <p className="text-xs text-slate-600">Stock: {stockLabel}</p>
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    {formatProductCategoryTags(product.category_tags) ||
+                      'Sin categoria'}
+                  </p>
 
                   <div className="mt-2 flex items-center gap-1.5">
                     <button

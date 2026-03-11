@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 
 import AmountInputAR from '@/app/components/AmountInputAR';
+import { formatProductCategoryTags } from '@/app/products/product-category-tags';
 import ProductImageField from '@/app/products/ProductImageField';
 import { PRODUCT_FORM_LABELS } from '@/app/products/product-form-contract';
 
@@ -27,6 +28,7 @@ type ProductNameSuggestion = {
 type FieldNameMap = {
   name: string;
   brand: string;
+  categoryTags: string;
   internalCode: string;
   barcode: string;
   purchaseByPack: string;
@@ -48,6 +50,7 @@ type FieldNameMap = {
 type DefaultValueMap = {
   name?: string;
   brand?: string;
+  categoryTags?: string[] | string | null;
   internalCode?: string;
   barcode?: string;
   purchaseByPack?: boolean;
@@ -130,6 +133,9 @@ export default function ProductFormFieldsShared({
   );
   const [nameValue, setNameValue] = useState(defaults?.name ?? '');
   const [brandValue, setBrandValue] = useState(defaults?.brand ?? '');
+  const initialCategoryTags = Array.isArray(defaults?.categoryTags)
+    ? formatProductCategoryTags(defaults.categoryTags)
+    : (defaults?.categoryTags ?? '');
   const [barcodeValue, setBarcodeValue] = useState(defaults?.barcode ?? '');
   const [internalCodeValue, setInternalCodeValue] = useState(
     defaults?.internalCode ?? '',
@@ -388,6 +394,18 @@ export default function ProductFormFieldsShared({
             Marcas parecidas: {similarBrands.join(' · ')}
           </span>
         ) : null}
+      </label>
+      <label className={labelClass}>
+        {PRODUCT_FORM_LABELS.categoryTags}
+        <input
+          name={fields.categoryTags}
+          defaultValue={initialCategoryTags}
+          className={inputClass}
+          placeholder="#keto #fitness #sintacc"
+        />
+        <span className="mt-2 block text-xs text-zinc-500">
+          Usa hashtags separados por espacio. Ej: #keto #sinazucar.
+        </span>
       </label>
       <label className={labelClass}>
         {PRODUCT_FORM_LABELS.internalCode}

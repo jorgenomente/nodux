@@ -60,7 +60,7 @@ Comportamiento MVP actual:
 
 - `productos con informacion incompleta`: abre resolvedor rapido inline en la
   misma pantalla con formulario por fila para completar campos operativos de
-  producto (nombre, marca, codigos, unidad, precio, shelf life, proveedor
+  producto (nombre, marca, categorias, codigos, unidad, precio, shelf life, proveedor
   primario/secundario, SKU/nombre proveedor y stock minimo global). El
   resolvedor usa conteo exacto en DB, paginacion (25 por pagina) y buscador
   server-side por nombre para evitar cargas masivas.
@@ -89,6 +89,7 @@ Accion implementada en MVP:
   - todos los resultados filtrados
 - patch masivo de campos operativos:
   - marca
+  - categoria por hashtags
   - compra por paquete (`purchase_by_pack` + `units_per_pack`)
   - proveedor primario
   - proveedor secundario
@@ -196,6 +197,7 @@ Salida minima:
 - `name`
 - `internal_code`
 - `barcode`
+- `category_tags`
 - `purchase_by_pack`
 - `units_per_pack`
 - `unit_price`

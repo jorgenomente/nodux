@@ -94,6 +94,8 @@ Paso 3.b: editar inline `Stock de resguardo` por artículo si hace falta, sin sa
 
 Paso 4: agregar notas y guardar borrador / enviar pedido.
 
+Paso 4.b: antes de guardar, imprimir o compartir por WhatsApp usando un modal de preparación que permite elegir columnas y revisar nombres entendibles para el proveedor.
+
 Campos:
 
 - proveedor (selector)
@@ -102,6 +104,9 @@ Campos:
 - ajustes de sugeridos: margen de ganancia (%) + columna de promedio de ventas (segun proveedor/semanal/quincenal/mensual)
   - default del margen: `suppliers.default_markup_pct`; fallback `org_preferences.default_supplier_markup_pct`
 - `Stock de resguardo` editable por artículo dentro del listado de sugeridos
+- botón `Imprimir` junto a `Guardar borrador`, con modal para elegir columnas del PDF
+- botón `Enviar por WhatsApp`, con previsualización del pedido en texto plano
+- lista de artículos en el modal con input `Nombre de articulo en el proveedor`
 - cantidades por item (default sugerido)
 - notas (opcional)
 
@@ -121,6 +126,15 @@ En error de validación (ej: sin ítems > 0), conserva contexto de armado (prove
 Persistencia adicional:
 
 - al guardar borrador o enviar pedido, la pantalla también persiste cualquier cambio inline de `Stock de resguardo` sobre `stock_items.safety_stock` para la sucursal seleccionada.
+- al guardar borrador o enviar pedido, la pantalla persiste cualquier cambio hecho en el modal sobre `supplier_products.supplier_product_name` para el proveedor seleccionado.
+
+Reglas del modal de impresión/WhatsApp:
+
+- `Producto` se puede desmarcar si el usuario prefiere usar solo el nombre entendido por el proveedor
+- `Cantidad a pedir` viene preseleccionada por defecto
+- debe quedar al menos una columna seleccionada para poder imprimir o compartir
+- el documento/PDF debe incluir nombre del proveedor y presentarse con layout claro, ordenado y legible
+- WhatsApp debe armarse con `Cantidad a pedir | Articulo`, usando primero `supplier_product_name` si existe y sino `product_name`
 
 Entry point auxiliar:
 

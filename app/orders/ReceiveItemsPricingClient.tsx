@@ -2,10 +2,13 @@
 
 import { useMemo, useState } from 'react';
 
+import { formatProductCategoryTags } from '@/app/products/product-category-tags';
+
 type ReceiveItem = {
   order_item_id: string;
   product_id: string;
   product_name: string | null;
+  category_tags: string[];
   purchase_by_pack: boolean;
   units_per_pack: number | null;
   ordered_qty: number;
@@ -87,6 +90,15 @@ export default function ReceiveItemsPricingClient({
     const next: Record<string, string> = {};
     items.forEach((item) => {
       next[item.order_item_id] = Number(item.default_unit_price).toFixed(2);
+    });
+    return next;
+  });
+  const [categoryTagsByItem, setCategoryTagsByItem] = useState<
+    Record<string, string>
+  >(() => {
+    const next: Record<string, string> = {};
+    items.forEach((item) => {
+      next[item.order_item_id] = formatProductCategoryTags(item.category_tags);
     });
     return next;
   });
@@ -183,7 +195,7 @@ export default function ReceiveItemsPricingClient({
                 key={item.order_item_id}
                 className="rounded border border-zinc-200 p-3"
               >
-                <div className="grid gap-2 md:grid-cols-5">
+                <div className="grid gap-2 md:grid-cols-6">
                   <div className="text-sm text-zinc-700">
                     {item.product_name}
                   </div>
@@ -275,6 +287,22 @@ export default function ReceiveItemsPricingClient({
                       ).toFixed(2)}{' '}
                       ({item.markup_pct.toFixed(2)}%)
                     </span>
+                  </label>
+                  <label className="text-xs text-zinc-600">
+                    Categoria
+                    <input
+                      name={`category_tags_${item.order_item_id}`}
+                      type="text"
+                      value={categoryTagsByItem[item.order_item_id] ?? ''}
+                      onChange={(event) =>
+                        setCategoryTagsByItem((prev) => ({
+                          ...prev,
+                          [item.order_item_id]: event.target.value,
+                        }))
+                      }
+                      placeholder="#keto #fitness"
+                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                    />
                   </label>
                 </div>
               </div>
@@ -376,6 +404,22 @@ export default function ReceiveItemsPricingClient({
                       ).toFixed(2)}{' '}
                       ({item.markup_pct.toFixed(2)}%)
                     </span>
+                  </label>
+                  <label className="text-xs text-zinc-600">
+                    Categoria
+                    <input
+                      name={`category_tags_${item.order_item_id}`}
+                      type="text"
+                      value={categoryTagsByItem[item.order_item_id] ?? ''}
+                      onChange={(event) =>
+                        setCategoryTagsByItem((prev) => ({
+                          ...prev,
+                          [item.order_item_id]: event.target.value,
+                        }))
+                      }
+                      placeholder="#keto #fitness"
+                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                    />
                   </label>
                 </div>
               </div>

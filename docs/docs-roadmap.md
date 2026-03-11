@@ -455,3 +455,4 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada, Fase 7 e
 - 2026-03-01: decisión de catálogo global por org explicitada en docs + política anti-duplicado obligatoria para productos (`barcode`, `internal_code`, `name` normalizado).
 - 2026-03-05: hardening anti-duplicado aplicado en DB/RPC y UI de `/products`: unicidad por `name_normalized` y `barcode_normalized`, normalización de códigos vacíos a `null` en `rpc_upsert_product`, y sugerencias/alertas en tiempo real en alta de producto.
 - 2026-03-05: productos agrega configuración `se compra por paquete` + `unidades por paquete`; `/orders` y `/orders/[orderId]` muestran equivalencias en paquetes, y `/onboarding` permite aplicar esta configuración en edición masiva.
+- 2026-03-11: productos agrega `category_tags` por hashtags en el maestro; `/products`, `/onboarding` y `/orders/[orderId]` editan ese dato y el storefront público incorpora filtro por categoría reutilizando el mismo campo.

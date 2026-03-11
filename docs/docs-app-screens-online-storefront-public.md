@@ -29,6 +29,7 @@ Permitir que clientes vean productos y hagan pedidos online conectados al catál
 - nombre de tienda
 - sucursal activa
 - buscador
+- filtro por categoría
 - carrito
 
 ### Catálogo
@@ -39,6 +40,7 @@ Cada card:
 - nombre de producto
 - precio
 - stock disponible (visible o etiqueta disponibilidad)
+- categorías visibles si existen
 - acción “Agregar”
 
 ### Checkout
@@ -72,6 +74,7 @@ Salida mínima:
 - unit_price
 - stock_on_hand
 - image_url
+- category_tags[]
 - is_available
 
 ### Escritura checkout

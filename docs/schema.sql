@@ -1288,6 +1288,51 @@ $$;
 ALTER FUNCTION "public"."normalize_product_catalog_text"("p_value" "text") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."normalize_product_category_tags"("p_tags" "text"[]) RETURNS "text"[]
+    LANGUAGE "sql" IMMUTABLE
+    AS $$
+  with raw_tags as (
+    select
+      ord,
+      trim(
+        both '-' from regexp_replace(
+          translate(
+            lower(coalesce(tag, '')),
+            'áàäâãéèëêíìïîóòöôõúùüûñç',
+            'aaaaaeeeeiiiiooooouuuunc'
+          ),
+          '[^a-z0-9]+',
+          '-',
+          'g'
+        )
+      ) as normalized
+    from unnest(coalesce(p_tags, '{}'::text[])) with ordinality as source(tag, ord)
+  ),
+  prefixed as (
+    select
+      ord,
+      case
+        when normalized = '' then null
+        else '#' || normalized
+      end as tag
+    from raw_tags
+  ),
+  deduped as (
+    select distinct on (tag)
+      tag,
+      ord
+    from prefixed
+    where tag is not null
+    order by tag, ord
+  )
+  select coalesce(array_agg(tag order by ord), '{}'::text[])
+  from deduped;
+$$;
+
+
+ALTER FUNCTION "public"."normalize_product_category_tags"("p_tags" "text"[]) OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rpc_add_cash_session_movement"("p_org_id" "uuid", "p_session_id" "uuid", "p_movement_type" "text", "p_category_key" "text", "p_amount" numeric, "p_note" "text" DEFAULT NULL::"text", "p_movement_at" timestamp with time zone DEFAULT NULL::timestamp with time zone) RETURNS TABLE("movement_id" "uuid", "created_at" timestamp with time zone)
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -4329,7 +4374,7 @@ $$;
 ALTER FUNCTION "public"."rpc_get_public_storefront_branches"("p_org_slug" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."rpc_get_public_storefront_products"("p_org_slug" "text", "p_branch_slug" "text") RETURNS TABLE("org_name" "text", "org_slug" "text", "branch_name" "text", "branch_slug" "text", "product_id" "uuid", "product_name" "text", "unit_price" numeric, "stock_on_hand" numeric, "image_url" "text", "is_available" boolean, "whatsapp_phone" "text", "pickup_instructions" "text")
+CREATE OR REPLACE FUNCTION "public"."rpc_get_public_storefront_products"("p_org_slug" "text", "p_branch_slug" "text") RETURNS TABLE("org_name" "text", "org_slug" "text", "branch_name" "text", "branch_slug" "text", "product_id" "uuid", "product_name" "text", "unit_price" numeric, "stock_on_hand" numeric, "image_url" "text", "category_tags" "text"[], "is_available" boolean, "whatsapp_phone" "text", "pickup_instructions" "text")
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
@@ -4345,6 +4390,7 @@ begin
     p.unit_price,
     coalesce(si.quantity_on_hand, 0::numeric) as stock_on_hand,
     p.image_url,
+    p.category_tags,
     (p.is_active and coalesce(si.quantity_on_hand, 0::numeric) > 0::numeric),
     coalesce(
       nullif(btrim(b.storefront_whatsapp_phone), ''),
@@ -8509,6 +8555,19 @@ $$;
 ALTER FUNCTION "public"."trg_orgs_sync_platform_admin_memberships"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."trg_products_normalize_category_tags"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+  new.category_tags := public.normalize_product_category_tags(new.category_tags);
+  return new;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."trg_products_normalize_category_tags"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."trg_seed_pos_payment_devices_for_branch"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -9258,6 +9317,7 @@ CREATE TABLE IF NOT EXISTS "public"."products" (
     "barcode_normalized" "text" GENERATED ALWAYS AS (NULLIF("regexp_replace"(COALESCE("barcode", ''::"text"), '[^0-9]'::"text", ''::"text", 'g'::"text"), ''::"text")) STORED,
     "purchase_by_pack" boolean DEFAULT false NOT NULL,
     "units_per_pack" integer,
+    "category_tags" "text"[] DEFAULT '{}'::"text"[] NOT NULL,
     CONSTRAINT "products_purchase_pack_consistency_ck" CHECK (((("purchase_by_pack" = false) AND ("units_per_pack" IS NULL)) OR (("purchase_by_pack" = true) AND ("units_per_pack" IS NOT NULL) AND ("units_per_pack" > 1)))),
     CONSTRAINT "products_shelf_life_days_nonnegative" CHECK ((("shelf_life_days" IS NULL) OR ("shelf_life_days" >= 0)))
 );
@@ -10079,6 +10139,7 @@ CREATE OR REPLACE VIEW "public"."v_order_detail_admin" AS
     "soi"."id" AS "order_item_id",
     "soi"."product_id",
     "p"."name" AS "product_name",
+    "p"."category_tags",
     "p"."purchase_by_pack",
     "p"."units_per_pack",
     "soi"."ordered_qty",
@@ -10161,6 +10222,7 @@ SELECT
     NULL::"text" AS "brand",
     NULL::"text" AS "internal_code",
     NULL::"text" AS "barcode",
+    NULL::"text"[] AS "category_tags",
     NULL::boolean AS "purchase_by_pack",
     NULL::integer AS "units_per_pack",
     NULL::"public"."sell_unit_type" AS "sell_unit_type",
@@ -10192,6 +10254,7 @@ CREATE OR REPLACE VIEW "public"."v_products_incomplete_admin" WITH ("security_in
     "p"."brand",
     "p"."internal_code",
     "p"."barcode",
+    "p"."category_tags",
     "p"."purchase_by_pack",
     "p"."units_per_pack",
     "p"."sell_unit_type",
@@ -11348,6 +11411,7 @@ CREATE OR REPLACE VIEW "public"."v_products_admin" AS
     "p"."brand",
     "p"."internal_code",
     "p"."barcode",
+    "p"."category_tags",
     "p"."purchase_by_pack",
     "p"."units_per_pack",
     "p"."sell_unit_type",
@@ -11488,6 +11552,10 @@ CREATE OR REPLACE TRIGGER "trg_points_of_sale_set_updated_at" BEFORE UPDATE ON "
 
 
 CREATE OR REPLACE TRIGGER "trg_print_jobs_set_updated_at" BEFORE UPDATE ON "public"."print_jobs" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_products_normalize_category_tags" BEFORE INSERT OR UPDATE OF "category_tags" ON "public"."products" FOR EACH ROW EXECUTE FUNCTION "public"."trg_products_normalize_category_tags"();
 
 
 
@@ -13029,6 +13097,12 @@ GRANT ALL ON FUNCTION "public"."normalize_product_catalog_text"("p_value" "text"
 
 
 
+GRANT ALL ON FUNCTION "public"."normalize_product_category_tags"("p_tags" "text"[]) TO "anon";
+GRANT ALL ON FUNCTION "public"."normalize_product_category_tags"("p_tags" "text"[]) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."normalize_product_category_tags"("p_tags" "text"[]) TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."rpc_add_cash_session_movement"("p_org_id" "uuid", "p_session_id" "uuid", "p_movement_type" "text", "p_category_key" "text", "p_amount" numeric, "p_note" "text", "p_movement_at" timestamp with time zone) TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_add_cash_session_movement"("p_org_id" "uuid", "p_session_id" "uuid", "p_movement_type" "text", "p_category_key" "text", "p_amount" numeric, "p_note" "text", "p_movement_at" timestamp with time zone) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_add_cash_session_movement"("p_org_id" "uuid", "p_session_id" "uuid", "p_movement_type" "text", "p_category_key" "text", "p_amount" numeric, "p_note" "text", "p_movement_at" timestamp with time zone) TO "service_role";
@@ -13529,6 +13603,12 @@ GRANT ALL ON FUNCTION "public"."slugify_text"("p_input" "text") TO "service_role
 GRANT ALL ON FUNCTION "public"."trg_orgs_sync_platform_admin_memberships"() TO "anon";
 GRANT ALL ON FUNCTION "public"."trg_orgs_sync_platform_admin_memberships"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."trg_orgs_sync_platform_admin_memberships"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."trg_products_normalize_category_tags"() TO "anon";
+GRANT ALL ON FUNCTION "public"."trg_products_normalize_category_tags"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."trg_products_normalize_category_tags"() TO "service_role";
 
 
 

@@ -83,6 +83,7 @@ export default function NewProductForm({
         fields={{
           name: 'name',
           brand: 'brand',
+          categoryTags: 'category_tags',
           internalCode: 'internal_code',
           barcode: 'barcode',
           purchaseByPack: 'purchase_by_pack',
