@@ -65,6 +65,7 @@ Estado actual:
 - Historial de ventas por cliente para `/clients` en `supabase/migrations/20260310190000_089_client_sales_history.sql`: agrega `rpc_get_client_sales_history(...)` como contrato repo-aware para compras recientes y reenvío de ticket/factura desde el detalle del cliente.
 - Lifecycle operativo de links compartibles en `supabase/migrations/20260310193000_090_sale_delivery_link_lifecycle.sql`: `sale_delivery_links` suma metadata mínima de compartido (`last_shared_at`, `last_shared_channel`, `share_count`) y RPCs para listar estado, revocar, regenerar y registrar compartido asistido.
 - Observabilidad de delivery en `supabase/migrations/20260310195500_091_sale_delivery_events_observability.sql`: agrega `sale_delivery_events` y RPCs para append/listado de eventos operativos (`shared`, `revoked`, `regenerated`, `opened`) por ticket/factura.
+- Archivado operativo de borradores en pedidos proveedor en `supabase/migrations/20260310234000_092_supplier_orders_draft_archive.sql`: agrega `supplier_orders.is_archived`, extiende `v_orders_admin` y suma `rpc_set_supplier_order_archived(...)`.
 - Hardening de RPCs de usuarios para preservar actor de auditoría en alta/edición de membresía en `supabase/migrations/20260301162000_064_users_membership_rpcs_auth_context.sql` (`rpc_invite_user_to_org`, `rpc_update_user_membership` como `security definer` con validación explícita de rol/org/sucursales).
 - Hotfix de `rpc_invite_user_to_org` por ambigüedad de `user_id` en producción en `supabase/migrations/20260301170000_065_fix_rpc_invite_user_to_org_ambiguous_user_id.sql` y `supabase/migrations/20260301171500_066_fix_rpc_invite_user_to_org_out_param_conflict.sql` (se elimina conflicto de OUT param y queda salida `invited_user_id`).
 - Onboarding de datos maestros (jobs/rows de importación + vista de pendientes + RPCs de importación) en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks`, `rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
@@ -797,6 +798,7 @@ Notas operativas:
 - `created_by` (uuid, FK -> auth.users.id)
 - `created_at`, `updated_at`
 - `sent_at`, `received_at`, `reconciled_at` (timestamptz, nullable)
+- `is_archived` (boolean, default false)
 - `expected_receive_on` (date, nullable)
 - `controlled_by_user_id` (uuid, FK -> auth.users.id, nullable)
 - `controlled_by_name` (text, nullable)
@@ -1100,6 +1102,7 @@ Ver contratos en `docs/docs-schema-model.md`:
 - RPCs de conciliación/corrección ventas: `rpc_get_cash_session_payment_breakdown(...)`, `rpc_get_cash_session_reconciliation_rows(...)`, `rpc_upsert_cash_session_reconciliation_inputs(...)`, `rpc_correct_sale_payment_method(...)`
 - RPC de facturación diferida de ventas: `rpc_mark_sale_invoiced(...)`
 - RPC de fechas estimadas de pedidos proveedor: `rpc_set_supplier_order_expected_receive_on(...)`
+- RPC de archivado de borradores proveedor: `rpc_set_supplier_order_archived(...)`
 - RPC de auditoria append-only: `rpc_log_audit_event(...)`
 - RPCs de usuarios en Settings: `rpc_invite_user_to_org(...)`, `rpc_update_user_membership(...)` (requieren sesión autenticada OA/SA y auditan actor real)
 - RPCs de superadmin: `rpc_bootstrap_platform_admin(...)`, `rpc_superadmin_create_org(...)`, `rpc_superadmin_upsert_branch(...)`, `rpc_superadmin_set_active_org(...)`, `rpc_get_active_org_id(...)`

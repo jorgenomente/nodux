@@ -34,12 +34,12 @@ Gestionar proveedores y asociar productos para habilitar compras/pedidos.
 ### Lista (tabla o cards)
 
 - Search inline en bloque de listado (sin botón)
-- Filtro reactivo por nombre/contacto al escribir 3+ letras
+- Filtro reactivo por nombre/persona de contacto al escribir 3+ letras
 
 Cada row:
 
 - nombre
-- contacto (opcional)
+- persona de contacto (opcional)
 - teléfono/email (opcional)
 - estado (activo/inactivo)
 - conteo de productos asociados
@@ -72,7 +72,7 @@ Campos:
 - order_day (weekday)
 - receive_day (weekday)
 - payment_terms_days (opcional)
-- default_markup_pct (opcional, default `40`)
+- default_markup_pct (opcional, label UI: “% de ganancia deseado”, default `40`)
 - preferred_payment_method (`cash` | `transfer`, opcional)
 - payment_note (opcional, label UI: “Datos de pago y notas del proveedor”)
 

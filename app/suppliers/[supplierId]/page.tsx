@@ -555,7 +555,7 @@ export default async function SupplierDetailPage({
               />
             </label>
             <label className="text-sm text-zinc-600">
-              Contacto
+              Persona de contacto
               <input
                 name="contact_name"
                 defaultValue={supplier.contact_name ?? ''}
@@ -655,7 +655,7 @@ export default async function SupplierDetailPage({
               />
             </label>
             <label className="text-sm text-zinc-600">
-              % ganancia sugerida
+              % de ganancia deseado
               <input
                 name="default_markup_pct"
                 type="number"

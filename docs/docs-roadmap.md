@@ -147,6 +147,7 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada, Fase 7 e
 
 - /suppliers, /suppliers/[supplierId], /orders y /orders/[orderId] implementados.
 - Vistas/RPCs usadas: v_suppliers_admin (products_count), v_supplier_detail_admin, v_orders_admin, v_order_detail_admin.
+- `/orders` ahora permite archivar solo pedidos `draft`, separándolos del listado operativo principal en una sección `Archivados` restaurable al final de la pantalla.
 
 ### 4.4 Vencimientos
 

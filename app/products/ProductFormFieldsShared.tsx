@@ -631,8 +631,8 @@ export default function ProductFormFieldsShared({
         />
         {!compact ? (
           <span className="mt-2 block text-xs text-zinc-400">
-            Cantidad minima sugerida para evitar quiebres. Se aplica a todas las
-            sucursales y se usa en sugerencias de compra.
+            Cantidad de resguardo sugerida para evitar quiebres. Se aplica a
+            todas las sucursales y se usa en sugerencias de compra.
           </span>
         ) : null}
       </label>

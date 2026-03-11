@@ -103,7 +103,7 @@ Campos mínimos:
 - nombre_articulo_en_proveedor (opcional, si hay proveedor primario)
 - sku_en_proveedor (opcional, si hay proveedor primario)
 - proveedor_secundario (opcional)
-- stock_minimo (opcional, se aplica a todas las sucursales activas)
+- stock_minimo (opcional, label UI: `Cantidad de resguardo`, se aplica a todas las sucursales activas)
 
 Comportamiento de sugerencia de precio:
 
@@ -136,7 +136,7 @@ Reglas anti-duplicado (obligatorias):
 - mismos campos
 - permite reemplazar imagen o quitar imagen actual
 - no eliminar; solo `is_active=false`
-- stock_minimo editable desde listado (aplica a todas las sucursales activas)
+- cantidad de resguardo editable desde listado (aplica a todas las sucursales activas)
 
 ### A3) Activar/Desactivar
 

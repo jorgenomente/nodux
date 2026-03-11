@@ -59,6 +59,9 @@ Cada row:
 - fecha (created_at / sent_at)
 - acción: “Ver” → `/orders/[orderId]`
 - Listado separado: pendientes arriba, controlados abajo
+- Los borradores archivados no aparecen en el listado principal
+- Al final de la pantalla existe botón/sección `Archivados` para expandir borradores archivados
+- Solo pedidos `draft` pueden archivarse o restaurarse
 - si `expected_receive_on` está en el pasado y el pedido no está controlado: resaltar tarjeta con alerta visual “Recepción vencida”
 
 ### Pedidos especiales pendientes
@@ -67,6 +70,13 @@ Cada row:
 - Lista ítems de pedidos especiales por cliente
 - Muestra sucursal y proveedor de cada ítem
 - Botón “Agregar al pedido”
+
+### Productos con proveedor secundario
+
+- Si el proveedor seleccionado está configurado como secundario para algunos artículos, esos productos también aparecen en la sección de sugeridos
+- Deben mostrarse al final, separados visualmente del bloque principal
+- La UI aclara que esos productos normalmente se piden con otro proveedor
+- Cada fila/tarjeta muestra el nombre del proveedor primario asignado a ese producto
 
 ---
 
@@ -78,15 +88,20 @@ Paso 1: seleccionar proveedor + sucursal (auto carga sugeridos).
 
 Paso 2: ver sugeridos en la misma pantalla y editar cantidades.
 
-Paso 3: ajustar margen y promedio (sección “Ajustes de sugeridos”) y aplicar.
+Paso 3: ajustar margen y la columna de promedio de ventas (sección “Ajustes de sugeridos”) y aplicar.
+
+Paso 3.b: editar inline `Stock de resguardo` por artículo si hace falta, sin salir de `/orders`.
 
 Paso 4: agregar notas y guardar borrador / enviar pedido.
 
 Campos:
 
 - proveedor (selector)
+- botón `Nuevo proveedor` junto al selector, que abre modal reutilizando el mismo alta de `/suppliers`
 - sucursal (selector)
-- ajustes de sugeridos: margen de ganancia (%) + promedio de ventas (ciclo/semanal/quincenal/mensual)
+- ajustes de sugeridos: margen de ganancia (%) + columna de promedio de ventas (segun proveedor/semanal/quincenal/mensual)
+  - default del margen: `suppliers.default_markup_pct`; fallback `org_preferences.default_supplier_markup_pct`
+- `Stock de resguardo` editable por artículo dentro del listado de sugeridos
 - cantidades por item (default sugerido)
 - notas (opcional)
 
@@ -103,11 +118,37 @@ UI: la sección “Armar pedido” es colapsable para ahorrar espacio.
 Submit → crea order `draft` o `sent` según botón y redirige al listado con banner de resultado.
 En error de validación (ej: sin ítems > 0), conserva contexto de armado (proveedor/sucursal/ajustes) para no perder el draft en pantalla.
 
+Persistencia adicional:
+
+- al guardar borrador o enviar pedido, la pantalla también persiste cualquier cambio inline de `Stock de resguardo` sobre `stock_items.safety_stock` para la sucursal seleccionada.
+
+Entry point auxiliar:
+
+- Si el proveedor no existe, `Nuevo proveedor` abre modal y reutiliza el mismo formulario de alta que `/suppliers`
+- Al guardar, vuelve a `/orders` con el proveedor recién creado ya seleccionado en el armado
+
 Validaciones:
 
 - proveedor activo
 - sucursal válida
 - al menos 1 ítem con cantidad > 0 antes de crear el pedido (si no, no se crea registro en `supplier_orders`)
+
+### A2) Archivar borrador
+
+- Disponible solo para pedidos con `status='draft'`
+- Acción desde el listado principal: `Archivar borrador`
+- Resultado: el pedido sale del listado operativo y pasa a la sección `Archivados`
+- Desde `Archivados` se puede `Restaurar`
+
+### A3) Salida con cambios sin guardar
+
+- Aplica durante el armado de un pedido nuevo en `/orders`
+- Si el usuario intenta navegar a otra pantalla de la app con el pedido iniciado, la UI abre modal de confirmación
+- El modal ofrece:
+  - `Guardar borrador`
+  - `Salir sin guardar`
+  - `Cancelar`
+- Si el usuario cierra/recarga la pestaña o cambia la URL fuera del control de la app, el navegador muestra el prompt nativo de cambios sin guardar
 
 ---
 
@@ -138,6 +179,7 @@ Salida mínima:
 - payment_state (derivado desde `supplier_payables`)
 - payable_due_on (opcional)
 - payable_outstanding_amount (opcional)
+- is_archived
 
 Monto estimado por pedido (UI):
 
@@ -155,6 +197,12 @@ RPC: `rpc_create_supplier_order(input)`
   Output:
 - order_id
 
+RPC: `rpc_set_supplier_order_archived(p_org_id, p_order_id, p_is_archived)`
+
+- Solo permite cambiar archivado si el pedido está en `draft`
+- `true` mueve el pedido a `Archivados`
+- `false` restaura el borrador al listado operativo
+
 ### Sugeridos (MVP simple)
 
 View: `v_supplier_product_suggestions(supplier_id, branch_id)`
@@ -164,11 +212,12 @@ Salida mínima:
 - purchase_by_pack
 - units_per_pack
 - relation_type
-- stock_on_hand
-- safety_stock
+- primary_supplier_name (solo para UI cuando `relation_type='secondary'`, derivado desde relación primaria del producto)
+- stock_on_hand (`Stock actual` en UI)
+- safety_stock (`Stock de resguardo` en UI)
 - avg_daily_sales_30d
 - cycle_days
-- suggested_qty
+- suggested_qty (`Pedido sugerido` en UI)
 
 Para estimar costo:
 
@@ -177,11 +226,19 @@ Para estimar costo:
 
 UI:
 
-- Mostrar promedio por ciclo = avg_daily_sales_30d \* días
+- Mostrar promedio de ventas = avg_daily_sales_30d \* días según la opción elegida
+- El título de la columna debe explicitar el período efectivo:
+  - si el usuario elige override semanal/quincenal/mensual, mostrar `Promedio de ventas semanal/quincenal/mensual`
+  - si queda en `Según proveedor`, mostrar el período real configurado para ese proveedor (ej. `Promedio de ventas mensual`, `Promedio de ventas semanal`, `Promedio de ventas quincenal`)
+- En el bloque `Mostrando`, si el modo queda en `Según proveedor`, la UI debe explicitar entre paréntesis la frecuencia efectiva del proveedor (ej. `Promedio: Segun proveedor (semanal)`).
 - Cantidad sugerida y cantidad a pedir como entero (redondeo hacia arriba)
 - Selector para mostrar promedio semanal/quincenal/mensual (override manual)
 - Toggle de vista: tabla/tarjetas (persistido en localStorage)
 - Totales: costo estimado + cantidad total de items
+- Debajo de `Total estimado`, la UI aclara que es un monto estimado y que el monto real se confirma con el remito en la recepción
+- En ese mismo bloque, la UI muestra la preferencia de pago del proveedor seleccionado:
+  - efectivo: aclaración de pago al momento de la entrega
+  - transferencia: aclaración de pago por transferencia y, si existe, plazo configurado en días desde la fecha del pedido
 
 ### Pedidos especiales pendientes
 

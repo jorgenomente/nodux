@@ -110,7 +110,7 @@ Constraints:
 
 - Crear/editar datos básicos
 - Definir frecuencia de pedido y días de pedido/recepción
-- Definir `% ganancia sugerida` para pricing de productos (default 40)
+- Definir `% de ganancia deseado` para pricing de productos (default 40)
 - Definir método de pago preferido (efectivo/transferencia)
 - Activar/desactivar
 

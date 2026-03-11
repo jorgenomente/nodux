@@ -675,7 +675,7 @@ export default async function ProductsPage({
                 p_safety_stock: safetyStock,
               })
               .then(({ error }) =>
-                throwIfError(error, 'No se pudo guardar stock mínimo'),
+                throwIfError(error, 'No se pudo guardar cantidad de resguardo'),
               ),
           ),
         );
@@ -848,7 +848,10 @@ export default async function ProductsPage({
                 p_safety_stock: safetyStock,
               })
               .then(({ error }) =>
-                throwIfError(error, 'No se pudo actualizar stock mínimo'),
+                throwIfError(
+                  error,
+                  'No se pudo actualizar cantidad de resguardo',
+                ),
               ),
           ),
         );

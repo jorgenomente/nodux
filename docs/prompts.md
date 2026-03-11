@@ -20,6 +20,155 @@ Formato sugerido:
 **Prompt**
 estoy en /products y me gustaria agregar una funcion mas dentro de ajuste manual de stock. Me gustaria poder mover uno o varios articulos de una sucursal a otra. Esto solo debe estar disponible para staff cuando tiene mas de una sucursal asignada y para admin que mira todas las sucursales. Esto es util para cuando se necesite mover productos de una sucursal a otra sea mas facil descontar el stock de una para sumarlo a la otra. se puede hacer? chequea la documentacion para que todo quede bien. seria en la misma seccion de ajuste manual al final
 
+## 2026-03-10 23:35 -03 — Orders: archivar borradores desde `/orders`
+
+**Lote:** orders-draft-archive
+**Objetivo:** Permitir archivar pedidos en estado `draft` para sacarlos del listado operativo principal de `/orders`, manteniéndolos accesibles en una sección `Archivados` al final de la pantalla y permitiendo restaurarlos si hace falta.
+
+**Prompt**
+vamos a trabajar sobre /orders. me gustaria que pudiera archivar los pedidos que estan estado borrador. entonces al final de la pagina podemos agregar un boton de archivados, donde se vayan moviendo esos pedidos que estan en borrador y si por alguna razon ya no lo vamos a pedir o ya no lo queremos ver ahi lo pueda archivar. esto solo es para pedidos en estado borrador
+
+## 2026-03-11 08:56 -03 — Products: evitar fallo de `crypto.randomUUID()` fuera de localhost
+
+**Lote:** products-transfer-row-id-fallback
+**Objetivo:** Corregir `/products` para que la sección de transferencia entre sucursales no dependa de `crypto.randomUUID()` cuando la app corre por IP LAN en `http`, donde el navegador puede no exponer esa API.
+
+**Prompt**
+por alguna razon http://192.168.1.27:3000/products me dice rypto.randomUUID is not a function
+app/products/StockAdjustmentSection.tsx (29:14) @ createTransferRow
+
+27 |
+28 | const createTransferRow = (): TransferRow => ({
+
+> 29 | id: crypto.randomUUID(),
+
+     |              ^
+
+30 | });
+31 |
+32 | export default function StockAdjustmentSection({
+Call Stack
+14
+
+Show 11 ignore-listed frame(s)
+createTransferRow
+app/products/StockAdjustmentSection.tsx (29:14)
+StockAdjustmentSection
+app/products/StockAdjustmentSection.tsx (40:52)
+ProductsPage
+app/products/page.tsx (1098:11) pero desde http://localhost:3000/products si entra bien. sabes que puede pasar?
+
+## 2026-03-11 09:01 -03 — Orders: aclarar copy de promedio en sugeridos
+
+**Lote:** orders-suggestions-copy-average-column
+**Objetivo:** Hacer más claro en `/orders` que el selector de promedio modifica la columna visible del listado de sugeridos, renombrando `Promedio de ventas` a `Columna de promedio de ventas` y `Promedio (ciclo)` a `Promedio de ventas`.
+
+**Prompt**
+ok vamos a mejorar la experiencia de usuario de /products. hay una seccion que dice Ajustes de sugeridos
+
+Margen de ganancia (%)
+40
+ⓘ Se usa para estimar el costo del articulo en el proveedor.
+Promedio de ventas
+Segun proveedor
+ⓘ Se usa para mostrar estadisticas de venta por periodo. Promedio de ventas vamos a cambiarlo por Columna de promedio de ventas asi se entiende que ese dato va a modificar la columna de promedio (ciclo) y vamos tambien a cambiar ese nombre por promedio de ventas
+
+## 2026-03-11 09:05 -03 — Orders: hacer dinámico el período visible en la columna de promedio
+
+**Lote:** orders-suggestions-average-period-label
+**Objetivo:** Hacer que la columna de promedio de ventas muestre explícitamente el período efectivo usado en el cálculo: semanal/quincenal/mensual cuando hay override, o el período real configurado en el proveedor cuando queda `Según proveedor`.
+
+**Prompt**
+es posible que esa columna de promedio de ventas tambien tenga el periodo que se esta manejando? por ejemplo, si estamos utilizando el promedio segun proveedor, alli no quiero que me diga promedio de ventas segun proveedor sino que me diga como esta el proveedor configurado, es decir si es mensual, semanal o quincenal. pero si el promedio esta configurado como semanal en la seccion superior entonces en la columna me diga promedio de ventas semanal. esto para que sea mas facil el uso del usuario en esta seccion de armar pedido
+
+## 2026-03-11 09:08 -03 — Orders: renombrar `Stock min` a `Stock de resguardo`
+
+**Lote:** orders-suggestions-safety-stock-copy
+**Objetivo:** Mejorar la claridad del armado de pedidos en `/orders` cambiando el label visible `Stock min` por `Stock de resguardo`.
+
+**Prompt**
+eso, stock de resguardo se entiende mas
+
+## 2026-03-11 09:10 -03 — Orders: renombrar `Stock` a `Stock actual`
+
+**Lote:** orders-suggestions-current-stock-copy
+**Objetivo:** Hacer más claro en el armado de pedidos que la columna `Stock` representa el stock vigente de la sucursal, renombrándola a `Stock actual`.
+
+**Prompt**
+y STOCK lo cambiamos por Stock Actual
+
+## 2026-03-11 09:12 -03 — Orders: renombrar `Sugerido` a `Pedido sugerido`
+
+**Lote:** orders-suggestions-recommended-order-copy
+**Objetivo:** Cambiar el label visible `Sugerido` por `Pedido sugerido` en la sección de armado de pedidos para que la acción sugerida sea más explícita.
+
+**Prompt**
+sugerido cambiamos por pedido sugerido
+
+## 2026-03-11 09:12 -03 — Orders: aclarar que el total es estimado hasta remito
+
+**Lote:** orders-suggestions-estimated-total-note
+**Objetivo:** Agregar debajo de `Total estimado` en `/orders` una aclaración explícita de que el monto es solo estimado y que el valor real se confirma con el remito en la recepción.
+
+**Prompt**
+debajo de Total estimado: 0.00 vamos a agregar un texto informativo que diga que solo es un monto estimado, que el monto real sera confirmado con el remito en la recepcion
+
+## 2026-03-11 09:14 -03 — Orders: refinar texto de nota bajo `Total estimado`
+
+**Lote:** orders-suggestions-estimated-total-note
+**Objetivo:** Simplificar la redacción de la nota bajo `Total estimado` para que sea más corta y natural en la UI.
+
+**Prompt**
+ok usemos la primera
+
+## 2026-03-11 09:15 -03 — Orders: aclarar label del toggle de costo estimado
+
+**Lote:** orders-suggestions-estimated-cost-toggle-copy
+**Objetivo:** Hacer más explícito el texto del toggle que usa el margen configurado para recalcular el costo estimado en el armado de pedidos.
+
+**Prompt**
+ahora el texto Usar % ganancia para costo estimado cambialo por Usar Margen de ganancia (%) para calcular costo estimado
+
+## 2026-03-11 09:17 -03 — Orders: texto final del toggle de costo estimado
+
+**Lote:** orders-suggestions-estimated-cost-toggle-copy
+**Objetivo:** Simplificar el texto del toggle de costo estimado para que quede más corto y visualmente limpio sin perder precisión.
+
+**Prompt**
+ok hagamos esto Calcular costo estimado segun Margen de ganancia (%)
+
+## 2026-03-11 09:22 -03 — Orders: mostrar preferencia de pago del proveedor en el bloque de total estimado
+
+**Lote:** orders-suggestions-supplier-payment-note
+**Objetivo:** Agregar debajo del monto estimado una aclaración contextual con la preferencia de pago del proveedor seleccionado, incluyendo efectivo al entregar o transferencia con plazo si está configurado.
+
+**Prompt**
+debajo de Monto estimado. El valor real se confirma con el remito en la recepcion. podemos tambien agregar las preferencias de pago de este proveedor? por ejemplo si se paga por transferencia o en efectivo? que diga algo como Este proveedor prefiere pagos en efectivo al momento de la entrega para los casos de efectivo y si es transferencia deberia decir como que Este proveedor prefiere transferencia en un rango de X dias a partir de la fecha del pedido si tiene configurado un plazo de pago. Se entiende?
+
+## 2026-03-11 09:25 -03 — Orders: advertir salida con pedido nuevo sin guardar
+
+**Lote:** orders-new-draft-leave-guard
+**Objetivo:** Advertir al usuario cuando intenta salir de `/orders` mientras está armando un pedido nuevo, ofreciéndole guardar borrador antes de abandonar la pantalla.
+
+**Prompt**
+tambien me gustaria que si yo estaba iniciando un pedido nuevo e intento de cambiar de pestana un modal me diga que se perderan los datos del pedido te gustaria guardarlo como borrador? y ahi decido guardar como borrador o no lo quiero guardar
+
+## 2026-03-11 09:29 -03 — Orders: mostrar secundarios al final con proveedor primario
+
+**Lote:** orders-secondary-supplier-suggestions
+**Objetivo:** Incluir en el armado de pedidos los artículos donde el proveedor seleccionado está como secundario, ubicándolos al final con separación visual y aclaración del proveedor primario habitual.
+
+**Prompt**
+Hay algo mas que no he resuelto y es lo de los articulos que tienen registrado un proveedor como proveedor secundario. Se me ocurre que cuando yo voy a hacer ese pedido con ese proveedor, estos articulos que tienen ese proveedor como proveedor secundario aparezcan al final de la tabla, separados por un breve espacio y que aclare que esos productos se piden normalmente con otro proveedor y mostrar el nombre del proveedor primario que tengan asignados esos productos
+
+## 2026-03-11 09:34 -03 — Orders: nuevo proveedor reusable desde el armado
+
+**Lote:** orders-new-supplier-entrypoint-reuse
+**Objetivo:** Agregar en `/orders` un botón `Nuevo proveedor` junto al selector de proveedor, abriendo un modal que reutilice el mismo formulario de alta de `/suppliers` para evitar drift entre entry points.
+
+**Prompt**
+excelente. ahora alli mismo en armar proveedor vamos a agregar un boton que diga nuevo proveedor justo al lado de Proveedor por si al seleccionar proveedor este no existe, con este boton yo puedo crear un nuevo proveedor. Este boton deberia abrirme un modal que sea un segundo entry point de Nuevo proveedor que encontramos en /suppliers asi todo queda sincronizado y se reusa el componente por si en algun momento cambio algun dato de los formularios estos automaticamente se cambien
+
 ## 2026-03-10 22:35 -03 — POS: mover cliente opcional debajo del total y auditar alta rápida desde caja
 
 **Lote:** pos-client-panel-relocation
@@ -27,9 +176,9 @@ estoy en /products y me gustaria agregar una funcion mas dentro de ajuste manual
 
 **Prompt**
 vamos a trabajar en /pos. lo p
-rimero que me gustaria hacer es cambiar la posicion de la seccion de 
+rimero que me gustaria hacer es cambiar la posicion de la seccion de
 cliente opcional. ahi arriba no me gusta. necesito que este abajo. de
-spues del total a cobrar y antes del imprimir ticket, y que sea algo 
+spues del total a cobrar y antes del imprimir ticket, y que sea algo
 desplegable para que no me quite mucho espacio. Despues vamos a chequ
 ear como esta configurado todo esto en el proyecto, porque mi siguien
 te solicitud es que me gustaria que en el caso de que el cliente no e
@@ -62,7 +211,7 @@ si, si el cliente cambio de numero, por ejemplo, seria interesante poder cambiar
 **Objetivo:** Simplificar el copy de `/pos` para que `Cliente` deje claro que completar los datos crea o actualiza el cliente al cobrar, y renombrar `Imprimir ticket` a `Imprimir resumen`.
 
 **Prompt**
-si, hagamos eso, me gustaria agregar tambien cambiar el nombre de cliente opcional a simpemente cliente. y no es claro que si el cliente no existe solo con agregar alli la info ya se estaria creando el cliente. el boton imprimir ticket vamos a cambiarlo por  imprimir resumen
+si, hagamos eso, me gustaria agregar tambien cambiar el nombre de cliente opcional a simpemente cliente. y no es claro que si el cliente no existe solo con agregar alli la info ya se estaria creando el cliente. el boton imprimir ticket vamos a cambiarlo por imprimir resumen
 
 ## 2026-03-10 22:23 -03 — POS: aclarar copy de impresión por navegador
 
@@ -121,6 +270,14 @@ asi esta bien, lo unico que me confunde es que si bien si se cambia todo y todo 
 
 **Prompt**
 ok ahora chequea esto mismo en el resto de paginas porque me parece que funcionan todos los selectores bajo la misma logica
+
+## 2026-03-10 22:23 -03 — Orders: aplicar sucursal global al selector de nuevo pedido
+
+**Lote:** branch-context-audit-20260310
+**Objetivo:** Hacer que el selector de sucursal del bloque `Nuevo pedido` en `/orders` herede la sucursal global activa cuando `draft_branch_id` no llega explícito en la URL.
+
+**Prompt**
+vamos a aplicar lo del seleccionado global de sucursales tambien aplique para que se seleccione esa sucursal en el selector de nuevo pedido en /orders
 
 ## 2026-03-10 12:15 -03 — Diagnóstico: flujo de impresión de ticket en térmica ESC/POS
 
@@ -3898,3 +4055,51 @@ ok adelante
 
 **Prompt**
 ok hagamos eso
+
+## 2026-03-11 09:49 -03 — Ajuste de copy en alta de proveedor
+
+**Lote:** suppliers-copy-default-markup-label
+**Objetivo:** Cambiar en `/suppliers` el texto del campo `default_markup_pct` de “% ganancia sugerida” a “% de ganancia deseado”, alineando UI y documentación operativa relacionada.
+
+**Prompt**
+vamos a cambiar en el formulario de nuevo proveedor en /suppliers el texto que dice % ganancia sugerida por % de ganancia deseado
+
+## 2026-03-11 09:52 -03 — Ajuste de copy de contacto en proveedores
+
+**Lote:** suppliers-copy-contact-person-label
+**Objetivo:** Cambiar en proveedores el texto visible “Contacto” por “Persona de contacto”, manteniendo formularios, listados y documentación alineados sin alterar el contrato técnico `contact_name`.
+
+**Prompt**
+tambien cambiemos contacto por persona de contacto
+
+## 2026-03-11 10:00 -03 — Orders: margen sugerido desde proveedor
+
+**Lote:** orders-supplier-default-markup-prefill
+**Objetivo:** Hacer que en `/orders`, dentro de `Ajustes de sugeridos`, el campo `Margen de ganancia (%)` tome por defecto el `% de ganancia deseado` del proveedor seleccionado (`suppliers.default_markup_pct`) y use `org_preferences.default_supplier_markup_pct` solo como fallback.
+
+**Prompt**
+otra cosa que me gustaria que suceda es que si yo asigno en ese % de ganancia deseado, que en armar nuevo pedido en /orders en Ajustes de sugeridos en Margen de ganancia (%) deberia colocarse el % de ganancia asignado al proveeodr en % de ganancia deseado. Si no se ha establecido ese dato en proveedor entonces que se use ese dato de Margen de ganancia por defecto para sugeridos (%)
+
+## 2026-03-11 10:10 -03 — Suppliers: copy de tarjeta de margen
+
+**Lote:** suppliers-card-markup-copy
+**Objetivo:** Cambiar en la tarjeta/listado de proveedores el texto visible `Ganancia sugerida` por `Ganancia deseada`, alineándolo con el resto del módulo.
+
+**Prompt**
+ok pero en la tarjeta del proveedor sigue diciendo Ganancia sugerida: cambialo por ganancia deseada
+
+## 2026-03-11 10:12 -03 — Orders: aclarar frecuencia en `Mostrando`
+
+**Lote:** orders-showing-summary-effective-frequency
+**Objetivo:** Hacer que en `/orders`, dentro del bloque `Mostrando`, el texto `Promedio: Segun proveedor` explicite entre paréntesis la frecuencia efectiva configurada para ese proveedor, por ejemplo `Segun proveedor (semanal)`.
+
+**Prompt**
+en /orders hay un texto que dice Mostrando: Cafes del Puerto SRL · Sucursal Caballito · Margen: 42.50% · Promedio: Segun proveedor justo debajo de ajustes sugeridos. me gustaria que al final donde dice segun proveedor dijera entre parentesis lo que esta preasigando a ese proveedor sea semanal, quincenal, mensual, eso para que se entienda mas exactamente que estoy viendo entonces deberia quedar Mostrando: Cafes del Puerto SRL · Sucursal Caballito · Margen: 42.50% · Promedio: Segun proveedor (semanal)
+
+## 2026-03-11 10:18 -03 — Orders: editar resguardo inline + rename en products
+
+**Lote:** orders-inline-safety-stock-entrypoint
+**Objetivo:** Permitir editar `Stock de resguardo` inline en `/orders` al armar un pedido y persistirlo al guardar borrador/enviar pedido para la sucursal seleccionada; además renombrar en `/products` el input `Stock minimo` a `Cantidad de resguardo`.
+
+**Prompt**
+me gustaria tambien que en /orders en armar un nuevo pedido la columna Stock de resguardo sea editable, por si quiero cambiar esa cantidad de resguardo no tenga que ir manualmente al producto darle editar y cambiar esa cantidad, sino que lo pueda hacer alli mismo y que se guarde al momento de guardar borrador o enviar pedido y ahora ese dato quede definido alli para las caracteristicas de ese articulo, seria como una especie de segundo entry point para editar el stock minimo de ese artifuclo. Vamos tambien a cambiar en /products en editar producto el input que dice stock minimo por cantidad de resguardo

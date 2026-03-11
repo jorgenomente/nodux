@@ -13,6 +13,7 @@ type SuggestionRow = {
   avg_daily_sales_30d: number | null;
   cycle_days?: number | null;
   suggested_qty: number | null;
+  primary_supplier_name?: string | null;
 };
 
 type Props = {
@@ -25,6 +26,7 @@ type Props = {
   allowEstimateToggle?: boolean;
   initialQuantities?: Record<string, number>;
   showingSummary?: string | null;
+  supplierPaymentPreferenceNote?: string | null;
   specialOrders?: Array<{
     item_id: string;
     client_name: string | null;
@@ -52,6 +54,26 @@ const avgDaysForMode = (mode: Props['avgMode'], cycleDays: number): number => {
   }
 };
 
+const avgPeriodLabelFromDays = (days: number) => {
+  if (days === 7) return 'semanal';
+  if (days === 14) return 'quincenal';
+  if (days === 21) return 'cada 3 semanas';
+  if (days === 30) return 'mensual';
+  return `${days} dias`;
+};
+
+const resolveAverageColumnLabel = (
+  avgMode: Props['avgMode'],
+  suggestions: SuggestionRow[],
+) => {
+  if (avgMode === 'weekly') return 'Promedio de ventas semanal';
+  if (avgMode === 'biweekly') return 'Promedio de ventas quincenal';
+  if (avgMode === 'monthly') return 'Promedio de ventas mensual';
+
+  const supplierCycleDays = Number(suggestions[0]?.cycle_days ?? 30);
+  return `Promedio de ventas ${avgPeriodLabelFromDays(supplierCycleDays)}`;
+};
+
 const formatPackageHint = ({
   qty,
   purchaseByPack,
@@ -77,8 +99,11 @@ export default function OrderSuggestionsClient({
   allowEstimateToggle = true,
   initialQuantities,
   showingSummary,
+  supplierPaymentPreferenceNote,
   specialOrders = [],
 }: Props) {
+  const averageColumnLabel = resolveAverageColumnLabel(avgMode, suggestions);
+
   const buildDefaultUnitCosts = (useEstimated: boolean) => {
     const next: Record<string, string> = {};
     suggestions.forEach((row) => {
@@ -117,12 +142,31 @@ export default function OrderSuggestionsClient({
   const [unitCosts, setUnitCosts] = useState<Record<string, string>>(() =>
     buildDefaultUnitCosts(useEstimatedCostsByDefault),
   );
+  const [safetyStocks, setSafetyStocks] = useState<Record<string, string>>(
+    () => {
+      const next: Record<string, string> = {};
+      suggestions.forEach((row) => {
+        const safetyStock = Number(row.safety_stock ?? 0);
+        next[row.product_id] =
+          Number.isFinite(safetyStock) && safetyStock >= 0
+            ? String(safetyStock)
+            : '0';
+      });
+      return next;
+    },
+  );
 
   const filteredSuggestions = suggestions.filter((row) => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return true;
     return (row.product_name ?? '').toLowerCase().includes(query);
   });
+  const primarySuggestions = filteredSuggestions.filter(
+    (row) => row.relation_type !== 'secondary',
+  );
+  const secondarySuggestions = filteredSuggestions.filter(
+    (row) => row.relation_type === 'secondary',
+  );
 
   const renderRow = (row: SuggestionRow) => {
     const cycleDays = Number(row.cycle_days ?? 30);
@@ -212,6 +256,22 @@ export default function OrderSuggestionsClient({
     }));
   };
 
+  const handleSafetyStockChange = (productId: string, value: string) => {
+    if (value === '') {
+      setSafetyStocks((prev) => ({
+        ...prev,
+        [productId]: '',
+      }));
+      return;
+    }
+    const parsed = Number(value);
+    setSafetyStocks((prev) => ({
+      ...prev,
+      [productId]:
+        Number.isFinite(parsed) && parsed >= 0 ? value : prev[productId],
+    }));
+  };
+
   if (suggestions.length === 0) {
     return (
       <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
@@ -219,6 +279,16 @@ export default function OrderSuggestionsClient({
       </div>
     );
   }
+
+  const renderSecondaryNotice = (row: SuggestionRow) => (
+    <p className="mt-1 text-[11px] text-amber-700">
+      Este producto se pide normalmente con{' '}
+      <span className="font-semibold">
+        {row.primary_supplier_name || 'otro proveedor'}
+      </span>
+      .
+    </p>
+  );
 
   return (
     <div className="space-y-3">
@@ -240,6 +310,17 @@ export default function OrderSuggestionsClient({
             type="hidden"
             name={`unit_cost_${row.product_id}`}
             value={unitCostRaw}
+          />
+        );
+      })}
+      {suggestions.map((row) => {
+        const safetyStockRaw = safetyStocks[row.product_id] ?? '0';
+        return (
+          <input
+            key={`safety-stock-${row.product_id}`}
+            type="hidden"
+            name={`safety_stock_${row.product_id}`}
+            value={safetyStockRaw}
           />
         );
       })}
@@ -309,7 +390,7 @@ export default function OrderSuggestionsClient({
               }}
               className="h-4 w-4 rounded border-zinc-300"
             />
-            Usar % ganancia para costo estimado
+            Calcular costo estimado segun Margen de ganancia (%)
           </label>
         ) : null}
         <div className="flex gap-2">
@@ -336,10 +417,10 @@ export default function OrderSuggestionsClient({
             <thead className="bg-zinc-50 text-xs text-zinc-500 uppercase">
               <tr>
                 <th className="px-3 py-2">Producto</th>
-                <th className="px-3 py-2">Stock</th>
-                <th className="px-3 py-2">Stock min</th>
-                <th className="px-3 py-2">Promedio (ciclo)</th>
-                <th className="px-3 py-2">Sugerido</th>
+                <th className="px-3 py-2">Stock actual</th>
+                <th className="px-3 py-2">Stock de resguardo</th>
+                <th className="px-3 py-2">{averageColumnLabel}</th>
+                <th className="px-3 py-2">Pedido sugerido</th>
                 <th className="px-3 py-2">Cantidad a pedir</th>
                 <th className="px-3 py-2">Precio venta</th>
                 <th className="px-3 py-2">Costo estimado</th>
@@ -347,7 +428,7 @@ export default function OrderSuggestionsClient({
               </tr>
             </thead>
             <tbody>
-              {filteredSuggestions.map((row) => {
+              {primarySuggestions.map((row) => {
                 const {
                   avgCycle,
                   unitPrice,
@@ -382,7 +463,135 @@ export default function OrderSuggestionsClient({
                       {row.product_name || 'Producto'}
                     </td>
                     <td className="px-3 py-2">{row.stock_on_hand ?? 0}</td>
-                    <td className="px-3 py-2">{row.safety_stock ?? 0}</td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        value={safetyStocks[row.product_id] ?? '0'}
+                        onChange={(event) =>
+                          handleSafetyStockChange(
+                            row.product_id,
+                            event.target.value,
+                          )
+                        }
+                        className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm"
+                      />
+                    </td>
+                    <td className="px-3 py-2">{avgCycle}</td>
+                    <td className="px-3 py-2 font-semibold">{suggestedQty}</td>
+                    <td className="px-3 py-2">
+                      <input
+                        name={`qty_${row.product_id}`}
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={currentQtyRaw}
+                        onChange={(event) =>
+                          handleQtyChange(row.product_id, event.target.value)
+                        }
+                        className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm"
+                      />
+                      {suggestedPackageHint ? (
+                        <p className="mt-1 text-[11px] text-zinc-500">
+                          Sugerido en paquetes: {suggestedPackageHint}
+                          {currentPackageHint
+                            ? ` · Carga actual: ${currentPackageHint}`
+                            : ''}
+                        </p>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2">{unitPrice.toFixed(2)}</td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={currentUnitCostRaw}
+                        onChange={(event) =>
+                          handleUnitCostChange(
+                            row.product_id,
+                            event.target.value,
+                          )
+                        }
+                        className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm"
+                      />
+                      <p className="mt-1 text-[11px] text-zinc-500">
+                        <span className="block">
+                          Registrado: {supplierCost.toFixed(2)}
+                        </span>
+                        <span className="block">
+                          Sugerido: {estimatedCost.toFixed(2)}
+                        </span>
+                      </p>
+                    </td>
+                    <td className="px-3 py-2">{subtotal.toFixed(2)}</td>
+                  </tr>
+                );
+              })}
+              {secondarySuggestions.length > 0 ? (
+                <tr className="border-t-8 border-transparent bg-amber-50/70">
+                  <td
+                    colSpan={9}
+                    className="px-3 py-3 text-xs font-medium text-amber-800"
+                  >
+                    Estos productos se piden normalmente con otro proveedor.
+                    Puedes agregarlos aquí si en este pedido los vas a comprar
+                    como alternativa.
+                  </td>
+                </tr>
+              ) : null}
+              {secondarySuggestions.map((row) => {
+                const {
+                  avgCycle,
+                  unitPrice,
+                  estimatedCost,
+                  supplierCost,
+                  suggestedQty,
+                  currentQtyRaw,
+                  currentQty,
+                  currentUnitCostRaw,
+                  subtotal,
+                } = renderRow(row);
+                const suggestedPackageHint = formatPackageHint({
+                  qty: suggestedQty,
+                  purchaseByPack: Boolean(row.purchase_by_pack),
+                  unitsPerPack:
+                    row.units_per_pack == null
+                      ? null
+                      : Number(row.units_per_pack),
+                });
+                const currentPackageHint = formatPackageHint({
+                  qty: currentQty,
+                  purchaseByPack: Boolean(row.purchase_by_pack),
+                  unitsPerPack:
+                    row.units_per_pack == null
+                      ? null
+                      : Number(row.units_per_pack),
+                });
+
+                return (
+                  <tr key={row.product_id} className="border-t bg-amber-50/40">
+                    <td className="px-3 py-2">
+                      {row.product_name || 'Producto'}
+                      {renderSecondaryNotice(row)}
+                    </td>
+                    <td className="px-3 py-2">{row.stock_on_hand ?? 0}</td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        value={safetyStocks[row.product_id] ?? '0'}
+                        onChange={(event) =>
+                          handleSafetyStockChange(
+                            row.product_id,
+                            event.target.value,
+                          )
+                        }
+                        className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm"
+                      />
+                    </td>
                     <td className="px-3 py-2">{avgCycle}</td>
                     <td className="px-3 py-2 font-semibold">{suggestedQty}</td>
                     <td className="px-3 py-2">
@@ -439,7 +648,7 @@ export default function OrderSuggestionsClient({
         </div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {filteredSuggestions.map((row) => {
+          {primarySuggestions.map((row) => {
             const {
               avgCycle,
               unitPrice,
@@ -475,17 +684,161 @@ export default function OrderSuggestionsClient({
                       {row.product_name || 'Producto'}
                     </p>
                     <p className="text-xs text-zinc-500">
-                      Stock: {row.stock_on_hand ?? 0} · Stock min:{' '}
-                      {row.safety_stock ?? 0}
+                      Stock actual: {row.stock_on_hand ?? 0}
                     </p>
                   </div>
                   <div className="text-right text-xs text-zinc-500">
-                    Promedio (ciclo): {avgCycle}
+                    {averageColumnLabel}: {avgCycle}
                   </div>
                 </div>
                 <div className="mt-3 grid gap-2 text-xs text-zinc-600">
                   <div className="flex items-center justify-between">
-                    <span>Sugerido</span>
+                    <span>Stock de resguardo</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      value={safetyStocks[row.product_id] ?? '0'}
+                      onChange={(event) =>
+                        handleSafetyStockChange(
+                          row.product_id,
+                          event.target.value,
+                        )
+                      }
+                      className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Pedido sugerido</span>
+                    <span className="font-semibold text-zinc-900">
+                      {suggestedQty}
+                    </span>
+                  </div>
+                  <label className="flex items-center justify-between gap-2">
+                    <span>Cantidad a pedir</span>
+                    <input
+                      name={`qty_${row.product_id}`}
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={currentQtyRaw}
+                      onChange={(event) =>
+                        handleQtyChange(row.product_id, event.target.value)
+                      }
+                      className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm"
+                    />
+                  </label>
+                  {suggestedPackageHint ? (
+                    <p className="text-[11px] text-zinc-500">
+                      Sugerido en paquetes: {suggestedPackageHint}
+                      {currentPackageHint
+                        ? ` · Carga actual: ${currentPackageHint}`
+                        : ''}
+                    </p>
+                  ) : null}
+                  <div className="flex items-center justify-between">
+                    <span>Precio venta</span>
+                    <span>{unitPrice.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Costo estimado</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={currentUnitCostRaw}
+                      onChange={(event) =>
+                        handleUnitCostChange(row.product_id, event.target.value)
+                      }
+                      className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm"
+                    />
+                  </div>
+                  <div className="text-[11px] text-zinc-500">
+                    <span className="block">
+                      Registrado: {supplierCost.toFixed(2)}
+                    </span>
+                    <span className="block">
+                      Sugerido: {estimatedCost.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between font-semibold text-zinc-900">
+                    <span>Subtotal estimado</span>
+                    <span>{subtotal.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {secondarySuggestions.length > 0 ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 md:col-span-2">
+              Estos productos se piden normalmente con otro proveedor. Puedes
+              agregarlos aquí si en este pedido los vas a comprar como
+              alternativa.
+            </div>
+          ) : null}
+          {secondarySuggestions.map((row) => {
+            const {
+              avgCycle,
+              unitPrice,
+              estimatedCost,
+              supplierCost,
+              suggestedQty,
+              currentQtyRaw,
+              currentQty,
+              currentUnitCostRaw,
+              subtotal,
+            } = renderRow(row);
+            const suggestedPackageHint = formatPackageHint({
+              qty: suggestedQty,
+              purchaseByPack: Boolean(row.purchase_by_pack),
+              unitsPerPack:
+                row.units_per_pack == null ? null : Number(row.units_per_pack),
+            });
+            const currentPackageHint = formatPackageHint({
+              qty: currentQty,
+              purchaseByPack: Boolean(row.purchase_by_pack),
+              unitsPerPack:
+                row.units_per_pack == null ? null : Number(row.units_per_pack),
+            });
+
+            return (
+              <div
+                key={row.product_id}
+                className="rounded-lg border border-amber-200 bg-amber-50/40 p-4 text-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">
+                      {row.product_name || 'Producto'}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      Stock actual: {row.stock_on_hand ?? 0}
+                    </p>
+                    {renderSecondaryNotice(row)}
+                  </div>
+                  <div className="text-right text-xs text-zinc-500">
+                    {averageColumnLabel}: {avgCycle}
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-2 text-xs text-zinc-600">
+                  <div className="flex items-center justify-between">
+                    <span>Stock de resguardo</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      value={safetyStocks[row.product_id] ?? '0'}
+                      onChange={(event) =>
+                        handleSafetyStockChange(
+                          row.product_id,
+                          event.target.value,
+                        )
+                      }
+                      className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Pedido sugerido</span>
                     <span className="font-semibold text-zinc-900">
                       {suggestedQty}
                     </span>
@@ -553,6 +906,15 @@ export default function OrderSuggestionsClient({
           <span className="font-semibold text-zinc-900">
             {Number(totalCost).toFixed(2)}
           </span>
+          <p className="mt-1 text-xs text-zinc-500">
+            Monto estimado. El valor real se confirma con el remito en la
+            recepcion.
+          </p>
+          {supplierPaymentPreferenceNote ? (
+            <p className="mt-1 text-xs text-zinc-500">
+              {supplierPaymentPreferenceNote}
+            </p>
+          ) : null}
         </div>
         <div>
           Cantidad total:{' '}

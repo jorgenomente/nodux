@@ -5,7 +5,12 @@ import { revalidatePath } from 'next/cache';
 
 import PageShell from '@/app/components/PageShell';
 import SupplierActions from '@/app/suppliers/SupplierActions';
+import SupplierCreateFormFields from '@/app/suppliers/SupplierCreateFormFields';
 import SuppliersSearchInput from '@/app/suppliers/SuppliersSearchInput';
+import {
+  orderFrequencyOptions,
+  weekdayOptions,
+} from '@/app/suppliers/supplier-form-options';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 import {
   hasStaffModuleEnabled,
@@ -15,23 +20,6 @@ import {
 type SearchParams = {
   q?: string;
 };
-
-const orderFrequencyOptions = [
-  { value: 'weekly', label: 'Semanal' },
-  { value: 'biweekly', label: 'Cada 2 semanas' },
-  { value: 'every_3_weeks', label: 'Cada 3 semanas' },
-  { value: 'monthly', label: 'Mensual (30 días)' },
-] as const;
-
-const weekdayOptions = [
-  { value: 'mon', label: 'Lunes' },
-  { value: 'tue', label: 'Martes' },
-  { value: 'wed', label: 'Miércoles' },
-  { value: 'thu', label: 'Jueves' },
-  { value: 'fri', label: 'Viernes' },
-  { value: 'sat', label: 'Sábado' },
-  { value: 'sun', label: 'Domingo' },
-] as const;
 
 type SupplierRow = {
   supplier_id: string;
@@ -295,127 +283,12 @@ export default async function SuppliersPage({
             action={createSupplier}
             className="mt-4 grid gap-3 md:grid-cols-2"
           >
-            <label className="text-sm text-zinc-600">
-              Nombre
-              <input
-                name="name"
-                required
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              Contacto
-              <input
-                name="contact_name"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              Teléfono
-              <input
-                name="phone"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              Email
-              <input
-                name="email"
-                type="email"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-sm text-zinc-600 md:col-span-2">
-              Notas
-              <textarea
-                name="notes"
-                rows={2}
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              Frecuencia
-              <select
-                name="order_frequency"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              >
-                <option value="">Seleccionar</option>
-                {orderFrequencyOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm text-zinc-600">
-              Día de pedido
-              <select
-                name="order_day"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              >
-                <option value="">Seleccionar</option>
-                {weekdayOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm text-zinc-600">
-              Día de recepción
-              <select
-                name="receive_day"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              >
-                <option value="">Seleccionar</option>
-                {weekdayOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm text-zinc-600">
-              Plazo de pago (días)
-              <input
-                name="payment_terms_days"
-                type="number"
-                min={0}
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              % ganancia sugerida
-              <input
-                name="default_markup_pct"
-                type="number"
-                min={0}
-                step="0.01"
-                defaultValue="40"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="text-sm text-zinc-600">
-              Método de pago preferido
-              <select
-                name="preferred_payment_method"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              >
-                <option value="">Sin preferencia</option>
-                <option value="cash">Efectivo</option>
-                <option value="transfer">Transferencia</option>
-              </select>
-            </label>
+            <SupplierCreateFormFields
+              orderFrequencyOptions={orderFrequencyOptions}
+              weekdayOptions={weekdayOptions}
+            />
             <input type="hidden" name="accepts_cash" value="on" />
             <input type="hidden" name="accepts_transfer" value="on" />
-            <label className="text-sm text-zinc-600 md:col-span-2">
-              Datos de pago y notas del proveedor
-              <textarea
-                name="payment_note"
-                rows={2}
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-            </label>
             <div className="md:col-span-2">
               <button
                 type="submit"
@@ -458,7 +331,7 @@ export default async function SuppliersPage({
                         </span>
                       </div>
                       <p className="text-xs text-zinc-500">
-                        {supplier.contact_name || 'Sin contacto'} ·{' '}
+                        {supplier.contact_name || 'Sin persona de contacto'} ·{' '}
                         {supplier.phone || 'Sin teléfono'} ·{' '}
                         {supplier.email || 'Sin email'}
                       </p>
@@ -497,7 +370,7 @@ export default async function SuppliersPage({
                         {supplier.payment_terms_days == null
                           ? 'Sin plazo'
                           : `${supplier.payment_terms_days} días`}
-                        {' · '}Ganancia sugerida:{' '}
+                        {' · '}Ganancia deseada:{' '}
                         {Number(supplier.default_markup_pct ?? 40)}%{' · '}
                         Cuentas: {supplier.payment_accounts_count ?? 0}
                       </p>

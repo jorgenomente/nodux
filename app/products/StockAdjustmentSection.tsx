@@ -25,8 +25,19 @@ type Props = {
   transferStockAction: (formData: FormData) => Promise<void>;
 };
 
+const createLocalRowId = () => {
+  if (
+    typeof globalThis.crypto !== 'undefined' &&
+    typeof globalThis.crypto.randomUUID === 'function'
+  ) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `transfer-row-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
 const createTransferRow = (): TransferRow => ({
-  id: crypto.randomUUID(),
+  id: createLocalRowId(),
 });
 
 export default function StockAdjustmentSection({

@@ -165,7 +165,12 @@ Ultima actualizacion: 2026-03-10 22:15
 - `/orders/[orderId]` en recepción/control ahora permite confirmar costo proveedor unitario por ítem (desde remito/factura), calcular total operativo con IVA/descuento opcionales y persistir `supplier_price` vigente en `supplier_products` para próximos pedidos.
 - `/orders/[orderId]` ahora permite ajustar `precio unitario de venta` por ítem al confirmar recepción, actualizando `products.unit_price` en el acto con sugerido por `% de ganancia` proveedor/fallback org.
 - En armado de pedido (`/orders` y `/orders/[orderId]` en draft), costo unitario usa por defecto precio proveedor registrado con check opcional para recalcular por `% ganancia` sugerido.
+- `/orders` ahora permite archivar únicamente pedidos `draft`: salen del listado operativo principal, quedan agrupados en `Archivados` al final de la pantalla y se pueden restaurar mientras sigan en borrador.
 - `/settings/preferences` incorpora `default_supplier_markup_pct` para definir el margen global por defecto (ej. 41.5%) usado en sugeridos cuando no hay margen específico de proveedor.
+- `/orders` ahora precarga `Ajustes de sugeridos > Margen de ganancia (%)` con el `% de ganancia deseado` del proveedor seleccionado y usa `default_supplier_markup_pct` de la org solo como fallback.
+- `/orders` ahora aclara en el bloque `Mostrando` la frecuencia efectiva cuando el promedio queda en `Segun proveedor` (ej. `Segun proveedor (semanal)`).
+- `/orders` ahora permite editar inline `Stock de resguardo` por artículo mientras se arma un pedido y persiste ese valor en la sucursal seleccionada al guardar borrador o enviar pedido.
+- `/products` renombra el campo operativo `Stock minimo` a `Cantidad de resguardo`.
 - Proveedores incorporan perfil de pago: plazo (días), método de pago preferido (cash/transfer), datos de pago/notas y cuentas de transferencia.
 - En `/payments`, la foto de factura/remito se comprime automáticamente (JPG liviano) y se guarda en Storage (`supplier-invoices`).
 

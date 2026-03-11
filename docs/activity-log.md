@@ -18,6 +18,73 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-03-11 10:18 -03 — Orders: resguardo editable inline + rename en products
+
+**Tipo:** ui/docs
+**Lote:** orders-inline-safety-stock-entrypoint
+**Descripción:** Se habilitó la edición inline de `Stock de resguardo` por artículo dentro de los sugeridos de `/orders`. El valor se persiste sobre `stock_items.safety_stock` para la sucursal seleccionada al guardar borrador o enviar pedido, funcionando como segundo entry point operativo sin salir del armado. Además, en `/products` el input compartido dejó de decir `Stock minimo` y pasó a `Cantidad de resguardo`.
+
+**Archivos afectados:**
+
+- app/orders/page.tsx
+- app/orders/OrderSuggestionsClient.tsx
+- app/products/product-form-contract.ts
+- app/products/ProductFormFieldsShared.tsx
+- app/products/ProductListClient.tsx
+- app/products/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/docs-modules-supplier-orders.md
+- docs/docs-app-screens-products.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+- `npx playwright test` NOT RUN (2026-03-11): no existe smoke dedicado de `/orders`/`/products` para este flujo en el repo
+
+**Commit:** N/A
+
+## 2026-03-11 10:12 -03 — Orders: frecuencia efectiva en bloque `Mostrando`
+
+**Tipo:** ui/docs
+**Lote:** orders-showing-summary-effective-frequency
+**Descripción:** Se ajustó el bloque `Mostrando` de `/orders` para que, cuando el promedio queda en `Segun proveedor`, agregue entre paréntesis la frecuencia efectiva configurada en ese proveedor (`semanal`, `quincenal`, `cada 3 semanas` o `mensual`). Esto mejora la interpretación del resumen sin cambiar el cálculo de sugeridos.
+
+**Archivos afectados:**
+
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 10:10 -03 — Suppliers: copy de tarjeta de margen
+
+**Tipo:** ui/docs
+**Lote:** suppliers-card-markup-copy
+**Descripción:** Se actualizó el resumen visible de la tarjeta/listado de proveedores en `/suppliers` para reemplazar `Ganancia sugerida` por `Ganancia deseada`, alineando el copy con los formularios y el resto del módulo.
+
+**Archivos afectados:**
+
+- app/suppliers/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+
+**Commit:** N/A
+
 ## 2026-03-10 — UI: cierre de desplegables por click afuera
 
 **Tipo:** ui/tests
@@ -39,6 +106,78 @@ Se agregó un hook reutilizable de dismiss por click afuera para los desplegable
 
 - `npm run lint` OK (2026-03-10)
 - `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-11 10:00 -03 — Orders: margen sugerido precargado desde proveedor
+
+**Tipo:** ui/docs
+**Lote:** orders-supplier-default-markup-prefill
+**Descripción:** Se ajustó `/orders` para que `Ajustes de sugeridos > Margen de ganancia (%)` precargue el `% de ganancia deseado` del proveedor seleccionado. Si el proveedor no tiene `default_markup_pct`, la pantalla usa como fallback `org_preferences.default_supplier_markup_pct`. La misma regla se aplica al cambiar de proveedor y al volver desde el alta rápida de proveedor.
+
+**Archivos afectados:**
+
+- app/orders/page.tsx
+- app/orders/OrderDraftFiltersClient.tsx
+- docs/docs-app-screens-orders.md
+- docs/docs-modules-supplier-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+- `npx playwright test` NOT RUN (2026-03-11): no existe smoke dedicado de `/orders` en el repo
+
+**Commit:** N/A
+
+## 2026-03-11 09:52 -03 — Ajuste de copy de contacto en proveedores
+
+**Tipo:** ui/docs
+**Lote:** suppliers-copy-contact-person-label
+**Descripción:** Se reemplazó el texto visible “Contacto” por “Persona de contacto” en formularios y vistas de proveedores, incluyendo el fallback del listado y el modal rápido reutilizado en onboarding. La documentación del contrato de pantalla también se actualizó para reflejar el nuevo copy, sin cambiar el nombre técnico `contact_name`.
+
+**Archivos afectados:**
+
+- app/suppliers/SupplierCreateFormFields.tsx
+- app/suppliers/SupplierActions.tsx
+- app/suppliers/[supplierId]/page.tsx
+- app/suppliers/page.tsx
+- app/onboarding/BulkCreateSupplierModal.tsx
+- docs/docs-app-screens-suppliers.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 09:49 -03 — Ajuste de copy en formularios de proveedor
+
+**Tipo:** ui/docs
+**Lote:** suppliers-copy-default-markup-label
+**Descripción:** Se actualizó el label del campo `default_markup_pct` para proveedores de “% ganancia sugerida” a “% de ganancia deseado” en el alta de `/suppliers`, la edición inline, el detalle del proveedor y el modal rápido reutilizado en onboarding. También se ajustó la documentación operativa del módulo/contrato para reflejar el nuevo copy.
+
+**Archivos afectados:**
+
+- app/suppliers/SupplierCreateFormFields.tsx
+- app/suppliers/SupplierActions.tsx
+- app/suppliers/[supplierId]/page.tsx
+- app/onboarding/BulkCreateSupplierModal.tsx
+- docs/docs-app-screens-suppliers.md
+- docs/docs-modules-suppliers.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
 
 **Commit:** N/A
 
@@ -136,6 +275,365 @@ Se renombró el panel de `Cliente opcional` a `Cliente`, se aclaró en el copy q
 
 - `npm run lint` OK (2026-03-10)
 - `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 23:35 -03 — Orders: archivado operativo de borradores
+
+**Tipo:** schema/ui/docs/tests
+**Lote:** orders-draft-archive
+**Alcance:** db | frontend
+
+**Resumen**
+Se agregó archivado operativo para pedidos a proveedor en estado `draft`. El cambio introduce `supplier_orders.is_archived`, una RPC explícita `rpc_set_supplier_order_archived(...)` con auditoría y validación de estado, y actualiza `/orders` para sacar esos borradores del listado principal, mostrarlos en una sección `Archivados` al final de la pantalla y permitir restaurarlos.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260310234000_092_supplier_orders_draft_archive.sql
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/docs-modules-supplier-orders.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/schema.sql
+- types/supabase.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset` OK (2026-03-10)
+- `npm run db:schema:snapshot` OK (2026-03-10)
+- `npm run types:gen` OK (2026-03-10)
+- `npm run db:rls:smoke` OK (2026-03-10)
+- `PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -At -c "...is_archived..."` OK (2026-03-10)
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** 39acef6
+
+## 2026-03-11 08:56 -03 — Products: fallback local para IDs de filas en transferencia
+
+**Tipo:** ui/fix
+**Lote:** products-transfer-row-id-fallback
+**Alcance:** frontend
+
+**Resumen**
+Se corrigió la sección `Mover stock entre sucursales` de `/products` para que no falle cuando la app se abre por IP LAN usando `http://192.168.x.x:3000`. `localhost` es tratado como contexto seguro por el navegador, pero una IP LAN sobre HTTP no, por lo que `crypto.randomUUID()` puede no estar disponible. La UI ahora usa `randomUUID()` solo cuando existe y, si no, genera un id local alternativo suficiente para las filas temporales del formulario.
+
+**Archivos afectados:**
+
+- app/products/StockAdjustmentSection.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No ejecutados. Cambio acotado de frontend sin contrato ni build nuevos en este sublote.
+
+**Commit:** N/A
+
+## 2026-03-11 09:01 -03 — Orders: copy más claro para columna de promedio de ventas
+
+**Tipo:** ui/docs
+**Lote:** orders-suggestions-copy-average-column
+**Alcance:** frontend
+
+**Resumen**
+Se ajustó el copy de la sección `Ajustes de sugeridos` en `/orders` para dejar explícito que el selector modifica la columna visible del promedio. El control ahora dice `Columna de promedio de ventas` y la columna/listado de sugeridos pasó de `Promedio (ciclo)` a `Promedio de ventas`.
+
+**Archivos afectados:**
+
+- app/orders/page.tsx
+- app/orders/OrderSuggestionsClient.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 09:05 -03 — Orders: período explícito en la columna de promedio de ventas
+
+**Tipo:** ui/docs
+**Lote:** orders-suggestions-average-period-label
+**Alcance:** frontend
+
+**Resumen**
+La columna de promedio de ventas en el armado de pedidos ahora muestra el período efectivo usado en el cálculo. Si el usuario deja `Según proveedor`, la UI refleja la configuración real del proveedor (`semanal`, `quincenal`, `mensual` o `cada 3 semanas`). Si el usuario fuerza un override en la parte superior, la columna también lo explicita en el título para que el criterio de cálculo sea obvio.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 09:08 -03 — Orders: copy `Stock de resguardo` en sugeridos
+
+**Tipo:** ui/docs
+**Lote:** orders-suggestions-safety-stock-copy
+**Alcance:** frontend
+
+**Resumen**
+Se renombró el label visible `Stock min` por `Stock de resguardo` en la tabla y tarjetas de sugeridos de `/orders`, para que el dato de referencia sea más entendible durante el armado del pedido.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 09:10 -03 — Orders: copy `Stock actual` en sugeridos
+
+**Tipo:** ui/docs
+**Lote:** orders-suggestions-current-stock-copy
+**Alcance:** frontend
+
+**Resumen**
+Se renombró el label visible `Stock` por `Stock actual` en la tabla y tarjetas de sugeridos de `/orders`, para dejar explícito que ese valor representa el stock vigente de la sucursal al momento de armar el pedido.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 09:12 -03 — Orders: copy `Pedido sugerido` en armado
+
+**Tipo:** ui/docs
+**Lote:** orders-suggestions-recommended-order-copy
+**Alcance:** frontend
+
+**Resumen**
+Se renombró el label visible `Sugerido` por `Pedido sugerido` en la tabla y tarjetas de la sección de sugeridos de `/orders`, para expresar con más claridad que ese número representa la cantidad recomendada a pedir.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 09:12 -03 — Orders: nota aclaratoria bajo `Total estimado`
+
+**Tipo:** ui/docs
+**Lote:** orders-suggestions-estimated-total-note
+**Alcance:** frontend
+
+**Resumen**
+Se agregó debajo de `Total estimado` en el armado de pedidos una nota breve para dejar claro que ese valor es solo estimado y que el monto real se confirma con el remito durante la recepción.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 09:14 -03 — Orders: texto final de nota bajo `Total estimado`
+
+**Tipo:** ui/docs
+**Lote:** orders-suggestions-estimated-total-note
+**Alcance:** frontend
+
+**Resumen**
+Se refinó la redacción de la nota bajo `Total estimado` para dejarla más corta y natural: `Monto estimado. El valor real se confirma con el remito en la recepción.`
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No ejecutados. Ajuste textual mínimo sobre un cambio ya validado en el mismo lote.
+
+**Commit:** N/A
+
+## 2026-03-11 09:15 -03 — Orders: label más explícito para costo estimado por margen
+
+**Tipo:** ui/docs
+**Lote:** orders-suggestions-estimated-cost-toggle-copy
+**Alcance:** frontend
+
+**Resumen**
+Se cambió el label del toggle en el armado de pedidos para que explique mejor que el cálculo usa el margen definido arriba: `Usar Margen de ganancia (%) para calcular costo estimado`.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No ejecutados. Ajuste textual mínimo sobre UI ya validada en el mismo lote.
+
+**Commit:** N/A
+
+## 2026-03-11 09:17 -03 — Orders: texto final del toggle de costo estimado
+
+**Tipo:** ui/docs
+**Lote:** orders-suggestions-estimated-cost-toggle-copy
+**Alcance:** frontend
+
+**Resumen**
+Se dejó el texto final del toggle de costo estimado como `Calcular costo estimado segun Margen de ganancia (%)`, priorizando claridad visual y precisión operativa.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No ejecutados. Ajuste textual mínimo sobre UI ya validada en el mismo lote.
+
+**Commit:** N/A
+
+## 2026-03-11 09:22 -03 — Orders: nota de preferencia de pago del proveedor en sugeridos
+
+**Tipo:** ui/docs
+**Lote:** orders-suggestions-supplier-payment-note
+**Alcance:** frontend
+
+**Resumen**
+Se agregó debajo de `Total estimado` una nota contextual con la preferencia de pago del proveedor seleccionado. Si el proveedor prefiere efectivo, la UI lo aclara como pago al momento de la entrega. Si prefiere transferencia, la UI informa esa preferencia y, cuando existe `payment_terms_days`, muestra además el plazo configurado desde la fecha del pedido.
+
+**Archivos afectados:**
+
+- app/orders/page.tsx
+- app/orders/OrderSuggestionsClient.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 09:25 -03 — Orders: guardado preventivo al salir del pedido nuevo
+
+**Tipo:** ui/docs
+**Lote:** orders-new-draft-leave-guard
+**Alcance:** frontend
+
+**Resumen**
+Se agregó un guardado preventivo para el armado de pedidos nuevos en `/orders`. Si el usuario intenta navegar a otra pantalla de la app con un pedido iniciado, la UI abre un modal que advierte la pérdida de datos y ofrece `Guardar borrador`, `Salir sin guardar` o `Cancelar`. Para cierre/recarga/cambio de URL fuera del control de la app, queda activo además el prompt nativo del navegador.
+
+**Archivos afectados:**
+
+- app/orders/OrderDraftCreateFormClient.tsx
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 09:29 -03 — Orders: sugeridos con proveedor secundario al final
+
+**Tipo:** ui/docs
+**Lote:** orders-secondary-supplier-suggestions
+**Alcance:** frontend
+
+**Resumen**
+Se extendió el armado de pedidos para incluir también artículos donde el proveedor seleccionado está asignado como secundario. Estos productos ahora aparecen al final de la tabla/tarjetas, separados del bloque principal y con una aclaración de que normalmente se piden con otro proveedor, mostrando además el nombre del proveedor primario de cada producto.
+
+**Archivos afectados:**
+
+- app/orders/page.tsx
+- app/orders/OrderSuggestionsClient.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
+
+**Commit:** N/A
+
+## 2026-03-11 09:34 -03 — Orders: entry point `Nuevo proveedor` reutilizando `/suppliers`
+
+**Tipo:** ui/docs
+**Lote:** orders-new-supplier-entrypoint-reuse
+**Alcance:** frontend
+
+**Resumen**
+Se agregó en `/orders` un botón `Nuevo proveedor` junto al selector de proveedor del armado. El modal nuevo reutiliza el mismo bloque de campos de alta usado en `/suppliers`, de modo que ambos entry points queden sincronizados cuando cambie el formulario. Al crear el proveedor desde el modal, la pantalla vuelve a `/orders` con ese proveedor ya seleccionado.
+
+**Archivos afectados:**
+
+- app/orders/NewSupplierFromOrdersButton.tsx
+- app/orders/OrderDraftFiltersClient.tsx
+- app/orders/page.tsx
+- app/suppliers/SupplierCreateFormFields.tsx
+- app/suppliers/supplier-form-options.ts
+- app/suppliers/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-11)
+- `npm run build` OK (2026-03-11)
 
 **Commit:** N/A
 
@@ -300,6 +798,28 @@ Se extendió la resincronización de estado cliente a los filtros que seguían u
 - app/products/lookup/ProductsLookupClient.tsx
 - app/orders/OrderDraftFiltersClient.tsx
 - app/pos/PosClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 22:23 -03 — Orders: selector de nuevo pedido alineado con sucursal global
+
+**Tipo:** ui/docs
+**Lote:** branch-context-audit-20260310
+**Alcance:** frontend
+
+**Resumen**
+Se ajustó `/orders` para que `draft_branch_id` del bloque `Nuevo pedido` también resuelva la sucursal por prioridad `draft_branch_id` explícito -> cookie global `nodux_active_branch_id` -> fallback vacío. Con esto el selector de sucursal del borrador queda alineado con la sucursal activa aplicada desde el top bar.
+
+**Archivos afectados:**
+
+- app/orders/page.tsx
 - docs/prompts.md
 - docs/activity-log.md
 

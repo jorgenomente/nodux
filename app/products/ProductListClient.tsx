@@ -81,13 +81,13 @@ const formatSafetyStockByBranch = (
   value: SafetyStockByBranchItem[] | undefined,
 ) => {
   if (!value || value.length === 0) {
-    return 'Sin stock minimo.';
+    return 'Sin cantidad de resguardo.';
   }
 
   const parts = value.map(
     (item) => `${item.branch_name}: ${item.safety_stock}`,
   );
-  return parts.length > 0 ? parts.join(' · ') : 'Sin stock minimo.';
+  return parts.length > 0 ? parts.join(' · ') : 'Sin cantidad de resguardo.';
 };
 
 export default function ProductListClient({
@@ -162,10 +162,10 @@ export default function ProductListClient({
                     {product.shelf_life_days ?? 'Sin definir'} días
                   </div>
                   <div className="text-xs text-zinc-500">
-                    Stock minimo:{' '}
+                    Cantidad de resguardo:{' '}
                     {product.product_id
                       ? formatSafetyStockDisplay(String(product.product_id))
-                      : 'Sin stock minimo.'}
+                      : 'Sin cantidad de resguardo.'}
                   </div>
                   <div className="text-xs text-zinc-500">
                     Proveedor:{' '}

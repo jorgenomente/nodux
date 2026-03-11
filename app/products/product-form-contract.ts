@@ -14,7 +14,7 @@ export const PRODUCT_FORM_LABELS = {
   supplierProductName: 'Nombre de articulo en proveedor (opcional)',
   supplierSku: 'SKU en proveedor (opcional)',
   secondarySupplier: 'Proveedor secundario',
-  safetyStock: 'Stock minimo',
+  safetyStock: 'Cantidad de resguardo',
 } as const;
 
 export const PRODUCT_FORM_HELPER_TEXT =

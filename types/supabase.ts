@@ -4002,6 +4002,7 @@ export type Database = {
           created_by: string;
           expected_receive_on: string | null;
           id: string;
+          is_archived: boolean;
           notes: string | null;
           org_id: string;
           received_at: string | null;
@@ -4019,6 +4020,7 @@ export type Database = {
           created_by: string;
           expected_receive_on?: string | null;
           id?: string;
+          is_archived?: boolean;
           notes?: string | null;
           org_id: string;
           received_at?: string | null;
@@ -4036,6 +4038,7 @@ export type Database = {
           created_by?: string;
           expected_receive_on?: string | null;
           id?: string;
+          is_archived?: boolean;
           notes?: string | null;
           org_id?: string;
           received_at?: string | null;
@@ -5824,6 +5827,7 @@ export type Database = {
           branch_name: string | null;
           created_at: string | null;
           expected_receive_on: string | null;
+          is_archived: boolean | null;
           items_count: number | null;
           order_id: string | null;
           org_id: string | null;
@@ -8273,6 +8277,10 @@ export type Database = {
           p_org_id: string;
           p_role: Database['public']['Enums']['user_role'];
         };
+        Returns: undefined;
+      };
+      rpc_set_supplier_order_archived: {
+        Args: { p_is_archived: boolean; p_order_id: string; p_org_id: string };
         Returns: undefined;
       };
       rpc_set_supplier_order_expected_receive_on: {

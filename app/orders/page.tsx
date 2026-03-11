@@ -1,8 +1,11 @@
+import { randomUUID } from 'crypto';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 import OrderDraftFiltersClient from '@/app/orders/OrderDraftFiltersClient';
+import OrderDraftCreateFormClient from '@/app/orders/OrderDraftCreateFormClient';
+import NewSupplierFromOrdersButton from '@/app/orders/NewSupplierFromOrdersButton';
 import OrderSuggestionsClient from '@/app/orders/OrderSuggestionsClient';
 import PageShell from '@/app/components/PageShell';
 import { resolveActiveBranchId } from '@/lib/branches/active-branch';
@@ -30,6 +33,7 @@ type OrderRow = {
   branch_name: string | null;
   branch_id: string;
   status: string;
+  is_archived?: boolean | null;
   created_at: string;
   sent_at: string | null;
   received_at: string | null;
@@ -47,6 +51,9 @@ type SupplierPaymentPreferenceRow = {
   name: string | null;
   is_active: boolean;
   preferred_payment_method: 'cash' | 'transfer' | null;
+  payment_terms_days?: number | null;
+  default_markup_pct?: number | null;
+  order_frequency?: 'weekly' | 'biweekly' | 'every_3_weeks' | 'monthly' | null;
 };
 
 type SuggestionRow = {
@@ -60,6 +67,12 @@ type SuggestionRow = {
   avg_daily_sales_30d: number | null;
   cycle_days?: number | null;
   suggested_qty: number | null;
+  primary_supplier_name?: string | null;
+};
+
+type SafetyStockUpdate = {
+  productId: string;
+  safetyStock: number;
 };
 
 type ProductPriceRow = {
@@ -74,6 +87,13 @@ type OrgPreferencesMarkupRow = {
 type SupplierProductPriceRow = {
   product_id: string;
   supplier_price: number | null;
+};
+
+type SupplierPrimaryRelationRow = {
+  product_id: string;
+  supplier: {
+    name: string | null;
+  } | null;
 };
 
 type OrderItemAmountRow = {
@@ -126,6 +146,29 @@ const formatAvgModeLabel = (mode: string) => {
   }
 };
 
+const formatOrderFrequencyLabel = (
+  frequency:
+    | 'weekly'
+    | 'biweekly'
+    | 'every_3_weeks'
+    | 'monthly'
+    | null
+    | undefined,
+) => {
+  switch (frequency) {
+    case 'weekly':
+      return 'semanal';
+    case 'biweekly':
+      return 'quincenal';
+    case 'every_3_weeks':
+      return 'cada 3 semanas';
+    case 'monthly':
+      return 'mensual';
+    default:
+      return 'mensual';
+  }
+};
+
 const formatPaymentState = (state: string | null | undefined) => {
   switch (state) {
     case 'pending':
@@ -154,6 +197,27 @@ const formatPaymentMethod = (
   }
 };
 
+const buildSupplierPaymentPreferenceNote = (
+  supplier: SupplierPaymentPreferenceRow | null | undefined,
+) => {
+  if (!supplier) return null;
+
+  if (supplier.preferred_payment_method === 'cash') {
+    return 'Este proveedor prefiere pagos en efectivo al momento de la entrega.';
+  }
+
+  if (supplier.preferred_payment_method === 'transfer') {
+    const paymentTermsDays = Number(supplier.payment_terms_days ?? 0);
+    if (Number.isFinite(paymentTermsDays) && paymentTermsDays > 0) {
+      return `Este proveedor prefiere transferencia dentro de ${paymentTermsDays} dia${paymentTermsDays === 1 ? '' : 's'} desde la fecha del pedido.`;
+    }
+
+    return 'Este proveedor prefiere pagos por transferencia.';
+  }
+
+  return null;
+};
+
 const formatDate = (value: string | null) =>
   value ? new Date(value).toLocaleDateString('es-AR') : '—';
 
@@ -163,6 +227,21 @@ const formatCurrency = (value: number) =>
     currency: 'ARS',
     maximumFractionDigits: 2,
   }).format(value);
+
+const resolveSupplierDefaultMarkupPct = ({
+  supplier,
+  orgDefaultMarkupPct,
+}: {
+  supplier: SupplierPaymentPreferenceRow | null | undefined;
+  orgDefaultMarkupPct: number;
+}) => {
+  const supplierMarkupPct = Number(supplier?.default_markup_pct);
+  if (Number.isFinite(supplierMarkupPct) && supplierMarkupPct >= 0) {
+    return supplierMarkupPct;
+  }
+
+  return orgDefaultMarkupPct;
+};
 
 const isExpectedReceiveOverdue = (
   expectedReceiveOn: string | null,
@@ -192,12 +271,14 @@ const buildDraftResultUrl = ({
   branchId,
   draftMarginPct,
   draftAvgMode,
+  redirectAfterSave,
 }: {
   result: string;
   supplierId?: string;
   branchId?: string;
   draftMarginPct?: string;
   draftAvgMode?: string;
+  redirectAfterSave?: string;
 }) => {
   const params = new URLSearchParams();
   params.set('result', result);
@@ -205,6 +286,7 @@ const buildDraftResultUrl = ({
   if (branchId) params.set('draft_branch_id', branchId);
   if (draftMarginPct) params.set('draft_margin_pct', draftMarginPct);
   if (draftAvgMode) params.set('draft_avg_mode', draftAvgMode);
+  if (redirectAfterSave) params.set('redirect_after_save', redirectAfterSave);
   return `/orders?${params.toString()}`;
 };
 
@@ -241,7 +323,9 @@ export default async function OrdersPage({
 
   const { data: suppliers } = await supabase
     .from('suppliers')
-    .select('id, name, is_active, preferred_payment_method')
+    .select(
+      'id, name, is_active, preferred_payment_method, payment_terms_days, default_markup_pct, order_frequency',
+    )
     .eq('org_id', orgId)
     .eq('is_active', true)
     .order('name');
@@ -275,10 +359,13 @@ export default async function OrdersPage({
     typeof resolvedSearchParams.draft_supplier_id === 'string'
       ? resolvedSearchParams.draft_supplier_id
       : '';
-  const draftBranchId =
-    typeof resolvedSearchParams.draft_branch_id === 'string'
-      ? resolvedSearchParams.draft_branch_id
-      : '';
+  const draftBranchId = await resolveActiveBranchId({
+    requestedBranchId: resolvedSearchParams.draft_branch_id,
+    allowedBranchIds: ((branches ?? []) as Array<{ id: string }>).map(
+      (branch) => branch.id,
+    ),
+    fallbackBranchId: '',
+  });
   const draftMarginPctRaw =
     typeof resolvedSearchParams.draft_margin_pct === 'string'
       ? resolvedSearchParams.draft_margin_pct
@@ -296,8 +383,17 @@ export default async function OrdersPage({
     (orgPreferencesMarkupRow as OrgPreferencesMarkupRow | null)
       ?.default_supplier_markup_pct ?? 40,
   );
-  const draftMarginPct =
-    draftMarginPctRaw === '' ? orgDefaultMarkupPct : Number(draftMarginPctRaw);
+  const selectedSupplierForDraft = (
+    (suppliers ?? []) as SupplierPaymentPreferenceRow[]
+  ).find((supplier) => supplier.id === draftSupplierId);
+  const effectiveDraftMarginPct =
+    draftMarginPctRaw === ''
+      ? resolveSupplierDefaultMarkupPct({
+          supplier: selectedSupplierForDraft,
+          orgDefaultMarkupPct,
+        })
+      : Number(draftMarginPctRaw);
+  const draftMarginPct = effectiveDraftMarginPct;
 
   let orderQuery = supabase
     .from('v_orders_admin')
@@ -354,10 +450,14 @@ export default async function OrdersPage({
     ...order,
     estimated_total_amount: Number(estimatedByOrderId.get(order.order_id) ?? 0),
   }));
-  const pendingOrders = ordersList.filter(
+  const visibleOrders = ordersList.filter((order) => !order.is_archived);
+  const archivedDraftOrders = ordersList.filter(
+    (order) => order.is_archived && order.status === 'draft',
+  );
+  const pendingOrders = visibleOrders.filter(
     (order) => order.status !== 'reconciled',
   );
-  const controlledOrders = ordersList.filter(
+  const controlledOrders = visibleOrders.filter(
     (order) => order.status === 'reconciled',
   );
 
@@ -369,7 +469,6 @@ export default async function OrdersPage({
           .eq('org_id', orgId)
           .eq('supplier_id', draftSupplierId)
           .eq('branch_id', draftBranchId)
-          .eq('relation_type', 'primary')
           .order('product_name')
       : { data: [] };
 
@@ -407,6 +506,15 @@ export default async function OrdersPage({
           .eq('supplier_id', draftSupplierId)
           .in('product_id', suggestionIds)
       : { data: [] };
+  const { data: primarySupplierRelations } =
+    suggestionIds && suggestionIds.length > 0
+      ? await supabase
+          .from('supplier_products')
+          .select('product_id, supplier:suppliers(name)')
+          .eq('org_id', orgId)
+          .eq('relation_type', 'primary')
+          .in('product_id', suggestionIds)
+      : { data: [] };
 
   const priceByProduct = new Map<string, number>();
   (suggestionPrices as ProductPriceRow[] | null)?.forEach((row) => {
@@ -423,6 +531,25 @@ export default async function OrdersPage({
       );
     },
   );
+  const primarySupplierNameByProduct = new Map<string, string | null>();
+  (primarySupplierRelations as SupplierPrimaryRelationRow[] | null)?.forEach(
+    (row) => {
+      if (!row.product_id) return;
+      primarySupplierNameByProduct.set(
+        row.product_id,
+        row.supplier?.name ?? null,
+      );
+    },
+  );
+  const suggestionsWithPrimarySupplier = (
+    (suggestions as SuggestionRow[] | null) ?? []
+  ).map((row) => ({
+    ...row,
+    primary_supplier_name:
+      row.relation_type === 'secondary'
+        ? (primarySupplierNameByProduct.get(row.product_id) ?? null)
+        : null,
+  }));
 
   const createOrder = async (formData: FormData) => {
     'use server';
@@ -437,9 +564,49 @@ export default async function OrdersPage({
       formData.get('draft_avg_mode') ?? '',
     ).trim();
     const notes = String(formData.get('notes') ?? '').trim();
-    const action = String(formData.get('order_action') ?? 'draft').trim();
+    const redirectAfterSave = String(
+      formData.get('redirect_after_save') ?? '',
+    ).trim();
+    const action =
+      String(formData.get('order_action') ?? '').trim() ||
+      String(formData.get('fallback_order_action') ?? '').trim() ||
+      'draft';
 
     if (!supplierId || !branchId) return;
+
+    const safetyStockUpdates = Array.from(formData.entries())
+      .filter(([key]) => key.startsWith('safety_stock_'))
+      .map(([key, value]) => ({
+        productId: key.replace('safety_stock_', ''),
+        safetyStock: Number(value),
+      }))
+      .filter(
+        (entry): entry is SafetyStockUpdate =>
+          Boolean(entry.productId) &&
+          Number.isFinite(entry.safetyStock) &&
+          entry.safetyStock >= 0,
+      );
+
+    const persistSafetyStockUpdates = async () => {
+      if (safetyStockUpdates.length === 0) return;
+
+      await Promise.all(
+        safetyStockUpdates.map(async ({ productId, safetyStock }) => {
+          const { error } = await supabaseServer.rpc('rpc_set_safety_stock', {
+            p_org_id: orgId,
+            p_branch_id: branchId,
+            p_product_id: productId,
+            p_safety_stock: safetyStock,
+          });
+
+          if (error) {
+            throw new Error(
+              `No se pudo actualizar stock de resguardo para ${productId}: ${error.message}`,
+            );
+          }
+        }),
+      );
+    };
 
     const items = Array.from(formData.entries())
       .filter(([key]) => key.startsWith('qty_'))
@@ -450,8 +617,11 @@ export default async function OrdersPage({
       }))
       .filter((entry) => entry.productId && entry.qty > 0);
 
+    await persistSafetyStockUpdates();
+
     if (items.length === 0) {
       revalidatePath('/orders');
+      revalidatePath('/products');
       redirect(
         buildDraftResultUrl({
           result: 'order_items_required',
@@ -459,6 +629,7 @@ export default async function OrdersPage({
           branchId,
           draftMarginPct: formDraftMarginPct,
           draftAvgMode: formDraftAvgMode,
+          redirectAfterSave,
         }),
       );
     }
@@ -484,6 +655,7 @@ export default async function OrdersPage({
           branchId,
           draftMarginPct: formDraftMarginPct,
           draftAvgMode: formDraftAvgMode,
+          redirectAfterSave,
         }),
       );
     }
@@ -530,16 +702,159 @@ export default async function OrdersPage({
     }
 
     revalidatePath('/orders');
+    revalidatePath('/products');
+    if (action === 'sent') {
+      redirect('/orders?result=order_sent');
+    }
+
+    if (redirectAfterSave) {
+      redirect(redirectAfterSave);
+    }
+
+    redirect('/orders?result=order_draft_saved');
+  };
+
+  const createSupplierFromOrders = async (formData: FormData) => {
+    'use server';
+
+    const actionSession = await getOrgMemberSession();
+    if (!actionSession?.orgId) return;
+    const supabaseServer = actionSession.supabase;
+    const orgId = actionSession.orgId;
+    const name = String(formData.get('name') ?? '').trim();
+    const contactName = String(formData.get('contact_name') ?? '').trim();
+    const phone = String(formData.get('phone') ?? '').trim();
+    const email = String(formData.get('email') ?? '').trim();
+    const notes = String(formData.get('notes') ?? '').trim();
+    const orderFrequency = String(formData.get('order_frequency') ?? '').trim();
+    const orderDay = String(formData.get('order_day') ?? '').trim();
+    const receiveDay = String(formData.get('receive_day') ?? '').trim();
+    const paymentTermsDaysRaw = String(
+      formData.get('payment_terms_days') ?? '',
+    ).trim();
+    const preferredPaymentMethod = String(
+      formData.get('preferred_payment_method') ?? '',
+    ).trim();
+    const paymentNote = String(formData.get('payment_note') ?? '').trim();
+    const defaultMarkupPctRaw = String(
+      formData.get('default_markup_pct') ?? '40',
+    ).trim();
+    const draftBranchIdFromModal = String(
+      formData.get('draft_branch_id') ?? '',
+    ).trim();
+    const draftMarginPctFromModal = String(
+      formData.get('draft_margin_pct') ?? '',
+    ).trim();
+    const draftAvgModeFromModal = String(
+      formData.get('draft_avg_mode') ?? '',
+    ).trim();
+    const acceptsCash = preferredPaymentMethod !== 'transfer';
+    const acceptsTransfer = preferredPaymentMethod !== 'cash';
+    const paymentTermsDays =
+      paymentTermsDaysRaw === ''
+        ? null
+        : Number.parseInt(paymentTermsDaysRaw, 10);
+    const defaultMarkupPct = Number(defaultMarkupPctRaw);
+
+    if (!name) return;
+    if (
+      paymentTermsDays !== null &&
+      (Number.isNaN(paymentTermsDays) || paymentTermsDays < 0)
+    ) {
+      return;
+    }
+    if (
+      Number.isNaN(defaultMarkupPct) ||
+      defaultMarkupPct < 0 ||
+      defaultMarkupPct > 1000
+    ) {
+      return;
+    }
+
+    const { data: createdSupplierRows } = await supabaseServer.rpc(
+      'rpc_upsert_supplier',
+      {
+        p_supplier_id: randomUUID(),
+        p_org_id: orgId,
+        p_name: name,
+        p_contact_name: contactName,
+        p_phone: phone,
+        p_email: email,
+        p_notes: notes,
+        p_is_active: true,
+        p_order_frequency: orderFrequency || null,
+        p_order_day: orderDay || null,
+        p_receive_day: receiveDay || null,
+        p_payment_terms_days: paymentTermsDays ?? undefined,
+        p_preferred_payment_method:
+          preferredPaymentMethod === 'cash' ||
+          preferredPaymentMethod === 'transfer'
+            ? preferredPaymentMethod
+            : undefined,
+        p_accepts_cash: acceptsCash,
+        p_accepts_transfer: acceptsTransfer,
+        p_payment_note: paymentNote || undefined,
+        p_default_markup_pct: defaultMarkupPct,
+      },
+    );
+    const createdSupplierId = String(
+      (
+        createdSupplierRows as Array<{ supplier_id?: string | null }> | null
+      )?.[0]?.supplier_id ?? '',
+    ).trim();
+
+    revalidatePath('/suppliers');
+    revalidatePath('/orders');
+
+    const params = new URLSearchParams();
+    if (createdSupplierId) params.set('draft_supplier_id', createdSupplierId);
+    if (draftBranchIdFromModal)
+      params.set('draft_branch_id', draftBranchIdFromModal);
+    if (createdSupplierId) {
+      params.set('draft_margin_pct', String(defaultMarkupPct));
+    } else if (draftMarginPctFromModal) {
+      params.set('draft_margin_pct', draftMarginPctFromModal);
+    }
+    if (draftAvgModeFromModal)
+      params.set('draft_avg_mode', draftAvgModeFromModal);
+    params.set('result', 'supplier_created');
+    redirect(`/orders?${params.toString()}`);
+  };
+
+  const setOrderArchived = async (formData: FormData) => {
+    'use server';
+
+    const supabaseServer = await createServerSupabaseClient();
+    const orderId = String(formData.get('order_id') ?? '').trim();
+    const nextValue =
+      String(formData.get('next_archived') ?? '').trim() === '1';
+
+    if (!orderId) return;
+
+    await supabaseServer.rpc('rpc_set_supplier_order_archived', {
+      p_org_id: orgId,
+      p_order_id: orderId,
+      p_is_archived: nextValue,
+    });
+
+    revalidatePath('/orders');
     redirect(
-      action === 'sent'
-        ? '/orders?result=order_sent'
-        : '/orders?result=order_draft_saved',
+      nextValue
+        ? '/orders?result=order_archived'
+        : '/orders?result=order_restored',
     );
   };
 
   const selectedSupplier = suppliers?.find(
     (supplier) => supplier.id === draftSupplierId,
   );
+  const supplierPaymentPreferenceNote = buildSupplierPaymentPreferenceNote(
+    (selectedSupplier as SupplierPaymentPreferenceRow | undefined) ?? null,
+  );
+  const showingAvgModeLabel =
+    draftAvgMode === 'cycle'
+      ? `Segun proveedor (${formatOrderFrequencyLabel(selectedSupplier?.order_frequency)})`
+      : formatAvgModeLabel(draftAvgMode);
   const selectedBranch = branches?.find(
     (branch) => branch.id === draftBranchId,
   );
@@ -629,6 +944,21 @@ export default async function OrdersPage({
             No se pudo crear el pedido. Intenta nuevamente.
           </div>
         ) : null}
+        {result === 'order_archived' ? (
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
+            Borrador archivado correctamente.
+          </div>
+        ) : null}
+        {result === 'order_restored' ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            Borrador restaurado correctamente.
+          </div>
+        ) : null}
+        {result === 'supplier_created' ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            Proveedor creado correctamente.
+          </div>
+        ) : null}
 
         <section className="rounded-2xl bg-white p-6 shadow-sm">
           <details
@@ -643,20 +973,29 @@ export default async function OrdersPage({
             </summary>
             <div className="mt-4">
               <OrderDraftFiltersClient
-                suppliers={
-                  (suppliers ?? []) as Array<{ id: string; name: string }>
-                }
+                suppliers={(
+                  (suppliers ?? []) as SupplierPaymentPreferenceRow[]
+                ).map((supplier) => ({
+                  id: supplier.id,
+                  name: supplier.name ?? 'Proveedor',
+                  default_markup_pct: supplier.default_markup_pct ?? null,
+                }))}
                 branches={
                   (branches ?? []) as Array<{ id: string; name: string }>
                 }
                 draftSupplierId={draftSupplierId}
                 draftBranchId={draftBranchId}
-                draftMarginPct={
-                  draftMarginPctRaw === ''
-                    ? String(orgDefaultMarkupPct)
-                    : draftMarginPctRaw
-                }
+                draftMarginPct={String(effectiveDraftMarginPct)}
                 draftAvgMode={draftAvgMode}
+                orgDefaultMarkupPct={orgDefaultMarkupPct}
+                newSupplierButton={
+                  <NewSupplierFromOrdersButton
+                    action={createSupplierFromOrders}
+                    draftBranchId={draftBranchId}
+                    draftMarginPct={String(effectiveDraftMarginPct)}
+                    draftAvgMode={draftAvgMode}
+                  />
+                }
               />
 
               {draftSupplierId && draftBranchId ? (
@@ -676,7 +1015,7 @@ export default async function OrdersPage({
                           type="number"
                           min="0"
                           step="0.01"
-                          defaultValue={draftMarginPctRaw}
+                          defaultValue={String(effectiveDraftMarginPct)}
                           className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
                           placeholder="Ej: 40"
                         />
@@ -689,7 +1028,7 @@ export default async function OrdersPage({
                         </span>
                       </label>
                       <label className="text-sm text-zinc-600">
-                        Promedio de ventas
+                        Columna de promedio de ventas
                         <select
                           name="draft_avg_mode"
                           defaultValue={draftAvgMode}
@@ -701,8 +1040,8 @@ export default async function OrdersPage({
                           <option value="monthly">Mensual</option>
                         </select>
                         <span className="mt-1 block text-xs text-zinc-400">
-                          ⓘ Se usa para mostrar estadisticas de venta por
-                          periodo.
+                          ⓘ Define como se calcula la columna de promedio de
+                          ventas.
                         </span>
                       </label>
                       <div className="flex items-end">
@@ -726,77 +1065,98 @@ export default async function OrdersPage({
                     />
                   </form>
 
-                  <form action={createOrder} className="grid gap-4">
-                    <input
-                      type="hidden"
-                      name="supplier_id"
-                      value={draftSupplierId}
-                    />
-                    <input
-                      type="hidden"
-                      name="branch_id"
-                      value={draftBranchId}
-                    />
-                    <input
-                      type="hidden"
-                      name="draft_margin_pct"
-                      value={draftMarginPctRaw}
-                    />
-                    <input
-                      type="hidden"
-                      name="draft_avg_mode"
-                      value={draftAvgMode}
-                    />
-                    <OrderSuggestionsClient
-                      key={`${draftSupplierId}-${draftBranchId}`}
-                      suggestions={suggestions as SuggestionRow[]}
-                      priceByProduct={priceByProductRecord}
-                      supplierPriceByProduct={supplierPriceByProductRecord}
-                      avgMode={
-                        (draftAvgMode as
-                          | 'cycle'
-                          | 'weekly'
-                          | 'biweekly'
-                          | 'monthly') || 'cycle'
-                      }
-                      safeMarginPct={safeMarginPct}
-                      useEstimatedCostsByDefault={false}
-                      allowEstimateToggle
-                      showingSummary={`${selectedSupplier?.name ?? 'Proveedor'} · ${selectedBranch?.name ?? 'Sucursal'} · Margen: ${safeMarginPct.toFixed(2)}% · Promedio: ${formatAvgModeLabel(draftAvgMode)}`}
-                      specialOrders={
-                        specialOrderItemsWithBranch as Array<
-                          SpecialOrderItemRow & { branch_name: string | null }
-                        >
-                      }
-                    />
-
-                    <label className="text-sm text-zinc-600">
-                      Notas
-                      <textarea
-                        name="notes"
-                        rows={2}
-                        className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                  <OrderDraftCreateFormClient
+                    enabled={Boolean(draftSupplierId && draftBranchId)}
+                  >
+                    <form
+                      action={createOrder}
+                      className="grid gap-4"
+                      data-order-draft-create-form="true"
+                    >
+                      <input
+                        type="hidden"
+                        name="supplier_id"
+                        value={draftSupplierId}
                       />
-                    </label>
-                    <div className="flex flex-wrap items-center justify-end gap-3">
-                      <button
-                        type="submit"
-                        name="order_action"
-                        value="draft"
-                        className="rounded border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700"
-                      >
-                        Guardar borrador
-                      </button>
-                      <button
-                        type="submit"
-                        name="order_action"
-                        value="sent"
-                        className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
-                      >
-                        Enviar pedido
-                      </button>
-                    </div>
-                  </form>
+                      <input
+                        type="hidden"
+                        name="branch_id"
+                        value={draftBranchId}
+                      />
+                      <input
+                        type="hidden"
+                        name="draft_margin_pct"
+                        value={String(effectiveDraftMarginPct)}
+                      />
+                      <input
+                        type="hidden"
+                        name="draft_avg_mode"
+                        value={draftAvgMode}
+                      />
+                      <input
+                        type="hidden"
+                        name="fallback_order_action"
+                        value=""
+                      />
+                      <input
+                        type="hidden"
+                        name="redirect_after_save"
+                        value=""
+                      />
+                      <OrderSuggestionsClient
+                        key={`${draftSupplierId}-${draftBranchId}`}
+                        suggestions={suggestionsWithPrimarySupplier}
+                        priceByProduct={priceByProductRecord}
+                        supplierPriceByProduct={supplierPriceByProductRecord}
+                        avgMode={
+                          (draftAvgMode as
+                            | 'cycle'
+                            | 'weekly'
+                            | 'biweekly'
+                            | 'monthly') || 'cycle'
+                        }
+                        safeMarginPct={safeMarginPct}
+                        useEstimatedCostsByDefault={false}
+                        allowEstimateToggle
+                        supplierPaymentPreferenceNote={
+                          supplierPaymentPreferenceNote
+                        }
+                        showingSummary={`${selectedSupplier?.name ?? 'Proveedor'} · ${selectedBranch?.name ?? 'Sucursal'} · Margen: ${safeMarginPct.toFixed(2)}% · Promedio: ${showingAvgModeLabel}`}
+                        specialOrders={
+                          specialOrderItemsWithBranch as Array<
+                            SpecialOrderItemRow & { branch_name: string | null }
+                          >
+                        }
+                      />
+
+                      <label className="text-sm text-zinc-600">
+                        Notas
+                        <textarea
+                          name="notes"
+                          rows={2}
+                          className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                        />
+                      </label>
+                      <div className="flex flex-wrap items-center justify-end gap-3">
+                        <button
+                          type="submit"
+                          name="order_action"
+                          value="draft"
+                          className="rounded border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700"
+                        >
+                          Guardar borrador
+                        </button>
+                        <button
+                          type="submit"
+                          name="order_action"
+                          value="sent"
+                          className="rounded bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
+                        >
+                          Enviar pedido
+                        </button>
+                      </div>
+                    </form>
+                  </OrderDraftCreateFormClient>
                 </div>
               ) : (
                 <div className="mt-6 rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
@@ -817,74 +1177,98 @@ export default async function OrdersPage({
                   order.status,
                 );
                 return (
-                  <Link
+                  <div
                     key={order.order_id}
-                    href={`/orders/${order.order_id}`}
-                    className={`block rounded-lg border p-4 hover:border-zinc-400 ${
+                    className={`rounded-lg border p-4 ${
                       isOverdue
                         ? 'border-rose-300 bg-rose-50/40'
                         : 'border-zinc-200'
                     }`}
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold text-zinc-900">
-                          {order.supplier_name || 'Proveedor'} ·{' '}
-                          {order.branch_name || 'Sucursal'}
-                        </p>
-                        <p className="text-xs text-zinc-500">
-                          Estado: {formatStatusLabel(order.status)} · Items:{' '}
-                          {order.items_count ?? 0}
-                        </p>
-                        <p className="text-xs text-zinc-500">
-                          Monto estimado:{' '}
-                          {formatCurrency(
-                            Number(order.estimated_total_amount ?? 0),
-                          )}
-                        </p>
-                        <p className="text-xs text-zinc-500">
-                          Pago:{' '}
-                          <span
-                            className={`font-semibold ${
-                              order.payment_state === 'paid'
-                                ? 'text-emerald-700'
-                                : order.payment_state === 'overdue'
-                                  ? 'text-rose-700'
-                                  : 'text-amber-700'
-                            }`}
-                          >
-                            {formatPaymentState(order.payment_state)}
-                          </span>
-                          {' · '}Saldo:{' '}
-                          {formatCurrency(
-                            Number(order.payable_outstanding_amount ?? 0),
-                          )}
-                          {' · '}Vence:{' '}
-                          {formatDate(order.payable_due_on ?? null)}
-                        </p>
-                        <p className="text-xs text-zinc-500">
-                          Método requerido:{' '}
-                          <span className="font-semibold text-zinc-700">
-                            {formatPaymentMethod(
-                              supplierPaymentMethodById.get(order.supplier_id),
-                            )}
-                          </span>
-                        </p>
-                        <p className="text-xs text-zinc-500">
-                          Estimado recepción:{' '}
-                          {formatDate(order.expected_receive_on)}
-                        </p>
-                        {isOverdue ? (
-                          <p className="mt-1 inline-flex rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
-                            Recepción vencida
+                    <Link
+                      href={`/orders/${order.order_id}`}
+                      className="block hover:opacity-90"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-zinc-900">
+                            {order.supplier_name || 'Proveedor'} ·{' '}
+                            {order.branch_name || 'Sucursal'}
                           </p>
-                        ) : null}
+                          <p className="text-xs text-zinc-500">
+                            Estado: {formatStatusLabel(order.status)} · Items:{' '}
+                            {order.items_count ?? 0}
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            Monto estimado:{' '}
+                            {formatCurrency(
+                              Number(order.estimated_total_amount ?? 0),
+                            )}
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            Pago:{' '}
+                            <span
+                              className={`font-semibold ${
+                                order.payment_state === 'paid'
+                                  ? 'text-emerald-700'
+                                  : order.payment_state === 'overdue'
+                                    ? 'text-rose-700'
+                                    : 'text-amber-700'
+                              }`}
+                            >
+                              {formatPaymentState(order.payment_state)}
+                            </span>
+                            {' · '}Saldo:{' '}
+                            {formatCurrency(
+                              Number(order.payable_outstanding_amount ?? 0),
+                            )}
+                            {' · '}Vence:{' '}
+                            {formatDate(order.payable_due_on ?? null)}
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            Método requerido:{' '}
+                            <span className="font-semibold text-zinc-700">
+                              {formatPaymentMethod(
+                                supplierPaymentMethodById.get(
+                                  order.supplier_id,
+                                ),
+                              )}
+                            </span>
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            Estimado recepción:{' '}
+                            {formatDate(order.expected_receive_on)}
+                          </p>
+                          {isOverdue ? (
+                            <p className="mt-1 inline-flex rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+                              Recepción vencida
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="text-xs text-zinc-500">
+                          {formatDate(order.created_at)}
+                        </div>
                       </div>
-                      <div className="text-xs text-zinc-500">
-                        {formatDate(order.created_at)}
+                    </Link>
+                    {order.status === 'draft' ? (
+                      <div className="mt-3 flex justify-end border-t border-zinc-100 pt-3">
+                        <form action={setOrderArchived}>
+                          <input
+                            type="hidden"
+                            name="order_id"
+                            value={order.order_id}
+                          />
+                          <input type="hidden" name="next_archived" value="1" />
+                          <button
+                            type="submit"
+                            className="rounded border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700"
+                          >
+                            Archivar borrador
+                          </button>
+                        </form>
                       </div>
-                    </div>
-                  </Link>
+                    ) : null}
+                  </div>
                 );
               })
             ) : (
@@ -966,6 +1350,79 @@ export default async function OrdersPage({
                 </div>
               )}
             </div>
+          </div>
+          <div className="mt-6 border-t border-zinc-100 pt-6">
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-800">
+                <span>Archivados ({archivedDraftOrders.length})</span>
+                <span className="text-xs text-zinc-500 transition group-open:rotate-180">
+                  ▾
+                </span>
+              </summary>
+              <div className="mt-3 space-y-3">
+                {archivedDraftOrders.length > 0 ? (
+                  archivedDraftOrders.map((order) => (
+                    <div
+                      key={order.order_id}
+                      className="rounded-lg border border-zinc-200 bg-zinc-50 p-4"
+                    >
+                      <Link
+                        href={`/orders/${order.order_id}`}
+                        className="block hover:opacity-90"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-zinc-900">
+                              {order.supplier_name || 'Proveedor'} ·{' '}
+                              {order.branch_name || 'Sucursal'}
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              Estado: Borrador archivado · Items:{' '}
+                              {order.items_count ?? 0}
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              Monto estimado:{' '}
+                              {formatCurrency(
+                                Number(order.estimated_total_amount ?? 0),
+                              )}
+                            </p>
+                          </div>
+                          <div className="text-xs text-zinc-500">
+                            {formatDate(order.created_at)}
+                          </div>
+                        </div>
+                      </Link>
+                      <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-zinc-200 pt-3">
+                        <form action={setOrderArchived}>
+                          <input
+                            type="hidden"
+                            name="order_id"
+                            value={order.order_id}
+                          />
+                          <input type="hidden" name="next_archived" value="0" />
+                          <button
+                            type="submit"
+                            className="rounded border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700"
+                          >
+                            Restaurar
+                          </button>
+                        </form>
+                        <Link
+                          href={`/orders/${order.order_id}`}
+                          className="rounded bg-zinc-900 px-3 py-2 text-xs font-semibold text-white"
+                        >
+                          Ver pedido
+                        </Link>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-zinc-500">
+                    No hay borradores archivados.
+                  </div>
+                )}
+              </div>
+            </details>
           </div>
         </section>
       </div>

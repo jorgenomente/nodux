@@ -80,6 +80,7 @@ Constraints:
 
 - editable (items, cantidades, notas)
 - no impacta stock
+- puede marcarse como archivado para salir del listado operativo principal sin cancelar el pedido
 
 ### `sent`
 
@@ -116,6 +117,11 @@ Siempre `branch_id` (recepción e ingreso de stock ocurren en esa sucursal).
 - `sent`: permitir solo notas (opcional) o nada
 - `received`: permitir ajustar received_qty solo antes de reconciliar (opcional)
 - `reconciled`: no editable
+- archivado:
+  - solo aplica a `draft`
+  - no cambia el estado operativo
+  - permite ocultar borradores descartados o pausados del listado principal
+  - se puede restaurar mientras siga en `draft`
 
 En detalle de pedido (`/orders/[orderId]`), el estado `draft` usa edición batch:
 
@@ -175,6 +181,8 @@ En detalle de pedido (`/orders/[orderId]`), el estado `draft` usa edición batch
 - Sugerido = promedio ventas 30 días \* ciclo + safety_stock - stock_on_hand
 - El ciclo se calcula por `order_frequency` (mensual = 30 días)
 - Se recomienda mostrar sugerido como ayuda, no obligatorio
+- En `/orders`, el ajuste `Margen de ganancia (%)` debe precargar primero el `% de ganancia deseado` del proveedor (`suppliers.default_markup_pct`) y usar el default org-wide (`org_preferences.default_supplier_markup_pct`) solo si el proveedor no lo definió
+- En `/orders`, `Stock de resguardo` funciona como segundo entry point operativo para editar `stock_items.safety_stock` del artículo en la sucursal seleccionada; el cambio se persiste al guardar borrador o enviar pedido.
 - Si producto `purchase_by_pack=true`, la UI muestra equivalencia sugerida en
   paquetes (`suggested_qty / units_per_pack`) y equivalencia de cantidad cargada.
   Persistencia sigue en unidades.
@@ -205,6 +213,7 @@ En detalle de pedido (`/orders/[orderId]`), el estado `draft` usa edición batch
 - RPC: `rpc_create_supplier_order(...)`
 - RPC: `rpc_upsert_supplier_order_item(...)`
 - RPC: `rpc_set_supplier_order_status(...)`
+- RPC: `rpc_set_supplier_order_archived(...)`
 - RPC: `rpc_receive_supplier_order(...)` (si se separa del status)
 - RPC: `rpc_set_supplier_order_expected_receive_on(...)`
 - RPC: `rpc_mark_special_order_items_ordered(...)`
@@ -213,6 +222,8 @@ En detalle de pedido (`/orders/[orderId]`), el estado `draft` usa edición batch
 Eventos de auditoria clave (MVP):
 
 - `supplier_order_status_set`
+- `supplier_order_archived`
+- `supplier_order_restored`
 - `supplier_order_received`
 - `supplier_order_expected_receive_on_set`
 

@@ -128,7 +128,7 @@ export default function BulkCreateSupplierModal({
             />
           </label>
           <label className="text-sm text-zinc-600">
-            Contacto
+            Persona de contacto
             <input
               name="contact_name"
               className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm"
@@ -212,7 +212,7 @@ export default function BulkCreateSupplierModal({
             />
           </label>
           <label className="text-sm text-zinc-600">
-            % ganancia sugerida
+            % de ganancia deseado
             <input
               name="default_markup_pct"
               type="number"

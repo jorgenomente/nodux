@@ -12,6 +12,7 @@ Estado actual:
 - RPC `rpc_get_staff_effective_modules` (security definer) agregada en `supabase/migrations/20260208234000_006_rpc_staff_effective_modules.sql`.
 - `supplier_orders.expected_receive_on` agregado en `supabase/migrations/20260213101500_029_supplier_orders_expected_receive_on.sql` (sin cambios de policy; aplica `supplier_orders_update` existente).
 - `rpc_set_supplier_order_expected_receive_on` agregado en `supabase/migrations/20260213125000_030_audit_gaps_supplier_orders.sql` (sin cambios de policy; mantiene controles por org y estado en RPC).
+- Archivado operativo de borradores en pedidos proveedor agregado en `supabase/migrations/20260310234000_092_supplier_orders_draft_archive.sql` (`supplier_orders.is_archived`, extensión de `v_orders_admin` y RPC `rpc_set_supplier_order_archived`; sin cambios de policy, reusa `supplier_orders_update` y valida estado `draft` dentro de la RPC).
 - Base superadmin plataforma agregada en `supabase/migrations/20260216115100_031_superadmin_platform_foundation.sql` (`platform_admins`, `user_active_orgs`, `is_platform_admin`, vistas/rpcs SA).
 - `rpc_superadmin_create_org` endurecida en `supabase/migrations/20260216124000_032_superadmin_create_org_owner_required.sql`: exige `owner_user_id` y garantiza membresía OA inicial (sin org huérfana).
 - Materialización automática SA -> OA en `supabase/migrations/20260309173000_085_superadmin_org_membership_materialization.sql`: cada `platform_admin` se sincroniza dentro de `org_users` como `org_admin` para toda org existente o nueva, reduciendo fallos de autorización en RPCs que leen membresía org-wide.
@@ -162,6 +163,7 @@ Estado actual:
   memberships; valida origen != destino y stock suficiente en origen.
 - `rpc_set_safety_stock` -> solo OA.
 - `rpc_create_supplier_order` y derivados -> solo OA.
+- `rpc_set_supplier_order_archived` -> solo OA/SA en org activa; solo permite archivar o restaurar pedidos con `status='draft'`.
 - `rpc_update_supplier_payable` y `rpc_register_supplier_payment` -> solo OA/SA en org activa.
   - `rpc_register_supplier_payment` con método `cash` agrega egreso automático en sesión abierta de caja.
 - `rpc_create_special_order` -> OA o ST con modulo `clients` habilitado.

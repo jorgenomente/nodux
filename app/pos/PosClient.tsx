@@ -1285,15 +1285,14 @@ export default function PosClient({
       return;
     }
 
-    const clientPayload =
-      wantsToSaveClient
-        ? {
-            clientId: selectedClient?.client_id ?? null,
-            name: trimmedClientName || null,
-            phone: normalizedClientPhone || null,
-            email: trimmedClientEmail || null,
-          }
-        : null;
+    const clientPayload = wantsToSaveClient
+      ? {
+          clientId: selectedClient?.client_id ?? null,
+          name: trimmedClientName || null,
+          phone: normalizedClientPhone || null,
+          email: trimmedClientEmail || null,
+        }
+      : null;
 
     const paymentsPayload = isSplitPayment
       ? splitPaymentRows.map((payment) => ({
@@ -1414,21 +1413,23 @@ export default function PosClient({
                     ? 'El cliente seleccionado no es válido para esta organización.'
                     : error.message.includes('WhatsApp required for new client')
                       ? 'Para registrar un cliente nuevo desde POS, el WhatsApp es obligatorio.'
-                    : error.message.includes(
-                          'No pudimos registrar o actualizar el cliente antes de cobrar.',
-                        )
-                      ? 'No pudimos guardar los datos del cliente antes de cobrar.'
-                      : error.message.includes('employee account required')
-                        ? 'Debes seleccionar un empleado.'
-                        : error.message.includes('invalid employee account')
-                          ? 'La cuenta de empleado no es válida para esta sucursal.'
-                          : error.message.includes('employee discount disabled')
-                            ? 'El descuento de empleado está deshabilitado.'
+                      : error.message.includes(
+                            'No pudimos registrar o actualizar el cliente antes de cobrar.',
+                          )
+                        ? 'No pudimos guardar los datos del cliente antes de cobrar.'
+                        : error.message.includes('employee account required')
+                          ? 'Debes seleccionar un empleado.'
+                          : error.message.includes('invalid employee account')
+                            ? 'La cuenta de empleado no es válida para esta sucursal.'
                             : error.message.includes(
-                                  'employee discount cannot be combined with cash discount',
+                                  'employee discount disabled',
                                 )
-                              ? 'No se permite combinar descuento efectivo con descuento de empleado.'
-                              : 'No pudimos registrar la venta.';
+                              ? 'El descuento de empleado está deshabilitado.'
+                              : error.message.includes(
+                                    'employee discount cannot be combined with cash discount',
+                                  )
+                                ? 'No se permite combinar descuento efectivo con descuento de empleado.'
+                                : 'No pudimos registrar la venta.';
       setErrorMessage(message);
       setDebugMessage(
         process.env.NODE_ENV !== 'production'

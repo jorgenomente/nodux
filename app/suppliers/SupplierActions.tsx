@@ -128,7 +128,7 @@ export default function SupplierActions({
             />
           </label>
           <label className="text-xs text-zinc-600">
-            Contacto
+            Persona de contacto
             <input
               name="contact_name"
               defaultValue={contactName ?? ''}
@@ -228,7 +228,7 @@ export default function SupplierActions({
             />
           </label>
           <label className="text-xs text-zinc-600">
-            % ganancia sugerida
+            % de ganancia deseado
             <input
               name="default_markup_pct"
               type="number"
