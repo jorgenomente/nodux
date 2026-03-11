@@ -115,6 +115,10 @@ export default function ProductsLookupClient({
   const isDetectingRef = useRef(false);
   const instantSearchRef = useRef(false);
 
+  useEffect(() => {
+    setBranchId(defaultBranchId);
+  }, [defaultBranchId]);
+
   const queryTokens = useMemo(() => tokenizeQuery(query), [query]);
   const shouldSearch = query.trim().length >= SEARCH_MIN_CHARS;
   const visibleResults = shouldSearch ? results : [];

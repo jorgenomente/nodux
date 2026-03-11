@@ -20,6 +20,108 @@ Formato sugerido:
 **Prompt**
 estoy en /products y me gustaria agregar una funcion mas dentro de ajuste manual de stock. Me gustaria poder mover uno o varios articulos de una sucursal a otra. Esto solo debe estar disponible para staff cuando tiene mas de una sucursal asignada y para admin que mira todas las sucursales. Esto es util para cuando se necesite mover productos de una sucursal a otra sea mas facil descontar el stock de una para sumarlo a la otra. se puede hacer? chequea la documentacion para que todo quede bien. seria en la misma seccion de ajuste manual al final
 
+## 2026-03-10 22:35 -03 — POS: mover cliente opcional debajo del total y auditar alta rápida desde caja
+
+**Lote:** pos-client-panel-relocation
+**Objetivo:** Reubicar `Cliente opcional` en `/pos` para que quede debajo de `Total a cobrar` y antes de `Imprimir ticket`, dentro de un panel desplegable, auditando además el estado real del alta de clientes para preparar un segundo entry point futuro desde POS.
+
+**Prompt**
+vamos a trabajar en /pos. lo p
+rimero que me gustaria hacer es cambiar la posicion de la seccion de 
+cliente opcional. ahi arriba no me gusta. necesito que este abajo. de
+spues del total a cobrar y antes del imprimir ticket, y que sea algo 
+desplegable para que no me quite mucho espacio. Despues vamos a chequ
+ear como esta configurado todo esto en el proyecto, porque mi siguien
+te solicitud es que me gustaria que en el caso de que el cliente no e
+ste registrado, yo pueda registrarlo y guardar su nombre email y what
+sapp. whatsapp obligatorio y email opcional. en teoria esto deberia s
+er como una especie de segundo entry point de nuevo cliente de /clien
+ts para registrar este cliente. chequea los docs necesario y el estad
+o del proyecto para tener todo claro y no se rompa nada. empecemos co
+n eso
+
+## 2026-03-10 22:55 -03 — POS: alta rápida de cliente con email opcional y WhatsApp obligatorio
+
+**Lote:** pos-client-panel-relocation
+**Objetivo:** Extender el panel `Cliente opcional` de `/pos` para que funcione como segundo entry point de alta rápida de `/clients`, guardando `nombre + WhatsApp + email opcional`, con `WhatsApp` obligatorio para clientes nuevos.
+
+**Prompt**
+ok hagamos eso
+
+## 2026-03-10 23:15 -03 — POS: aclarar actualización inline de contacto para cliente existente
+
+**Lote:** pos-client-panel-relocation
+**Objetivo:** Dejar explícito en la UX y la documentación de `/pos` que, si el cliente ya existe, el cajero puede corregir WhatsApp o email en el mismo checkout para no interrumpir el envío del comprobante.
+
+**Prompt**
+si, si el cliente cambio de numero, por ejemplo, seria interesante poder cambiarlo desde alli de una vez para que el proceso no se interumpa y poder enviarle el comprobante al nuevo numero
+
+## 2026-03-10 23:25 -03 — POS: simplificar naming del panel cliente y CTA de impresión
+
+**Lote:** pos-client-panel-relocation
+**Objetivo:** Simplificar el copy de `/pos` para que `Cliente` deje claro que completar los datos crea o actualiza el cliente al cobrar, y renombrar `Imprimir ticket` a `Imprimir resumen`.
+
+**Prompt**
+si, hagamos eso, me gustaria agregar tambien cambiar el nombre de cliente opcional a simpemente cliente. y no es claro que si el cliente no existe solo con agregar alli la info ya se estaria creando el cliente. el boton imprimir ticket vamos a cambiarlo por  imprimir resumen
+
+## 2026-03-10 22:23 -03 — POS: aclarar copy de impresión por navegador
+
+**Lote:** pos-print-browser-copy
+**Objetivo:** Cambiar el mensaje de `/pos` para que explique con precisión que la caja está imprimiendo usando el navegador y que la impresión directa se activa desde `Settings > Tickets e impresion`.
+
+**Prompt**
+exacto cambia el copy para que sea mas exacto
+
+## 2026-03-10 22:23 -03 — WhatsApp share: eliminar falso positivo de popup bloqueado
+
+**Lote:** whatsapp-share-popup-false-positive
+**Objetivo:** Corregir el flujo de apertura de WhatsApp para que no muestre el error `Habilita pop-ups para abrir WhatsApp` cuando el navegador sí abre el enlace o deriva correctamente a la app.
+
+**Prompt**
+entiendo lo que me dices, sin embargo ahora mismo se me abre otra pestana y despues se me abre la aplicacion de whatsapp sin ningun problema pero el mensaje sigue estando alli Habilita pop-ups para abrir WhatsApp.
+
+## 2026-03-10 22:23 -03 — Auditoría: alcance real del selector global de sucursal
+
+**Lote:** branch-context-audit-20260310
+**Objetivo:** Auditar pantalla por pantalla cómo se aplica hoy la sucursal activa del top bar (`nodux_active_branch_id`) y evaluar si debe convertirse en default global consistente para dashboard, POS, ventas, caja, clientes, lookup, vencimientos, pedidos, calendario, pagos y tienda online.
+
+**Prompt**
+ok vamos a trabajar en algo distinto ahora. en este momento en el top bar existe un selector de sucursales y un boton de aplicar. me puedes decir que funcion tiene esto?
+
+exacto hagamos esa auditoria. Segun lo que yo pienso, si nosotros decidimos aplicar la sucursal desde ahi. entonces esa sucursal se debe seleccionar automaticamete en todas las pantallas. por ejemplo si voy a inicio entonces me muestra el dashboard de la sucursal aplicada, es decir ya debe venir preseleccionada en el selector de sucursal del dashboard, lo mismo para el pos, estadisticas el filtro avanzado de ventas, caja, clientes, consulta de precios, vencimientos, pedidos, calendario, pagos, tienda online, etc. tiene sentido esto?
+
+## 2026-03-10 22:23 -03 — Branch context: unificar sucursal activa global en módulos operativos
+
+**Lote:** branch-context-audit-20260310
+**Objetivo:** Implementar la resolución consistente de sucursal activa para módulos operativos usando prioridad `branch_id` explícito -> cookie `nodux_active_branch_id` -> fallback actual, manteniendo `Todas` cuando la pantalla ya la soporta.
+
+**Prompt**
+excelente hagamos eso porque si no no tiene ningun sentido eso ahi
+
+## 2026-03-10 22:23 -03 — Top bar: aplicar sucursal activa sin refresh manual
+
+**Lote:** topbar-branch-refresh-ux
+**Objetivo:** Hacer que el selector de sucursal del top bar aplique la cookie global y refresque la pantalla inmediatamente al tocar `Aplicar`, sin exigir refresh manual del navegador.
+
+**Prompt**
+estoy viendo que para que los cambios se vean reflejados hay que actualizar la pagina. hay alguna manera de que al cambiar de sucursal y darle aplicar en el top bar esto se aplique inmediatamente sin tener que refrescar?
+
+## 2026-03-10 22:23 -03 — Dashboard: resincronizar selector visual con sucursal aplicada
+
+**Lote:** topbar-branch-refresh-ux
+**Objetivo:** Corregir el selector del dashboard para que refleje inmediatamente la sucursal aplicada desde el top bar y no quede mostrando el valor anterior hasta un refresh manual.
+
+**Prompt**
+asi esta bien, lo unico que me confunde es que si bien si se cambia todo y todo excelente, por ejemplo en el dashboard si yo aplico caballito por ejemplo estando en palermo, todo cambia, excepto el selector de sucursal que sigue mostrando palermo, pero es solo el selector porque me dice Mostrando: Sucursal Palermo · Hoy. si actualizo la pagina entonces todo si coincide. no se si me explique bien
+
+## 2026-03-10 22:23 -03 — Branch context: resincronizar filtros cliente restantes
+
+**Lote:** topbar-branch-refresh-ux
+**Objetivo:** Extender la corrección de resincronización a los demás filtros cliente que usan sucursal por props (`calendar`, `vencimientos`, `lookup`, `pedido borrador`, `POS`) para que el valor visible coincida con la sucursal aplicada sin refresh manual.
+
+**Prompt**
+ok ahora chequea esto mismo en el resto de paginas porque me parece que funcionan todos los selectores bajo la misma logica
+
 ## 2026-03-10 12:15 -03 — Diagnóstico: flujo de impresión de ticket en térmica ESC/POS
 
 **Lote:** ticket-print-diagnostic-20260310

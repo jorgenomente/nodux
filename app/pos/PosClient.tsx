@@ -348,6 +348,19 @@ const formatSellUnitType = (value: ProductCatalogItem['sell_unit_type']) => {
   return 'Granel';
 };
 
+const openWhatsappUrl = (url: string) => {
+  const opened = window.open(url, '_blank', 'noopener,noreferrer');
+  if (opened) {
+    return;
+  }
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.click();
+};
+
 const ACTIVE_BRANCH_COOKIE = 'nodux_active_branch_id';
 
 export default function PosClient({
@@ -486,10 +499,43 @@ export default function PosClient({
     specialOrder?.clientName ?? onlineOrder?.customerName ?? '',
   );
   const [clientPhoneInput, setClientPhoneInput] = useState('');
+  const [clientEmailInput, setClientEmailInput] = useState('');
+  const [isClientSectionOpen, setIsClientSectionOpen] = useState(
+    Boolean(specialOrder?.clientName ?? onlineOrder?.customerName),
+  );
   const showSearchHint =
     searchTerm.trim().length > 0 && searchTerm.trim().length < 3;
   const showClientLookupHint =
     clientLookupTerm.trim().length > 0 && clientLookupTerm.trim().length < 2;
+  const hasClientDraft =
+    Boolean(selectedClient) ||
+    clientNameInput.trim().length > 0 ||
+    clientPhoneInput.trim().length > 0 ||
+    clientEmailInput.trim().length > 0;
+
+  useEffect(() => {
+    setActiveBranchId(defaultBranchId ?? '');
+  }, [defaultBranchId]);
+
+  useEffect(() => {
+    setResults(initialProducts);
+  }, [initialProducts]);
+
+  useEffect(() => {
+    setPaymentDevices(initialPaymentDevices);
+    setPaymentDeviceId((prev) =>
+      initialPaymentDevices.some((device) => device.id === prev) ? prev : '',
+    );
+  }, [initialPaymentDevices]);
+
+  useEffect(() => {
+    setEmployeeAccounts(initialEmployeeAccounts);
+    setEmployeeAccountId((prev) =>
+      initialEmployeeAccounts.some((employee) => employee.id === prev)
+        ? prev
+        : '',
+    );
+  }, [initialEmployeeAccounts]);
 
   useEffect(() => {
     const settings = localPrintSettings;
@@ -1012,6 +1058,16 @@ export default function PosClient({
     setDebugMessage(null);
   };
 
+  const clearClientDraft = () => {
+    setSelectedClient(null);
+    setClientLookupTerm('');
+    setClientLookupResults([]);
+    setClientNameInput('');
+    setClientPhoneInput('');
+    setClientEmailInput('');
+    setIsClientSectionOpen(false);
+  };
+
   useEffect(() => {
     if (!activeBranchId) return;
     const handle = setTimeout(() => {
@@ -1132,14 +1188,7 @@ export default function PosClient({
         );
       }
 
-      const opened = window.open(
-        payload.whatsappUrl,
-        '_blank',
-        'noopener,noreferrer',
-      );
-      if (!opened) {
-        throw new Error('Habilita pop-ups para abrir WhatsApp.');
-      }
+      openWhatsappUrl(payload.whatsappUrl);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -1211,12 +1260,38 @@ export default function PosClient({
     }));
     const trimmedClientName = clientNameInput.trim();
     const normalizedClientPhone = normalizeClientPhone(clientPhoneInput);
+    const trimmedClientEmail = clientEmailInput.trim();
+    const hasClientSelection = Boolean(selectedClient);
+    const wantsToSaveClient =
+      hasClientSelection ||
+      trimmedClientName.length > 0 ||
+      normalizedClientPhone.length > 0 ||
+      trimmedClientEmail.length > 0;
+
+    if (wantsToSaveClient && !hasClientSelection && !normalizedClientPhone) {
+      setErrorMessage(
+        'Para registrar un cliente nuevo desde POS, el WhatsApp es obligatorio.',
+      );
+      setIsClientSectionOpen(true);
+      return;
+    }
+
+    if (
+      trimmedClientEmail &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedClientEmail)
+    ) {
+      setErrorMessage('Ingresa un email válido para guardar el cliente.');
+      setIsClientSectionOpen(true);
+      return;
+    }
+
     const clientPayload =
-      selectedClient || trimmedClientName || normalizedClientPhone
+      wantsToSaveClient
         ? {
             clientId: selectedClient?.client_id ?? null,
             name: trimmedClientName || null,
             phone: normalizedClientPhone || null,
+            email: trimmedClientEmail || null,
           }
         : null;
 
@@ -1337,6 +1412,8 @@ export default function PosClient({
                   ? 'El dispositivo seleccionado no es válido para esta sucursal.'
                   : error.message.includes('invalid client')
                     ? 'El cliente seleccionado no es válido para esta organización.'
+                    : error.message.includes('WhatsApp required for new client')
+                      ? 'Para registrar un cliente nuevo desde POS, el WhatsApp es obligatorio.'
                     : error.message.includes(
                           'No pudimos registrar o actualizar el cliente antes de cobrar.',
                         )
@@ -1612,136 +1689,6 @@ export default function PosClient({
             </div>
           </div>
         ) : null}
-        <div className="mt-4 rounded-xl border border-zinc-200 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="text-sm font-semibold text-zinc-900">
-                Cliente opcional
-              </h2>
-              <p className="text-xs text-zinc-500">
-                Vincula la venta a un cliente para futuras compras y entrega
-                digital.
-              </p>
-            </div>
-            {(selectedClient ||
-              clientNameInput.trim() ||
-              clientPhoneInput.trim()) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedClient(null);
-                  setClientLookupTerm('');
-                  setClientLookupResults([]);
-                  setClientNameInput('');
-                  setClientPhoneInput('');
-                }}
-                className="text-xs font-semibold text-zinc-500 hover:text-zinc-800"
-              >
-                Quitar cliente
-              </button>
-            )}
-          </div>
-
-          <div className="mt-3 grid gap-4 md:grid-cols-2">
-            <div>
-              <label
-                className="text-xs font-semibold text-zinc-600"
-                htmlFor="client_lookup"
-              >
-                Buscar cliente existente
-              </label>
-              <input
-                id="client_lookup"
-                value={clientLookupTerm}
-                onChange={(event) => setClientLookupTerm(event.target.value)}
-                placeholder="Nombre o WhatsApp"
-                className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-              />
-              <div className="mt-2 flex flex-col gap-2">
-                {clientLookupLoading ? (
-                  <div className="text-xs text-zinc-500">Buscando...</div>
-                ) : clientLookupResults.length > 0 ? (
-                  clientLookupResults.map((client) => (
-                    <button
-                      key={client.client_id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedClient(client);
-                        setClientNameInput(client.name);
-                        setClientPhoneInput(client.phone ?? '');
-                        setClientLookupTerm(client.phone ?? client.name);
-                        setClientLookupResults([]);
-                      }}
-                      className={`rounded-lg border px-3 py-2 text-left text-sm ${
-                        selectedClient?.client_id === client.client_id
-                          ? 'border-zinc-900 bg-zinc-50'
-                          : 'border-zinc-200 hover:border-zinc-400'
-                      }`}
-                    >
-                      <div className="font-semibold text-zinc-900">
-                        {client.name}
-                      </div>
-                      <div className="text-xs text-zinc-500">
-                        {client.phone || 'Sin WhatsApp'}
-                      </div>
-                    </button>
-                  ))
-                ) : showClientLookupHint ? (
-                  <div className="text-xs text-zinc-500">
-                    Escribi al menos 2 caracteres para buscar.
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="grid gap-3">
-              <div>
-                <label
-                  className="text-xs font-semibold text-zinc-600"
-                  htmlFor="client_name"
-                >
-                  Nombre del cliente
-                </label>
-                <input
-                  id="client_name"
-                  value={clientNameInput}
-                  onChange={(event) => setClientNameInput(event.target.value)}
-                  placeholder="Ej. Ana Pérez"
-                  className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label
-                  className="text-xs font-semibold text-zinc-600"
-                  htmlFor="client_phone"
-                >
-                  WhatsApp
-                </label>
-                <input
-                  id="client_phone"
-                  value={clientPhoneInput}
-                  onChange={(event) => setClientPhoneInput(event.target.value)}
-                  placeholder="Ej. 5491122334455"
-                  className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                />
-              </div>
-              {selectedClient ? (
-                <p className="text-xs text-emerald-700">
-                  Cliente seleccionado: {selectedClient.name}
-                </p>
-              ) : clientNameInput.trim() || clientPhoneInput.trim() ? (
-                <p className="text-xs text-zinc-500">
-                  Si no existe, se creará o actualizará al cobrar.
-                </p>
-              ) : (
-                <p className="text-xs text-zinc-500">
-                  Puedes cobrar sin cargar cliente.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
         <div className="mt-6 grid gap-4 md:grid-cols-[1.2fr_1fr]">
           <div className="rounded-xl border border-zinc-200 p-4">
             <div className="flex flex-col gap-2">
@@ -2366,6 +2313,200 @@ export default function PosClient({
                 </span>
               </div>
 
+              <div className="mt-4 rounded-xl border border-zinc-200">
+                <button
+                  type="button"
+                  onClick={() => setIsClientSectionOpen((prev) => !prev)}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">
+                      Cliente
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      {selectedClient
+                        ? selectedClient.name
+                        : clientNameInput.trim() || clientPhoneInput.trim()
+                          ? 'Se creará o actualizará al cobrar'
+                          : 'Asocia la venta y crea el cliente al cobrar si no existe'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {hasClientDraft ? (
+                      <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+                        Cargado
+                      </span>
+                    ) : null}
+                    <span
+                      className={`text-sm text-zinc-500 transition ${
+                        isClientSectionOpen ? 'rotate-180' : ''
+                      }`}
+                      aria-hidden="true"
+                    >
+                      ▼
+                    </span>
+                  </div>
+                </button>
+
+                {isClientSectionOpen ? (
+                  <div className="border-t border-zinc-200 px-4 py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs text-zinc-500">
+                        Busca un cliente existente o completa los datos para
+                        crearlo al cobrar.
+                      </p>
+                      {hasClientDraft ? (
+                        <button
+                          type="button"
+                          onClick={clearClientDraft}
+                          className="text-xs font-semibold text-zinc-500 hover:text-zinc-800"
+                        >
+                          Quitar cliente
+                        </button>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-3 grid gap-4">
+                      <div>
+                        <label
+                          className="text-xs font-semibold text-zinc-600"
+                          htmlFor="client_lookup"
+                        >
+                          Buscar cliente existente
+                        </label>
+                        <input
+                          id="client_lookup"
+                          value={clientLookupTerm}
+                          onChange={(event) => {
+                            setClientLookupTerm(event.target.value);
+                            setIsClientSectionOpen(true);
+                          }}
+                          placeholder="Nombre o WhatsApp"
+                          className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                        />
+                        <div className="mt-2 flex flex-col gap-2">
+                          {clientLookupLoading ? (
+                            <div className="text-xs text-zinc-500">
+                              Buscando...
+                            </div>
+                          ) : clientLookupResults.length > 0 ? (
+                            clientLookupResults.map((client) => (
+                              <button
+                                key={client.client_id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedClient(client);
+                                  setClientNameInput(client.name);
+                                  setClientPhoneInput(client.phone ?? '');
+                                  setClientEmailInput(client.email ?? '');
+                                  setClientLookupTerm(
+                                    client.phone ?? client.name,
+                                  );
+                                  setClientLookupResults([]);
+                                  setIsClientSectionOpen(true);
+                                }}
+                                className={`rounded-lg border px-3 py-2 text-left text-sm ${
+                                  selectedClient?.client_id === client.client_id
+                                    ? 'border-zinc-900 bg-zinc-50'
+                                    : 'border-zinc-200 hover:border-zinc-400'
+                                }`}
+                              >
+                                <div className="font-semibold text-zinc-900">
+                                  {client.name}
+                                </div>
+                                <div className="text-xs text-zinc-500">
+                                  {client.phone || 'Sin WhatsApp'}
+                                </div>
+                              </button>
+                            ))
+                          ) : showClientLookupHint ? (
+                            <div className="text-xs text-zinc-500">
+                              Escribi al menos 2 caracteres para buscar.
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3">
+                        <div>
+                          <label
+                            className="text-xs font-semibold text-zinc-600"
+                            htmlFor="client_name"
+                          >
+                            Nombre del cliente
+                          </label>
+                          <input
+                            id="client_name"
+                            value={clientNameInput}
+                            onChange={(event) => {
+                              setClientNameInput(event.target.value);
+                              setIsClientSectionOpen(true);
+                            }}
+                            placeholder="Ej. Ana Pérez"
+                            className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            className="text-xs font-semibold text-zinc-600"
+                            htmlFor="client_phone"
+                          >
+                            WhatsApp
+                          </label>
+                          <input
+                            id="client_phone"
+                            value={clientPhoneInput}
+                            onChange={(event) => {
+                              setClientPhoneInput(event.target.value);
+                              setIsClientSectionOpen(true);
+                            }}
+                            placeholder="Ej. 5491122334455"
+                            className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            className="text-xs font-semibold text-zinc-600"
+                            htmlFor="client_email"
+                          >
+                            Email (opcional)
+                          </label>
+                          <input
+                            id="client_email"
+                            type="email"
+                            value={clientEmailInput}
+                            onChange={(event) => {
+                              setClientEmailInput(event.target.value);
+                              setIsClientSectionOpen(true);
+                            }}
+                            placeholder="Ej. ana@email.com"
+                            className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        {selectedClient ? (
+                          <p className="text-xs text-emerald-700">
+                            Cliente seleccionado: {selectedClient.name}. Si
+                            cambias WhatsApp o email, se actualizará al cobrar.
+                          </p>
+                        ) : clientNameInput.trim() ||
+                          clientPhoneInput.trim() ||
+                          clientEmailInput.trim() ? (
+                          <p className="text-xs text-zinc-500">
+                            Si no existe, se creará al cobrar. Si ya existe, se
+                            actualizará. Para alta nueva, WhatsApp es
+                            obligatorio.
+                          </p>
+                        ) : (
+                          <p className="text-xs text-zinc-500">
+                            Puedes cobrar sin cargar cliente.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
               {errorMessage && (
                 <div className="mt-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
                   {errorMessage}
@@ -2413,7 +2554,7 @@ export default function PosClient({
                       onClick={handlePrintTicket}
                       className="rounded border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700"
                     >
-                      Imprimir ticket
+                      Imprimir resumen
                     </button>
                     <button
                       type="button"
@@ -2467,16 +2608,7 @@ export default function PosClient({
                                   'No pudimos preparar el link de la factura.',
                               );
                             }
-                            const opened = window.open(
-                              payload.whatsappUrl,
-                              '_blank',
-                              'noopener,noreferrer',
-                            );
-                            if (!opened) {
-                              throw new Error(
-                                'Habilita pop-ups para abrir WhatsApp.',
-                              );
-                            }
+                            openWhatsappUrl(payload.whatsappUrl);
                           } catch (error) {
                             setErrorMessage(
                               error instanceof Error
@@ -2524,7 +2656,7 @@ export default function PosClient({
                     : 'border-zinc-300 bg-white text-zinc-700'
                 }`}
               >
-                Imprimir ticket
+                Imprimir resumen
               </button>
               {localPrintSettings?.mode === 'local_agent' ? (
                 <p
@@ -2542,8 +2674,9 @@ export default function PosClient({
                 </p>
               ) : (
                 <p className="mt-2 text-xs text-zinc-500">
-                  Modo navegador activo. Puedes cambiarlo en Settings &gt;
-                  Tickets e impresion.
+                  Esta caja imprime usando el navegador. Si quieres impresion
+                  directa a la impresora, activala en Settings &gt; Tickets e
+                  impresion.
                 </p>
               )}
               <div className="mt-3 grid gap-2 sm:grid-cols-2">

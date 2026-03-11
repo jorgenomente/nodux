@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import PageShell from '@/app/components/PageShell';
 import PosClient from '@/app/pos/PosClient';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { resolveActiveBranchId } from '@/lib/branches/active-branch';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
 type PosDiscountPreferences = {
@@ -162,7 +163,11 @@ export default async function PosPage({
     );
   }
 
-  let defaultBranchId = branches.length > 0 ? branches[0].id : null;
+  let defaultBranchId =
+    (await resolveActiveBranchId({
+      allowedBranchIds: branches.map((branch) => branch.id),
+      fallbackBranchId: branches[0]?.id ?? '',
+    })) || null;
 
   const specialOrderId =
     typeof resolvedSearchParams.special_order_id === 'string'

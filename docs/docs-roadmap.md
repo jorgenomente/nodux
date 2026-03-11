@@ -229,6 +229,7 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada, Fase 7 e
   - `lint` + `build`
   - smoke RLS
   - smoke Playwright.
+- Contexto global de sucursal endurecido: los módulos operativos principales ahora resuelven sucursal por prioridad `branch_id` explícito -> cookie `nodux_active_branch_id` -> fallback por permisos/listado.
 
 ---
 

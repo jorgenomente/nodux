@@ -8,6 +8,7 @@ import {
   hasStaffModuleEnabled,
   resolveStaffHome,
 } from '@/lib/auth/staff-modules';
+import { resolveActiveBranchId } from '@/lib/branches/active-branch';
 
 export const dynamic = 'force-dynamic';
 
@@ -414,15 +415,14 @@ export default async function SalesStatisticsPage({
     membershipBranchIds.size > 0 ? assignedBranches : allBranches;
   const branchIds = new Set(branches.map((branch) => branch.id));
 
-  const requestedBranchId =
-    typeof resolvedSearchParams.branch_id === 'string'
-      ? resolvedSearchParams.branch_id
-      : '';
   const selectedBranchId = hasSingleAssignedBranch
     ? forcedBranchId
-    : branchIds.has(requestedBranchId)
-      ? requestedBranchId
-      : '';
+    : await resolveActiveBranchId({
+        requestedBranchId: resolvedSearchParams.branch_id,
+        allowedBranchIds: branchIds,
+        fallbackBranchId: '',
+        allowExplicitEmpty: true,
+      });
   const selectedPreset =
     typeof resolvedSearchParams.preset === 'string'
       ? resolvedSearchParams.preset

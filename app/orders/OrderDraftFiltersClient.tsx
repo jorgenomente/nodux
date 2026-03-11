@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 
 type Option = { id: string; name: string };
 
@@ -24,6 +24,16 @@ export default function OrderDraftFiltersClient({
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [supplierId, setSupplierId] = useState(draftSupplierId);
+  const [branchId, setBranchId] = useState(draftBranchId);
+
+  useEffect(() => {
+    setSupplierId(draftSupplierId);
+  }, [draftSupplierId]);
+
+  useEffect(() => {
+    setBranchId(draftBranchId);
+  }, [draftBranchId]);
 
   const pushNext = (nextSupplier: string, nextBranch: string) => {
     const params = new URLSearchParams();
@@ -43,9 +53,13 @@ export default function OrderDraftFiltersClient({
         Proveedor
         <select
           name="draft_supplier_id"
-          defaultValue={draftSupplierId}
+          value={supplierId}
           className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-          onChange={(event) => pushNext(event.target.value, draftBranchId)}
+          onChange={(event) => {
+            const nextSupplierId = event.target.value;
+            setSupplierId(nextSupplierId);
+            pushNext(nextSupplierId, branchId);
+          }}
           disabled={isPending}
         >
           <option value="">Seleccionar</option>
@@ -60,9 +74,13 @@ export default function OrderDraftFiltersClient({
         Sucursal
         <select
           name="draft_branch_id"
-          defaultValue={draftBranchId}
+          value={branchId}
           className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-          onChange={(event) => pushNext(draftSupplierId, event.target.value)}
+          onChange={(event) => {
+            const nextBranchId = event.target.value;
+            setBranchId(nextBranchId);
+            pushNext(supplierId, nextBranchId);
+          }}
           disabled={isPending}
         >
           <option value="">Seleccionar</option>

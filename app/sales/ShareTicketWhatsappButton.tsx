@@ -10,6 +10,19 @@ type Props = {
   endpointPath?: 'ticket-share' | 'invoice-share';
 };
 
+const openWhatsappUrl = (url: string) => {
+  const opened = window.open(url, '_blank', 'noopener,noreferrer');
+  if (opened) {
+    return;
+  }
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.click();
+};
+
 export default function ShareTicketWhatsappButton({
   saleId,
   label = 'Compartir ticket por WhatsApp',
@@ -46,15 +59,7 @@ export default function ShareTicketWhatsappButton({
         );
       }
 
-      const opened = window.open(
-        payload.whatsappUrl,
-        '_blank',
-        'noopener,noreferrer',
-      );
-
-      if (!opened) {
-        throw new Error('Habilita pop-ups para abrir WhatsApp.');
-      }
+      openWhatsappUrl(payload.whatsappUrl);
     } catch (error) {
       setErrorMessage(
         error instanceof Error

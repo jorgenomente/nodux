@@ -7,6 +7,7 @@ import PageShell from '@/app/components/PageShell';
 import InvoiceImageField from '@/app/payments/InvoiceImageField';
 import PaymentAmountField from '@/app/payments/PaymentAmountField';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { resolveActiveBranchId } from '@/lib/branches/active-branch';
 import {
   hasStaffModuleEnabled,
   resolveStaffHome,
@@ -232,10 +233,12 @@ export default async function PaymentsPage({
     ]),
   );
 
-  const selectedBranchId =
-    typeof resolvedSearchParams.branch_id === 'string'
-      ? resolvedSearchParams.branch_id
-      : '';
+  const selectedBranchId = await resolveActiveBranchId({
+    requestedBranchId: resolvedSearchParams.branch_id,
+    allowedBranchIds: branches.map((branch) => branch.id),
+    fallbackBranchId: '',
+    allowExplicitEmpty: true,
+  });
   const selectedSupplierId =
     typeof resolvedSearchParams.supplier_id === 'string'
       ? resolvedSearchParams.supplier_id

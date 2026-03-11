@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import PageShell from '@/app/components/PageShell';
 import ProductsLookupClient from '@/app/products/lookup/ProductsLookupClient';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { resolveActiveBranchId } from '@/lib/branches/active-branch';
 
 const STAFF_MODULE_ORDER = [
   'pos',
@@ -115,12 +116,17 @@ export default async function ProductsLookupPage() {
     redirect('/no-access');
   }
 
+  const defaultBranchId = await resolveActiveBranchId({
+    allowedBranchIds: branches.map((branch) => branch.id),
+    fallbackBranchId: branches[0].id,
+  });
+
   return (
     <PageShell>
       <ProductsLookupClient
         orgId={orgId}
         branches={branches}
-        defaultBranchId={branches[0].id}
+        defaultBranchId={defaultBranchId}
       />
     </PageShell>
   );

@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import OrderDraftFiltersClient from '@/app/orders/OrderDraftFiltersClient';
 import OrderSuggestionsClient from '@/app/orders/OrderSuggestionsClient';
 import PageShell from '@/app/components/PageShell';
+import { resolveActiveBranchId } from '@/lib/branches/active-branch';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 import {
@@ -258,10 +259,14 @@ export default async function OrdersPage({
     .eq('is_active', true)
     .order('name');
 
-  const selectedBranchId =
-    typeof resolvedSearchParams.branch_id === 'string'
-      ? resolvedSearchParams.branch_id
-      : '';
+  const selectedBranchId = await resolveActiveBranchId({
+    requestedBranchId: resolvedSearchParams.branch_id,
+    allowedBranchIds: ((branches ?? []) as Array<{ id: string }>).map(
+      (branch) => branch.id,
+    ),
+    fallbackBranchId: '',
+    allowExplicitEmpty: true,
+  });
   const selectedStatus =
     typeof resolvedSearchParams.status === 'string'
       ? resolvedSearchParams.status

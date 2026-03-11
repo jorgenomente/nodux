@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
-import { revalidatePath } from 'next/cache';
 
 import { getOrgSession } from '@/lib/auth/org-session';
+import TopBarBranchSelector from '@/app/components/TopBarBranchSelector';
 import TopBarNav from '@/app/components/TopBarNav';
 
 const NAV_LINKS = [
@@ -59,37 +59,6 @@ type BranchOption = {
 };
 
 export default async function TopBar() {
-  async function setActiveBranchAction(formData: FormData) {
-    'use server';
-
-    const session = await getOrgSession();
-    if (!session?.orgId) {
-      return;
-    }
-
-    const branchId = String(formData.get('active_branch_id') ?? '').trim();
-    const cookieStore = await cookies();
-
-    if (!branchId) {
-      cookieStore.set({
-        name: ACTIVE_BRANCH_COOKIE,
-        value: '',
-        path: '/',
-        maxAge: 0,
-      });
-    } else {
-      cookieStore.set({
-        name: ACTIVE_BRANCH_COOKIE,
-        value: branchId,
-        path: '/',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 180,
-      });
-    }
-
-    revalidatePath('/', 'layout');
-  }
-
   const orgSession = await getOrgSession();
   const supabase = orgSession?.supabase ?? null;
   const user = orgSession?.user ?? null;
@@ -205,28 +174,10 @@ export default async function TopBar() {
           <span className="font-semibold">Usuario:</span> {userLabel}
         </div>
         {branchOptions.length > 0 && !isStaff ? (
-          <form
-            action={setActiveBranchAction}
-            className="flex items-center gap-1"
-          >
-            <select
-              name="active_branch_id"
-              defaultValue={selectedBranch?.id ?? ''}
-              className="rounded border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-700"
-            >
-              {branchOptions.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="submit"
-              className="rounded border border-zinc-300 px-2 py-1 text-[11px] text-zinc-700 hover:bg-zinc-100"
-            >
-              Aplicar
-            </button>
-          </form>
+          <TopBarBranchSelector
+            branches={branchOptions}
+            selectedBranchId={selectedBranch?.id ?? ''}
+          />
         ) : null}
       </div>
       <TopBarNav groupedNav={groupedNav} />

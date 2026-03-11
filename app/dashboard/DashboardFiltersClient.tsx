@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 
 type BranchOption = {
   id: string;
@@ -21,6 +21,16 @@ export default function DashboardFiltersClient({
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [branchId, setBranchId] = useState(selectedBranchId);
+  const [opsScope, setOpsScope] = useState<'today' | 'week'>(selectedOpsScope);
+
+  useEffect(() => {
+    setBranchId(selectedBranchId);
+  }, [selectedBranchId]);
+
+  useEffect(() => {
+    setOpsScope(selectedOpsScope);
+  }, [selectedOpsScope]);
 
   const handleChange = (value: string, opsScope: 'today' | 'week') => {
     const params = new URLSearchParams();
@@ -39,10 +49,12 @@ export default function DashboardFiltersClient({
         <select
           name="branch_id"
           className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-          defaultValue={selectedBranchId}
-          onChange={(event) =>
-            handleChange(event.target.value, selectedOpsScope)
-          }
+          value={branchId}
+          onChange={(event) => {
+            const nextBranchId = event.target.value;
+            setBranchId(nextBranchId);
+            handleChange(nextBranchId, opsScope);
+          }}
           disabled={isPending}
         >
           {branches.map((branch) => (
@@ -57,13 +69,12 @@ export default function DashboardFiltersClient({
         <select
           name="ops_scope"
           className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-          defaultValue={selectedOpsScope}
-          onChange={(event) =>
-            handleChange(
-              selectedBranchId,
-              event.target.value as 'today' | 'week',
-            )
-          }
+          value={opsScope}
+          onChange={(event) => {
+            const nextOpsScope = event.target.value as 'today' | 'week';
+            setOpsScope(nextOpsScope);
+            handleChange(branchId, nextOpsScope);
+          }}
           disabled={isPending}
         >
           <option value="today">Hoy</option>

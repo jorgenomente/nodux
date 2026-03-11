@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 
 type BranchOption = {
   id: string;
@@ -21,6 +21,11 @@ export default function ExpirationsFiltersClient({
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [branchId, setBranchId] = useState(selectedBranchId);
+
+  useEffect(() => {
+    setBranchId(selectedBranchId);
+  }, [selectedBranchId]);
 
   const handleBranchChange = (value: string) => {
     const params = new URLSearchParams();
@@ -38,8 +43,12 @@ export default function ExpirationsFiltersClient({
       <select
         name="branch_id"
         className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-        defaultValue={selectedBranchId}
-        onChange={(event) => handleBranchChange(event.target.value)}
+        value={branchId}
+        onChange={(event) => {
+          const nextBranchId = event.target.value;
+          setBranchId(nextBranchId);
+          handleBranchChange(nextBranchId);
+        }}
         disabled={isPending}
         required
       >

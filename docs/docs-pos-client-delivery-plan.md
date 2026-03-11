@@ -28,7 +28,7 @@ Este documento es de planificación. No habilita implementación automática de 
 
 #### Confirmado en código y docs
 
-- `/pos` ya muestra bloque `Cliente opcional` con búsqueda, selección y carga rápida de `nombre + WhatsApp`.
+- `/pos` ya muestra bloque `Cliente` con búsqueda, selección y carga rápida de `nombre + WhatsApp + email opcional`.
 - `POST /api/pos/checkout` ya resuelve/upserta cliente server-side y envía `p_client_id` a `rpc_create_sale`.
 - `rpc_create_sale(...)` ya acepta `p_client_id uuid default null` y valida que el cliente pertenezca a la org activa.
 - `sales.client_id` ya existe y las lecturas de ventas exponen `client_name` y `client_phone`.
@@ -74,7 +74,7 @@ La primera iteración operativa ya quedó cerrada en POS y detalle de venta. La 
 
 ## Principios de diseño
 
-### P1) Cliente opcional, no bloqueante
+### P1) Cliente no bloqueante
 
 El POS no debe exigir nombre ni WhatsApp para cobrar. La caja debe poder operar igual de rápido que hoy.
 
@@ -99,7 +99,7 @@ La primera versión no debe depender de PDF adjunto ni de binarios enviados por 
 
 ---
 
-## Fase 1 — Cliente opcional en POS y vínculo con la venta
+## Fase 1 — Cliente en POS y vínculo con la venta
 
 ### Resultado esperado
 
@@ -107,12 +107,15 @@ Antes de cobrar, `/pos` permite opcionalmente identificar al cliente con:
 
 - nombre
 - WhatsApp
+- email opcional
 
 La UI debe permitir:
 
 - buscar cliente existente por nombre o WhatsApp
 - seleccionar uno existente
 - crear o actualizar un cliente mínimo en el momento
+- si el cliente es nuevo, exigir WhatsApp y permitir email opcional
+- si el cliente ya existe, permitir corregir WhatsApp/email sin salir de caja
 - seguir cobrando sin cliente si el cajero no quiere cargarlo
 
 ### Persistencia esperada
@@ -142,7 +145,7 @@ La UI debe permitir:
 ### Fuera de Fase 1
 
 - compartir por WhatsApp
-- email
+- email transaccional
 - PDF adjunto
 - métricas de envíos
 
@@ -154,7 +157,7 @@ La UI debe permitir:
 
 Después del cobro exitoso, POS ofrece acciones operativas según el caso:
 
-- `Imprimir ticket`
+- `Imprimir resumen`
 - `Compartir por WhatsApp`
 - si hubo `Cobrar y facturar` y la factura está lista: `Compartir factura por WhatsApp`
 
@@ -352,7 +355,7 @@ No exigir email ni notas en POS.
 Mostrar acciones según estado:
 
 - `Nueva venta`
-- `Imprimir ticket`
+- `Imprimir resumen`
 - `Compartir por WhatsApp`
 - `Ver venta`
 

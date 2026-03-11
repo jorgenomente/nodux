@@ -7,6 +7,7 @@ import PageShell from '@/app/components/PageShell';
 import ClientSpecialOrderItemsClient from '@/app/clients/ClientSpecialOrderItemsClient';
 import ShareTicketWhatsappButton from '@/app/sales/ShareTicketWhatsappButton';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { resolveActiveBranchId } from '@/lib/branches/active-branch';
 import { formatOperationalPaymentMethod } from '@/lib/payments/catalog';
 
 const STAFF_MODULE_ORDER = [
@@ -223,17 +224,12 @@ export default async function ClientsPage({
     branches = (branchRows ?? []) as BranchOption[];
   }
 
-  const branchIds = new Set(branches.map((branch) => branch.id));
-  const requestedBranchId =
-    typeof resolvedSearchParams.branch_id === 'string'
-      ? resolvedSearchParams.branch_id
-      : '';
-  const selectedBranchId =
-    role === 'staff'
-      ? branchIds.has(requestedBranchId)
-        ? requestedBranchId
-        : (branches[0]?.id ?? '')
-      : requestedBranchId;
+  const selectedBranchId = await resolveActiveBranchId({
+    requestedBranchId: resolvedSearchParams.branch_id,
+    allowedBranchIds: branches.map((branch) => branch.id),
+    fallbackBranchId: role === 'staff' ? (branches[0]?.id ?? '') : '',
+    allowExplicitEmpty: role !== 'staff',
+  });
   const query =
     typeof resolvedSearchParams.q === 'string'
       ? resolvedSearchParams.q.trim()

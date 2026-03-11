@@ -42,6 +42,274 @@ Se agregó un hook reutilizable de dismiss por click afuera para los desplegable
 
 **Commit:** N/A
 
+## 2026-03-10 22:40 -03 — POS: cliente opcional reubicado como panel desplegable
+
+**Tipo:** ui/docs
+**Lote:** pos-client-panel-relocation
+**Alcance:** frontend
+
+**Resumen**
+Se movió el bloque `Cliente opcional` de `/pos` fuera del header superior y se integró en la columna de cobro, justo debajo de `Total a cobrar` y antes de `Imprimir ticket`. La sección ahora funciona como panel desplegable compacto, manteniendo la búsqueda de cliente existente y la carga rápida de nombre + WhatsApp sin cambiar todavía el contrato de checkout ni el backend de clientes.
+
+**Archivos afectados:**
+
+- app/pos/PosClient.tsx
+- docs/docs-app-screens-staff-pos.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 23:05 -03 — POS: alta rápida de cliente con email opcional
+
+**Tipo:** ui/docs
+**Lote:** pos-client-panel-relocation
+**Alcance:** frontend | backend
+
+**Resumen**
+El panel `Cliente opcional` de `/pos` pasó a funcionar como segundo entry point mínimo de `/clients`: ahora permite cargar `nombre`, `WhatsApp` y `email opcional`, reutilizando `rpc_upsert_client(...)` en el checkout. Para clientes nuevos, el alta rápida exige `WhatsApp`; para clientes existentes, POS mantiene selección y actualización liviana de datos al cobrar.
+
+**Archivos afectados:**
+
+- app/pos/PosClient.tsx
+- app/api/pos/checkout/route.ts
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-pos-client-delivery-plan.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 23:18 -03 — POS: aclaración UX para actualización inline de contacto
+
+**Tipo:** ui/docs
+**Lote:** pos-client-panel-relocation
+**Alcance:** frontend
+
+**Resumen**
+Se aclaró en la UI de `/pos` y en los docs operativos que, cuando se selecciona un cliente existente, el cajero puede corregir WhatsApp o email en el mismo checkout y esos cambios se persisten al cobrar. Esto cubre el caso operativo de cambio de número sin desviar el flujo hacia `/clients`.
+
+**Archivos afectados:**
+
+- app/pos/PosClient.tsx
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-pos-client-delivery-plan.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 23:28 -03 — POS: copy más claro para cliente y resumen impreso
+
+**Tipo:** ui/docs
+**Lote:** pos-client-panel-relocation
+**Alcance:** frontend
+
+**Resumen**
+Se renombró el panel de `Cliente opcional` a `Cliente`, se aclaró en el copy que completar los datos crea o actualiza el cliente al cobrar y se renombró el CTA `Imprimir ticket` a `Imprimir resumen` para alinearlo con su uso operativo como comprobante previo/no fiscal.
+
+**Archivos afectados:**
+
+- app/pos/PosClient.tsx
+- docs/docs-app-screens-staff-pos.md
+- docs/docs-pos-client-delivery-plan.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 22:23 -03 — POS: copy más preciso para impresión por navegador
+
+**Tipo:** ui/docs
+**Lote:** pos-print-browser-copy
+**Alcance:** frontend
+
+**Resumen**
+Se ajustó el mensaje informativo de `/pos` para que explique de forma más exacta que la caja está imprimiendo usando el navegador y que la impresión directa a impresora requiere activar el modo correspondiente en `Settings > Tickets e impresion`.
+
+**Archivos afectados:**
+
+- app/pos/PosClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 22:23 -03 — WhatsApp share: remover falso positivo de popup bloqueado
+
+**Tipo:** ui/docs
+**Lote:** whatsapp-share-popup-false-positive
+**Alcance:** frontend
+
+**Resumen**
+Se eliminó la validación frágil que tomaba `window.open(...)` como única señal de éxito al abrir WhatsApp. Ahora POS y Ventas intentan abrir el link en nueva pestaña y, si el navegador no devuelve un handle confiable, hacen fallback con un enlace programático sin mostrar el error falso positivo de pop-up bloqueado.
+
+**Archivos afectados:**
+
+- app/pos/PosClient.tsx
+- app/sales/ShareTicketWhatsappButton.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 22:23 -03 — Auditoría repo-aware del contexto global de sucursal
+
+**Tipo:** docs/decision
+**Lote:** branch-context-audit-20260310
+**Alcance:** frontend
+
+**Resumen**
+Se auditó el alcance real del selector de sucursal del top bar. El diagnóstico confirma que hoy la cookie `nodux_active_branch_id` solo impacta de forma consistente en el badge global y en `/sales`, mientras la mayoría de módulos siguen resolviendo sucursal por query param propio o por fallback a la primera sucursal disponible. Se documenta como decisión recomendada unificar el comportamiento: `branch_id` explícito gana; si no existe, usar la cookie global; si tampoco aplica, caer al fallback actual por rol/permisos.
+
+**Archivos afectados:**
+
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- Sin tests: auditoría de código y comportamiento actual
+
+**Commit:** N/A
+
+## 2026-03-10 22:23 -03 — Contexto global de sucursal unificado en módulos operativos
+
+**Tipo:** ui/docs
+**Lote:** branch-context-audit-20260310
+**Alcance:** frontend
+
+**Resumen**
+Se implementó una helper compartida para resolver la sucursal activa por prioridad `branch_id` explícito -> cookie global `nodux_active_branch_id` -> fallback por permisos/listado. Con esto, dashboard, POS, estadísticas, caja, clientes, consulta de precios, vencimientos, pedidos, calendario, pagos y online orders ya arrancan con la sucursal aplicada desde el top bar cuando la URL no trae un filtro propio. En pantallas que ya soportaban `Todas`, esa opción explícita se mantiene.
+
+**Archivos afectados:**
+
+- lib/branches/active-branch.ts
+- app/dashboard/page.tsx
+- app/pos/page.tsx
+- app/sales/statistics/page.tsx
+- app/cashbox/page.tsx
+- app/clients/page.tsx
+- app/products/lookup/page.tsx
+- app/expirations/page.tsx
+- app/orders/page.tsx
+- app/orders/calendar/page.tsx
+- app/payments/page.tsx
+- app/online-orders/page.tsx
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 22:23 -03 — Top bar: aplicación inmediata de sucursal activa
+
+**Tipo:** ui/docs
+**Lote:** topbar-branch-refresh-ux
+**Alcance:** frontend
+
+**Resumen**
+El selector de sucursal del top bar dejó de depender de una server action con refresh manual posterior. Ahora usa un componente cliente que actualiza la cookie `nodux_active_branch_id` y dispara `router.refresh()` al presionar `Aplicar`, haciendo visible el cambio en la misma pantalla de forma inmediata.
+
+**Archivos afectados:**
+
+- app/components/TopBar.tsx
+- app/components/TopBarBranchSelector.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 22:23 -03 — Dashboard: selector sincronizado con sucursal activa real
+
+**Tipo:** ui/docs
+**Lote:** topbar-branch-refresh-ux
+**Alcance:** frontend
+
+**Resumen**
+Se corrigió el selector del dashboard para que deje de quedarse con el valor previo después de aplicar una nueva sucursal desde el top bar. El componente pasó de inputs no controlados a estado sincronizado con props server-side, alineando el select visible con el contenido real ya refrescado por `router.refresh()`.
+
+**Archivos afectados:**
+
+- app/dashboard/DashboardFiltersClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
+## 2026-03-10 22:23 -03 — Filtros cliente resincronizados con sucursal activa global
+
+**Tipo:** ui/docs
+**Lote:** topbar-branch-refresh-ux
+**Alcance:** frontend
+
+**Resumen**
+Se extendió la resincronización de estado cliente a los filtros que seguían usando `defaultValue` o `useState(prop)` sin escuchar cambios server-side. El ajuste cubre calendario de pedidos, vencimientos, consulta de precios, filtros de pedido borrador y POS, evitando que el selector visible quede mostrando una sucursal anterior cuando el top bar ya aplicó una nueva.
+
+**Archivos afectados:**
+
+- app/orders/calendar/CalendarFiltersClient.tsx
+- app/expirations/ExpirationsFiltersClient.tsx
+- app/products/lookup/ProductsLookupClient.tsx
+- app/orders/OrderDraftFiltersClient.tsx
+- app/pos/PosClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-10)
+- `npm run build` OK (2026-03-10)
+
+**Commit:** N/A
+
 ## 2026-03-10 20:35 -03 — Separación estructural demo pública vs QA local
 
 **Tipo:** infra/docs/tests

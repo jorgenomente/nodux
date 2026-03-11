@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 type BranchOption = {
@@ -31,6 +31,26 @@ export default function CalendarFiltersClient({
   const [period, setPeriod] = useState(selectedPeriod);
   const [from, setFrom] = useState(selectedFrom);
   const [to, setTo] = useState(selectedTo);
+
+  useEffect(() => {
+    setBranchId(selectedBranchId);
+  }, [selectedBranchId]);
+
+  useEffect(() => {
+    setStatus(selectedStatus);
+  }, [selectedStatus]);
+
+  useEffect(() => {
+    setPeriod(selectedPeriod);
+  }, [selectedPeriod]);
+
+  useEffect(() => {
+    setFrom(selectedFrom);
+  }, [selectedFrom]);
+
+  useEffect(() => {
+    setTo(selectedTo);
+  }, [selectedTo]);
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

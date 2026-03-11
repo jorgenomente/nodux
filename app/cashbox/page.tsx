@@ -9,6 +9,7 @@ import CashboxReconciliationSection from '@/app/cashbox/CashboxReconciliationSec
 import OpenCashSessionMetaFields from '@/app/cashbox/OpenCashSessionMetaFields';
 import SystemDateTimeBadge from '@/app/cashbox/SystemDateTimeBadge';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
+import { resolveActiveBranchId } from '@/lib/branches/active-branch';
 
 const STAFF_MODULE_ORDER = [
   'pos',
@@ -268,14 +269,11 @@ export default async function CashboxPage({
     redirect('/no-access');
   }
 
-  const branchIds = new Set(branches.map((branch) => branch.id));
-  const requestedBranchId =
-    typeof resolvedSearchParams.branch_id === 'string'
-      ? resolvedSearchParams.branch_id
-      : '';
-  const selectedBranchId = branchIds.has(requestedBranchId)
-    ? requestedBranchId
-    : branches[0].id;
+  const selectedBranchId = await resolveActiveBranchId({
+    requestedBranchId: resolvedSearchParams.branch_id,
+    allowedBranchIds: branches.map((branch) => branch.id),
+    fallbackBranchId: branches[0].id,
+  });
 
   const { data: preferencesRow } = await supabase
     .from('org_preferences')

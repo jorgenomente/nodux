@@ -36,6 +36,7 @@ type CheckoutBody = {
     clientId?: string | null;
     name?: string | null;
     phone?: string | null;
+    email?: string | null;
   } | null;
   mode?: 'charge_only' | 'charge_and_invoice';
 };
@@ -44,6 +45,7 @@ type ClientLookupRow = {
   id: string;
   name: string;
   phone: string | null;
+  email: string | null;
 };
 
 type EnqueueFiscalResponse = {
@@ -161,8 +163,9 @@ const resolveCheckoutClientId = async (params: {
   const clientId = String(input?.clientId ?? '').trim();
   const rawName = String(input?.name ?? '').trim();
   const normalizedPhone = normalizeClientPhone(input?.phone);
+  const rawEmail = String(input?.email ?? '').trim();
 
-  if (!clientId && !rawName && !normalizedPhone) {
+  if (!clientId && !rawName && !normalizedPhone && !rawEmail) {
     return null;
   }
 
@@ -171,7 +174,7 @@ const resolveCheckoutClientId = async (params: {
   if (clientId) {
     const { data } = await params.supabase
       .from('clients')
-      .select('id, name, phone')
+      .select('id, name, phone, email')
       .eq('org_id', params.body.orgId)
       .eq('id', clientId)
       .eq('is_active', true)
@@ -183,7 +186,7 @@ const resolveCheckoutClientId = async (params: {
   if (!matchedClient && normalizedPhone) {
     const { data } = await params.supabase
       .from('clients')
-      .select('id, name, phone')
+      .select('id, name, phone, email')
       .eq('org_id', params.body.orgId)
       .eq('is_active', true)
       .limit(20)
@@ -199,10 +202,15 @@ const resolveCheckoutClientId = async (params: {
     return null;
   }
 
+  if (!matchedClient && !normalizedPhone) {
+    throw new Error('WhatsApp required for new client');
+  }
+
   const effectiveClientId = matchedClient?.id ?? randomUUID();
   const effectiveName = rawName || matchedClient?.name || 'Cliente';
   const effectivePhone =
     normalizedPhone || normalizeClientPhone(matchedClient?.phone);
+  const effectiveEmail = rawEmail || matchedClient?.email || '';
 
   const { error } = await callAuthedRpc<Array<{ client_id?: string | null }>>({
     accessToken: params.accessToken,
@@ -212,7 +220,7 @@ const resolveCheckoutClientId = async (params: {
       p_org_id: params.body.orgId,
       p_name: effectiveName,
       p_phone: effectivePhone,
-      p_email: '',
+      p_email: effectiveEmail,
       p_notes: '',
       p_is_active: true,
     },

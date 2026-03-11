@@ -7,6 +7,7 @@ import {
   getOrgAdminSession,
   getOrgMemberSession,
 } from '@/lib/auth/org-session';
+import { resolveActiveBranchId } from '@/lib/branches/active-branch';
 import {
   hasStaffModuleEnabled,
   resolveStaffHome,
@@ -284,17 +285,11 @@ export default async function OrdersCalendarPage({
     branches = (branchRows ?? []) as BranchOption[];
   }
 
-  const branchIds = new Set(branches.map((branch) => branch.id));
-  const requestedBranchId =
-    typeof resolvedSearchParams.branch_id === 'string'
-      ? resolvedSearchParams.branch_id
-      : '';
-  const selectedBranchId =
-    role === 'staff'
-      ? branchIds.has(requestedBranchId)
-        ? requestedBranchId
-        : (branches[0]?.id ?? '')
-      : requestedBranchId || branches[0]?.id || '';
+  const selectedBranchId = await resolveActiveBranchId({
+    requestedBranchId: resolvedSearchParams.branch_id,
+    allowedBranchIds: branches.map((branch) => branch.id),
+    fallbackBranchId: branches[0]?.id ?? '',
+  });
 
   const period =
     resolvedSearchParams.period === 'today' ||

@@ -8,6 +8,7 @@ import {
   hasStaffModuleEnabled,
   resolveStaffHome,
 } from '@/lib/auth/staff-modules';
+import { resolveActiveBranchId } from '@/lib/branches/active-branch';
 
 type SearchParams = {
   branch_id?: string;
@@ -122,15 +123,11 @@ export default async function DashboardPage({
     .order('name');
   const branchOptions = (branches ?? []) as BranchOption[];
 
-  const requestedBranchId =
-    typeof resolvedSearchParams.branch_id === 'string'
-      ? resolvedSearchParams.branch_id
-      : '';
-  const selectedBranchId = branchOptions.some(
-    (branch) => branch.id === requestedBranchId,
-  )
-    ? requestedBranchId
-    : (branchOptions[0]?.id ?? '');
+  const selectedBranchId = await resolveActiveBranchId({
+    requestedBranchId: resolvedSearchParams.branch_id,
+    allowedBranchIds: branchOptions.map((branch) => branch.id),
+    fallbackBranchId: branchOptions[0]?.id ?? '',
+  });
   const selectedOpsScope =
     resolvedSearchParams.ops_scope === 'week' ? 'week' : 'today';
 

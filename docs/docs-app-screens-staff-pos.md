@@ -63,8 +63,9 @@ Una venta es un registro con:
 
 - Lista de ítems en carrito (líneas editables)
 - Total + método de pago
+- Cliente en panel desplegable debajo del total y antes de `Imprimir resumen`
 - CTAs principales: “Cobrar” y “Cobrar y facturar”
-- Acción auxiliar siempre visible: “Imprimir ticket” (copia no fiscal)
+- Acción auxiliar siempre visible: “Imprimir resumen” (copia no fiscal)
 
 ### Footer (táctil)
 
@@ -131,16 +132,18 @@ Una venta es un registro con:
 - Valida:
   - carrito no vacío
   - stock suficiente (si política de stock lo exige)
-- Cliente opcional:
+- Cliente:
   - POS puede buscar cliente existente por nombre o WhatsApp
-  - POS puede capturar `name + phone` mínimo y resolver/create el cliente al cobrar
+  - POS puede capturar `name + WhatsApp + email opcional` y resolver/create el cliente al cobrar
+  - Si el cliente es nuevo, `WhatsApp` es obligatorio; `email` sigue siendo opcional
+  - Si se selecciona un cliente existente, POS puede actualizar su WhatsApp/email en el mismo checkout
   - si se identifica cliente, la venta queda vinculada vía `sales.client_id`
 - Ejecuta RPC server-authoritative (ver Data Contract)
 - Muestra “Venta realizada” + recibo simple (pantalla/modal) + opción “Nueva venta”
 - Si usa “Cobrar y facturar”, POS debe intentar completar el flujo fiscal (`enqueue prod` + worker live + render) dentro del mismo request. Si el comprobante queda listo, la UI debe informarlo de inmediato; si no termina dentro del timeout operativo, la venta puede devolverse como facturada con estado fiscal `En proceso`.
 - Si usa “Cobrar”, queda no facturada y puede facturarse después desde `/sales`.
 
-### A8) Imprimir ticket (copia no fiscal)
+### A8) Imprimir resumen (copia no fiscal)
 
 - Disponible con carrito cargado (antes de cobrar) o con la última venta registrada (después de cobrar).
 - El contenido usa plantilla de la sucursal activa (`ticket_header_text`, `ticket_footer_text`, `fiscal_ticket_note_text`) configurable desde `/settings/tickets`.
