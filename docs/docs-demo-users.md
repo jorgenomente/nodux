@@ -12,6 +12,11 @@ Password comun: `prueba123`
 - Org Admin: `admin@demo.com`
 - Staff: `staff@demo.com`
 
+Credencial local adicional:
+
+- Demo local adicional: `demo@propi.local`
+- Password demo local adicional: `propi123`
+
 ## Configuracion aplicada
 
 - Org QA local: `Demo QA Org`

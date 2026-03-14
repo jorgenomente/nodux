@@ -87,7 +87,7 @@ Constraints:
 
 ### R3) Asociación producto↔proveedor
 
-- Un producto tiene 1 proveedor primario y puede tener 1 proveedor secundario
+- Un producto tiene 1 proveedor principal y puede tener 1 proveedor secundario
 - Un proveedor puede tener múltiples productos (primarios y secundarios)
 - No se permite que un producto tenga 2 proveedores primarios
 

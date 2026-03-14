@@ -580,7 +580,7 @@ export default async function SalesStatisticsPage({
     const supplierKey =
       String(row.supplier_id ?? '').trim() || '__without_primary_supplier__';
     const supplierLabel =
-      String(row.supplier_name ?? '').trim() || 'Sin proveedor primario';
+      String(row.supplier_name ?? '').trim() || 'Sin proveedor principal';
     const supplierCurrent = supplierMap.get(supplierKey) ?? {
       key: supplierKey,
       label: supplierLabel,

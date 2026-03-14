@@ -2594,11 +2594,11 @@ export default async function OnboardingPage({
     bulk_fields_required: 'Selecciona al menos un campo para aplicar en masa.',
     bulk_brand_required: 'Marca requerida para aplicar actualización de marca.',
     bulk_primary_supplier_required:
-      'Selecciona un proveedor primario para aplicar ese cambio.',
+      'Selecciona un proveedor principal para aplicar ese cambio.',
     bulk_secondary_supplier_required:
       'Selecciona un proveedor secundario para aplicar ese cambio.',
     bulk_suppliers_must_differ:
-      'Proveedor primario y secundario no pueden ser el mismo.',
+      'Proveedor principal y secundario no pueden ser el mismo.',
     bulk_shelf_life_invalid:
       'Vencimiento aproximado inválido. Debe ser entero >= 0 o marcar "No aplica vencimiento".',
     bulk_units_per_pack_invalid:
@@ -2660,7 +2660,7 @@ export default async function OnboardingPage({
             <p className="font-semibold">Actualización masiva completada</p>
             <p className="mt-1">
               Alcance: {bulkSummary.scope}. Productos tocados:{' '}
-              {bulkSummary.updatedRows}. Omitidos sin proveedor primario:{' '}
+              {bulkSummary.updatedRows}. Omitidos sin proveedor principal:{' '}
               {bulkSummary.skippedRows}.
               {bulkSummary.query
                 ? ` Filtro aplicado: "${bulkSummary.query}".`
@@ -2674,8 +2674,8 @@ export default async function OnboardingPage({
               Proveedor creado: {bulkSupplierCreated}
             </p>
             <p className="mt-1">
-              Ya puedes seleccionarlo como proveedor primario o secundario en la
-              edición masiva.
+              Ya puedes seleccionarlo como proveedor principal o secundario en
+              la edición masiva.
             </p>
           </section>
         ) : null}
@@ -2945,7 +2945,7 @@ export default async function OnboardingPage({
                           >
                             {hasPrimary
                               ? 'Proveedor OK'
-                              : 'Falta proveedor primario'}
+                              : 'Falta proveedor principal'}
                           </span>
                           <span
                             className={`rounded-full px-2 py-0.5 text-xs ${
@@ -3162,7 +3162,7 @@ export default async function OnboardingPage({
                     <th className="px-2 py-2">Compra</th>
                     <th className="px-2 py-2 text-right">P. venta</th>
                     <th className="px-2 py-2 text-right">Venc. días</th>
-                    <th className="px-2 py-2">Proveedor primario</th>
+                    <th className="px-2 py-2">Proveedor principal</th>
                     <th className="px-2 py-2">Proveedor secundario</th>
                   </tr>
                 </thead>
@@ -3291,7 +3291,7 @@ export default async function OnboardingPage({
                       bulkDraftState?.applyPrimarySupplier,
                     )}
                   />
-                  Aplicar proveedor primario
+                  Aplicar proveedor principal
                 </label>
                 <select
                   name="bulk_primary_supplier_id"

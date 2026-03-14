@@ -418,66 +418,68 @@ export default function ReceiveItemsPricingClient({
                   <div className="text-xs text-zinc-500">
                     Ordenado: {item.ordered_qty}
                   </div>
-                  <label className="text-xs text-zinc-600">
-                    Cantidad recibida
-                    <input
-                      name={`received_${item.order_item_id}`}
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={receivedQtyByItem[item.order_item_id] ?? '0'}
-                      onChange={(event) =>
-                        setReceivedQtyByItem((prev) => ({
-                          ...prev,
-                          [item.order_item_id]: event.target.value,
-                        }))
-                      }
-                      readOnly={disableQtyEditing}
-                      aria-disabled={disableQtyEditing}
-                      className={`mt-1 w-full rounded border px-2 py-1 text-sm ${
-                        disableQtyEditing
-                          ? 'border-zinc-200 bg-zinc-100 text-zinc-500'
-                          : 'border-zinc-200'
-                      }`}
-                    />
-                    {formatPackageHint({
-                      qty: Number(
-                        receivedQtyByItem[item.order_item_id] ??
-                          item.default_received_qty,
-                      ),
-                      purchaseByPack: item.purchase_by_pack,
-                      unitsPerPack: item.units_per_pack,
-                    }) ? (
-                      <span className="mt-1 block text-[11px] text-zinc-500">
-                        Equivale a{' '}
-                        {formatPackageHint({
-                          qty: Number(
-                            receivedQtyByItem[item.order_item_id] ??
-                              item.default_received_qty,
-                          ),
-                          purchaseByPack: item.purchase_by_pack,
-                          unitsPerPack: item.units_per_pack,
-                        })}
-                      </span>
-                    ) : null}
-                  </label>
-                  <label className="text-xs text-zinc-600">
-                    Precio proveedor (unitario)
-                    <input
-                      name={`unit_cost_${item.order_item_id}`}
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={unitCostByItem[item.order_item_id] ?? '0'}
-                      onChange={(event) =>
-                        setUnitCostByItem((prev) => ({
-                          ...prev,
-                          [item.order_item_id]: event.target.value,
-                        }))
-                      }
-                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                    />
-                  </label>
+                  <div className="grid gap-2 md:col-span-2 md:grid-cols-2">
+                    <label className="text-xs text-zinc-600">
+                      Cantidad recibida
+                      <input
+                        name={`received_${item.order_item_id}`}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={receivedQtyByItem[item.order_item_id] ?? '0'}
+                        onChange={(event) =>
+                          setReceivedQtyByItem((prev) => ({
+                            ...prev,
+                            [item.order_item_id]: event.target.value,
+                          }))
+                        }
+                        readOnly={disableQtyEditing}
+                        aria-disabled={disableQtyEditing}
+                        className={`mt-1 w-full rounded border px-2 py-1 text-sm ${
+                          disableQtyEditing
+                            ? 'border-zinc-200 bg-zinc-100 text-zinc-500'
+                            : 'border-zinc-200'
+                        }`}
+                      />
+                      {formatPackageHint({
+                        qty: Number(
+                          receivedQtyByItem[item.order_item_id] ??
+                            item.default_received_qty,
+                        ),
+                        purchaseByPack: item.purchase_by_pack,
+                        unitsPerPack: item.units_per_pack,
+                      }) ? (
+                        <span className="mt-1 block text-[11px] text-zinc-500">
+                          Equivale a{' '}
+                          {formatPackageHint({
+                            qty: Number(
+                              receivedQtyByItem[item.order_item_id] ??
+                                item.default_received_qty,
+                            ),
+                            purchaseByPack: item.purchase_by_pack,
+                            unitsPerPack: item.units_per_pack,
+                          })}
+                        </span>
+                      ) : null}
+                    </label>
+                    <label className="text-xs text-zinc-600">
+                      Precio proveedor (unitario)
+                      <input
+                        name={`unit_cost_${item.order_item_id}`}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={unitCostByItem[item.order_item_id] ?? '0'}
+                        onChange={(event) =>
+                          setUnitCostByItem((prev) => ({
+                            ...prev,
+                            [item.order_item_id]: event.target.value,
+                          }))
+                        }
+                        className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                      />
+                    </label>
+                  </div>
                   <label className="rounded bg-zinc-100 p-2 text-xs text-zinc-700">
                     Precio venta (unitario)
                     <input
@@ -504,90 +506,95 @@ export default function ReceiveItemsPricingClient({
                       ({item.markup_pct.toFixed(2)}%)
                     </span>
                   </label>
-                  <label className="text-xs text-zinc-600">
-                    Categoria
-                    <input
-                      name={`category_tags_${item.order_item_id}`}
-                      type="text"
-                      value={categoryTagsByItem[item.order_item_id] ?? ''}
-                      onChange={(event) =>
-                        setCategoryTagsByItem((prev) => ({
-                          ...prev,
-                          [item.order_item_id]: event.target.value,
-                        }))
-                      }
-                      placeholder="#keto #fitness"
-                      list={categorySuggestionsListId}
-                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                    />
-                    {getCategorySuggestionsLabel(
-                      categoryTagsByItem[item.order_item_id] ?? '',
-                    )}
-                  </label>
-                  <label className="text-xs text-zinc-600">
-                    Marca
-                    <input
-                      name={`brand_${item.order_item_id}`}
-                      type="text"
-                      value={brandByItem[item.order_item_id] ?? ''}
-                      onChange={(event) =>
-                        setBrandByItem((prev) => ({
-                          ...prev,
-                          [item.order_item_id]: event.target.value,
-                        }))
-                      }
-                      placeholder="Ej: La Virginia"
-                      list={brandSuggestionsListId}
-                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                    />
-                    {getBrandSuggestionsLabel(
-                      brandByItem[item.order_item_id] ?? '',
-                    )}
-                  </label>
-                  <label className="text-xs text-zinc-600">
-                    Vencimiento aproximado (dias)
-                    <input
-                      name={`shelf_life_days_${item.order_item_id}`}
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={shelfLifeDaysByItem[item.order_item_id] ?? ''}
-                      onChange={(event) =>
-                        setShelfLifeDaysByItem((prev) => ({
-                          ...prev,
-                          [item.order_item_id]: event.target.value,
-                        }))
-                      }
-                      placeholder="Ej: 30"
-                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                    />
-                  </label>
-                  <label className="text-xs text-zinc-600">
-                    Fecha exacta de vencimiento
-                    <input
-                      name={`exact_expiry_date_${item.order_item_id}`}
-                      type="date"
-                      value={exactExpiryDateByItem[item.order_item_id] ?? ''}
-                      onChange={(event) => {
-                        const nextDate = event.target.value;
-                        setExactExpiryDateByItem((prev) => ({
-                          ...prev,
-                          [item.order_item_id]: nextDate,
-                        }));
-                        setShelfLifeDaysByItem((prev) => ({
-                          ...prev,
-                          [item.order_item_id]: computeShelfLifeDays(
-                            receivedAtValue,
-                            nextDate,
-                          ),
-                        }));
-                      }}
-                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                    />
-                    <span className="mt-1 block text-[11px] text-zinc-500">
-                      Calcula automáticamente los días desde la recepción.
-                    </span>
-                  </label>
+                  <div className="grid gap-2 md:col-span-2 md:grid-cols-2">
+                    <label className="text-xs text-zinc-600">
+                      Marca
+                      <input
+                        name={`brand_${item.order_item_id}`}
+                        type="text"
+                        value={brandByItem[item.order_item_id] ?? ''}
+                        onChange={(event) =>
+                          setBrandByItem((prev) => ({
+                            ...prev,
+                            [item.order_item_id]: event.target.value,
+                          }))
+                        }
+                        placeholder="Ej: La Virginia"
+                        list={brandSuggestionsListId}
+                        className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                      />
+                      {getBrandSuggestionsLabel(
+                        brandByItem[item.order_item_id] ?? '',
+                      )}
+                    </label>
+                    <label className="text-xs text-zinc-600">
+                      Categoria
+                      <input
+                        name={`category_tags_${item.order_item_id}`}
+                        type="text"
+                        value={categoryTagsByItem[item.order_item_id] ?? ''}
+                        onChange={(event) =>
+                          setCategoryTagsByItem((prev) => ({
+                            ...prev,
+                            [item.order_item_id]: event.target.value,
+                          }))
+                        }
+                        placeholder="#keto #fitness"
+                        list={categorySuggestionsListId}
+                        className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                      />
+                      {getCategorySuggestionsLabel(
+                        categoryTagsByItem[item.order_item_id] ?? '',
+                      )}
+                    </label>
+                  </div>
+                  <div className="grid gap-2 md:col-span-2 md:grid-cols-2">
+                    <label className="text-xs text-zinc-600">
+                      Vencimiento aproximado (dias)
+                      <input
+                        name={`shelf_life_days_${item.order_item_id}`}
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={shelfLifeDaysByItem[item.order_item_id] ?? ''}
+                        onChange={(event) =>
+                          setShelfLifeDaysByItem((prev) => ({
+                            ...prev,
+                            [item.order_item_id]: event.target.value,
+                          }))
+                        }
+                        placeholder="Ej: 30"
+                        className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                      />
+                    </label>
+                    <label className="text-xs text-zinc-600">
+                      Fecha exacta de vencimiento
+                      <input
+                        name={`exact_expiry_date_${item.order_item_id}`}
+                        type="date"
+                        value={exactExpiryDateByItem[item.order_item_id] ?? ''}
+                        onChange={(event) => {
+                          const nextDate = event.target.value;
+                          setExactExpiryDateByItem((prev) => ({
+                            ...prev,
+                            [item.order_item_id]: nextDate,
+                          }));
+                          setShelfLifeDaysByItem((prev) => ({
+                            ...prev,
+                            [item.order_item_id]: computeShelfLifeDays(
+                              receivedAtValue,
+                              nextDate,
+                            ),
+                          }));
+                        }}
+                        className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                      />
+                      <span className="mt-1 block text-[11px] text-zinc-500">
+                        Opcional. Si la completas, calcula el vencimiento
+                        aproximado con más precisión desde la recepción.
+                      </span>
+                    </label>
+                  </div>
                 </div>
               </div>
             ))
@@ -603,66 +610,68 @@ export default function ReceiveItemsPricingClient({
                   Ordenado: {item.ordered_qty}
                 </p>
                 <div className="mt-3 grid gap-2">
-                  <label className="text-xs text-zinc-600">
-                    Cantidad recibida
-                    <input
-                      name={`received_${item.order_item_id}`}
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={receivedQtyByItem[item.order_item_id] ?? '0'}
-                      onChange={(event) =>
-                        setReceivedQtyByItem((prev) => ({
-                          ...prev,
-                          [item.order_item_id]: event.target.value,
-                        }))
-                      }
-                      readOnly={disableQtyEditing}
-                      aria-disabled={disableQtyEditing}
-                      className={`mt-1 w-full rounded border px-2 py-1 text-sm ${
-                        disableQtyEditing
-                          ? 'border-zinc-200 bg-zinc-100 text-zinc-500'
-                          : 'border-zinc-200'
-                      }`}
-                    />
-                    {formatPackageHint({
-                      qty: Number(
-                        receivedQtyByItem[item.order_item_id] ??
-                          item.default_received_qty,
-                      ),
-                      purchaseByPack: item.purchase_by_pack,
-                      unitsPerPack: item.units_per_pack,
-                    }) ? (
-                      <span className="mt-1 block text-[11px] text-zinc-500">
-                        Equivale a{' '}
-                        {formatPackageHint({
-                          qty: Number(
-                            receivedQtyByItem[item.order_item_id] ??
-                              item.default_received_qty,
-                          ),
-                          purchaseByPack: item.purchase_by_pack,
-                          unitsPerPack: item.units_per_pack,
-                        })}
-                      </span>
-                    ) : null}
-                  </label>
-                  <label className="text-xs text-zinc-600">
-                    Precio proveedor (unitario)
-                    <input
-                      name={`unit_cost_${item.order_item_id}`}
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={unitCostByItem[item.order_item_id] ?? '0'}
-                      onChange={(event) =>
-                        setUnitCostByItem((prev) => ({
-                          ...prev,
-                          [item.order_item_id]: event.target.value,
-                        }))
-                      }
-                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                    />
-                  </label>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <label className="text-xs text-zinc-600">
+                      Cantidad recibida
+                      <input
+                        name={`received_${item.order_item_id}`}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={receivedQtyByItem[item.order_item_id] ?? '0'}
+                        onChange={(event) =>
+                          setReceivedQtyByItem((prev) => ({
+                            ...prev,
+                            [item.order_item_id]: event.target.value,
+                          }))
+                        }
+                        readOnly={disableQtyEditing}
+                        aria-disabled={disableQtyEditing}
+                        className={`mt-1 w-full rounded border px-2 py-1 text-sm ${
+                          disableQtyEditing
+                            ? 'border-zinc-200 bg-zinc-100 text-zinc-500'
+                            : 'border-zinc-200'
+                        }`}
+                      />
+                      {formatPackageHint({
+                        qty: Number(
+                          receivedQtyByItem[item.order_item_id] ??
+                            item.default_received_qty,
+                        ),
+                        purchaseByPack: item.purchase_by_pack,
+                        unitsPerPack: item.units_per_pack,
+                      }) ? (
+                        <span className="mt-1 block text-[11px] text-zinc-500">
+                          Equivale a{' '}
+                          {formatPackageHint({
+                            qty: Number(
+                              receivedQtyByItem[item.order_item_id] ??
+                                item.default_received_qty,
+                            ),
+                            purchaseByPack: item.purchase_by_pack,
+                            unitsPerPack: item.units_per_pack,
+                          })}
+                        </span>
+                      ) : null}
+                    </label>
+                    <label className="text-xs text-zinc-600">
+                      Precio proveedor (unitario)
+                      <input
+                        name={`unit_cost_${item.order_item_id}`}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={unitCostByItem[item.order_item_id] ?? '0'}
+                        onChange={(event) =>
+                          setUnitCostByItem((prev) => ({
+                            ...prev,
+                            [item.order_item_id]: event.target.value,
+                          }))
+                        }
+                        className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                      />
+                    </label>
+                  </div>
                   <label className="rounded bg-zinc-100 p-2 text-xs text-zinc-700">
                     Precio venta (unitario)
                     <input
@@ -689,90 +698,95 @@ export default function ReceiveItemsPricingClient({
                       ({item.markup_pct.toFixed(2)}%)
                     </span>
                   </label>
-                  <label className="text-xs text-zinc-600">
-                    Categoria
-                    <input
-                      name={`category_tags_${item.order_item_id}`}
-                      type="text"
-                      value={categoryTagsByItem[item.order_item_id] ?? ''}
-                      onChange={(event) =>
-                        setCategoryTagsByItem((prev) => ({
-                          ...prev,
-                          [item.order_item_id]: event.target.value,
-                        }))
-                      }
-                      placeholder="#keto #fitness"
-                      list={categorySuggestionsListId}
-                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                    />
-                    {getCategorySuggestionsLabel(
-                      categoryTagsByItem[item.order_item_id] ?? '',
-                    )}
-                  </label>
-                  <label className="text-xs text-zinc-600">
-                    Marca
-                    <input
-                      name={`brand_${item.order_item_id}`}
-                      type="text"
-                      value={brandByItem[item.order_item_id] ?? ''}
-                      onChange={(event) =>
-                        setBrandByItem((prev) => ({
-                          ...prev,
-                          [item.order_item_id]: event.target.value,
-                        }))
-                      }
-                      placeholder="Ej: La Virginia"
-                      list={brandSuggestionsListId}
-                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                    />
-                    {getBrandSuggestionsLabel(
-                      brandByItem[item.order_item_id] ?? '',
-                    )}
-                  </label>
-                  <label className="text-xs text-zinc-600">
-                    Vencimiento aproximado (dias)
-                    <input
-                      name={`shelf_life_days_${item.order_item_id}`}
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={shelfLifeDaysByItem[item.order_item_id] ?? ''}
-                      onChange={(event) =>
-                        setShelfLifeDaysByItem((prev) => ({
-                          ...prev,
-                          [item.order_item_id]: event.target.value,
-                        }))
-                      }
-                      placeholder="Ej: 30"
-                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                    />
-                  </label>
-                  <label className="text-xs text-zinc-600">
-                    Fecha exacta de vencimiento
-                    <input
-                      name={`exact_expiry_date_${item.order_item_id}`}
-                      type="date"
-                      value={exactExpiryDateByItem[item.order_item_id] ?? ''}
-                      onChange={(event) => {
-                        const nextDate = event.target.value;
-                        setExactExpiryDateByItem((prev) => ({
-                          ...prev,
-                          [item.order_item_id]: nextDate,
-                        }));
-                        setShelfLifeDaysByItem((prev) => ({
-                          ...prev,
-                          [item.order_item_id]: computeShelfLifeDays(
-                            receivedAtValue,
-                            nextDate,
-                          ),
-                        }));
-                      }}
-                      className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
-                    />
-                    <span className="mt-1 block text-[11px] text-zinc-500">
-                      Calcula automáticamente los días desde la recepción.
-                    </span>
-                  </label>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <label className="text-xs text-zinc-600">
+                      Marca
+                      <input
+                        name={`brand_${item.order_item_id}`}
+                        type="text"
+                        value={brandByItem[item.order_item_id] ?? ''}
+                        onChange={(event) =>
+                          setBrandByItem((prev) => ({
+                            ...prev,
+                            [item.order_item_id]: event.target.value,
+                          }))
+                        }
+                        placeholder="Ej: La Virginia"
+                        list={brandSuggestionsListId}
+                        className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                      />
+                      {getBrandSuggestionsLabel(
+                        brandByItem[item.order_item_id] ?? '',
+                      )}
+                    </label>
+                    <label className="text-xs text-zinc-600">
+                      Categoria
+                      <input
+                        name={`category_tags_${item.order_item_id}`}
+                        type="text"
+                        value={categoryTagsByItem[item.order_item_id] ?? ''}
+                        onChange={(event) =>
+                          setCategoryTagsByItem((prev) => ({
+                            ...prev,
+                            [item.order_item_id]: event.target.value,
+                          }))
+                        }
+                        placeholder="#keto #fitness"
+                        list={categorySuggestionsListId}
+                        className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                      />
+                      {getCategorySuggestionsLabel(
+                        categoryTagsByItem[item.order_item_id] ?? '',
+                      )}
+                    </label>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <label className="text-xs text-zinc-600">
+                      Vencimiento aproximado (dias)
+                      <input
+                        name={`shelf_life_days_${item.order_item_id}`}
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={shelfLifeDaysByItem[item.order_item_id] ?? ''}
+                        onChange={(event) =>
+                          setShelfLifeDaysByItem((prev) => ({
+                            ...prev,
+                            [item.order_item_id]: event.target.value,
+                          }))
+                        }
+                        placeholder="Ej: 30"
+                        className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                      />
+                    </label>
+                    <label className="text-xs text-zinc-600">
+                      Fecha exacta de vencimiento
+                      <input
+                        name={`exact_expiry_date_${item.order_item_id}`}
+                        type="date"
+                        value={exactExpiryDateByItem[item.order_item_id] ?? ''}
+                        onChange={(event) => {
+                          const nextDate = event.target.value;
+                          setExactExpiryDateByItem((prev) => ({
+                            ...prev,
+                            [item.order_item_id]: nextDate,
+                          }));
+                          setShelfLifeDaysByItem((prev) => ({
+                            ...prev,
+                            [item.order_item_id]: computeShelfLifeDays(
+                              receivedAtValue,
+                              nextDate,
+                            ),
+                          }));
+                        }}
+                        className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                      />
+                      <span className="mt-1 block text-[11px] text-zinc-500">
+                        Opcional. Si la completas, calcula el vencimiento
+                        aproximado con más precisión desde la recepción.
+                      </span>
+                    </label>
+                  </div>
                 </div>
               </div>
             ))}

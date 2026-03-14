@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const { createClient } = require('@supabase/supabase-js');
 
 const loadEnvFromFile = (fileName) => {
@@ -32,6 +33,7 @@ const loadEnvFromFile = (fileName) => {
 loadEnvFromFile('.env.local');
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !serviceKey) {
   console.error('Missing Supabase env');
@@ -41,6 +43,16 @@ if (!url || !serviceKey) {
 const supabase = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
+const publicAuth = anonKey
+  ? createClient(url, anonKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+  : null;
+
+const isLocalSupabase = /^https?:\/\/(127\.0\.0\.1|localhost):54321$/.test(url);
+const localDbUrl =
+  process.env.SUPABASE_DB_URL ||
+  'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
 
 const QA_ORG_ID = '11111111-1111-1111-1111-111111111111';
 const QA_BRANCH_A = '22222222-2222-2222-2222-222222222222';
@@ -93,18 +105,178 @@ const users = [
 
 const password = 'prueba123';
 
+const quoteSql = (value) => String(value).replace(/'/g, "''");
+
+const isAuthAdminUnsupported = (error) => {
+  const payload = `${error?.message ?? ''} ${error?.code ?? ''}`.toLowerCase();
+  return payload.includes('bad_jwt') || payload.includes('signing method');
+};
+
+const execLocalSql = (sql) => {
+  if (!isLocalSupabase) {
+    throw new Error(
+      'Auth admin fallback via SQL solo esta soportado para Supabase local',
+    );
+  }
+
+  return execFileSync('psql', [localDbUrl, '-At', '-c', sql], {
+    encoding: 'utf8',
+  }).trim();
+};
+
+const upsertLocalAuthUser = ({ id, email, password }) => {
+  const sql = `
+    insert into auth.users (
+      instance_id,
+      id,
+      aud,
+      role,
+      email,
+      encrypted_password,
+      email_confirmed_at,
+      raw_app_meta_data,
+      raw_user_meta_data,
+      created_at,
+      updated_at,
+      is_sso_user,
+      is_anonymous
+    ) values (
+      '00000000-0000-0000-0000-000000000000',
+      '${quoteSql(id)}',
+      'authenticated',
+      'authenticated',
+      '${quoteSql(email)}',
+      crypt('${quoteSql(password)}', gen_salt('bf')),
+      now(),
+      '{"provider":"email","providers":["email"]}',
+      '{}',
+      now(),
+      now(),
+      false,
+      false
+    )
+    on conflict (id) do update set
+      email = excluded.email,
+      encrypted_password = excluded.encrypted_password,
+      email_confirmed_at = excluded.email_confirmed_at,
+      raw_app_meta_data = excluded.raw_app_meta_data,
+      raw_user_meta_data = excluded.raw_user_meta_data,
+      updated_at = now();
+
+    insert into auth.identities (
+      user_id,
+      provider_id,
+      identity_data,
+      provider,
+      last_sign_in_at,
+      created_at,
+      updated_at
+    ) values (
+      '${quoteSql(id)}',
+      '${quoteSql(email)}',
+      jsonb_build_object(
+        'sub', '${quoteSql(id)}',
+        'email', '${quoteSql(email)}',
+        'email_verified', true,
+        'phone_verified', false
+      ),
+      'email',
+      now(),
+      now(),
+      now()
+    )
+    on conflict (provider_id, provider) do update set
+      user_id = excluded.user_id,
+      identity_data = excluded.identity_data,
+      last_sign_in_at = excluded.last_sign_in_at,
+      updated_at = now();
+  `;
+
+  execLocalSql(sql);
+  return { id };
+};
+
+const listLocalAuthUsersByEmail = (emails) => {
+  const sql = `
+    select id || E'\\t' || email
+    from auth.users
+    where email in (${emails.map((email) => `'${quoteSql(email)}'`).join(', ')})
+    order by email;
+  `;
+
+  const raw = execLocalSql(sql);
+  if (!raw) return [];
+
+  return raw.split('\n').map((line) => {
+    const [id, email] = line.split('\t');
+    return { id, email };
+  });
+};
+
+const signUpPublicUser = async ({ email, password }) => {
+  if (!publicAuth) {
+    throw new Error(
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY es obligatorio para fallback signUp local',
+    );
+  }
+
+  const { data, error } = await publicAuth.auth.signUp({
+    email,
+    password,
+  });
+
+  if (error) throw error;
+  return data?.user ?? null;
+};
+
 (async () => {
   for (const u of users) {
     let userId = u.id;
     let created = false;
 
-    const { data, error } = await supabase.auth.admin.createUser({
-      email: u.email,
-      password,
-      email_confirm: true,
-    });
+    let data;
+    let error;
+    try {
+      ({ data, error } = await supabase.auth.admin.createUser({
+        email: u.email,
+        password,
+        email_confirm: true,
+      }));
+    } catch (caughtError) {
+      error = caughtError;
+    }
 
     if (error) {
+      if (isAuthAdminUnsupported(error)) {
+        try {
+          const signedUpUser = await signUpPublicUser({
+            email: u.email,
+            password,
+          });
+          if (signedUpUser?.id) {
+            userId = signedUpUser.id;
+          } else {
+            const existingUser = listLocalAuthUsersByEmail([u.email]).find(
+              (user) => user.email === u.email,
+            );
+            if (!existingUser?.id) {
+              throw new Error(`User not found after signUp for ${u.email}`);
+            }
+            userId = existingUser.id;
+          }
+        } catch (signUpError) {
+          userId = upsertLocalAuthUser({
+            id: u.id,
+            email: u.email,
+            password,
+          }).id;
+        }
+        created = true;
+        u.realId = userId;
+        u.created = created;
+        continue;
+      }
+
       const message = String(error.message || '').toLowerCase();
       const alreadyExists =
         error.code === 'email_exists' ||

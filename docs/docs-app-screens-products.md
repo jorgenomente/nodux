@@ -29,7 +29,7 @@ Gestionar el catálogo de productos y el stock por sucursal, con operación real
 - activación/desactivación
 - ajustes manuales de stock (inventario inicial, corrección, merma no por vencimiento)
 - visibilidad por sucursal (desglose) + total
-- asociación de proveedor primario/secundario
+- asociación de proveedor principal/secundario
 - safety stock por sucursal
 - catálogo único por org (sin duplicados de maestro)
 
@@ -102,8 +102,8 @@ Campos mínimos:
 - vencimiento_aproximado_dias (opcional)
 - proveedor_primario (opcional pero recomendado)
 - precio_proveedor (opcional)
-- nombre_articulo_en_proveedor (opcional, si hay proveedor primario)
-- sku_en_proveedor (opcional, si hay proveedor primario)
+- nombre_articulo_en_proveedor (opcional, si hay proveedor principal)
+- sku_en_proveedor (opcional, si hay proveedor principal)
 - proveedor_secundario (opcional)
 - stock_minimo (opcional, label UI: `Cantidad de resguardo`, se aplica a todas las sucursales activas)
 
@@ -122,6 +122,9 @@ Reglas anti-duplicado (obligatorias):
   (trim + minúsculas), aunque no tenga códigos.
 - En alta, mientras se escribe `name`, la UI consulta catálogo existente y muestra
   sugerencias/alertas de coincidencia para prevenir duplicados semánticos.
+- En alta/edición, el input `Nombre de articulo en la tienda` muestra guía de
+  nomenclatura recomendada: `tipo + marca + variante + tamano/presentacion`
+  con ejemplo visible (`Alfajor Jorgito chocolate blanco 55 g`).
 - La UI debe informar el conflicto y ofrecer abrir/editar el producto existente.
 - En `internal_code`, la UI ofrece botón `Generar` para sugerir código consistente
   a partir de `brand` + `name` (si `brand` está vacío no genera).

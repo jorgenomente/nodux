@@ -103,6 +103,8 @@ const tokenize = (value: string) =>
     .filter(Boolean);
 
 const normalizeBarcode = (value: string) => value.replace(/[^\d]/g, '').trim();
+const productNamingGuide =
+  'Sugerencia: usa tipo + marca + variante + tamano/presentacion. Ej: Alfajor Jorgito chocolate blanco 55 g.';
 const toCodeToken = (value: string, fallback: string) => {
   const tokens = tokenize(value);
   if (tokens.length === 0) return fallback;
@@ -396,6 +398,7 @@ export default function ProductFormFieldsShared({
           required
           className={inputClass}
           list={productSuggestionsListId}
+          placeholder="Ej: Alfajor Jorgito chocolate blanco 55 g"
         />
         {productNameSuggestions.length > 0 ? (
           <datalist id={productSuggestionsListId}>
@@ -404,6 +407,9 @@ export default function ProductFormFieldsShared({
             ))}
           </datalist>
         ) : null}
+        <span className="mt-2 block text-xs text-zinc-500">
+          {productNamingGuide}
+        </span>
         {exactNameDuplicate ? (
           <span className="mt-2 block text-xs font-medium text-red-700">
             Ya existe un producto con este nombre (normalizado). Revisa antes de

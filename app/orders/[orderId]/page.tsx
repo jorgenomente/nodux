@@ -103,6 +103,14 @@ type SupplierProductPriceRow = {
   supplier_price: number | null;
 };
 
+type SupplierPrimaryRelationRow = {
+  product_id: string;
+  supplier_id?: string;
+  supplier: {
+    name: string | null;
+  } | null;
+};
+
 type ProductCatalogOptionRow = {
   id: string;
   name: string;
@@ -440,6 +448,20 @@ export default async function OrderDetailPage({
         },
       )
     : [];
+  const receivePrimarySupplierRelations = canReceive
+    ? await fetchAllPages<SupplierPrimaryRelationRow>(
+        (from, to) =>
+          supabase
+            .from('supplier_products')
+            .select('product_id, supplier_id, supplier:suppliers(name)')
+            .eq('org_id', orgId)
+            .eq('relation_type', 'primary')
+            .range(from, to),
+        {
+          label: 'order_receive_primary_supplier_products',
+        },
+      )
+    : [];
   const receiveSupplierRelationByProduct = new Map<
     string,
     SupplierProductRelationRow
@@ -447,6 +469,14 @@ export default async function OrderDetailPage({
   receiveSupplierRelations.forEach((row) => {
     if (!row.product_id) return;
     receiveSupplierRelationByProduct.set(row.product_id, row);
+  });
+  const receivePrimarySupplierByProduct = new Map<string, string | null>();
+  receivePrimarySupplierRelations.forEach((row) => {
+    if (!row.product_id) return;
+    receivePrimarySupplierByProduct.set(
+      row.product_id,
+      row.supplier?.name ?? null,
+    );
   });
   const receiveProductOptions = receiveProductCatalog.map((product) => {
     const relation = receiveSupplierRelationByProduct.get(product.id);
@@ -458,6 +488,8 @@ export default async function OrderDetailPage({
       internalCode: product.internal_code,
       supplierProductName: relation?.supplier_product_name ?? null,
       currentRelationType: relation?.relation_type ?? null,
+      currentPrimarySupplierName:
+        receivePrimarySupplierByProduct.get(product.id) ?? null,
     };
   });
   const receiveProductNameSuggestions = receiveProductCatalog.map(

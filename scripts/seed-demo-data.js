@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
+const { execFileSync } = require('child_process');
 const { createClient } = require('@supabase/supabase-js');
 
 const loadEnvFromFile = (fileName) => {
@@ -43,6 +44,11 @@ const supabase = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
+const isLocalSupabase = /^https?:\/\/(127\.0\.0\.1|localhost):54321$/.test(url);
+const localDbUrl =
+  process.env.SUPABASE_DB_URL ||
+  'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+
 const ORG_ID = '11111111-1111-1111-1111-111111111111';
 const BRANCH_A = '22222222-2222-2222-2222-222222222222';
 const BRANCH_B = '33333333-3333-3333-3333-333333333333';
@@ -72,6 +78,39 @@ const normalizeProductName = (value) =>
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+const quoteSql = (value) => String(value).replace(/'/g, "''");
+
+const isAuthAdminUnsupported = (error) => {
+  const payload = `${error?.message ?? ''} ${error?.code ?? ''}`.toLowerCase();
+  return payload.includes('bad_jwt') || payload.includes('signing method');
+};
+
+const listLocalAuthUsersByEmail = (emails) => {
+  if (!isLocalSupabase) {
+    throw new Error(
+      'Auth admin fallback via SQL solo esta soportado para Supabase local',
+    );
+  }
+
+  const sql = `
+    select id || E'\\t' || email
+    from auth.users
+    where email in (${emails.map((email) => `'${quoteSql(email)}'`).join(', ')})
+    order by email;
+  `;
+
+  const raw = execFileSync('psql', [localDbUrl, '-At', '-F', '\t', '-c', sql], {
+    encoding: 'utf8',
+  }).trim();
+
+  if (!raw) return [];
+
+  return raw.split('\n').map((line) => {
+    const [id, email] = line.split('\t');
+    return { id, email };
+  });
+};
 
 const suppliersSeed = [
   {
@@ -534,13 +573,23 @@ const purchaseOrderSeeds = [
 ];
 
 (async () => {
-  const { data: authUsersPage, error: authUsersError } =
-    await supabase.auth.admin.listUsers({
-      page: 1,
-      perPage: 200,
-    });
-  if (authUsersError) throw authUsersError;
-  const authUsers = authUsersPage?.users ?? [];
+  let authUsers = [];
+  try {
+    const { data: authUsersPage, error: authUsersError } =
+      await supabase.auth.admin.listUsers({
+        page: 1,
+        perPage: 200,
+      });
+    if (authUsersError) throw authUsersError;
+    authUsers = authUsersPage?.users ?? [];
+  } catch (error) {
+    if (!isAuthAdminUnsupported(error)) throw error;
+    authUsers = listLocalAuthUsersByEmail([
+      'admin@demo.com',
+      'demo-readonly@demo.com',
+    ]);
+  }
+
   const adminAuthUser = authUsers.find(
     (user) => user.email === 'admin@demo.com',
   );

@@ -43,7 +43,7 @@ Ultima actualizacion: 2026-03-11 13:13
 
 ## Proveedores y pedidos (MVP)
 
-- Un producto tiene exactamente un proveedor primario y puede tener un proveedor secundario.
+- Un producto tiene exactamente un proveedor principal y puede tener un proveedor secundario.
 - Se evita duplicar productos como primarios en mas de un proveedor.
 - Frecuencia de pedido por proveedor: weekly, biweekly, every_3_weeks, monthly (mensual = 30 dias en sugerencias).
 - Dias de pedido y recepcion se guardan como weekday (mon..sun).
@@ -68,6 +68,8 @@ Ultima actualizacion: 2026-03-11 13:13
 - `/products/lookup` pasa de placeholder a lookup operativo mobile-first para Staff/OA, con búsqueda por nombre en cualquier orden de palabras, lookup por `barcode` exacto, botón `Usar cámara` para escaneo desde dispositivo y fallback `Ingresar código` en navegadores sin soporte, límite de resultados (30) y visualización de precio + stock por sucursal.
 - `/products` refuerza anti-duplicado en alta: sugerencias en tiempo real por nombre, alertas de posible duplicado por nombre/código interno/barcode y bloqueo de guardado ante match exacto; DB endurecida con `name_normalized` y `barcode_normalized` únicos por org.
 - La lógica de higiene de catálogo ahora también sugiere `brand` y `category_tags` existentes en formularios compartidos de producto, onboarding y recepción, y el alta rápida de productos desde remito también alerta por nombres parecidos para reducir duplicados semánticos.
+- En `/products` y en el resolvedor de `/onboarding`, el campo `Nombre de articulo en la tienda` ahora muestra además una guía de nomenclatura visible: `tipo + marca + variante + tamano/presentacion`, con ejemplo concreto para alinear el catálogo.
+- Esa misma guía de nomenclatura ahora también aparece en el alta rápida de producto dentro del modal reutilizado de `/orders` y `/orders/[orderId]`, para no romper consistencia cuando se crea catálogo desde pedidos/recepción.
 - `/products` agrega transferencia inline de stock entre sucursales dentro de “Ajuste manual de stock”: mueve uno o varios artículos en una sola operación, disponible para OA/SA y para staff con módulo `products` habilitado cuando tiene 2 o más sucursales asignadas; la DB registra movimientos `branch_transfer` en origen/destino y audita la operación.
 - Productos incorpora configuración de compra proveedor por paquete (`purchase_by_pack`, `units_per_pack`); `/orders` y `/orders/[orderId]` muestran equivalencias en paquetes al pedir/recibir y `/onboarding` permite aplicar esta configuración en edición masiva.
 - Sugeridos simples en /orders usando ventas 30 dias + safety stock.
@@ -132,7 +134,7 @@ Ultima actualizacion: 2026-03-11 13:13
 - En importación de onboarding se consolidan duplicados por claves de negocio (producto/proveedor/relación) antes de validar y aplicar, para construir maestro limpio desde archivos transaccionales.
 - En `/onboarding`, después de `Detectar columnas`, el archivo queda en staging y `Validar e importar` reutiliza ese mismo archivo sin exigir re-carga en el input.
 - `/onboarding/export` agrega exportes maestros CSV para `products`, `suppliers` y `product_supplier`.
-- Proveedores ahora tienen `% ganancia sugerida` por defecto (`40%`) para pricing y `/products` muestra sugerencia de `precio unitario` desde `precio proveedor` + `%` del proveedor primario.
+- Proveedores ahora tienen `% ganancia sugerida` por defecto (`40%`) para pricing y `/products` muestra sugerencia de `precio unitario` desde `precio proveedor` + `%` del proveedor principal.
 - `supplier_price` ahora queda persistido por relación en `supplier_products`; editar producto/proveedor actualiza ese valor y permite trazabilidad del cambio de costo proveedor junto al precio sugerido.
 - Nuevo módulo de historial de ventas en `/sales` y detalle en `/sales/[saleId]` con filtros por monto, método, hora e ítems.
 - POS separa cierre en dos acciones: `Cobrar` (venta no facturada, sin enqueue fiscal) y `Cobrar y facturar` (inicia enqueue fiscal).
@@ -168,6 +170,8 @@ Ultima actualizacion: 2026-03-11 13:13
 - `/orders/[orderId]` ahora permite ajustar `precio unitario de venta` por ítem al confirmar recepción, actualizando `products.unit_price` en el acto con sugerido por `% de ganancia` proveedor/fallback org.
 - `/orders/[orderId]` también permite completar desde recepción `Marca`, `Categoria` y `Vencimiento aproximado (dias)` por ítem, precargando lo ya existente en el maestro y persistiendo esos datos en `products` al confirmar.
 - En esa misma recepción, cada ítem puede cargar además una `fecha exacta de vencimiento`; la UI calcula automáticamente los días desde la fecha de recepción y guarda ese valor derivado en `products.shelf_life_days`.
+- En recepción, esos dos campos de vencimiento ahora se presentan juntos y la UI aclara que la fecha exacta es opcional: solo sirve para calcular el vencimiento aproximado con más precisión si no se ingresa manualmente la cantidad de días.
+- En ese mismo formulario de recepción, `Cantidad recibida` y `Precio proveedor (unitario)` también quedaron agrupados visualmente en la misma fila para compactar la carga por ítem.
 - El campo `Marca` en recepción ahora sugiere marcas ya registradas en la org y muestra coincidencias parecidas para evitar duplicados de catálogo.
 - En `/orders/[orderId]`, el formulario de recepción/control ya no confirma por tecla `Enter`; el cierre del flujo requiere click explícito en el botón de confirmación.
 - En armado de pedido (`/orders` y `/orders/[orderId]` en draft), costo unitario usa por defecto precio proveedor registrado con check opcional para recalcular por `% ganancia` sugerido.
@@ -176,6 +180,9 @@ Ultima actualizacion: 2026-03-11 13:13
 - `/orders` ahora precarga `Ajustes de sugeridos > Margen de ganancia (%)` con el `% de ganancia deseado` del proveedor seleccionado y usa `default_supplier_markup_pct` de la org solo como fallback.
 - `/orders` ahora aclara en el bloque `Mostrando` la frecuencia efectiva cuando el promedio queda en `Segun proveedor` (ej. `Segun proveedor (semanal)`).
 - `/orders` ahora permite editar inline `Stock de resguardo` por artículo mientras se arma un pedido y persiste ese valor en la sucursal seleccionada al guardar borrador o enviar pedido.
+- `/orders` ahora reutiliza el modal de recepción para `Agregar productos al pedido` durante el draft: permite sumar artículos existentes aunque todavía no estén asignados al proveedor, vincularlos opcionalmente como primario/secundario o crear un producto nuevo, y los inyecta en vivo en la grilla local sin perder el armado actual.
+- Si `/orders` no devuelve sugeridos para el proveedor/sucursal elegidos, el estado vacío igual muestra ese CTA para que el usuario pueda empezar el pedido agregando artículos manualmente.
+- En ese modal reutilizado (`/orders` y `/orders/[orderId]`), si un artículo ya tiene otro proveedor principal, la UI ahora lo explicita, preselecciona `proveedor secundario` y pide confirmación si el usuario decide promover al proveedor actual como nuevo `primario`.
 - `/orders` suma acciones operativas `Imprimir` y `Enviar por WhatsApp` al armar un pedido, con modal para elegir columnas, generar un PDF browser-print claro y editar allí mismo el `Nombre de articulo en el proveedor` antes de guardar/compartir.
 - En ese modal de `/orders`, `Producto` ya no es obligatorio: el usuario puede exportar/compartir usando solo `Nombre en proveedor` u otras columnas, siempre que quede al menos una columna seleccionada.
 - Tras usar `Guardar PDF` en el modal de `/orders`, la UI muestra ahí mismo `Guardar borrador` y `Enviar pedido` como segundo entry point para cerrar el flujo operativo.
@@ -195,6 +202,8 @@ Ultima actualizacion: 2026-03-11 13:13
 - `/products` ahora permite tocar/clickear la foto de cada artículo en el listado para abrir un modal de vista ampliada y, para OA/SA, cambiarla o tomar una nueva sin abrir el formulario completo; la compresión previa a JPG liviano se mantiene.
 - Productos ahora soportan `category_tags` por hashtags (`#keto #fitness #sintacc`) persistidas en el maestro; se editan desde `/products`, `/onboarding` y recepción de `/orders/[orderId]`, y el storefront público las usa para filtrar catálogo.
 - UI interna inicial de pedidos online implementada en `/online-orders` (OA/ST con módulo habilitado), con filtros por sucursal/estado/búsqueda y transición de estados vía `rpc_set_online_order_status`.
+- `/online-orders` ahora expone además un acceso rápido contextual a la tienda pública de la sucursal filtrada (o al selector público por org cuando OA ve todas), usando `org.storefront_slug` + `branch.storefront_slug` y avisando si storefront está deshabilitado o incompleto.
+- En `/online-orders`, el selector de sucursal del bloque de búsqueda ya se resincroniza cuando la sucursal activa cambia desde el top bar; se fuerza remount del `<select>` para evitar que App Router conserve un `defaultValue` viejo en el DOM.
 - Comprobantes de pago online v1 implementados: carga pública desde `/o/:trackingToken` (archivo imagen) con persistencia en `online_order_payment_proofs` y revisión interna en `/online-orders` (aprobar/rechazar + nota), soportado por bucket privado `online-order-proofs` (migración `20260302101500_069_online_order_proofs_storage_bucket.sql`).
 - `/settings` ahora muestra sección "Tienda online" con estado de storefront (`is_enabled`), `orgSlug` y links públicos por org/sucursal para facilitar QA operativo sin abrir SQL/Studio.
 - `/settings` agrega toggle directo para `storefront_settings.is_enabled` (botón `Habilitar/Deshabilitar tienda online`) con persistencia server-side y refresco inmediato.
@@ -212,6 +221,6 @@ Ultima actualizacion: 2026-03-11 13:13
 - La observabilidad del delivery ya no depende sólo de metadata agregada: `sale_delivery_events` registra `shared`, `opened`, `revoked` y `regenerated`, y `/sales/[saleId]` muestra ese historial reciente por documento/canal/actor.
 - Flujo operativo de cobro online reforzado: `/online-orders` muestra detalle de artículos y habilita `Cobrar en POS`; `/pos?online_order_id=:id` precarga carrito con ítems snapshot del pedido y, al cobrar, avanza estado online a `delivered`.
 - En `/onboarding`, el apply de importación ahora matchea productos existentes solo por `barcode`/`internal_code` (sin fallback por nombre) y la deduplicación previa del archivo sigue la misma regla para evitar merges ambiguos por nombre.
-- `/onboarding` incorpora edición masiva de productos con búsqueda/paginación server-side y aplicación por lote sobre seleccionados o todos los resultados filtrados; soporta patch de marca, proveedor primario/secundario, shelf life, precio proveedor y precio unitario.
+- `/onboarding` incorpora edición masiva de productos con búsqueda/paginación server-side y aplicación por lote sobre seleccionados o todos los resultados filtrados; soporta patch de marca, proveedor principal/secundario, shelf life, precio proveedor y precio unitario.
 - Formularios de producto (alta/edición/resolvedor) y edición masiva en `/onboarding` incorporan opción `No aplica vencimiento`, que guarda `shelf_life_days=0`; en recepción de pedidos, `0` o valor vacío no generan batches automáticos de vencimiento.
-- En edición masiva de `/onboarding`, el campo de proveedor primario incorpora CTA `Crear proveedor` con modal rápido (nombre obligatorio) que reutiliza contrato de alta de proveedor y permite cargar cuenta de transferencia opcional en el mismo flujo.
+- En edición masiva de `/onboarding`, el campo de proveedor principal incorpora CTA `Crear proveedor` con modal rápido (nombre obligatorio) que reutiliza contrato de alta de proveedor y permite cargar cuenta de transferencia opcional en el mismo flujo.

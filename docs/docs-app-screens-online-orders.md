@@ -30,6 +30,10 @@ Operar pedidos online de punta a punta:
 
 - filtros: sucursal, estado, rango fecha
 - búsqueda: pedido/teléfono/nombre
+- CTA contextual a tienda pública:
+  - si hay sucursal filtrada/única visible: link directo a `/:orgSlug/:branchSlug`
+  - si OA está viendo todas las sucursales: link a `/:orgSlug` para elegir sucursal
+  - si storefront está deshabilitado o faltan slugs: aviso explícito en UI
 
 ### Lista de pedidos
 

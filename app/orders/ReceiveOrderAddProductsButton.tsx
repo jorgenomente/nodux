@@ -13,7 +13,29 @@ type ExistingProductOption = {
   internalCode: string | null;
   supplierProductName: string | null;
   currentRelationType: 'primary' | 'secondary' | null;
+  currentPrimarySupplierName?: string | null;
 };
+
+export type AddProductsModalResultItem = {
+  product_id: string;
+  relation_type: 'none' | 'primary' | 'secondary';
+  product_name: string | null;
+  purchase_by_pack: boolean | null;
+  units_per_pack: number | null;
+  stock_on_hand: number | null;
+  safety_stock: number | null;
+  avg_daily_sales_30d: number | null;
+  cycle_days?: number | null;
+  suggested_qty: number | null;
+  primary_supplier_name?: string | null;
+  supplier_product_name?: string | null;
+  supplier_sku?: string | null;
+  supplier_price?: number | null;
+};
+
+type AddProductsModalActionResult = {
+  addedProducts?: AddProductsModalResultItem[];
+} | void;
 
 type Props = {
   supplierName: string;
@@ -29,8 +51,24 @@ type Props = {
   brandSuggestions?: string[];
   categoryTagSuggestions?: string[];
   currentOrderProductIds: string[];
-  onAddExistingProducts: (formData: FormData) => Promise<void>;
-  onCreateProduct: (formData: FormData) => Promise<void>;
+  onAddExistingProducts: (
+    formData: FormData,
+  ) => Promise<AddProductsModalActionResult>;
+  onCreateProduct: (
+    formData: FormData,
+  ) => Promise<AddProductsModalActionResult>;
+  defaultExistingSupplierRelation?: 'none' | 'primary' | 'secondary';
+  defaultNewSupplierRelation?: 'none' | 'primary' | 'secondary';
+  triggerQuestion?: string;
+  triggerActionLabel?: string;
+  contextLabel?: string;
+  title?: string;
+  description?: string;
+  existingHelperText?: string;
+  existingSubmitLabel?: string;
+  createHelperText?: string;
+  createSubmitLabel?: string;
+  onProductsAdded?: (items: AddProductsModalResultItem[]) => void;
 };
 
 type SelectedProductState = {
@@ -48,9 +86,12 @@ const normalizeText = (value: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+const productNamingGuide =
+  'Sugerencia: usa tipo + marca + variante + tamano/presentacion. Ej: Alfajor Jorgito chocolate blanco 55 g.';
+
 const relationOptions = [
   { value: 'none', label: 'No asignar proveedor' },
-  { value: 'primary', label: 'Asignar como proveedor primario' },
+  { value: 'primary', label: 'Asignar como proveedor principal' },
   { value: 'secondary', label: 'Asignar como proveedor secundario' },
 ] as const;
 
@@ -63,6 +104,18 @@ export default function ReceiveOrderAddProductsButton({
   currentOrderProductIds,
   onAddExistingProducts,
   onCreateProduct,
+  defaultExistingSupplierRelation = 'none',
+  defaultNewSupplierRelation = 'primary',
+  triggerQuestion = '¿Hay productos en el remito que no están en esta lista?',
+  triggerActionLabel = 'Agrega productos aquí',
+  contextLabel = 'Recepcion de mercaderia',
+  title = 'Agregar productos al remito',
+  description = 'Suma artículos que llegaron en el remito aunque no hayan estado en el pedido original. Si corresponde, puedes asignar este proveedor a los articulos que selecciones.',
+  existingHelperText = 'Los productos seleccionados se agregan al pedido con cantidad ordenada `0`, así luego puedes cargar la cantidad real recibida en la grilla principal.',
+  existingSubmitLabel = 'Agregar al pedido',
+  createHelperText = 'El producto nuevo se agrega al pedido actual y luego aparece en la grilla normal de recepción para cargar cantidad, costo y precio de venta.',
+  createSubmitLabel = 'Crear producto y agregar',
+  onProductsAdded,
 }: Props) {
   const productSuggestionsListId = useId();
   const brandSuggestionsListId = useId();
@@ -249,6 +302,18 @@ export default function ReceiveOrderAddProductsButton({
     setShelfLifeNoApplies(false);
   };
 
+  const productHasAnotherPrimarySupplier = (product: ExistingProductOption) =>
+    Boolean(
+      product.currentPrimarySupplierName &&
+      product.currentRelationType !== 'primary',
+    );
+
+  const resolveExistingDefaultRelation = (product: ExistingProductOption) => {
+    if (product.currentRelationType) return product.currentRelationType;
+    if (productHasAnotherPrimarySupplier(product)) return 'secondary';
+    return defaultExistingSupplierRelation;
+  };
+
   const toggleProduct = (product: ExistingProductOption, checked: boolean) => {
     setSelectedProducts((prev) => {
       if (!checked) {
@@ -259,12 +324,34 @@ export default function ReceiveOrderAddProductsButton({
       return {
         ...prev,
         [product.id]: {
-          supplierRelation: product.currentRelationType ?? 'none',
+          supplierRelation: resolveExistingDefaultRelation(product),
           supplierProductName: product.supplierProductName ?? '',
           supplierSku: '',
         },
       };
     });
+  };
+
+  const handleRelationChange = (
+    product: ExistingProductOption,
+    nextRelation: 'none' | 'primary' | 'secondary',
+  ) => {
+    if (
+      nextRelation === 'primary' &&
+      productHasAnotherPrimarySupplier(product) &&
+      !window.confirm(
+        `Este cambio quitará a ${product.currentPrimarySupplierName} como proveedor principal y asignará a ${supplierName} como nuevo proveedor principal. ¿Quieres continuar?`,
+      )
+    ) {
+      return;
+    }
+    setSelectedProducts((prev) => ({
+      ...prev,
+      [product.id]: {
+        ...prev[product.id],
+        supplierRelation: nextRelation,
+      },
+    }));
   };
 
   const handleExistingSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -284,7 +371,11 @@ export default function ReceiveOrderAddProductsButton({
           })),
         ),
       );
-      await onAddExistingProducts(formData);
+      const result = await onAddExistingProducts(formData);
+      if (result && Array.isArray(result.addedProducts)) {
+        onProductsAdded?.(result.addedProducts);
+      }
+      closeModal();
     } finally {
       setIsAddingExisting(false);
     }
@@ -297,7 +388,11 @@ export default function ReceiveOrderAddProductsButton({
     setIsCreatingProduct(true);
     try {
       const formData = new FormData(event.currentTarget);
-      await onCreateProduct(formData);
+      const result = await onCreateProduct(formData);
+      if (result && Array.isArray(result.addedProducts)) {
+        onProductsAdded?.(result.addedProducts);
+      }
+      closeModal();
     } catch (error) {
       setCreateError(
         error instanceof Error
@@ -315,16 +410,12 @@ export default function ReceiveOrderAddProductsButton({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold tracking-[0.18em] text-zinc-500 uppercase">
-              Recepcion de mercaderia
+              {contextLabel}
             </p>
             <h3 className="mt-2 text-2xl font-semibold text-zinc-900">
-              Agregar productos al remito
+              {title}
             </h3>
-            <p className="mt-1 text-sm text-zinc-500">
-              Suma artículos que llegaron en el remito aunque no hayan estado en
-              el pedido original. Si corresponde, puedes asignar este proveedor
-              a los articulos que selecciones.
-            </p>
+            <p className="mt-1 text-sm text-zinc-500">{description}</p>
           </div>
           <button
             type="button"
@@ -373,11 +464,7 @@ export default function ReceiveOrderAddProductsButton({
                   className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm md:max-w-md"
                 />
               </label>
-              <p className="mt-2 text-xs text-zinc-500">
-                Los productos seleccionados se agregan al pedido con cantidad
-                ordenada `0`, así luego puedes cargar la cantidad real recibida
-                en la grilla principal.
-              </p>
+              <p className="mt-2 text-xs text-zinc-500">{existingHelperText}</p>
             </div>
 
             {availableProducts.length === 0 ? (
@@ -389,6 +476,8 @@ export default function ReceiveOrderAddProductsButton({
                 <div className="space-y-3">
                   {availableProducts.map((product) => {
                     const selected = selectedProducts[product.id];
+                    const hasAnotherPrimarySupplier =
+                      productHasAnotherPrimarySupplier(product);
                     return (
                       <div
                         key={product.id}
@@ -428,6 +517,16 @@ export default function ReceiveOrderAddProductsButton({
                                 : 'Sin asignar'}
                           </div>
                         </div>
+                        {hasAnotherPrimarySupplier ? (
+                          <p className="mt-2 text-xs text-amber-700">
+                            Proveedor principal actual:{' '}
+                            <span className="font-semibold">
+                              {product.currentPrimarySupplierName}
+                            </span>
+                            . Si lo agregas aquí, se sugiere `proveedor
+                            secundario` para no reemplazarlo por accidente.
+                          </p>
+                        ) : null}
 
                         {selected ? (
                           <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -436,16 +535,13 @@ export default function ReceiveOrderAddProductsButton({
                               <select
                                 value={selected.supplierRelation}
                                 onChange={(event) =>
-                                  setSelectedProducts((prev) => ({
-                                    ...prev,
-                                    [product.id]: {
-                                      ...prev[product.id],
-                                      supplierRelation: event.target.value as
-                                        | 'none'
-                                        | 'primary'
-                                        | 'secondary',
-                                    },
-                                  }))
+                                  handleRelationChange(
+                                    product,
+                                    event.target.value as
+                                      | 'none'
+                                      | 'primary'
+                                      | 'secondary',
+                                  )
                                 }
                                 className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
                               >
@@ -459,6 +555,15 @@ export default function ReceiveOrderAddProductsButton({
                                 ))}
                               </select>
                             </label>
+                            {hasAnotherPrimarySupplier &&
+                            selected.supplierRelation === 'primary' ? (
+                              <p className="text-xs text-amber-700 md:col-span-3">
+                                Al guardar, {supplierName} pasará a ser el
+                                proveedor principal y{' '}
+                                {product.currentPrimarySupplierName} dejará de
+                                serlo para este articulo.
+                              </p>
+                            ) : null}
                             <label className="text-sm text-zinc-600">
                               Nombre de articulo en el proveedor
                               <input
@@ -522,7 +627,7 @@ export default function ReceiveOrderAddProductsButton({
                   disabled={selectedCount === 0 || isAddingExisting}
                   className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isAddingExisting ? 'Agregando...' : 'Agregar al pedido'}
+                  {isAddingExisting ? 'Agregando...' : existingSubmitLabel}
                 </button>
               </div>
             </div>
@@ -539,7 +644,11 @@ export default function ReceiveOrderAddProductsButton({
                   onChange={(event) => setNameValue(event.target.value)}
                   list={productSuggestionsListId}
                   className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                  placeholder="Ej: Alfajor Jorgito chocolate blanco 55 g"
                 />
+                <span className="mt-1 block text-xs text-zinc-500">
+                  {productNamingGuide}
+                </span>
                 {exactNameDuplicate ? (
                   <span className="mt-1 block text-xs text-red-700">
                     Ya existe un producto con este nombre.
@@ -608,7 +717,7 @@ export default function ReceiveOrderAddProductsButton({
                 Asignar este articulo a {supplierName}
                 <select
                   name="supplier_relation"
-                  defaultValue="primary"
+                  defaultValue={defaultNewSupplierRelation}
                   className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
                 >
                   {relationOptions.map((option) => (
@@ -695,18 +804,8 @@ export default function ReceiveOrderAddProductsButton({
                 ) : null}
               </div>
               <div className="rounded-2xl border border-zinc-200 p-4">
-                <label className="flex items-center gap-2 text-sm text-zinc-700">
-                  <input
-                    type="checkbox"
-                    checked={shelfLifeNoApplies}
-                    onChange={(event) =>
-                      setShelfLifeNoApplies(event.target.checked)
-                    }
-                  />
-                  No aplica vencimiento
-                </label>
                 {!shelfLifeNoApplies ? (
-                  <label className="mt-3 block text-sm text-zinc-600">
+                  <label className="block text-sm text-zinc-600">
                     Vencimiento aproximado (dias)
                     <input
                       name="shelf_life_days"
@@ -719,6 +818,16 @@ export default function ReceiveOrderAddProductsButton({
                 ) : (
                   <input type="hidden" name="shelf_life_days" value="0" />
                 )}
+                <label className="mt-3 flex items-center gap-2 text-sm text-zinc-700">
+                  <input
+                    type="checkbox"
+                    checked={shelfLifeNoApplies}
+                    onChange={(event) =>
+                      setShelfLifeNoApplies(event.target.checked)
+                    }
+                  />
+                  No aplica vencimiento
+                </label>
               </div>
               <label className="text-sm text-zinc-600">
                 Cantidad de resguardo
@@ -760,11 +869,7 @@ export default function ReceiveOrderAddProductsButton({
             ) : null}
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
-              <p className="text-sm text-zinc-600">
-                El producto nuevo se agrega al pedido actual y luego aparece en
-                la grilla normal de recepción para cargar cantidad, costo y
-                precio de venta.
-              </p>
+              <p className="text-sm text-zinc-600">{createHelperText}</p>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -778,9 +883,7 @@ export default function ReceiveOrderAddProductsButton({
                   disabled={isCreatingProduct}
                   className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isCreatingProduct
-                    ? 'Creando...'
-                    : 'Crear producto y agregar'}
+                  {isCreatingProduct ? 'Creando...' : createSubmitLabel}
                 </button>
               </div>
             </div>
@@ -794,13 +897,13 @@ export default function ReceiveOrderAddProductsButton({
     <>
       <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-4">
         <p className="text-sm text-zinc-700">
-          ¿Hay productos en el remito que no están en esta lista?{' '}
+          {triggerQuestion}{' '}
           <button
             type="button"
             onClick={() => setOpen(true)}
             className="font-semibold text-zinc-900 underline decoration-zinc-400 underline-offset-4"
           >
-            Agrega productos aquí
+            {triggerActionLabel}
           </button>
           .
         </p>

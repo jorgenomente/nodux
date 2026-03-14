@@ -11832,3 +11832,637 @@ Se aplico una optimizacion de bajo riesgo para reducir latencia de navegacion en
 - `npx playwright test e2e/smoke-pos.spec.ts` OK, `6 passed` (2026-03-10)
 
 **Commit:** N/A
+
+## 2026-03-13 20:17 -03 — Plan repo-aware para implementar UI Kit de Figma
+
+**Tipo:** decision/docs
+**Lote:** figma-ui-kit-implementation-plan
+**Descripción:** Se revisó el contexto obligatorio del repo, el alcance MVP, el sitemap oficial, el índice de pantallas y las convenciones UI actuales para preparar un plan de implementación del UI Kit de Figma. Se detectó que el MCP de Figma requiere reinicio de sesión/herramienta para exponer el diseño al cliente MCP, por lo que el plan queda delimitado contra el repo actual y pendiente de validación visual precisa del archivo de Figma.
+
+**Archivos afectados:**
+
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica; turno de planificación/documentación.
+
+**Commit:** N/A
+
+## 2026-03-13 22:12 -03 — Infra: ignorar exports de referencia visual en `public/design`
+
+**Tipo:** infra/docs
+**Lote:** infra-ignore-design-reference-exports
+**Descripción:** Se agregó `public/design/` al `.gitignore` para excluir del versionado dos exports de referencia visual (`Design System for NODUX` y `Login Screen`) que se usarán como apoyo local y no como código fuente mantenido dentro del producto.
+
+**Archivos afectados:**
+
+- .gitignore
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica; cambio de ignore/documentación.
+
+**Commit:** N/A
+
+## 2026-03-13 22:16 -03 — Docs: registrar credencial local `demo@propi.local`
+
+**Tipo:** docs
+**Lote:** docs-local-demo-credentials-propi
+**Descripción:** Se actualizó la documentación de usuarios demo locales para incluir la cuenta adicional `demo@propi.local` con su contraseña `propi123`, ya existente en la base local pero no listada en `docs/docs-demo-users.md`.
+
+**Archivos afectados:**
+
+- docs/docs-demo-users.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica; cambio de documentación.
+
+**Commit:** N/A
+
+## 2026-03-14 00:00 -03 — Online Orders: acceso rápido a tienda pública por sucursal visible
+
+**Tipo:** ui/docs
+**Lote:** online-orders-storefront-quick-link
+**Descripción:** Se agregó en `/online-orders` un bloque contextual `Tienda pública` debajo de los filtros para abrir rápidamente el storefront público de la sucursal filtrada. Si OA está viendo todas las sucursales, el CTA apunta al selector público `/:orgSlug`; si la tienda está deshabilitada o faltan slugs públicos, la pantalla muestra la aclaración correspondiente. Durante la validación se excluyó además `public/design/**` de TypeScript y ESLint para que los exports locales de referencia visual no rompan `lint`/`build`.
+
+**Archivos afectados:**
+
+- app/online-orders/page.tsx
+- eslint.config.mjs
+- tsconfig.json
+- docs/docs-app-screens-online-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 12:04 -03 — Orders recepción: `Marca` antes que `Categoria`
+
+**Tipo:** ui/docs/tests
+**Lote:** orders-receive-expiry-fields-layout
+**Descripción:** Dentro del formulario de recepción/control en `/orders/[orderId]`, se mantuvo el bloque `Marca` + `Categoria` en una misma fila pero invirtiendo el orden para mostrar primero `Marca` y luego `Categoria`, siguiendo la secuencia operativa pedida por el usuario.
+
+**Archivos afectados:**
+
+- app/orders/ReceiveItemsPricingClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 11:59 -03 — Orders recepción: cantidad recibida + precio proveedor en la misma fila
+
+**Tipo:** ui/docs/tests
+**Lote:** orders-receive-expiry-fields-layout
+**Descripción:** Se compactó un paso más el formulario de recepción/control en `/orders/[orderId]`: `Cantidad recibida` y `Precio proveedor (unitario)` ahora comparten fila en ambas vistas (`Filas` y `Tarjetas`) cuando el ancho lo permite, reduciendo el alto por artículo y alineando mejor los datos operativos principales de recepción.
+
+**Archivos afectados:**
+
+- app/orders/ReceiveItemsPricingClient.tsx
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 11:55 -03 — Orders recepción: vencimiento aproximado + fecha exacta alineados
+
+**Tipo:** ui/docs/tests
+**Lote:** orders-receive-expiry-fields-layout
+**Descripción:** Se reordenó en `/orders/[orderId]` el bloque de vencimiento dentro de recepción/control para que `Vencimiento aproximado (dias)` y `Fecha exacta de vencimiento` queden juntos, en la misma fila cuando hay espacio. Además se cambió el helper de la fecha exacta para dejar explícito que es opcional y solo se usa para calcular el vencimiento aproximado con mayor precisión; si el usuario ya conoce los días, no necesita completar la fecha.
+
+**Archivos afectados:**
+
+- app/orders/ReceiveItemsPricingClient.tsx
+- docs/docs-modules-supplier-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 11:51 -03 — Orders: guía de nomenclatura también en alta rápida de pedidos
+
+**Tipo:** ui/docs/tests
+**Lote:** product-naming-guidance-helper
+**Descripción:** Se extendió la misma guía de nomenclatura de artículos al modal reutilizado `Nuevo producto` usado en `/orders` y `/orders/[orderId]`. El campo `Nombre de articulo en la tienda` ahora muestra placeholder y helper con la convención `tipo + marca + variante + tamano/presentacion`, manteniendo coherencia con `/products` y `/onboarding`.
+
+**Archivos afectados:**
+
+- app/orders/ReceiveOrderAddProductsButton.tsx
+- docs/docs-app-screens-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 11:47 -03 — Products/Onboarding: guía visible de nomenclatura para artículos
+
+**Tipo:** ui/docs/tests
+**Lote:** product-naming-guidance-helper
+**Descripción:** Se agregó una guía de nomenclatura directamente en el campo `Nombre de articulo en la tienda` del formulario compartido de productos. La ayuda recomienda usar `tipo + marca + variante + tamano/presentacion` y muestra un ejemplo concreto (`Alfajor Jorgito chocolate blanco 55 g`). Como el input vive en `ProductFormFieldsShared`, el cambio impacta tanto el alta/edición de `/products` como el resolvedor inline de `/onboarding`.
+
+**Archivos afectados:**
+
+- app/products/ProductFormFieldsShared.tsx
+- docs/docs-app-screens-products.md
+- docs/docs-app-screens-onboarding.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 11:34 -03 — Orders: reordenar bloque de vencimiento en alta rápida
+
+**Tipo:** ui/docs/tests
+**Lote:** orders-draft-add-products-modal
+**Descripción:** En el modal `Agregar productos al pedido` se reordenó el bloque de vencimiento de la pestaña `Nuevo producto` para que el input `Vencimiento aproximado (dias)` aparezca primero y el check `No aplica vencimiento` quede debajo. El objetivo es mejorar la lectura del formulario y que la excepción se entienda después del campo principal.
+
+**Archivos afectados:**
+
+- app/orders/ReceiveOrderAddProductsButton.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 11:33 -03 — UI/docs: `proveedor principal` reemplaza `proveedor primario`
+
+**Tipo:** ui/docs/tests
+**Lote:** supplier-primary-copy-main-term
+**Descripción:** Se alineó la terminología visible de la app y de la documentación viva para usar `proveedor principal` en lugar de `proveedor primario`. El cambio se aplicó en labels y mensajes de `/orders`, `/products`, `/onboarding`, estadísticas y contratos/modulos relevantes. Se preservaron los identificadores técnicos internos (`primary_supplier_*`, relación `primary`) y los registros históricos (`docs/prompts.md`, `docs/activity-log.md`, snapshots SQL) para no romper contratos ni trazabilidad.
+
+**Archivos afectados:**
+
+- app/orders/ReceiveOrderAddProductsButton.tsx
+- app/onboarding/page.tsx
+- app/products/page.tsx
+- app/products/product-form-contract.ts
+- app/sales/statistics/page.tsx
+- docs/context-summary.md
+- docs/docs-roadmap.md
+- docs/docs-rls-matrix.md
+- docs/docs-modules-suppliers.md
+- docs/docs-app-screens-products.md
+- docs/docs-app-screens-onboarding.md
+- docs/docs-modules-clients.md
+- docs/docs-app-screens-orders.md
+- docs/docs-app-screens-supplier-detail.md
+- docs/docs-app-screens-sales-statistics.md
+- docs/docs-modules-data-onboarding.md
+- docs/docs-modules-supplier-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 11:28 -03 — Orders: modal de agregar productos explicita primario actual
+
+**Tipo:** ui/docs/tests
+**Lote:** orders-draft-add-products-modal
+**Descripción:** Se ajustó el modal reutilizado de `Agregar productos` en `/orders` y `/orders/[orderId]` para respetar de forma explícita la regla de un solo proveedor primario por artículo. Ahora, cuando un producto ya tiene otro proveedor `primary`, la UI muestra `Proveedor primario actual: X`, preselecciona `Asignar como proveedor secundario` al tildar el artículo y pide confirmación si el usuario intenta cambiar manualmente la relación a `primary`, aclarando que eso reemplazará al primario actual.
+
+**Archivos afectados:**
+
+- app/orders/ReceiveOrderAddProductsButton.tsx
+- app/orders/OrderSuggestionsClient.tsx
+- app/orders/page.tsx
+- app/orders/[orderId]/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/docs-modules-supplier-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 11:20 -03 — Orders: fix de scope al agregar productos sin sugeridos
+
+**Tipo:** ui/docs/tests
+**Lote:** orders-draft-add-products-modal
+**Descripción:** Se corrigió un bug en los server actions del modal `Agregar productos al pedido` cuando se usaba sobre un proveedor sin sugeridos. El payload de los artículos agregados intentaba calcular `cycle_days` usando `selectedSupplier`, variable que no existía en ese scope. Ahora el cálculo reutiliza `selectedSupplierForDraft` resuelto al inicio de la página y guarda `draftSupplierCycleDays`, evitando el crash `selectedSupplier is not defined`.
+
+**Archivos afectados:**
+
+- app/orders/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 11:15 -03 — Orders: CTA de agregar productos visible también sin sugeridos
+
+**Tipo:** ui/docs/tests
+**Lote:** orders-draft-add-products-modal
+**Descripción:** Se ajustó el estado vacío del armado de pedido en `/orders` para que, cuando un proveedor todavía no tiene artículos sugeridos/registrados para la sucursal elegida, siga apareciendo el entry point `¿Hay productos que quieres pedir y no aparecen en esta lista? Agrega productos aquí`. Así el usuario puede iniciar el pedido manualmente desde el mismo modal reutilizado, sin quedar bloqueado por una lista vacía.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/docs-app-screens-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 00:08 -03 — Online Orders: resincronización visual del selector de sucursal
+
+**Tipo:** ui/docs
+**Lote:** online-orders-branch-filter-sync
+**Descripción:** Se corrigió el selector de sucursal del bloque `Buscar` en `/online-orders` para que refleje la sucursal activa aplicada desde el top bar. El contenido de la pantalla ya obedecía `resolveActiveBranchId`, pero el `<select>` conservaba un `defaultValue` previo en navegaciones suaves del App Router; ahora se fuerza remount con `key` basada en la sucursal efectiva.
+
+**Archivos afectados:**
+
+- app/online-orders/page.tsx
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica; ajuste UI puntual sin impacto de tipos.
+
+**Commit:** N/A
+
+## 2026-03-14 09:55 -03 — Orders: copy `Precio estimado de proveedor` en armado
+
+**Tipo:** ui/docs
+**Lote:** orders-supplier-estimated-price-copy
+**Descripción:** Se renombró en `/orders` la columna editable `Costo estimado` por `Precio estimado de proveedor` dentro del armado de pedido nuevo, tanto en vista tabla como tarjetas, para evitar ambigüedad con costo interno o precio de venta.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/docs-app-screens-orders.md
+- docs/docs-modules-supplier-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 09:57 -03 — Orders: copy del tooltip para precio estimado de proveedor
+
+**Tipo:** ui/docs
+**Lote:** orders-supplier-estimated-price-tooltip-copy
+**Descripción:** Se ajustó en `/orders` el tooltip del control de margen para reemplazar `Se usa para estimar el costo del articulo en el proveedor.` por `Se usa para estimar el precio del proveedor por articulo`, alineándolo con el nuevo naming de la columna del armado.
+
+**Archivos afectados:**
+
+- app/orders/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica; cambio de copy.
+
+**Commit:** N/A
+
+## 2026-03-14 09:58 -03 — Orders: simplificación final del tooltip de precio estimado
+
+**Tipo:** ui/docs
+**Lote:** orders-supplier-estimated-price-tooltip-copy
+**Descripción:** Se simplificó nuevamente el tooltip del control de margen en `/orders` para dejarlo en `Se usa para estimar el precio.`, reduciendo ruido visual en la ayuda contextual.
+
+**Archivos afectados:**
+
+- app/orders/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica; cambio de copy.
+
+**Commit:** N/A
+
+## 2026-03-14 10:00 -03 — Orders: corrección del texto visible en ayuda de margen
+
+**Tipo:** ui/docs
+**Lote:** orders-supplier-estimated-price-tooltip-copy
+**Descripción:** Se corrigió en `/orders` el texto visible bajo `Margen de ganancia (%)`, que todavía seguía diciendo `costo del articulo en el proveedor` aunque el `title` ya había cambiado. Ahora tanto el tooltip como la línea visible dicen `Se usa para estimar el precio del articulo en el proveedor.`
+
+**Archivos afectados:**
+
+- app/orders/page.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica; cambio de copy.
+
+**Commit:** N/A
+
+## 2026-03-14 10:03 -03 — Orders: frecuencia del proveedor explícita en selector de promedio
+
+**Tipo:** ui/docs
+**Lote:** orders-average-mode-explicit-supplier-frequency
+**Descripción:** Se reemplazó en `/orders` la opción `Según proveedor` del selector `Columna de promedio de ventas` por una etiqueta explícita con la frecuencia efectiva del proveedor (`Frecuencia del proveedor (...)`). El resumen `Mostrando` usa la misma etiqueta, y cuando el proveedor no tiene período configurado el fallback visible pasa a `semanal`.
+
+**Archivos afectados:**
+
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/docs-modules-supplier-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 10:08 -03 — Orders: copy del toggle `precio de proveedor`
+
+**Tipo:** ui/docs
+**Lote:** orders-supplier-estimated-price-toggle-copy
+**Descripción:** Se renombró en `/orders` el toggle `Calcular costo estimado segun Margen de ganancia (%)` por `Calcular precio de proveedor segun Margen de ganancia (%)`, alineándolo con el resto del lenguaje de la pantalla.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica; cambio de copy.
+
+**Commit:** N/A
+
+## 2026-03-14 10:10 -03 — Orders: alineación del toggle junto a `Tabla/Tarjetas`
+
+**Tipo:** ui/docs
+**Lote:** orders-supplier-estimated-price-toggle-align
+**Descripción:** Se reagrupó en `/orders` el toggle `Calcular precio de proveedor segun Margen de ganancia (%)` dentro del bloque derecho junto a los botones `Tabla` y `Tarjetas`, para reducir dispersión visual y dejar la acción más cerca del selector de vista.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica; ajuste visual de layout.
+
+**Commit:** N/A
+
+## 2026-03-14 10:12 -03 — Orders: resumen `Mostrando` informa modo de precio de proveedor
+
+**Tipo:** ui/docs
+**Lote:** orders-showing-summary-supplier-price-mode
+**Descripción:** Se extendió en `/orders` el bloque `Mostrando` para que aclare también cómo se está resolviendo `Precio de articulo en proveedor`: `precio real registrado` o `precio estimado por margen de ganancia`, reaccionando en vivo al estado del toggle `Calcular precio de proveedor segun Margen de ganancia (%)`.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/docs-app-screens-orders.md
+- docs/docs-modules-supplier-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 10:14 -03 — Orders: prefijo `Precio estimado de proveedor` en resumen
+
+**Tipo:** ui/docs
+**Lote:** orders-showing-summary-supplier-price-mode
+**Descripción:** Se ajustó en `/orders` el copy del bloque `Mostrando` para reemplazar `Precio de articulo en proveedor:` por `Precio estimado de proveedor:`, manteniendo el sufijo dinámico sobre `precio real registrado` o `precio estimado por margen de ganancia`.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/docs-app-screens-orders.md
+- docs/docs-modules-supplier-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica; cambio de copy.
+
+**Commit:** N/A
+
+## 2026-03-14 10:15 -03 — Orders: resumen más directo para modo de precio estimado
+
+**Tipo:** ui/docs
+**Lote:** orders-showing-summary-supplier-price-mode
+**Descripción:** Se simplificó el copy del bloque `Mostrando` en `/orders` para que `Precio estimado de proveedor` use solo `real registrado` o `por margen de ganancia`, evitando texto redundante.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/docs-app-screens-orders.md
+- docs/docs-modules-supplier-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica; cambio de copy.
+
+**Commit:** N/A
+
+## 2026-03-14 10:18 -03 — Orders: controles inline de margen y promedio sin `Aplicar`
+
+**Tipo:** ui/docs
+**Lote:** orders-inline-suggestion-controls
+**Descripción:** Se eliminó en `/orders` el bloque separado `Ajustes de sugeridos`. El selector `Promedio de ventas` pasó a vivir debajo del toggle `Calcular precio de proveedor segun Margen de ganancia (%)`, mientras que `Margen de ganancia (%)` quedó como input inline a la derecha del check y solo se habilita cuando el cálculo estimado está activo. Ambos controles ahora recalculan la grilla y el resumen `Mostrando` en tiempo real, sin botón `Aplicar`.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/docs-modules-supplier-orders.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 10:24 -03 — Orders: `Promedio de ventas` alineado en la fila superior
+
+**Tipo:** ui/docs
+**Lote:** orders-inline-suggestion-controls
+**Descripción:** Se reubicó `Promedio de ventas:` a la izquierda del toggle `Calcular precio de proveedor segun Margen de ganancia (%)`, dentro de la misma fila de controles cuando el ancho lo permite; en mobile sigue pudiendo hacer wrap sin romper layout.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica; ajuste de layout.
+
+**Commit:** N/A
+
+## 2026-03-14 10:27 -03 — Orders: fila superior compacta para búsqueda y controles
+
+**Tipo:** ui/docs
+**Lote:** orders-inline-suggestion-controls
+**Descripción:** Se compactó nuevamente el encabezado de sugeridos en `/orders`: `Promedio de ventas`, el toggle `Calcular precio de proveedor segun Margen de ganancia (%)` y el input de margen ahora viven en la misma fila superior, a la derecha de `Buscar artículo`. `Vista/Resultados` quedó abajo con los botones `Tabla/Tarjetas`.
+
+**Archivos afectados:**
+
+- app/orders/OrderSuggestionsClient.tsx
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica; ajuste de layout.
+
+**Commit:** N/A
+
+## 2026-03-13 20:34 -03 — Plan repo-aware para aterrizar diseño Figma sobre rutas públicas
+
+**Tipo:** decision/docs
+**Lote:** marketing-figma-plan-landing
+**Descripción:** Se revisó el frame raíz compartido desde Figma contra la documentación viva y la implementación actual de rutas públicas (`/landing`, `/demo`). Se confirmó que el trabajo probable cae sobre marketing público y no sobre pantallas operativas con contrato DB. La validación visual exacta del frame queda pendiente de extracción MCP en una sesión con herramientas Figma expuestas.
+
+**Archivos afectados:**
+
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica; turno de planificación/documentación.
+
+**Commit:** N/A
+
+## 2026-03-14 09:44 -03 — QA: ejecutar seed integral para evaluación general
+
+**Tipo:** tests/infra/docs
+**Lote:** qa-seed-general-evaluation
+**Descripción:** Se dejó lista una base local reproducible para QA general. Durante la corrida se detectó que `auth.admin.*` ya no era estable en el entorno Supabase local actual para los scripts de seed, por lo que se endurecieron `scripts/seed-users.js` y `scripts/seed-demo-data.js` con fallback local: creación/resolución de usuarios demo vía Auth pública/SQL local cuando el Admin API devuelve `bad_jwt`. Luego se ejecutó el poblamiento completo: usuarios demo, dataset operativo MVP, escenario de caja del día y smoke de RLS.
+
+**Archivos afectados:**
+
+- scripts/seed-users.js
+- scripts/seed-demo-data.js
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset:all` PARCIAL (2026-03-14): reset + `seed-users` + `seed-demo-data` OK; el cierre automático falló por flake `502` del stack local al reiniciar contenedores
+- `node scripts/seed-users.js` OK (2026-03-14)
+- `node scripts/seed-demo-data.js` OK (2026-03-14)
+- `node scripts/seed-cashbox-today.js` OK (2026-03-14, con elevación para acceder al API local)
+- `npm run db:rls:smoke` OK (2026-03-14, con elevación para acceder al API local)
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 11:07 -03 — Orders: modal reutilizado para agregar productos al armado
+
+**Tipo:** ui/docs/tests
+**Lote:** orders-draft-add-products-modal
+**Descripción:** Se reutilizó el modal de `Agregar productos al remito` de `/orders/[orderId]` dentro del armado de pedido en `/orders`, adaptando copy y handlers para draft. Ahora el usuario puede sumar artículos existentes aunque todavía no estén asignados al proveedor, optar por vincularlos como `primary`, `secondary` o `none`, o crear un producto nuevo con metadata mínima y `Cantidad de resguardo`. Los items agregados se inyectan en vivo en la grilla local del draft sin perder cantidades ni contexto del pedido en armado, y los actions server-side solo persisten relación proveedor-producto cuando corresponde.
+
+**Archivos afectados:**
+
+- app/orders/ReceiveOrderAddProductsButton.tsx
+- app/orders/OrderSuggestionsClient.tsx
+- app/orders/page.tsx
+- docs/docs-app-screens-orders.md
+- docs/docs-modules-supplier-orders.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A

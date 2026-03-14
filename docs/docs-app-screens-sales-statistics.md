@@ -98,7 +98,7 @@ Salida mínima:
 
 - `sale_id`, `org_id`, `branch_id`, `branch_name`, `created_at`
 - `product_id`, `product_name`, `quantity`, `unit_price`, `line_total`
-- `supplier_id`, `supplier_name` (proveedor primario del producto, si existe)
+- `supplier_id`, `supplier_name` (proveedor principal del producto, si existe)
 
 ### Lectura complementaria (proveedores y pagos)
 

@@ -78,7 +78,7 @@ Gestionar un proveedor en profundidad:
 - Incluir vencimiento aproximado (días)
 - Incluir stock mínimo (aplica a todas las sucursales)
 - Opcional: nombre del artículo en proveedor y SKU en proveedor
-- Al crear, se asocia automáticamente como proveedor primario
+- Al crear, se asocia automáticamente como proveedor principal
 
 ---
 

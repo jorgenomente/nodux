@@ -6,7 +6,7 @@ export const PRODUCT_FORM_LABELS = {
   barcode: 'Codigo de barras',
   sellUnitType: 'Unidad de venta',
   uom: 'Unidad de medida',
-  primarySupplier: 'Proveedor primario',
+  primarySupplier: 'Proveedor principal',
   supplierPrice: 'Precio proveedor',
   unitPrice: 'Precio unitario',
   shelfLifeDays: 'Vencimiento aproximado (dias)',

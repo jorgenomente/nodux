@@ -65,7 +65,7 @@ Los pedidos especiales **no descuentan stock**. El stock se descuenta en POS al 
 
 ### R3) Proveedor sugerido
 
-- Si el producto tiene proveedor primario, se sugiere.
+- Si el producto tiene proveedor principal, se sugiere.
 - Se puede override manual o dejar sin proveedor.
 
 ### R4) Entrega parcial

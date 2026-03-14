@@ -243,7 +243,7 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada, Fase 7 e
 - `/onboarding` con contrato de pantalla dedicado
 - importacion CSV con validacion por fila y aplicacion idempotente
 - bandeja de pendientes de completitud de datos maestros
-- acciones rapidas para completar proveedor primario, shelf_life_days y datos de pago
+- acciones rapidas para completar proveedor principal, shelf_life_days y datos de pago
 - exportes maestros CSV para respaldo y portabilidad
 - hardening anti-duplicado de catálogo por org (barcode/internal_code/name normalizado)
 - compra por paquete en productos (configuración + equivalencias operativas en pedidos y recepción)

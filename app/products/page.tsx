@@ -661,7 +661,7 @@ export default async function ProductsPage({
       );
       throwIfError(
         upsertPrimarySupplierError,
-        'No se pudo guardar proveedor primario',
+        'No se pudo guardar proveedor principal',
       );
     }
 
@@ -911,7 +911,7 @@ export default async function ProductsPage({
       );
       throwIfError(
         updatePrimarySupplierError,
-        'No se pudo actualizar proveedor primario',
+        'No se pudo actualizar proveedor principal',
       );
     } else {
       const { error: removePrimarySupplierError } = await supabaseServer.rpc(
@@ -924,7 +924,7 @@ export default async function ProductsPage({
       );
       throwIfError(
         removePrimarySupplierError,
-        'No se pudo quitar proveedor primario',
+        'No se pudo quitar proveedor principal',
       );
     }
 

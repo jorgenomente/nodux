@@ -4236,3 +4236,276 @@ tambien para evitar crear nuevas marcas y duplicado de informacion inncecesaria,
 
 **Prompt**
 esta misma logica la vamos a aplicar para el formulario de Agregar productos al remito para el input de Nombre de articulo en la tienda. Al escribir este nuevo articulo que estoy agregando deberian aparecerme sugerencias parecidas segun lo que ya esta registrado como nombres de articulos para asegurarme de que no estoy creando un producto duplicado en caso de que haya demasiada coincidencia, lo mismo para el de marca, li mismo para categoria, deberian salirme de sugerencia categorias ya creadas al momento de escribir asi evito crear duplicados o muy similares, aplica esto en todos los inputs hablados supongo que como son componentes reutilizados se aplica esta misma logica en todos sus puntos? serian en el formulario de nuevo articulo, en editar informacion de articulo, en recepcion de pedidos y no se cual otro me queda por fuera
+
+## 2026-03-13 22:12 -03 — Infra: ignorar exports de referencia visual en `public/design`
+
+**Lote:** infra-ignore-design-reference-exports
+**Objetivo:** Excluir del versionado las carpetas exportadas de diseño dentro de `public/design/` para mantener el repo limpio y evitar subir material de referencia visual temporal.
+
+**Prompt**
+ah ok si estas son carpetas de diseno que estoy agregando para tener una referencia visual para nodux. Crees que esto es util subirlo al git o le agregamos un ignore?
+
+## 2026-03-13 22:12 -03 — Infra: aplicar ignore recomendado para `public/design`
+
+**Lote:** infra-ignore-design-reference-exports
+**Objetivo:** Agregar `public/design/` al `.gitignore` como decisión operativa recomendada para no versionar exports completos de diseño usados solo como referencia visual.
+
+**Prompt**
+hagamos lo recomendado
+
+## 2026-03-13 22:16 -03 — Docs: registrar credencial local `demo@propi.local`
+
+**Lote:** docs-local-demo-credentials-propi
+**Objetivo:** Actualizar la documentación local de usuarios demo para incluir la credencial adicional `demo@propi.local` con su contraseña y evitar perder ese acceso en próximas sesiones.
+
+**Prompt**
+si agrega
+
+## 2026-03-14 00:00 -03 — Online Orders: acceso rápido a tienda pública de la sucursal visible
+
+**Lote:** online-orders-storefront-quick-link
+**Objetivo:** Agregar en `/online-orders` un link contextual hacia la tienda pública de la sucursal filtrada o visible, para abrir rápidamente su storefront desde la consola interna.
+
+**Prompt**
+tienes razon ese demo propi local es de otro proyecto. me gustaria trabajar en /online-orders me gustaria que me salga el link hacia la tienda de la sucursal que este seleccionada o visible. es decir el link de su propia tienda. asi puedo acceder a el rapidamente
+
+## 2026-03-14 00:08 -03 — Online Orders: resincronizar selector de sucursal con top bar
+
+**Lote:** online-orders-branch-filter-sync
+**Objetivo:** Corregir `/online-orders` para que el selector de sucursal dentro del bloque de búsqueda refleje inmediatamente la sucursal activa aplicada desde el top bar y no conserve un valor visual viejo.
+
+**Prompt**
+hay algo pequeno pero que considero importante y es que en /online-orders tengo una seccion de buscar que tiene un seleccionable de sucursal. esa opcion no cambia cuando yo aplico la sucursal desde el top bar. el contenido de la pagina si esta bien si cambia pero es solo el selector que se queda apuntando hacia donde estaba y deberia cambiarse para evitar confusion
+
+## 2026-03-14 09:55 -03 — Orders: renombrar columna `Costo estimado`
+
+**Lote:** orders-supplier-estimated-price-copy
+**Objetivo:** Cambiar en `/orders` el label de la columna `Costo estimado` dentro del armado de pedido nuevo por `Precio estimado de proveedor`.
+
+**Prompt**
+ok funciona ahora en /orders en la tabla de armado de pedido nuevo hay ua columna de COSTO ESTIMADO vamos cambiarlo por PRECIO ESTIMADO DE PROVEEDOR
+
+## 2026-03-14 09:57 -03 — Orders: ajustar tooltip de precio estimado de proveedor
+
+**Lote:** orders-supplier-estimated-price-tooltip-copy
+**Objetivo:** Cambiar en `/orders` el texto explicativo `Se usa para estimar el costo del articulo en el proveedor.` por `Se usa para estimar el precio del proveedor por articulo`.
+
+**Prompt**
+ok y mas arriba este texto Se usa para estimar el costo del articulo en el proveedor. cambiemoslo por Se usa para estimar el precio del proveedor por articulo
+
+## 2026-03-14 09:58 -03 — Orders: simplificar tooltip a `estimar el precio`
+
+**Lote:** orders-supplier-estimated-price-tooltip-copy
+**Objetivo:** Simplificar el tooltip del control de margen en `/orders` para que diga solo `Se usa para estimar el precio.`
+
+**Prompt**
+estimar el precio
+
+## 2026-03-14 10:00 -03 — Orders: corregir texto visible de ayuda en margen de ganancia
+
+**Lote:** orders-supplier-estimated-price-tooltip-copy
+**Objetivo:** Alinear en `/orders` tanto el `title` como el texto visible de ayuda bajo `Margen de ganancia (%)` para que ambos digan `Se usa para estimar el precio del articulo en el proveedor.`
+
+**Prompt**
+no se donde cambiaste eso pero yo veo Se usa para estimar el costo del articulo en el proveedor en margen de ganancia y quiero que diga Se usa para estimar el precio del articulo en el proveedor
+
+## 2026-03-14 10:03 -03 — Orders: hacer explícita la frecuencia del proveedor en selector de promedio
+
+**Lote:** orders-average-mode-explicit-supplier-frequency
+**Objetivo:** Reemplazar en `/orders` la opción `Según proveedor` del selector de promedio por una etiqueta explícita con la frecuencia real del proveedor, usando fallback semanal si no tiene período configurado.
+
+**Prompt**
+y eso que dice columna de ventas y me da la opcion de elegir segun el proveedor y las frecuencias, vamos a cambiar eso de segun el proveedor para que alli se seleccione automaticamente lo que sea que el proveedor tenga asignado, porque eso segun proveedor no es explicito. si no existiera un periodo asignado al proveedor entonces que diga semanal y ya o lo que sea que consideres
+
+## 2026-03-14 10:08 -03 — Orders: renombrar toggle de cálculo estimado de proveedor
+
+**Lote:** orders-supplier-estimated-price-toggle-copy
+**Objetivo:** Cambiar en `/orders` el texto `Calcular costo estimado segun Margen de ganancia (%)` por `Calcular precio de proveedor segun Margen de ganancia (%)`.
+
+**Prompt**
+ahora el check mark que dice Calcular costo estimado segun Margen de ganancia (%) vamos a cambiarlo por Calcular precio de proveedor segun Margen de ganancia (%)
+
+## 2026-03-14 10:10 -03 — Orders: alinear toggle de precio de proveedor junto a vista
+
+**Lote:** orders-supplier-estimated-price-toggle-align
+**Objetivo:** Mover visualmente el texto del toggle `Calcular precio de proveedor segun Margen de ganancia (%)` hacia la derecha para que quede más cerca de los botones `Tabla` y `Tarjetas`.
+
+**Prompt**
+y alinea ese texto hacia la derecha mas cerca de los botones de tabla tarjetas
+
+## 2026-03-14 10:12 -03 — Orders: reflejar modo de precio de proveedor en `Mostrando`
+
+**Lote:** orders-showing-summary-supplier-price-mode
+**Objetivo:** Agregar al bloque `Mostrando` de `/orders` una aclaración dinámica que indique si el precio de artículo en proveedor está usando el valor real registrado o el estimado por margen de ganancia.
+
+**Prompt**
+Mostrando: Dulces del Litoral · Sucursal Caballito · Margen: 40.00% · Promedio: Frecuencia del proveedor (mensual) aqui vamos a agregar tambien lo que se muestra por precio de proveedor. entonces que diga precio de articulo en proveedor: precio real registrado o precio estimado por margen de ganancia de acuerdo a si esta marcado el check de calcular precio estimado Calcular precio de proveedor segun Margen de ganancia (%)
+
+## 2026-03-14 10:14 -03 — Orders: renombrar prefijo del resumen a `Precio estimado de proveedor`
+
+**Lote:** orders-showing-summary-supplier-price-mode
+**Objetivo:** Cambiar en `/orders` el prefijo del bloque `Mostrando` de `Precio de articulo en proveedor:` a `Precio estimado de proveedor:`.
+
+**Prompt**
+cambia Precio de articulo en proveedor: por Precio estimado de proveedor:
+
+## 2026-03-14 10:15 -03 — Orders: acortar estados del resumen de precio estimado
+
+**Lote:** orders-showing-summary-supplier-price-mode
+**Objetivo:** Simplificar en `/orders` el texto del bloque `Mostrando` para que `Precio estimado de proveedor` use solo `real registrado` o `por margen de ganancia`.
+
+**Prompt**
+ok y deja solo por margen de ganancia y real registrado asi queda mas directo
+
+## 2026-03-14 10:18 -03 — Orders: mover margen/promedio al bloque de sugeridos con actualización inmediata
+
+**Lote:** orders-inline-suggestion-controls
+**Objetivo:** Eliminar la sección `Ajustes de sugeridos` en `/orders` y mover `Promedio de ventas` y `Margen de ganancia (%)` al bloque principal de sugeridos, con actualización inmediata y sin botón `Aplicar`.
+
+**Prompt**
+podemos cambiar la opcion de Columna de promedio de ventas
+Frecuencia del proveedor (mensual)
+y moverla abajo a la izquierda del check mark de Calcular precio de proveedor segun Margen de ganancia (%) que diga promedio de ventas: y a continuacion el selecionable de mensual quincenal semanal y que los datos se actualicen con lo que este seleccionado sin necesidad de el boton de aplicar, y con respecto al porcentaje de ganancia lo agregamos como un input a la derecha de Calcular precio de proveedor segun Margen de ganancia (%) que solo este activo cuando esta activo el checkmark y cumple la misma funcion y asi quitamos esa seccion arriba de Ajustes de sugeridos. que te parece?
+
+## 2026-03-14 10:24 -03 — Orders: subir `Promedio de ventas` a la misma fila del toggle
+
+**Lote:** orders-inline-suggestion-controls
+**Objetivo:** Reubicar `Promedio de ventas:` a la izquierda del check `Calcular precio de proveedor segun Margen de ganancia (%)`, manteniéndolo en la misma fila cuando haya espacio.
+
+**Prompt**
+podemos poner Promedio de ventas:
+a la izquierda de Calcular precio de proveedor segun Margen de ganancia (%) porque ahora esta abajo, o no cabe?
+
+## 2026-03-14 10:27 -03 — Orders: mover promedio + toggle a la fila de `Buscar artículo`
+
+**Lote:** orders-inline-suggestion-controls
+**Objetivo:** Reubicar `Promedio de ventas`, el check de cálculo estimado y el input de margen a la fila superior, a la derecha de `Buscar artículo`, para compactar más el encabezado de sugeridos.
+
+**Prompt**
+vamos a optimizar un poco mas. movamos Promedio de ventas:
+
+mensual
+Calcular precio de proveedor segun Margen de ganancia (%) a la fila de arriba a la derecha de Buscar artículo
+
+## 2026-03-14 09:44 -03 — QA: seed integral para pruebas generales
+
+**Lote:** qa-seed-general-evaluation
+**Objetivo:** Poblar la base local con usuarios demo y datos operativos de prueba para recorrer la app de punta a punta y evaluar flujos generales del MVP.
+
+**Prompt**
+podemos insertar datos de prueba para relaizar pruebas generales y evaluar todo en la app
+
+## 2026-03-13 20:17 -03 — Plan de implementación para UI Kit de Figma
+
+**Lote:** figma-ui-kit-implementation-plan
+**Objetivo:** Revisar el UI Kit compartido desde Figma, contrastarlo contra la arquitectura y el front actual de NODUX, y proponer un plan repo-aware de implementación sin ejecutar cambios de código todavía.
+
+**Prompt**
+este es el link del UI Kit Implement this design from Figma.
+@https://www.figma.com/design/gPJHn23t80uedvn5yLozth/Untitled?node-id=1-2&m=dev Lo puedes revisar y decirme un plan para implementar?
+
+## 2026-03-13 20:34 -03 — Landing/Demo: plan repo-aware desde frame raíz de Figma
+
+**Lote:** marketing-figma-plan-landing
+**Objetivo:** Revisar el frame raíz compartido en Figma y devolver un plan de implementación repo-aware para las rutas públicas existentes, sin tocar código todavía.
+
+**Prompt**
+Implement this design from Figma.
+@https://www.figma.com/design/gPJHn23t80uedvn5yLozth/Untitled?node-id=1-2&m=dev chequea este diseno y haz un plan de implementacion
+
+## 2026-03-14 11:07 -03 — Orders: agregar productos faltantes al armado reutilizando modal de recepción
+
+**Lote:** orders-draft-add-products-modal
+**Objetivo:** Permitir que el armado de pedido en `/orders` abra un modal similar al de recepción para sumar artículos existentes no asignados al proveedor o crear productos nuevos sin salir del draft.
+
+**Prompt**
+ok otra cosa que me gustaria hacer es que siguiendo la misma logica que en /orders/id a la hora de recibir el producto si llega un producto que no existe en la lista, se puede agregar, de esa misma manera quiero implementar en el armado de pedido. si quiero agregar un producto que no esta asignado en el proveedor entonces pueda acceder a ese modal similar a Recepcion de mercaderia
+
+Agregar productos al remito
+Suma artículos que llegaron en el remito aunque no hayan estado en el pedido original. Si corresponde, puedes asignar este proveedor a los articulos que selecciones. de la misma manera un modal adaptado a esa pagina. creo que conviene reutilizar la logica y cambiar solo el texto explicativo o bueno no se si convenga, pero quiero que sea igual que pueda elegir productos existentes y asignarlos a proveedor y las otras opciones asi como agregar nuevo producto para asi poder crear mi pedido sin problemas en caso de que no tenga todos los articulos que quiero ver
+
+## 2026-03-14 11:15 -03 — Orders: mostrar CTA de agregar productos también en estado vacío
+
+**Lote:** orders-draft-add-products-modal
+**Objetivo:** Hacer que el acceso `Agrega productos aquí` también aparezca cuando el proveedor no tiene sugerencias, para poder iniciar el pedido manualmente desde el estado vacío.
+
+**Prompt**
+perfecto esto ¿Hay productos que quieres pedir y no aparecen en esta lista? Agrega productos aquí. tambien debe salirme en los proveedores que no tienen ningun producto registrado
+
+## 2026-03-14 11:20 -03 — Orders: corregir scope de frecuencia al agregar productos desde estado vacío
+
+**Lote:** orders-draft-add-products-modal
+**Objetivo:** Corregir el error `selectedSupplier is not defined` al usar el modal de agregar productos en un proveedor sin sugeridos, tomando la frecuencia desde el proveedor draft resuelto en la página.
+
+**Prompt**
+estoy viendo que en un proveedor que no tenia productos pratique esto de agregar producto usando el modal y me sale esto selectedSupplier is not defined
+app/orders/page.tsx (846:49) @ <anonymous>
+
+## 2026-03-14 11:28 -03 — Orders: explicitar proveedor primario actual y default a secundario
+
+**Lote:** orders-draft-add-products-modal
+**Objetivo:** Mantener una sola relación `primary` por producto, mostrando el proveedor primario actual en el modal reutilizado y sugiriendo `secondary` por defecto cuando el artículo ya tiene otro primario.
+
+**Prompt**
+tengo otra situacion. un producto ya tiene asignado un proveedor primario y yo intento agregarlo desde otro proveedor a la lista de pedido y le doy asignar este producto el proveedor primario desde el cual hago el pedido. que deberia suceder aqui? QUizas podriamos colocar que en la info del articulo tambien diga si esta asignado a otro proveedor asi me puedo dar cuenta y quizas asignar como proveedor secundario, esa puede ser buena opcion que cuando ese articulo ya tenga proveedor primario entonces salga por defaoult la opcion de asignar proveedor secunadrio y si selecciono primario entonces estaria quitando de proveedor primario del otro proveedor. o como lo ves? no se puede tener dos proveedores como proveedor primario bajo la logica que tenemos actualmente y no nos conviene? que piensas
+
+## 2026-03-14 11:33 -03 — Terminología UI/docs: `proveedor principal`
+
+**Lote:** supplier-primary-copy-main-term
+**Objetivo:** Reemplazar en la UI y en la documentación viva la expresión `proveedor primario` por `proveedor principal`, manteniendo intactos los identificadores técnicos internos como `primary_supplier_*`.
+
+**Prompt**
+me gustaria cambiar proveedor primario por proveedor principal, me parece mas exacto y explicito. puedes buscar todas las instancias donde se menciona proveedor primario y lo cambiamos por principal? que te parece?
+
+## 2026-03-14 11:34 -03 — Orders: reordenar `No aplica vencimiento` en alta rápida
+
+**Lote:** orders-draft-add-products-modal
+**Objetivo:** En el modal de `Nuevo producto` para `/orders`, mover el check `No aplica vencimiento` debajo del input `Vencimiento aproximado (dias)` para que el bloque se entienda mejor visualmente.
+
+**Prompt**
+luego en el modal de agregar nuevo producto hay una caja que dice No aplica vencimiento
+Vencimiento aproximado (dias) me gustaria cambiar la posicion de estos elementos y dejar el check debajo del input de vencimiento aproximado para que se entienda mejor
+
+## 2026-03-14 11:47 -03 — Products/Onboarding: guía de nomenclatura en nombre de artículo
+
+**Lote:** product-naming-guidance-helper
+**Objetivo:** Agregar en `/products` y `/onboarding` una sugerencia visible para nombrar artículos con la convención `tipo + marca + variante + tamano/presentacion`.
+
+**Prompt**
+exacto me parece bien. agrega esta sugerencia en todos los inputs que sirvan para nombrar productos bien sea al crearlos o editarlos y donde sea necesario en products y onboarding
+
+## 2026-03-14 11:51 -03 — Orders: misma guía de nomenclatura en modal `Nuevo producto`
+
+**Lote:** product-naming-guidance-helper
+**Objetivo:** Extender la misma sugerencia de nomenclatura al modal reutilizado de `Nuevo producto` en `/orders` y `/orders/[orderId]`.
+
+**Prompt**
+falta agregarlo a los modales de agregar producto en pedidos y recepcion de pedidos al momento de abrir el modal y hacer click en nuevo producto
+
+## 2026-03-14 11:55 -03 — Orders recepción: agrupar vencimiento aproximado + fecha exacta
+
+**Lote:** orders-receive-expiry-fields-layout
+**Objetivo:** En `/orders/[orderId]`, mostrar juntos `Vencimiento aproximado (dias)` y `Fecha exacta de vencimiento`, aclarando que la fecha exacta es opcional y solo ayuda a calcular mejor el aproximado.
+
+**Prompt**
+en orders/id en la recepcion de productos en el formulario de cada articulo me gustaria que Vencimiento aproximado (dias)
+12
+Fecha exacta de vencimiento
+26/03/2026
+Calcula automáticamente los días desde la recepción. quede una cosa al lado de la otra y que se entienda que si coloco un numero despues no hace falta colocar la fecha exacta, como que se explique que la fecha es solo para calcular el vencimiento aproximado con mas exactitud
+
+## 2026-03-14 11:59 -03 — Orders recepción: alinear cantidad recibida + precio proveedor
+
+**Lote:** orders-receive-expiry-fields-layout
+**Objetivo:** En `/orders/[orderId]`, mostrar `Cantidad recibida` y `Precio proveedor (unitario)` en la misma fila para compactar el formulario por artículo.
+
+**Prompt**
+tambie modifica Cantidad recibida y Precio proveedor (unitario) colocalos en la misma fila
+
+## 2026-03-14 12:04 -03 — Orders recepción: `Marca` antes que `Categoria`
+
+**Lote:** orders-receive-expiry-fields-layout
+**Objetivo:** En `/orders/[orderId]`, mantener `Marca` y `Categoria` en la misma fila pero dejando `Marca` primero.
+
+**Prompt**
+y que primero vaya marca y despues categoria

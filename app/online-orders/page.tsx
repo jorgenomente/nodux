@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 
 import PageShell from '@/app/components/PageShell';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
@@ -53,6 +54,7 @@ type SearchParams = {
 type BranchOption = {
   id: string;
   name: string;
+  storefront_slug: string | null;
 };
 
 type OnlineOrderStatus =
@@ -159,6 +161,13 @@ export default async function OnlineOrdersPage({
   const orgId = session.orgId;
   const role = session.effectiveRole;
   const userId = session.userId;
+  const requestHeaders = await headers();
+  const forwardedProto = requestHeaders.get('x-forwarded-proto');
+  const forwardedHost = requestHeaders.get('x-forwarded-host');
+  const host = forwardedHost || requestHeaders.get('host') || 'app.nodux.app';
+  const protocol =
+    forwardedProto || (host.includes('localhost') ? 'http' : 'https');
+  const appBaseUrl = `${protocol}://${host}`;
 
   if (role === 'staff') {
     const { data: modules } = await supabase.rpc(
@@ -191,7 +200,7 @@ export default async function OnlineOrdersPage({
 
     const { data: branchRows } = await supabase
       .from('branches')
-      .select('id, name')
+      .select('id, name, storefront_slug')
       .eq('org_id', orgId)
       .eq('is_active', true)
       .in('id', branchIds)
@@ -200,12 +209,35 @@ export default async function OnlineOrdersPage({
   } else {
     const { data: branchRows } = await supabase
       .from('branches')
-      .select('id, name')
+      .select('id, name, storefront_slug')
       .eq('org_id', orgId)
       .eq('is_active', true)
       .order('name');
     branches = (branchRows ?? []) as BranchOption[];
   }
+
+  const [{ data: orgRaw }, { data: storefrontSettingsRaw }] = await Promise.all(
+    [
+      supabase
+        .from('orgs')
+        .select('id, storefront_slug')
+        .eq('id', orgId)
+        .maybeSingle(),
+      supabase
+        .from('storefront_settings' as never)
+        .select('org_id, is_enabled')
+        .eq('org_id', orgId)
+        .maybeSingle(),
+    ],
+  );
+  const orgData = orgRaw as {
+    id: string;
+    storefront_slug: string | null;
+  } | null;
+  const storefrontSettings = storefrontSettingsRaw as {
+    org_id: string;
+    is_enabled: boolean;
+  } | null;
 
   const selectedBranchId = await resolveActiveBranchId({
     requestedBranchId: resolvedSearchParams.branch_id,
@@ -213,6 +245,16 @@ export default async function OnlineOrdersPage({
     fallbackBranchId: role === 'staff' ? (branches[0]?.id ?? '') : '',
     allowExplicitEmpty: role !== 'staff',
   });
+  const selectedBranch =
+    branches.find((branch) => branch.id === selectedBranchId) ??
+    (branches.length === 1 ? branches[0] : null);
+  const orgSlug = orgData?.storefront_slug?.trim() ?? '';
+  const storefrontEnabled = storefrontSettings?.is_enabled === true;
+  const orgStorefrontUrl = orgSlug ? `${appBaseUrl}/${orgSlug}` : '';
+  const selectedBranchStorefrontUrl =
+    orgSlug && selectedBranch?.storefront_slug?.trim()
+      ? `${appBaseUrl}/${orgSlug}/${selectedBranch.storefront_slug.trim()}`
+      : '';
 
   const query =
     typeof resolvedSearchParams.q === 'string'
@@ -632,6 +674,7 @@ export default async function OnlineOrdersPage({
                 Sucursal
               </label>
               <select
+                key={`branch-filter-${selectedBranchId || 'all'}`}
                 id="branch_id"
                 name="branch_id"
                 defaultValue={selectedBranchId}
@@ -673,6 +716,61 @@ export default async function OnlineOrdersPage({
               Aplicar
             </button>
           </form>
+          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-sm text-zinc-700">
+            <span className="font-semibold text-zinc-900">Tienda pública</span>
+            {storefrontEnabled && selectedBranchStorefrontUrl ? (
+              <>
+                <a
+                  href={selectedBranchStorefrontUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex rounded-full border border-blue-300 bg-white px-3 py-1 font-semibold text-blue-700"
+                >
+                  Abrir tienda de {selectedBranch?.name}
+                </a>
+                <span className="text-xs text-zinc-500">
+                  {selectedBranchStorefrontUrl}
+                </span>
+              </>
+            ) : null}
+            {storefrontEnabled &&
+            !selectedBranchStorefrontUrl &&
+            orgStorefrontUrl ? (
+              <>
+                <a
+                  href={orgStorefrontUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex rounded-full border border-blue-300 bg-white px-3 py-1 font-semibold text-blue-700"
+                >
+                  Abrir selector de sucursal
+                </a>
+                <span className="text-xs text-zinc-500">
+                  {orgStorefrontUrl}
+                </span>
+              </>
+            ) : null}
+            {!storefrontEnabled ? (
+              <span className="text-xs text-rose-700">
+                La tienda online está deshabilitada para esta organización.
+              </span>
+            ) : null}
+            {storefrontEnabled && !orgStorefrontUrl ? (
+              <span className="text-xs text-amber-700">
+                Falta definir el slug público de la organización para construir
+                el link.
+              </span>
+            ) : null}
+            {storefrontEnabled &&
+            orgStorefrontUrl &&
+            selectedBranchId &&
+            !selectedBranchStorefrontUrl ? (
+              <span className="text-xs text-amber-700">
+                La sucursal seleccionada todavía no tiene slug público
+                configurado.
+              </span>
+            ) : null}
+          </div>
         </section>
 
         <section className="grid gap-3">

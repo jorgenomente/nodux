@@ -15,6 +15,7 @@ const eslintConfig = defineConfig([
     'scripts/**',
     // Ignore sibling workspace artifacts and generated bundles.
     'apps/**',
+    'public/design/**',
     '**/*.bundle.js',
     '**/bundle.js',
   ]),

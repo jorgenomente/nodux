@@ -74,7 +74,7 @@ El modulo mide calidad de datos por tareas concretas, no por campos aislados.
 
 Tareas minimas de completitud:
 
-- producto sin proveedor primario
+- producto sin proveedor principal
 - producto sin `shelf_life_days` (si aplica operativamente)
 - producto sin `barcode` ni `internal_code`
 - proveedor sin `payment_terms_days`
@@ -85,7 +85,7 @@ Tareas minimas de completitud:
 Desde la bandeja de pendientes se permite:
 
 - crear proveedor
-- asignar proveedor primario/secundario a producto
+- asignar proveedor principal/secundario a producto
 - completar shelf life days
 - completar barcode/internal_code
 - completar terminos y metodo de pago de proveedor
@@ -94,7 +94,7 @@ Implementacion MVP actual:
 
 - tarea de productos incompletos se resuelve inline en `/onboarding` con
   formulario rapido por fila para completar los campos operativos del producto
-  (incluyendo proveedor primario/secundario y datos base de catalogo).
+  (incluyendo proveedor principal/secundario y datos base de catalogo).
 - el resolvedor de productos incompletos usa conteo en DB + listado paginado
   y buscador server-side por nombre, para evitar render/carga de miles de
   registros en una sola respuesta.

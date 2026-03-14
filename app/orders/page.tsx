@@ -8,7 +8,10 @@ import OrderDraftCreateFormClient from '@/app/orders/OrderDraftCreateFormClient'
 import NewSupplierFromOrdersButton from '@/app/orders/NewSupplierFromOrdersButton';
 import OrderSuggestionsClient from '@/app/orders/OrderSuggestionsClient';
 import PageShell from '@/app/components/PageShell';
+import { parseProductCategoryTags } from '@/app/products/product-category-tags';
 import { resolveActiveBranchId } from '@/lib/branches/active-branch';
+import { createAdminSupabaseClient } from '@/lib/supabase/admin';
+import { fetchAllPages } from '@/lib/supabase/fetch-all-pages';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getOrgMemberSession } from '@/lib/auth/org-session';
 import {
@@ -58,7 +61,7 @@ type SupplierPaymentPreferenceRow = {
 
 type SuggestionRow = {
   product_id: string;
-  relation_type: 'primary' | 'secondary';
+  relation_type: 'primary' | 'secondary' | 'none';
   product_name: string | null;
   purchase_by_pack: boolean | null;
   units_per_pack: number | null;
@@ -96,9 +99,34 @@ type SupplierProductPriceRow = {
 
 type SupplierPrimaryRelationRow = {
   product_id: string;
+  supplier_id?: string;
   supplier: {
     name: string | null;
   } | null;
+};
+
+type ProductCatalogOptionRow = {
+  id: string;
+  name: string;
+  brand: string | null;
+  category_tags: string[] | null;
+  barcode: string | null;
+  internal_code: string | null;
+  is_active: boolean;
+  purchase_by_pack?: boolean | null;
+  units_per_pack?: number | null;
+};
+
+type SupplierProductRelationRow = {
+  product_id: string;
+  relation_type: 'primary' | 'secondary';
+  supplier_product_name: string | null;
+};
+
+type SupplierRelationType = 'primary' | 'secondary' | 'none';
+
+type BrandSuggestionRow = {
+  brand: string | null;
 };
 
 type OrderItemAmountRow = {
@@ -123,6 +151,45 @@ type SpecialOrderItemRow = {
   is_ordered: boolean | null;
 };
 
+const throwIfError = (
+  error: { message?: string } | null,
+  fallbackMessage: string,
+) => {
+  if (error) {
+    throw new Error(error.message || fallbackMessage);
+  }
+};
+
+const mapProductUpsertError = (error: { message?: string; code?: string }) => {
+  if (error.code === '23505') {
+    return 'Ya existe un producto con el mismo nombre, código interno o barcode.';
+  }
+  return error.message || 'No se pudo guardar el producto.';
+};
+
+const orderFrequencyToCycleDays = (
+  frequency:
+    | 'weekly'
+    | 'biweekly'
+    | 'every_3_weeks'
+    | 'monthly'
+    | null
+    | undefined,
+) => {
+  switch (frequency) {
+    case 'weekly':
+      return 7;
+    case 'biweekly':
+      return 14;
+    case 'every_3_weeks':
+      return 21;
+    case 'monthly':
+      return 30;
+    default:
+      return 7;
+  }
+};
+
 const formatStatusLabel = (status: string) => {
   switch (status) {
     case 'draft':
@@ -135,42 +202,6 @@ const formatStatusLabel = (status: string) => {
       return 'Controlado';
     default:
       return status;
-  }
-};
-
-const formatAvgModeLabel = (mode: string) => {
-  switch (mode) {
-    case 'weekly':
-      return 'Semanal';
-    case 'biweekly':
-      return 'Quincenal';
-    case 'monthly':
-      return 'Mensual';
-    default:
-      return 'Segun proveedor';
-  }
-};
-
-const formatOrderFrequencyLabel = (
-  frequency:
-    | 'weekly'
-    | 'biweekly'
-    | 'every_3_weeks'
-    | 'monthly'
-    | null
-    | undefined,
-) => {
-  switch (frequency) {
-    case 'weekly':
-      return 'semanal';
-    case 'biweekly':
-      return 'quincenal';
-    case 'every_3_weeks':
-      return 'cada 3 semanas';
-    case 'monthly':
-      return 'mensual';
-    default:
-      return 'mensual';
   }
 };
 
@@ -399,6 +430,9 @@ export default async function OrdersPage({
         })
       : Number(draftMarginPctRaw);
   const draftMarginPct = effectiveDraftMarginPct;
+  const draftSupplierCycleDays = orderFrequencyToCycleDays(
+    selectedSupplierForDraft?.order_frequency,
+  );
 
   let orderQuery = supabase
     .from('v_orders_admin')
@@ -490,6 +524,71 @@ export default async function OrdersPage({
           .eq('is_ordered', false)
       : { data: [] };
 
+  const draftProductCatalog =
+    draftSupplierId && draftBranchId
+      ? await fetchAllPages<ProductCatalogOptionRow>(
+          (from, to) =>
+            supabase
+              .from('products')
+              .select(
+                'id, name, brand, category_tags, barcode, internal_code, is_active, purchase_by_pack, units_per_pack',
+              )
+              .eq('org_id', orgId)
+              .eq('is_active', true)
+              .order('name')
+              .range(from, to),
+          {
+            label: 'orders_draft_products',
+          },
+        )
+      : [];
+  const draftSupplierRelations =
+    draftSupplierId && draftBranchId
+      ? await fetchAllPages<SupplierProductRelationRow>(
+          (from, to) =>
+            supabase
+              .from('supplier_products')
+              .select('product_id, relation_type, supplier_product_name')
+              .eq('org_id', orgId)
+              .eq('supplier_id', draftSupplierId)
+              .range(from, to),
+          {
+            label: 'orders_draft_supplier_products',
+          },
+        )
+      : [];
+  const draftBrandSuggestions =
+    draftSupplierId && draftBranchId
+      ? await fetchAllPages<BrandSuggestionRow>(
+          (from, to) =>
+            supabase
+              .from('products' as never)
+              .select('brand')
+              .eq('org_id', orgId)
+              .eq('is_active', true)
+              .not('brand', 'is', null)
+              .range(from, to),
+          {
+            label: 'orders_draft_brand_suggestions',
+          },
+        )
+      : [];
+  const draftPrimarySupplierRelations =
+    draftSupplierId && draftBranchId
+      ? await fetchAllPages<SupplierPrimaryRelationRow>(
+          (from, to) =>
+            supabase
+              .from('supplier_products')
+              .select('product_id, supplier_id, supplier:suppliers(name)')
+              .eq('org_id', orgId)
+              .eq('relation_type', 'primary')
+              .range(from, to),
+          {
+            label: 'orders_draft_primary_supplier_products',
+          },
+        )
+      : [];
+
   const suggestionIds = (suggestions as SuggestionRow[] | null)
     ?.map((row) => row.product_id)
     .filter(Boolean) as string[] | undefined;
@@ -574,6 +673,408 @@ export default async function OrdersPage({
     supplier_price:
       supplierProductMetaByProduct.get(row.product_id)?.supplier_price ?? null,
   }));
+  const draftSupplierRelationByProduct = new Map<
+    string,
+    SupplierProductRelationRow
+  >();
+  draftSupplierRelations.forEach((row) => {
+    if (!row.product_id) return;
+    draftSupplierRelationByProduct.set(row.product_id, row);
+  });
+  const draftPrimarySupplierByProduct = new Map<string, string | null>();
+  draftPrimarySupplierRelations.forEach((row) => {
+    if (!row.product_id) return;
+    draftPrimarySupplierByProduct.set(
+      row.product_id,
+      row.supplier?.name ?? null,
+    );
+  });
+  const draftProductOptions = draftProductCatalog.map((product) => {
+    const relation = draftSupplierRelationByProduct.get(product.id);
+    return {
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      barcode: product.barcode,
+      internalCode: product.internal_code,
+      supplierProductName: relation?.supplier_product_name ?? null,
+      currentRelationType: relation?.relation_type ?? null,
+      currentPrimarySupplierName:
+        draftPrimarySupplierByProduct.get(product.id) ?? null,
+    };
+  });
+  const draftProductNameSuggestions = draftProductCatalog.map((product) => ({
+    product_id: product.id,
+    name: product.name,
+    brand: product.brand,
+    barcode: product.barcode,
+    internal_code: product.internal_code,
+    is_active: product.is_active,
+  }));
+  const draftBrandSuggestionValues = Array.from(
+    new Set(
+      draftBrandSuggestions
+        .map((row) => String(row.brand ?? '').trim())
+        .filter(Boolean),
+    ),
+  ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+  const draftCategoryTagSuggestionValues = Array.from(
+    new Set(
+      draftProductCatalog.flatMap((product) =>
+        Array.isArray(product.category_tags)
+          ? product.category_tags
+              .map((tag) => String(tag ?? '').trim())
+              .filter(Boolean)
+          : [],
+      ),
+    ),
+  ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+
+  const addExistingProductsToDraft = async (formData: FormData) => {
+    'use server';
+
+    const supabaseServer = await createServerSupabaseClient();
+    const supplierId = String(
+      formData.get('supplier_id') ?? draftSupplierId,
+    ).trim();
+    const branchId = String(formData.get('branch_id') ?? draftBranchId).trim();
+
+    if (!supplierId || !branchId) {
+      throw new Error('Debes seleccionar proveedor y sucursal.');
+    }
+
+    const rawItems = String(formData.get('items_json') ?? '[]').trim();
+    let parsedItems: Array<{
+      productId: string;
+      supplierRelation?: SupplierRelationType;
+      supplierProductName?: string;
+      supplierSku?: string;
+    }> = [];
+    try {
+      const payload = JSON.parse(rawItems);
+      if (Array.isArray(payload)) {
+        parsedItems = payload as typeof parsedItems;
+      }
+    } catch {
+      parsedItems = [];
+    }
+
+    const sanitizedItems = parsedItems
+      .map((item) => ({
+        productId: String(item.productId ?? '').trim(),
+        supplierRelation: (item.supplierRelation === 'primary' ||
+        item.supplierRelation === 'secondary'
+          ? item.supplierRelation
+          : 'none') as SupplierRelationType,
+        supplierProductName: String(item.supplierProductName ?? '').trim(),
+        supplierSku: String(item.supplierSku ?? '').trim(),
+      }))
+      .filter((item) => item.productId);
+
+    if (sanitizedItems.length === 0) {
+      throw new Error('Selecciona al menos un producto.');
+    }
+
+    const productIds = sanitizedItems.map((item) => item.productId);
+    const [{ data: productRows }, { data: currentSupplierRows }] =
+      await Promise.all([
+        supabaseServer
+          .from('products')
+          .select('id, name, purchase_by_pack, units_per_pack')
+          .eq('org_id', orgId)
+          .in('id', productIds),
+        supabaseServer
+          .from('supplier_products')
+          .select(
+            'product_id, supplier_price, supplier_product_name, supplier_sku',
+          )
+          .eq('org_id', orgId)
+          .eq('supplier_id', supplierId)
+          .in('product_id', productIds),
+      ]);
+
+    const productById = new Map(
+      (
+        productRows as Array<{
+          id: string;
+          name: string | null;
+          purchase_by_pack: boolean | null;
+          units_per_pack: number | null;
+        }> | null
+      )?.map((row) => [row.id, row]) ?? [],
+    );
+    const supplierRowByProduct = new Map<
+      string,
+      {
+        supplier_price: number | null;
+        supplier_product_name: string | null;
+        supplier_sku: string | null;
+      }
+    >();
+    (
+      currentSupplierRows as Array<{
+        product_id: string;
+        supplier_price: number | null;
+        supplier_product_name: string | null;
+        supplier_sku: string | null;
+      }> | null
+    )?.forEach((row) => {
+      supplierRowByProduct.set(row.product_id, {
+        supplier_price: row.supplier_price,
+        supplier_product_name: row.supplier_product_name,
+        supplier_sku: row.supplier_sku,
+      });
+    });
+
+    await Promise.all(
+      sanitizedItems.map(async (item) => {
+        if (item.supplierRelation === 'none') return;
+
+        const currentSupplierMeta = supplierRowByProduct.get(item.productId);
+        const { error } = await supabaseServer.rpc(
+          'rpc_upsert_supplier_product',
+          {
+            p_org_id: orgId,
+            p_supplier_id: supplierId,
+            p_product_id: item.productId,
+            p_supplier_sku:
+              item.supplierSku || currentSupplierMeta?.supplier_sku || '',
+            p_supplier_product_name:
+              item.supplierProductName ||
+              currentSupplierMeta?.supplier_product_name ||
+              '',
+            p_relation_type: item.supplierRelation,
+            p_supplier_price:
+              currentSupplierMeta?.supplier_price == null
+                ? undefined
+                : Number(currentSupplierMeta.supplier_price),
+          },
+        );
+        throwIfError(error, 'No se pudo vincular proveedor al producto');
+      }),
+    );
+
+    revalidatePath('/orders');
+    revalidatePath('/products');
+    revalidatePath(`/suppliers/${supplierId}`);
+
+    return {
+      addedProducts: sanitizedItems.map((item) => {
+        const product = productById.get(item.productId);
+        const currentSupplierMeta = supplierRowByProduct.get(item.productId);
+        return {
+          product_id: item.productId,
+          relation_type: item.supplierRelation,
+          product_name: product?.name ?? 'Producto',
+          purchase_by_pack: product?.purchase_by_pack ?? null,
+          units_per_pack:
+            product?.units_per_pack == null
+              ? null
+              : Number(product.units_per_pack),
+          stock_on_hand: null,
+          safety_stock: 0,
+          avg_daily_sales_30d: null,
+          cycle_days: draftSupplierCycleDays,
+          suggested_qty: 0,
+          primary_supplier_name: null,
+          supplier_product_name:
+            item.supplierProductName ||
+            currentSupplierMeta?.supplier_product_name ||
+            null,
+          supplier_sku:
+            item.supplierSku || currentSupplierMeta?.supplier_sku || null,
+          supplier_price:
+            currentSupplierMeta?.supplier_price == null
+              ? null
+              : Number(currentSupplierMeta.supplier_price),
+        };
+      }),
+    };
+  };
+
+  const createProductFromDraft = async (formData: FormData) => {
+    'use server';
+
+    const supabaseServer = await createServerSupabaseClient();
+    const admin = createAdminSupabaseClient();
+    const supplierId = String(
+      formData.get('supplier_id') ?? draftSupplierId,
+    ).trim();
+    const branchId = String(formData.get('branch_id') ?? draftBranchId).trim();
+
+    if (!supplierId || !branchId) {
+      throw new Error('Debes seleccionar proveedor y sucursal.');
+    }
+
+    const productId = randomUUID();
+    const name = String(formData.get('name') ?? '').trim();
+    const brand = String(formData.get('brand') ?? '').trim();
+    const internalCode = String(formData.get('internal_code') ?? '').trim();
+    const barcode = String(formData.get('barcode') ?? '').trim();
+    const categoryTags = parseProductCategoryTags(
+      String(formData.get('category_tags') ?? ''),
+    );
+    const unitPrice = Number(String(formData.get('unit_price') ?? '0').trim());
+    const supplierPriceRaw = String(
+      formData.get('supplier_price') ?? '',
+    ).trim();
+    const supplierPrice =
+      supplierPriceRaw === '' ? null : Number(supplierPriceRaw);
+    const sellUnitType = String(formData.get('sell_unit_type') ?? 'unit') as
+      | 'unit'
+      | 'weight'
+      | 'bulk';
+    const uom = String(formData.get('uom') ?? 'unit').trim() || 'unit';
+    const purchaseByPack = formData.get('purchase_by_pack') === 'on';
+    const unitsPerPackRaw = String(formData.get('units_per_pack') ?? '').trim();
+    const unitsPerPack =
+      purchaseByPack && unitsPerPackRaw !== '' ? Number(unitsPerPackRaw) : null;
+    const shelfLifeDaysRaw = String(
+      formData.get('shelf_life_days') ?? '',
+    ).trim();
+    const shelfLifeDays =
+      shelfLifeDaysRaw === '' ? null : Number(shelfLifeDaysRaw);
+    const safetyStockRaw = String(formData.get('safety_stock') ?? '').trim();
+    const safetyStock = safetyStockRaw === '' ? null : Number(safetyStockRaw);
+    const supplierRelationRaw = String(
+      formData.get('supplier_relation') ?? 'primary',
+    ).trim();
+    const supplierRelation: SupplierRelationType =
+      supplierRelationRaw === 'primary' || supplierRelationRaw === 'secondary'
+        ? supplierRelationRaw
+        : 'none';
+    const supplierProductName = String(
+      formData.get('supplier_product_name') ?? '',
+    ).trim();
+    const supplierSku = String(formData.get('supplier_sku') ?? '').trim();
+
+    if (!name) {
+      throw new Error('Debes completar el nombre del producto.');
+    }
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      throw new Error('El precio unitario debe ser mayor o igual a 0.');
+    }
+    if (
+      supplierPrice !== null &&
+      (!Number.isFinite(supplierPrice) || supplierPrice < 0)
+    ) {
+      throw new Error('El precio proveedor debe ser mayor o igual a 0.');
+    }
+    if (
+      purchaseByPack &&
+      (unitsPerPack == null ||
+        !Number.isFinite(unitsPerPack) ||
+        unitsPerPack < 2)
+    ) {
+      throw new Error(
+        'Si se compra por paquete, debes indicar al menos 2 unidades por paquete.',
+      );
+    }
+    if (
+      shelfLifeDays !== null &&
+      (!Number.isFinite(shelfLifeDays) || shelfLifeDays < 0)
+    ) {
+      throw new Error('El vencimiento aproximado debe ser mayor o igual a 0.');
+    }
+    if (
+      safetyStock !== null &&
+      (!Number.isFinite(safetyStock) || safetyStock < 0)
+    ) {
+      throw new Error('La cantidad de resguardo debe ser mayor o igual a 0.');
+    }
+
+    const { error: upsertProductError } = await supabaseServer.rpc(
+      'rpc_upsert_product',
+      {
+        p_product_id: productId,
+        p_org_id: orgId,
+        p_name: name,
+        p_internal_code: internalCode,
+        p_barcode: barcode,
+        p_sell_unit_type: sellUnitType,
+        p_uom: uom,
+        p_unit_price: unitPrice,
+        p_is_active: true,
+        p_shelf_life_days: shelfLifeDays,
+      },
+    );
+    if (upsertProductError) {
+      throw new Error(mapProductUpsertError(upsertProductError));
+    }
+
+    const { error: metadataError } = await admin
+      .from('products' as never)
+      .update({
+        brand: brand || null,
+        category_tags: categoryTags,
+        purchase_by_pack: purchaseByPack,
+        units_per_pack: purchaseByPack ? unitsPerPack : null,
+      } as never)
+      .eq('org_id', orgId)
+      .eq('id', productId);
+    throwIfError(metadataError, 'No se pudo guardar metadata del producto');
+
+    if (supplierRelation !== 'none') {
+      const { error: upsertSupplierError } = await supabaseServer.rpc(
+        'rpc_upsert_supplier_product',
+        {
+          p_org_id: orgId,
+          p_supplier_id: supplierId,
+          p_product_id: productId,
+          p_supplier_sku: supplierSku,
+          p_supplier_product_name: supplierProductName,
+          p_relation_type: supplierRelation,
+          p_supplier_price:
+            supplierPrice === null ? undefined : Number(supplierPrice),
+        },
+      );
+      throwIfError(
+        upsertSupplierError,
+        'No se pudo guardar relación del proveedor',
+      );
+    }
+
+    if (safetyStock !== null) {
+      const { error: safetyStockError } = await supabaseServer.rpc(
+        'rpc_set_safety_stock',
+        {
+          p_org_id: orgId,
+          p_branch_id: branchId,
+          p_product_id: productId,
+          p_safety_stock: safetyStock,
+        },
+      );
+      throwIfError(
+        safetyStockError,
+        'No se pudo guardar cantidad de resguardo',
+      );
+    }
+
+    revalidatePath('/orders');
+    revalidatePath('/products');
+    revalidatePath(`/suppliers/${supplierId}`);
+
+    return {
+      addedProducts: [
+        {
+          product_id: productId,
+          relation_type: supplierRelation,
+          product_name: name,
+          purchase_by_pack: purchaseByPack,
+          units_per_pack: purchaseByPack ? unitsPerPack : null,
+          stock_on_hand: null,
+          safety_stock: safetyStock ?? 0,
+          avg_daily_sales_30d: null,
+          cycle_days: draftSupplierCycleDays,
+          suggested_qty: 0,
+          primary_supplier_name: null,
+          supplier_product_name: supplierProductName || null,
+          supplier_sku: supplierSku || null,
+          supplier_price: supplierPrice,
+        },
+      ],
+    };
+  };
 
   const createOrder = async (formData: FormData) => {
     'use server';
@@ -666,6 +1167,7 @@ export default async function OrdersPage({
           }) => {
             const supplierPrice =
               supplierPriceRaw === '' ? null : Number(supplierPriceRaw);
+            if (relationType === 'none') return;
             const { error } = await supabaseServer.rpc(
               'rpc_upsert_supplier_product',
               {
@@ -937,10 +1439,6 @@ export default async function OrdersPage({
   const supplierPaymentPreferenceNote = buildSupplierPaymentPreferenceNote(
     (selectedSupplier as SupplierPaymentPreferenceRow | undefined) ?? null,
   );
-  const showingAvgModeLabel =
-    draftAvgMode === 'cycle'
-      ? `Segun proveedor (${formatOrderFrequencyLabel(selectedSupplier?.order_frequency)})`
-      : formatAvgModeLabel(draftAvgMode);
   const selectedBranch = branches?.find(
     (branch) => branch.id === draftBranchId,
   );
@@ -1086,71 +1584,6 @@ export default async function OrdersPage({
 
               {draftSupplierId && draftBranchId ? (
                 <div className="mt-6 grid gap-4">
-                  <form
-                    method="get"
-                    className="rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700"
-                  >
-                    <p className="text-xs font-semibold text-zinc-500 uppercase">
-                      Ajustes de sugeridos
-                    </p>
-                    <div className="mt-3 grid gap-3 md:grid-cols-3">
-                      <label className="text-sm text-zinc-600">
-                        Margen de ganancia (%)
-                        <input
-                          name="draft_margin_pct"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          defaultValue={String(effectiveDraftMarginPct)}
-                          className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                          placeholder="Ej: 40"
-                        />
-                        <span
-                          className="mt-1 block text-xs text-zinc-400"
-                          title="Se usa para estimar el costo del articulo en el proveedor."
-                        >
-                          ⓘ Se usa para estimar el costo del articulo en el
-                          proveedor.
-                        </span>
-                      </label>
-                      <label className="text-sm text-zinc-600">
-                        Columna de promedio de ventas
-                        <select
-                          name="draft_avg_mode"
-                          defaultValue={draftAvgMode}
-                          className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm"
-                        >
-                          <option value="cycle">Segun proveedor</option>
-                          <option value="weekly">Semanal</option>
-                          <option value="biweekly">Quincenal</option>
-                          <option value="monthly">Mensual</option>
-                        </select>
-                        <span className="mt-1 block text-xs text-zinc-400">
-                          ⓘ Define como se calcula la columna de promedio de
-                          ventas.
-                        </span>
-                      </label>
-                      <div className="flex items-end">
-                        <button
-                          type="submit"
-                          className="rounded border border-zinc-200 px-3 py-2 text-sm"
-                        >
-                          Aplicar
-                        </button>
-                      </div>
-                    </div>
-                    <input
-                      type="hidden"
-                      name="draft_supplier_id"
-                      value={draftSupplierId}
-                    />
-                    <input
-                      type="hidden"
-                      name="draft_branch_id"
-                      value={draftBranchId}
-                    />
-                  </form>
-
                   <OrderDraftCreateFormClient
                     enabled={Boolean(draftSupplierId && draftBranchId)}
                   >
@@ -1168,16 +1601,6 @@ export default async function OrdersPage({
                         type="hidden"
                         name="branch_id"
                         value={draftBranchId}
-                      />
-                      <input
-                        type="hidden"
-                        name="draft_margin_pct"
-                        value={String(effectiveDraftMarginPct)}
-                      />
-                      <input
-                        type="hidden"
-                        name="draft_avg_mode"
-                        value={draftAvgMode}
                       />
                       <input
                         type="hidden"
@@ -1207,9 +1630,20 @@ export default async function OrdersPage({
                         supplierPaymentPreferenceNote={
                           supplierPaymentPreferenceNote
                         }
+                        addProductsModal={{
+                          supplierName:
+                            selectedSupplier?.name ?? 'este proveedor',
+                          products: draftProductOptions,
+                          productNameSuggestions: draftProductNameSuggestions,
+                          brandSuggestions: draftBrandSuggestionValues,
+                          categoryTagSuggestions:
+                            draftCategoryTagSuggestionValues,
+                          onAddExistingProducts: addExistingProductsToDraft,
+                          onCreateProduct: createProductFromDraft,
+                        }}
                         supplierName={selectedSupplier?.name ?? 'Proveedor'}
                         branchName={selectedBranch?.name ?? 'Sucursal'}
-                        showingSummary={`${selectedSupplier?.name ?? 'Proveedor'} · ${selectedBranch?.name ?? 'Sucursal'} · Margen: ${safeMarginPct.toFixed(2)}% · Promedio: ${showingAvgModeLabel}`}
+                        showingSummary={`${selectedSupplier?.name ?? 'Proveedor'} · ${selectedBranch?.name ?? 'Sucursal'}`}
                         submitActions={
                           <>
                             <button

@@ -91,15 +91,15 @@ Accion implementada en MVP:
   - marca
   - categoria por hashtags
   - compra por paquete (`purchase_by_pack` + `units_per_pack`)
-  - proveedor primario
+  - proveedor principal
   - proveedor secundario
   - shelf life days
   - precio proveedor (relacion primaria)
   - precio unitario de venta
-- en el row de `proveedor primario` existe CTA `Crear proveedor` que abre modal
+- en el row de `proveedor principal` existe CTA `Crear proveedor` que abre modal
   rápido sin salir de onboarding (nombre requerido + campos completos de
   proveedor + desplegable opcional para registrar cuenta de transferencia)
-- resultado con conteo de productos tocados y omitidos sin proveedor primario
+- resultado con conteo de productos tocados y omitidos sin proveedor principal
   (cuando se aplica precio proveedor sin relacion primaria existente)
 
 ### Seccion F — Exportes maestros
@@ -108,8 +108,11 @@ Accion implementada en MVP:
 - descargar `proveedores_master.csv`
 - descargar `producto_proveedor_master.csv`
 - `productos_master.csv` refleja el contrato del formulario de alta de
-  `/products` (incluye proveedor primario/secundario, SKU/nombre de proveedor y
+  `/products` (incluye proveedor principal/secundario, SKU/nombre de proveedor y
   stock minimo consolidado)
+- El resolvedor inline de productos incompletos reutiliza ese mismo contrato y
+  por lo tanto también muestra guía de nomenclatura para `Nombre de articulo en
+la tienda`: `tipo + marca + variante + tamano/presentacion`.
 - `proveedores_master.csv` refleja el contrato del formulario de alta de
   `/suppliers` (incluye `% ganancia sugerida` y perfil de pago)
 
@@ -255,5 +258,5 @@ RPC 5..N (reuso existentes):
 
 - ONB-01: validar CSV/XLSX con errores y revisar reporte por fila
 - ONB-02: aplicar importacion parcial y verificar upserts en productos/proveedores
-- ONB-03: resolver pendiente de proveedor primario desde CTA rapido
+- ONB-03: resolver pendiente de proveedor principal desde CTA rapido
 - ONB-04: exportar maestros y abrir archivo con columnas esperadas

@@ -76,7 +76,7 @@ Cada row:
 - Si el proveedor seleccionado está configurado como secundario para algunos artículos, esos productos también aparecen en la sección de sugeridos
 - Deben mostrarse al final, separados visualmente del bloque principal
 - La UI aclara que esos productos normalmente se piden con otro proveedor
-- Cada fila/tarjeta muestra el nombre del proveedor primario asignado a ese producto
+- Cada fila/tarjeta muestra el nombre del proveedor principal asignado a ese producto
 
 ---
 
@@ -88,9 +88,14 @@ Paso 1: seleccionar proveedor + sucursal (auto carga sugeridos).
 
 Paso 2: ver sugeridos en la misma pantalla y editar cantidades.
 
-Paso 3: ajustar margen y la columna de promedio de ventas (sección “Ajustes de sugeridos”) y aplicar.
+Paso 3: ajustar margen y la columna de promedio de ventas desde la cabecera inline de sugeridos.
+Actualización:
 
-Paso 3.b: editar inline `Stock de resguardo` por artículo si hace falta, sin salir de `/orders`.
+- Ya no existe bloque separado `Ajustes de sugeridos`.
+- `Promedio de ventas`, el switch `Calcular precio de proveedor segun Margen de ganancia (%)` y el input de `Margen de ganancia (%)` viven en la fila superior del bloque de sugeridos, a la derecha de `Buscar artículo`.
+- Los cambios deben impactar la grilla inmediatamente, sin botón `Aplicar`.
+  Paso 3.b: editar inline `Stock de resguardo` por artículo si hace falta, sin salir de `/orders`.
+  Paso 3.c: si falta un artículo en el proveedor o en el listado actual, abrir `Agregar productos al pedido` sin salir de `/orders`.
 
 Paso 4: agregar notas y guardar borrador / enviar pedido.
 
@@ -101,9 +106,18 @@ Campos:
 - proveedor (selector)
 - botón `Nuevo proveedor` junto al selector, que abre modal reutilizando el mismo alta de `/suppliers`
 - sucursal (selector)
-- ajustes de sugeridos: margen de ganancia (%) + columna de promedio de ventas (segun proveedor/semanal/quincenal/mensual)
+- ajustes de sugeridos: margen de ganancia (%) + columna de promedio de ventas (frecuencia del proveedor / semanal / quincenal / mensual)
   - default del margen: `suppliers.default_markup_pct`; fallback `org_preferences.default_supplier_markup_pct`
+- el input de margen queda a la derecha del check `Calcular precio de proveedor segun Margen de ganancia (%)` y solo está habilitado cuando ese check está activo
+- `Promedio de ventas:` queda en la misma fila superior, a la izquierda del check, con select inline y actualización inmediata de métricas/grilla
 - `Stock de resguardo` editable por artículo dentro del listado de sugeridos
+- CTA `Agregar productos al pedido` reutiliza la lógica del modal de recepción (`/orders/[orderId]`) adaptada a draft:
+  - pestaña `Productos existentes`: permite buscar artículos del catálogo, seleccionarlos aunque hoy no estén asignados al proveedor y opcionalmente crear/actualizar la relación con el proveedor (`primary`, `secondary` o `none`)
+  - si el artículo ya tiene otro proveedor principal, el modal debe mostrar `Proveedor principal actual: X`, preseleccionar `Proveedor secundario` y pedir confirmación explícita si el usuario intenta reemplazarlo por el proveedor actual
+  - pestaña `Nuevo producto`: alta rápida de artículo con metadata operativa mínima, relación opcional con proveedor y `Cantidad de resguardo`
+  - en `Nombre de articulo en la tienda`, ese modal también debe mostrar la guía de nomenclatura `tipo + marca + variante + tamano/presentacion` con ejemplo visible
+  - al confirmar, los artículos se insertan inmediatamente en la grilla local de sugeridos sin perder el draft actual
+  - si el proveedor todavía no tiene sugeridos, el mismo CTA sigue visible dentro del estado vacío para poder iniciar el pedido igual
 - botón `Imprimir` junto a `Guardar borrador`, con modal para elegir columnas del PDF
 - botón `Enviar por WhatsApp`, con previsualización del pedido en texto plano
 - lista de artículos en el modal con input `Nombre de articulo en el proveedor`
@@ -244,9 +258,12 @@ UI:
 - Mostrar promedio de ventas = avg_daily_sales_30d \* días según la opción elegida
 - El título de la columna debe explicitar el período efectivo:
   - si el usuario elige override semanal/quincenal/mensual, mostrar `Promedio de ventas semanal/quincenal/mensual`
-  - si queda en `Según proveedor`, mostrar el período real configurado para ese proveedor (ej. `Promedio de ventas mensual`, `Promedio de ventas semanal`, `Promedio de ventas quincenal`)
-- En el bloque `Mostrando`, si el modo queda en `Según proveedor`, la UI debe explicitar entre paréntesis la frecuencia efectiva del proveedor (ej. `Promedio: Segun proveedor (semanal)`).
+  - si queda en modo frecuencia del proveedor, mostrar el período real configurado para ese proveedor (ej. `Promedio de ventas mensual`, `Promedio de ventas semanal`, `Promedio de ventas quincenal`)
+- En el selector inline `Promedio de ventas:`, la opción base no debe decir `Según proveedor`: debe explicitar la frecuencia efectiva del proveedor (ej. `mensual`, `quincenal`, `semanal`); si el proveedor no tiene período configurado, usar fallback `semanal`.
+- En el bloque `Mostrando`, si el modo queda en frecuencia del proveedor, la UI debe repetir esa misma etiqueta explícita.
+- En el bloque `Mostrando`, la UI debe incluir además cómo se está resolviendo `Precio estimado de proveedor`: `real registrado` o `por margen de ganancia`, según el estado del check `Calcular precio de proveedor segun Margen de ganancia (%)`.
 - Cantidad sugerida y cantidad a pedir como entero (redondeo hacia arriba)
+- La columna editable que captura `supplier_order_items.unit_cost` se muestra en UI como `Precio estimado de proveedor`
 - Selector para mostrar promedio semanal/quincenal/mensual (override manual)
 - Toggle de vista: tabla/tarjetas (persistido en localStorage)
 - Totales: costo estimado + cantidad total de items

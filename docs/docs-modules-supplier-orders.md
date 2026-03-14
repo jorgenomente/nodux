@@ -165,6 +165,7 @@ En detalle de pedido (`/orders/[orderId]`), el estado `draft` usa edición batch
 - El input `Marca` en recepción usa catálogo de marcas existente en la org para sugerir coincidencias mientras se escribe y ayudar a mantener un maestro limpio.
 - El input `Categoria` en recepción usa hashtags ya registrados en la org y alerta coincidencias parecidas para evitar categorías duplicadas o casi iguales.
 - Si el usuario conoce la fecha exacta de vencimiento del remito, la UI permite cargarla y derivar automáticamente `products.shelf_life_days` en base a la fecha efectiva de recepción.
+- En recepción/control, `Vencimiento aproximado (dias)` y `Fecha exacta de vencimiento` se muestran juntos; la fecha exacta es opcional y solo se usa para calcular el aproximado con más precisión cuando el usuario no quiere estimarlo manualmente.
 - Objetivo operativo: que el maestro se complete progresivamente mientras entra mercadería real, sin obligar a abrir `/products` para cada ajuste.
 
 ### R4.4) Productos extra del remito
@@ -205,8 +206,15 @@ En detalle de pedido (`/orders/[orderId]`), el estado `draft` usa edición batch
 - El ciclo se calcula por `order_frequency` (mensual = 30 días)
 - Se recomienda mostrar sugerido como ayuda, no obligatorio
 - En `/orders`, el ajuste `Margen de ganancia (%)` debe precargar primero el `% de ganancia deseado` del proveedor (`suppliers.default_markup_pct`) y usar el default org-wide (`org_preferences.default_supplier_markup_pct`) solo si el proveedor no lo definió
+- En `/orders`, la columna editable de costo sugerido por item se rotula como `Precio estimado de proveedor` para dejar claro que representa el valor esperado de compra al proveedor, no el precio de venta.
+- En `/orders`, el selector inline `Promedio de ventas` no debe mostrar `Según proveedor`; debe explicitar la frecuencia efectiva cargada en el proveedor (por ejemplo `quincenal`), con fallback `semanal` si el proveedor no tiene período definido.
+- En `/orders`, `Margen de ganancia (%)` deja de vivir en un bloque separado con botón `Aplicar`: ahora se controla desde el área de sugeridos, junto al toggle de cálculo estimado, y recalcula la UI en tiempo real.
+- En `/orders`, el resumen `Mostrando` debe aclarar si `Precio estimado de proveedor` está en modo `real registrado` o `por margen de ganancia`, en sincronía con el toggle de cálculo estimado.
 - En `/orders`, `Stock de resguardo` funciona como segundo entry point operativo para editar `stock_items.safety_stock` del artículo en la sucursal seleccionada; el cambio se persiste al guardar borrador o enviar pedido.
 - En `/orders`, el modal de impresión/WhatsApp funciona también como segundo entry point para editar `supplier_products.supplier_product_name` del proveedor seleccionado; el cambio se persiste al guardar borrador o enviar pedido.
+- En `/orders`, existe además un segundo entry point `Agregar productos al pedido` que reutiliza el modal de recepción para sumar artículos faltantes al draft actual. Debe permitir elegir productos existentes del catálogo aunque no tengan relación previa con el proveedor, opcionalmente asignarlos como `primary`/`secondary`/`none`, o crear un producto nuevo con metadata mínima y `Cantidad de resguardo`.
+- Al confirmar ese modal en `/orders`, los artículos agregados se inyectan de inmediato en la grilla local del draft sin exigir refresco de página; la relación proveedor-producto solo se persiste si el usuario eligió `primary` o `secondary`.
+- La regla de catálogo se mantiene: un producto solo puede tener un proveedor `primary`. Si en el modal de `/orders` o `/orders/[orderId]` el artículo ya tiene otro primario, la UI debe mostrar ese proveedor, preseleccionar `secondary` para el proveedor actual y pedir confirmación explícita antes de reemplazar al primario existente.
 - Si producto `purchase_by_pack=true`, la UI muestra equivalencia sugerida en
   paquetes (`suggested_qty / units_per_pack`) y equivalencia de cantidad cargada.
   Persistencia sigue en unidades.

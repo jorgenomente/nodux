@@ -4,10 +4,13 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 
 import OrderDraftShareActions from '@/app/orders/OrderDraftShareActions';
+import ReceiveOrderAddProductsButton, {
+  type AddProductsModalResultItem,
+} from '@/app/orders/ReceiveOrderAddProductsButton';
 
 type SuggestionRow = {
   product_id: string;
-  relation_type: 'primary' | 'secondary';
+  relation_type: 'primary' | 'secondary' | 'none';
   product_name: string | null;
   purchase_by_pack: boolean | null;
   units_per_pack: number | null;
@@ -36,6 +39,35 @@ type Props = {
   supplierName?: string;
   branchName?: string;
   submitActions?: ReactNode;
+  addProductsModal?: {
+    supplierName: string;
+    products: Array<{
+      id: string;
+      name: string;
+      brand: string | null;
+      barcode: string | null;
+      internalCode: string | null;
+      supplierProductName: string | null;
+      currentRelationType: 'primary' | 'secondary' | null;
+      currentPrimarySupplierName?: string | null;
+    }>;
+    productNameSuggestions?: Array<{
+      product_id: string;
+      name: string;
+      brand?: string | null;
+      barcode?: string | null;
+      internal_code?: string | null;
+      is_active?: boolean;
+    }>;
+    brandSuggestions?: string[];
+    categoryTagSuggestions?: string[];
+    onAddExistingProducts: (formData: FormData) => Promise<{
+      addedProducts?: AddProductsModalResultItem[];
+    } | void>;
+    onCreateProduct: (formData: FormData) => Promise<{
+      addedProducts?: AddProductsModalResultItem[];
+    } | void>;
+  };
   specialOrders?: Array<{
     item_id: string;
     client_name: string | null;
@@ -83,6 +115,18 @@ const resolveAverageColumnLabel = (
   return `Promedio de ventas ${avgPeriodLabelFromDays(supplierCycleDays)}`;
 };
 
+const resolveAverageModeSelectLabel = (
+  avgMode: Props['avgMode'],
+  suggestions: SuggestionRow[],
+) => {
+  if (avgMode === 'weekly') return 'Semanal';
+  if (avgMode === 'biweekly') return 'Quincenal';
+  if (avgMode === 'monthly') return 'Mensual';
+
+  const supplierCycleDays = Number(suggestions[0]?.cycle_days ?? 7);
+  return avgPeriodLabelFromDays(supplierCycleDays);
+};
+
 const formatPackageHint = ({
   qty,
   purchaseByPack,
@@ -112,15 +156,36 @@ export default function OrderSuggestionsClient({
   supplierName = 'Proveedor',
   branchName = 'Sucursal',
   submitActions,
+  addProductsModal,
   specialOrders = [],
 }: Props) {
-  const averageColumnLabel = resolveAverageColumnLabel(avgMode, suggestions);
+  const [localSuggestions, setLocalSuggestions] =
+    useState<SuggestionRow[]>(suggestions);
+  const [currentAvgMode, setCurrentAvgMode] =
+    useState<Props['avgMode']>(avgMode);
+  const [marginPctRaw, setMarginPctRaw] = useState(String(safeMarginPct));
+  const parsedMarginPct = Number(marginPctRaw);
+  const currentSafeMarginPct =
+    Number.isFinite(parsedMarginPct) && parsedMarginPct >= 0
+      ? parsedMarginPct
+      : 0;
+  const averageColumnLabel = resolveAverageColumnLabel(
+    currentAvgMode,
+    localSuggestions,
+  );
+  const averageModeSelectLabel = resolveAverageModeSelectLabel(
+    currentAvgMode,
+    localSuggestions,
+  );
 
-  const buildDefaultUnitCosts = (useEstimated: boolean) => {
+  const buildDefaultUnitCosts = (
+    useEstimated: boolean,
+    marginPct: number = currentSafeMarginPct,
+  ) => {
     const next: Record<string, string> = {};
-    suggestions.forEach((row) => {
+    localSuggestions.forEach((row) => {
       const unitPrice = priceByProduct[row.product_id] ?? 0;
-      const estimatedCost = unitPrice * (1 - safeMarginPct / 100);
+      const estimatedCost = unitPrice * (1 - marginPct / 100);
       const supplierCost = Number(supplierPriceByProduct[row.product_id] ?? 0);
       const baseCost = useEstimated ? estimatedCost : supplierCost;
       next[row.product_id] =
@@ -135,9 +200,13 @@ export default function OrderSuggestionsClient({
     window.localStorage.setItem('orders_suggestions_view', view);
   }, [view]);
 
+  useEffect(() => {
+    setLocalSuggestions(suggestions);
+  }, [suggestions]);
+
   const [quantities, setQuantities] = useState<Record<string, string>>(() => {
     const next: Record<string, string> = {};
-    suggestions.forEach((row) => {
+    localSuggestions.forEach((row) => {
       const initialQty = initialQuantities?.[row.product_id];
       next[row.product_id] =
         typeof initialQty === 'number' && Number.isFinite(initialQty)
@@ -152,12 +221,12 @@ export default function OrderSuggestionsClient({
     useEstimatedCostsByDefault,
   );
   const [unitCosts, setUnitCosts] = useState<Record<string, string>>(() =>
-    buildDefaultUnitCosts(useEstimatedCostsByDefault),
+    buildDefaultUnitCosts(useEstimatedCostsByDefault, safeMarginPct),
   );
   const [safetyStocks, setSafetyStocks] = useState<Record<string, string>>(
     () => {
       const next: Record<string, string> = {};
-      suggestions.forEach((row) => {
+      localSuggestions.forEach((row) => {
         const safetyStock = Number(row.safety_stock ?? 0);
         next[row.product_id] =
           Number.isFinite(safetyStock) && safetyStock >= 0
@@ -176,8 +245,40 @@ export default function OrderSuggestionsClient({
     });
     return next;
   });
+  const supplierPriceSummaryLabel = useEstimatedCosts
+    ? 'Precio estimado de proveedor: por margen de ganancia'
+    : 'Precio estimado de proveedor: real registrado';
 
-  const filteredSuggestions = suggestions.filter((row) => {
+  useEffect(() => {
+    setCurrentAvgMode(avgMode);
+  }, [avgMode]);
+
+  useEffect(() => {
+    setMarginPctRaw(String(safeMarginPct));
+  }, [safeMarginPct]);
+
+  useEffect(() => {
+    if (!useEstimatedCosts) return;
+    setUnitCosts((prev) => {
+      const next: Record<string, string> = {};
+      localSuggestions.forEach((row) => {
+        const unitPrice = priceByProduct[row.product_id] ?? 0;
+        const estimatedCost = unitPrice * (1 - currentSafeMarginPct / 100);
+        next[row.product_id] =
+          Number.isFinite(estimatedCost) && estimatedCost > 0
+            ? estimatedCost.toFixed(2)
+            : (prev[row.product_id] ?? '0');
+      });
+      return next;
+    });
+  }, [
+    currentSafeMarginPct,
+    localSuggestions,
+    priceByProduct,
+    useEstimatedCosts,
+  ]);
+
+  const filteredSuggestions = localSuggestions.filter((row) => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return true;
     return (row.product_name ?? '').toLowerCase().includes(query);
@@ -191,10 +292,10 @@ export default function OrderSuggestionsClient({
 
   const renderRow = (row: SuggestionRow) => {
     const cycleDays = Number(row.cycle_days ?? 30);
-    const avgDays = avgDaysForMode(avgMode, cycleDays);
+    const avgDays = avgDaysForMode(currentAvgMode, cycleDays);
     const avgCycle = Math.round(Number(row.avg_daily_sales_30d ?? 0) * avgDays);
     const unitPrice = priceByProduct[row.product_id] ?? 0;
-    const estimatedCost = unitPrice * (1 - safeMarginPct / 100);
+    const estimatedCost = unitPrice * (1 - currentSafeMarginPct / 100);
     const supplierCost = Number(supplierPriceByProduct[row.product_id] ?? 0);
     const suggestedQty = Math.ceil(Number(row.suggested_qty ?? 0));
     const currentQtyRaw = quantities[row.product_id] ?? String(suggestedQty);
@@ -249,11 +350,11 @@ export default function OrderSuggestionsClient({
     );
   };
 
-  const totalItems = suggestions.reduce((total, row) => {
+  const totalItems = localSuggestions.reduce((total, row) => {
     const value = quantities[row.product_id];
     return total + (value === '' || value == null ? 0 : Number(value));
   }, 0);
-  const totalCost = suggestions.reduce((total, row) => {
+  const totalCost = localSuggestions.reduce((total, row) => {
     const unitCostRaw = unitCosts[row.product_id] ?? '0';
     const unitCost = unitCostRaw === '' ? 0 : Number(unitCostRaw);
     const qtyRaw = quantities[row.product_id];
@@ -303,10 +404,103 @@ export default function OrderSuggestionsClient({
     }));
   };
 
-  if (suggestions.length === 0) {
+  const handleProductsAdded = (items: AddProductsModalResultItem[]) => {
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    setLocalSuggestions((prev) => {
+      const existingIds = new Set(prev.map((row) => row.product_id));
+      const appended = items
+        .filter((item) => !existingIds.has(item.product_id))
+        .map((item) => ({
+          product_id: item.product_id,
+          relation_type: item.relation_type,
+          product_name: item.product_name,
+          purchase_by_pack: item.purchase_by_pack,
+          units_per_pack: item.units_per_pack,
+          stock_on_hand: item.stock_on_hand,
+          safety_stock: item.safety_stock,
+          avg_daily_sales_30d: item.avg_daily_sales_30d,
+          cycle_days: item.cycle_days,
+          suggested_qty: item.suggested_qty,
+          primary_supplier_name: item.primary_supplier_name ?? null,
+          supplier_product_name: item.supplier_product_name ?? null,
+          supplier_sku: item.supplier_sku ?? null,
+          supplier_price: item.supplier_price ?? null,
+        }));
+      return [...prev, ...appended].sort((a, b) =>
+        (a.product_name ?? '').localeCompare(b.product_name ?? ''),
+      );
+    });
+    setQuantities((prev) => {
+      const next = { ...prev };
+      items.forEach((item) => {
+        if (!(item.product_id in next)) next[item.product_id] = '0';
+      });
+      return next;
+    });
+    setUnitCosts((prev) => {
+      const next = { ...prev };
+      items.forEach((item) => {
+        if (item.product_id in next) return;
+        const supplierPrice = Number(item.supplier_price ?? 0);
+        next[item.product_id] =
+          Number.isFinite(supplierPrice) && supplierPrice > 0
+            ? supplierPrice.toFixed(2)
+            : '0';
+      });
+      return next;
+    });
+    setSafetyStocks((prev) => {
+      const next = { ...prev };
+      items.forEach((item) => {
+        if (!(item.product_id in next)) {
+          next[item.product_id] = String(Number(item.safety_stock ?? 0));
+        }
+      });
+      return next;
+    });
+    setSupplierProductNames((prev) => {
+      const next = { ...prev };
+      items.forEach((item) => {
+        if (!(item.product_id in next)) {
+          next[item.product_id] = String(item.supplier_product_name ?? '');
+        }
+      });
+      return next;
+    });
+  };
+
+  const addProductsEntryPoint = addProductsModal ? (
+    <ReceiveOrderAddProductsButton
+      supplierName={addProductsModal.supplierName}
+      products={addProductsModal.products}
+      productNameSuggestions={addProductsModal.productNameSuggestions}
+      brandSuggestions={addProductsModal.brandSuggestions}
+      categoryTagSuggestions={addProductsModal.categoryTagSuggestions}
+      currentOrderProductIds={localSuggestions.map((row) => row.product_id)}
+      onAddExistingProducts={addProductsModal.onAddExistingProducts}
+      onCreateProduct={addProductsModal.onCreateProduct}
+      defaultExistingSupplierRelation="primary"
+      defaultNewSupplierRelation="primary"
+      contextLabel="Armar pedido"
+      title="Agregar productos al pedido"
+      description="Suma artículos al armado aunque todavía no estén asignados a este proveedor. Si corresponde, puedes asignar este proveedor a los articulos que selecciones."
+      triggerQuestion="¿Hay productos que quieres pedir y no aparecen en esta lista?"
+      triggerActionLabel="Agrega productos aquí"
+      existingHelperText="Los productos seleccionados se suman al armado actual con cantidad a pedir `0`, así luego puedes completar la cantidad desde la grilla principal."
+      createHelperText="El producto nuevo se agrega al armado actual para que puedas completar cantidad a pedir, precio estimado de proveedor y resto de datos sin salir de esta pantalla."
+      createSubmitLabel="Crear producto y sumar al armado"
+      onProductsAdded={handleProductsAdded}
+    />
+  ) : null;
+
+  if (localSuggestions.length === 0) {
     return (
       <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
-        No hay sugerencias para este proveedor y sucursal.
+        <p>No hay sugerencias para este proveedor y sucursal.</p>
+        {addProductsEntryPoint ? (
+          <div className="mt-3">{addProductsEntryPoint}</div>
+        ) : null}
       </div>
     );
   }
@@ -333,7 +527,9 @@ export default function OrderSuggestionsClient({
         name="use_estimated_costs"
         value={useEstimatedCosts ? '1' : '0'}
       />
-      {suggestions.map((row) => {
+      <input type="hidden" name="draft_margin_pct" value={marginPctRaw} />
+      <input type="hidden" name="draft_avg_mode" value={currentAvgMode} />
+      {localSuggestions.map((row) => {
         const unitCostRaw = unitCosts[row.product_id] ?? '0';
         return (
           <input
@@ -344,7 +540,7 @@ export default function OrderSuggestionsClient({
           />
         );
       })}
-      {suggestions.map((row) => {
+      {localSuggestions.map((row) => {
         const safetyStockRaw = safetyStocks[row.product_id] ?? '0';
         return (
           <input
@@ -355,7 +551,7 @@ export default function OrderSuggestionsClient({
           />
         );
       })}
-      {suggestions.map((row) => {
+      {localSuggestions.map((row) => {
         const qtyRaw = quantities[row.product_id] ?? '0';
         return (
           <input
@@ -366,7 +562,7 @@ export default function OrderSuggestionsClient({
           />
         );
       })}
-      {suggestions.map((row) => (
+      {localSuggestions.map((row) => (
         <input
           key={`relation-type-${row.product_id}`}
           type="hidden"
@@ -374,7 +570,7 @@ export default function OrderSuggestionsClient({
           value={row.relation_type}
         />
       ))}
-      {suggestions.map((row) => (
+      {localSuggestions.map((row) => (
         <input
           key={`supplier-sku-${row.product_id}`}
           type="hidden"
@@ -382,7 +578,7 @@ export default function OrderSuggestionsClient({
           value={row.supplier_sku ?? ''}
         />
       ))}
-      {suggestions.map((row) => (
+      {localSuggestions.map((row) => (
         <input
           key={`supplier-price-${row.product_id}`}
           type="hidden"
@@ -392,7 +588,7 @@ export default function OrderSuggestionsClient({
           )}
         />
       ))}
-      {suggestions.map((row) => (
+      {localSuggestions.map((row) => (
         <input
           key={`supplier-product-name-${row.product_id}`}
           type="hidden"
@@ -400,6 +596,7 @@ export default function OrderSuggestionsClient({
           value={supplierProductNames[row.product_id] ?? ''}
         />
       ))}
+      {addProductsEntryPoint}
 
       {specialOrders.length > 0 ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -437,39 +634,72 @@ export default function OrderSuggestionsClient({
       ) : null}
       {showingSummary ? (
         <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3 text-xs text-zinc-600">
-          Mostrando: {showingSummary}
+          Mostrando: {showingSummary} · Margen:{' '}
+          {currentSafeMarginPct.toFixed(2)}% · Promedio:{' '}
+          {averageModeSelectLabel} · {supplierPriceSummaryLabel}
         </div>
       ) : null}
-      <label className="block text-sm text-zinc-600">
-        Buscar artículo
-        <input
-          type="search"
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Ej: leche"
-          className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm md:max-w-sm"
-        />
-      </label>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <label className="block min-w-[220px] flex-1 text-sm text-zinc-600">
+          Buscar artículo
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Ej: leche"
+            className="mt-1 w-full rounded border border-zinc-200 px-3 py-2 text-sm md:max-w-sm"
+          />
+        </label>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <label className="flex items-center gap-2 text-xs text-zinc-600">
+            <span>Promedio de ventas:</span>
+            <select
+              value={currentAvgMode}
+              onChange={(event) =>
+                setCurrentAvgMode(event.target.value as Props['avgMode'])
+              }
+              className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-700"
+            >
+              <option value="cycle">{averageModeSelectLabel}</option>
+              <option value="weekly">Semanal</option>
+              <option value="biweekly">Quincenal</option>
+              <option value="monthly">Mensual</option>
+            </select>
+          </label>
+          {allowEstimateToggle ? (
+            <label className="flex items-center gap-2 text-xs text-zinc-600">
+              <input
+                type="checkbox"
+                checked={useEstimatedCosts}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setUseEstimatedCosts(checked);
+                  setUnitCosts(
+                    buildDefaultUnitCosts(checked, currentSafeMarginPct),
+                  );
+                }}
+                className="h-4 w-4 rounded border-zinc-300"
+              />
+              Calcular precio de proveedor segun Margen de ganancia (%)
+            </label>
+          ) : null}
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={marginPctRaw}
+            onChange={(event) => setMarginPctRaw(event.target.value)}
+            disabled={!useEstimatedCosts}
+            aria-label="Margen de ganancia (%)"
+            className="w-24 rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+          />
+        </div>
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-zinc-500">
           Vista: {view === 'table' ? 'Tabla' : 'Tarjetas'} · Resultados:{' '}
           {filteredSuggestions.length}
         </p>
-        {allowEstimateToggle ? (
-          <label className="flex items-center gap-2 text-xs text-zinc-600">
-            <input
-              type="checkbox"
-              checked={useEstimatedCosts}
-              onChange={(event) => {
-                const checked = event.target.checked;
-                setUseEstimatedCosts(checked);
-                setUnitCosts(buildDefaultUnitCosts(checked));
-              }}
-              className="h-4 w-4 rounded border-zinc-300"
-            />
-            Calcular costo estimado segun Margen de ganancia (%)
-          </label>
-        ) : null}
         <div className="flex gap-2">
           <button
             type="button"
@@ -500,7 +730,7 @@ export default function OrderSuggestionsClient({
                 <th className="px-3 py-2">Pedido sugerido</th>
                 <th className="px-3 py-2">Cantidad a pedir</th>
                 <th className="px-3 py-2">Precio venta</th>
-                <th className="px-3 py-2">Costo estimado</th>
+                <th className="px-3 py-2">Precio estimado de proveedor</th>
                 <th className="px-3 py-2">Subtotal estimado</th>
               </tr>
             </thead>
@@ -815,7 +1045,7 @@ export default function OrderSuggestionsClient({
                     <span>{unitPrice.toFixed(2)}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span>Costo estimado</span>
+                    <span>Precio estimado de proveedor</span>
                     <input
                       type="number"
                       min="0"
@@ -943,7 +1173,7 @@ export default function OrderSuggestionsClient({
                     <span>{unitPrice.toFixed(2)}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span>Costo estimado</span>
+                    <span>Precio estimado de proveedor</span>
                     <input
                       type="number"
                       min="0"
@@ -998,7 +1228,7 @@ export default function OrderSuggestionsClient({
         supplierName={supplierName}
         branchName={branchName}
         averageColumnLabel={averageColumnLabel}
-        items={suggestions.map((row) => {
+        items={localSuggestions.map((row) => {
           const rendered = renderRow(row);
           return {
             productId: row.product_id,
