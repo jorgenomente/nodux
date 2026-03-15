@@ -259,7 +259,13 @@ Ruta pública adicional (institucional, fuera del flujo operativo MVP):
     - Módulo: Preferencias
     - Propósito: parámetros simples (alertas, UX)
 
-32. `/settings/audit-log`
+32. `/settings/membership`
+    - Roles: OA (SA en soporte)
+    - Tipo: Secondary
+    - Módulo: Membresía
+    - Propósito: ver plan actual, precio mensual, medios de pago manuales e historial de comprobantes de la organización
+
+33. `/settings/audit-log`
     - Roles: OA (SA en soporte)
     - Tipo: Secondary
     - Módulo: Auditoría
@@ -269,17 +275,23 @@ Ruta pública adicional (institucional, fuera del flujo operativo MVP):
 
 ## 6) Pagos y Superadmin (Primary)
 
-31. `/payments`
+34. `/payments`
     - Roles: OA
     - Tipo: Primary
     - Módulo: Pagos a proveedor
     - Propósito: gestionar cuentas por pagar y registrar pagos por sucursal
 
-32. `/superadmin`
+35. `/superadmin`
     - Roles: SA
     - Tipo: Primary
     - Módulo: SaaS Admin
     - Propósito: gestionar organizaciones y soporte
+
+36. `/superadmin/subscriptions`
+    - Roles: SA
+    - Tipo: Primary
+    - Módulo: Suscripciones SaaS
+    - Propósito: gestionar suscripciones comerciales por org, pagos manuales y estado del servicio
 
 ---
 
@@ -313,12 +325,14 @@ Ruta pública adicional (institucional, fuera del flujo operativo MVP):
 - `/settings/tickets`
 - `/settings/fiscal`
 - `/settings/preferences`
+- `/settings/membership`
 - `/settings/audit-log`
 - `/superadmin`
+- `/superadmin/subscriptions`
 
 ### Pendientes de documentar (siguientes)
 
-- Ninguna (todas las pantallas del MVP tienen contrato documentado)
+- Ninguna (incluyendo el nuevo track de suscripciones SaaS manuales)
 
 ---
 

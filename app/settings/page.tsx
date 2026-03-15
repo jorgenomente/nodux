@@ -44,6 +44,12 @@ const SETTINGS_LINKS = [
     description: 'Ajustar umbrales de alertas y configuracion operativa base.',
   },
   {
+    href: '/settings/membership',
+    title: 'Membresia',
+    description:
+      'Ver plan actual, monto mensual, medios de pago e historial de comprobantes.',
+  },
+  {
     href: '/settings/audit-log',
     title: 'Auditoria',
     description: 'Revisar acciones criticas registradas en la organizacion.',

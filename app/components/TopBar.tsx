@@ -21,10 +21,15 @@ const NAV_LINKS = [
   { href: '/clients', label: 'Clientes' },
   { href: '/online-orders', label: 'Online Orders' },
   { href: '/settings', label: 'Configuracion' },
+  { href: '/settings/membership', label: 'Membresia' },
   { href: '/settings/audit-log', label: 'Auditoria' },
 ];
 
 const SUPERADMIN_LINK = { href: '/superadmin', label: 'Superadmin' };
+const SUPERADMIN_SUBSCRIPTIONS_LINK = {
+  href: '/superadmin/subscriptions',
+  label: 'Suscripciones',
+};
 const ACTIVE_BRANCH_COOKIE = 'nodux_active_branch_id';
 const NAV_GROUPS = [
   { label: 'Inicio', hrefs: ['/dashboard'] },
@@ -49,7 +54,13 @@ const NAV_GROUPS = [
   { label: 'Tienda Online', hrefs: ['/online-orders'] },
   {
     label: 'Configuracion',
-    hrefs: ['/settings', '/settings/audit-log', '/superadmin'],
+    hrefs: [
+      '/settings',
+      '/settings/membership',
+      '/settings/audit-log',
+      '/superadmin',
+      '/superadmin/subscriptions',
+    ],
   },
 ] as const;
 
@@ -67,7 +78,7 @@ export default async function TopBar() {
   );
 
   const navLinks = showSuperadminLink
-    ? [...NAV_LINKS, SUPERADMIN_LINK]
+    ? [...NAV_LINKS, SUPERADMIN_LINK, SUPERADMIN_SUBSCRIPTIONS_LINK]
     : NAV_LINKS;
 
   let orgName = 'Sin org activa';

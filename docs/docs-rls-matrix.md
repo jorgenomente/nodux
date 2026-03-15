@@ -55,6 +55,11 @@ Estado actual:
 - Hardening anti-duplicado de productos en `supabase/migrations/20260305113000_075_products_dedupe_hardening.sql`: agrega `name_normalized`/`barcode_normalized` + índices únicos por org y ajusta `rpc_upsert_product` para normalizar códigos vacíos a `null` (sin cambios de policies RLS).
 - Compra por paquete en productos en `supabase/migrations/20260305130500_076_products_purchase_pack_and_orders_views.sql`: agrega campos en `products` y vistas operativas (`v_products_admin`, `v_products_incomplete_admin`, `v_supplier_product_suggestions`, `v_order_detail_admin`) sin cambios de policies RLS.
 - Categorías por hashtags en productos en `supabase/migrations/20260311121000_093_product_category_tags_storefront.sql`: agrega `products.category_tags`, extiende `v_products_admin`, `v_products_incomplete_admin`, `v_order_detail_admin` y `rpc_get_public_storefront_products`; sin cambios de policies RLS, reusa permisos existentes sobre `products` y storefront público.
+- Suscripciones SaaS y membresía en `supabase/migrations/20260314190000_094_platform_subscriptions.sql`: agrega tablas/vistas/RPCs comerciales, bucket privado `subscription-payment-proofs` y policies para lectura OA/SA y escritura controlada por SA/OA según entidad.
+- Assets privados de billing en `supabase/migrations/20260314194000_095_platform_billing_assets_bucket.sql`: bucket `platform-billing-assets` para QR de cobro de la plataforma; se sirve a UI mediante signed URLs server-side sin exponer lectura directa adicional a OA.
+- Hardening de auditoría SA en `supabase/migrations/20260315101000_096_audit_log_allow_platform_admin.sql`: `rpc_log_audit_event` acepta escritura cuando el actor es `platform_admin`, además del caso miembro de org, para que la consola superadmin pueda auditar cambios cross-org sin fallar.
+- Hardening de lectura SA en suscripciones en `supabase/migrations/20260315104000_097_platform_subscriptions_superadmin_select.sql`: las policies `select` de `org_subscriptions`, `org_subscription_cycles` y `org_subscription_payments` ahora también permiten `is_platform_admin()`, corrigiendo vistas vacías en `/superadmin/subscriptions`.
+- Bonificaciones visibles en `supabase/migrations/20260315113000_098_subscription_discounts.sql`: sin cambios de roles, pero las views comerciales ahora exponen `precio lista`, `bonificación` y `total final` a SA y OA según las mismas policies del módulo.
 - Fix de unicidad en cambio de proveedor principal/secundario en `supabase/migrations/20260305152000_077_fix_supplier_product_promote_same_supplier.sql`: `rpc_upsert_supplier_product` limpia relación opuesta del mismo proveedor/producto antes del upsert (sin cambios de policies RLS).
 - Transferencia inline de stock entre sucursales en `supabase/migrations/20260310093011_086_stock_branch_transfer_inline.sql`: agrega `stock_movement_type.branch_transfer` y RPC `rpc_transfer_stock_between_branches` como `security definer`, con validación explícita de módulo `products`, memberships de sucursal y stock suficiente en origen.
 - Iteración checkout/tracking online en `supabase/migrations/20260302121000_070_online_store_checkout_tracking_iteration.sql`: checkout público requiere dirección y fija `pay_on_pickup`; WhatsApp de tienda configurable por sucursal (`branches.storefront_whatsapp_phone`).
@@ -73,54 +78,60 @@ Estado actual:
 
 ## Matriz (MVP - propuesta)
 
-| Entidad                              | SA                   | OA                   | ST                            | Notas                                                                  |
-| ------------------------------------ | -------------------- | -------------------- | ----------------------------- | ---------------------------------------------------------------------- |
-| `orgs`                               | read                 | read                 | no                            | SA global; OA solo su org                                              |
-| `branches`                           | read/insert/update   | read/insert/update   | read (solo asignadas)         | ST solo lectura de sus branches                                        |
-| `org_users`                          | read/insert/update   | read/insert/update   | no                            | Gestion de usuarios                                                    |
-| `platform_admins`                    | read/insert/update   | no                   | no                            | SA global (tabla propia de plataforma)                                 |
-| `user_active_orgs`                   | read/insert/update   | read/insert/update   | read/insert/update            | Contexto de org activa por usuario                                     |
-| `branch_memberships`                 | read/insert/update   | read/insert/update   | read (propias)                | ST ve sus asignaciones                                                 |
-| `staff_module_access`                | read/insert/update   | read/insert/update   | no                            | ST usa view efectiva                                                   |
-| `org_preferences`                    | read/insert/update   | read/insert/update   | read (propia org)             | ST solo lectura si se expone                                           |
-| `employee_accounts`                  | read/insert/update   | read/insert/update   | read (sucursal asignada)      | OA/SA gestionan nombres; ST solo selección en POS                      |
-| `data_import_jobs`                   | read/insert/update   | read/insert/update   | no                            | Jobs de importación onboarding solo OA/SA                              |
-| `data_import_rows`                   | read/insert/update   | read/insert/update   | no                            | Filas por job con errores/validación solo OA/SA                        |
-| `audit_log`                          | read                 | read                 | no                            | Append-only, solo lectura OA/SA                                        |
-| `products`                           | read/insert/update   | read/insert/update   | read                          | ST sin escritura de catálogo; `/products` lectura si módulo `products` |
-| `stock_items`                        | read/insert/update   | read/insert/update   | read                          | ST sin ajuste manual directo; transferencias solo vía RPC              |
-| `stock_movements`                    | read                 | read/insert          | insert (via RPC)              | ST puede generar `branch_transfer` vía RPC autorizada                  |
-| `sales`                              | read                 | read/insert/update   | insert/update (via RPC)       | ST crea ventas y puede marcarlas facturadas via RPC                    |
-| `v_sales_statistics_items`           | read                 | read                 | no                            | View analítica de ventas (OA/SA)                                       |
-| `sale_payments`                      | read                 | read/insert          | insert (via RPC)              | Desglose de cobro por método                                           |
-| `pos_payment_devices`                | read/insert/update   | read/insert/update   | read/insert/update            | Catálogo de dispositivos de cobro por sucursal                         |
-| `cash_sessions`                      | read                 | read/insert/update   | insert/update (via RPC)       | Caja por sucursal (1 abierta por vez)                                  |
-| `cash_session_movements`             | read                 | read/insert          | insert (via RPC)              | Gastos/ingresos manuales de caja                                       |
-| `cash_session_count_lines`           | read                 | read/insert          | insert (via RPC)              | Conteo por denominaciones (apertura/cierre, caja/reserva)              |
-| `cash_session_reconciliation_inputs` | read                 | read/insert/update   | insert/update (via RPC)       | Montos de comprobante por fila de conciliación                         |
-| `sale_items`                         | read                 | read/insert          | insert (via RPC)              | derivado de venta                                                      |
-| `expiration_batches`                 | read/insert/update   | read/insert/update   | read/insert (si modulo)       | ST sin ajustes avanzados                                               |
-| `expiration_waste`                   | read                 | read/insert          | read (via view/RPC)           | Registro de desperdicio                                                |
-| `suppliers`                          | read/insert/update   | read/insert/update   | no                            | ST sin acceso                                                          |
-| `supplier_products`                  | read/insert/update   | read/insert/update   | no                            | ST sin acceso (incluye `supplier_price`)                               |
-| `supplier_orders`                    | read/insert/update   | read/insert/update   | no                            | ST no en MVP                                                           |
-| `supplier_order_items`               | read/insert/update   | read/insert/update   | no                            | ST no en MVP                                                           |
-| `supplier_payment_accounts`          | read/insert/update   | read/insert/update   | no                            | Cuentas de transferencia por proveedor                                 |
-| `supplier_payables`                  | read/insert/update   | read/insert/update   | no                            | Cuenta por pagar por pedido (scope sucursal)                           |
-| `supplier_payments`                  | read/insert/update   | read/insert/update   | no                            | Movimientos de pago proveedor                                          |
-| `storage.objects` (`product-images`) | insert/update/delete | insert/update/delete | no                            | Imágenes de producto por org (`org_id/product_id.jpg`)                 |
-| `storefront_settings`                | read/insert/update   | read/insert/update   | read                          | Configuración de storefront por org                                    |
-| `storefront_domains`                 | read/insert/update   | read/insert/update   | no                            | Dominios personalizados de tienda                                      |
-| `online_orders`                      | read/insert/update   | read/insert/update   | read/insert/update (limitado) | Pedidos online por org/sucursal                                        |
-| `online_order_items`                 | read/insert/update   | read/insert/update   | read/insert/update (limitado) | Ítems snapshot de pedido online                                        |
-| `online_order_status_history`        | read/insert/update   | read/insert/update   | read/insert (limitado)        | Historial de estados de pedido online                                  |
-| `online_order_tracking_tokens`       | read/insert/update   | read/insert/update   | read/insert/update (limitado) | Token público de tracking                                              |
-| `online_order_payment_proofs`        | read/insert/update   | read/insert/update   | read/insert/update (limitado) | Comprobantes de transferencia/QR                                       |
-| `sale_delivery_links`                | read/insert/update   | read/insert/update   | read/insert/update (limitado) | Links públicos revocables para ticket/factura de venta                 |
-| `sale_delivery_events`               | read/insert          | read/insert          | read/insert (limitado)        | Historial operativo de compartidos y aperturas de links                |
-| `clients`                            | read/insert/update   | read/insert/update   | read/insert/update (limitado) | ST solo en branch asignada                                             |
-| `client_special_orders`              | read/insert/update   | read/insert/update   | read/insert/update (limitado) | ST solo su branch                                                      |
-| `client_special_order_items`         | read/insert/update   | read/insert/update   | read/insert/update (limitado) | ST solo su branch                                                      |
+| Entidad                                       | SA                        | OA                   | ST                            | Notas                                                                  |
+| --------------------------------------------- | ------------------------- | -------------------- | ----------------------------- | ---------------------------------------------------------------------- |
+| `orgs`                                        | read                      | read                 | no                            | SA global; OA solo su org                                              |
+| `branches`                                    | read/insert/update        | read/insert/update   | read (solo asignadas)         | ST solo lectura de sus branches                                        |
+| `org_users`                                   | read/insert/update        | read/insert/update   | no                            | Gestion de usuarios                                                    |
+| `platform_admins`                             | read/insert/update        | no                   | no                            | SA global (tabla propia de plataforma)                                 |
+| `user_active_orgs`                            | read/insert/update        | read/insert/update   | read/insert/update            | Contexto de org activa por usuario                                     |
+| `branch_memberships`                          | read/insert/update        | read/insert/update   | read (propias)                | ST ve sus asignaciones                                                 |
+| `staff_module_access`                         | read/insert/update        | read/insert/update   | no                            | ST usa view efectiva                                                   |
+| `org_preferences`                             | read/insert/update        | read/insert/update   | read (propia org)             | ST solo lectura si se expone                                           |
+| `employee_accounts`                           | read/insert/update        | read/insert/update   | read (sucursal asignada)      | OA/SA gestionan nombres; ST solo selección en POS                      |
+| `data_import_jobs`                            | read/insert/update        | read/insert/update   | no                            | Jobs de importación onboarding solo OA/SA                              |
+| `data_import_rows`                            | read/insert/update        | read/insert/update   | no                            | Filas por job con errores/validación solo OA/SA                        |
+| `audit_log`                                   | read                      | read                 | no                            | Append-only, solo lectura OA/SA                                        |
+| `products`                                    | read/insert/update        | read/insert/update   | read                          | ST sin escritura de catálogo; `/products` lectura si módulo `products` |
+| `stock_items`                                 | read/insert/update        | read/insert/update   | read                          | ST sin ajuste manual directo; transferencias solo vía RPC              |
+| `stock_movements`                             | read                      | read/insert          | insert (via RPC)              | ST puede generar `branch_transfer` vía RPC autorizada                  |
+| `sales`                                       | read                      | read/insert/update   | insert/update (via RPC)       | ST crea ventas y puede marcarlas facturadas via RPC                    |
+| `v_sales_statistics_items`                    | read                      | read                 | no                            | View analítica de ventas (OA/SA)                                       |
+| `sale_payments`                               | read                      | read/insert          | insert (via RPC)              | Desglose de cobro por método                                           |
+| `pos_payment_devices`                         | read/insert/update        | read/insert/update   | read/insert/update            | Catálogo de dispositivos de cobro por sucursal                         |
+| `cash_sessions`                               | read                      | read/insert/update   | insert/update (via RPC)       | Caja por sucursal (1 abierta por vez)                                  |
+| `cash_session_movements`                      | read                      | read/insert          | insert (via RPC)              | Gastos/ingresos manuales de caja                                       |
+| `cash_session_count_lines`                    | read                      | read/insert          | insert (via RPC)              | Conteo por denominaciones (apertura/cierre, caja/reserva)              |
+| `cash_session_reconciliation_inputs`          | read                      | read/insert/update   | insert/update (via RPC)       | Montos de comprobante por fila de conciliación                         |
+| `sale_items`                                  | read                      | read/insert          | insert (via RPC)              | derivado de venta                                                      |
+| `expiration_batches`                          | read/insert/update        | read/insert/update   | read/insert (si modulo)       | ST sin ajustes avanzados                                               |
+| `expiration_waste`                            | read                      | read/insert          | read (via view/RPC)           | Registro de desperdicio                                                |
+| `suppliers`                                   | read/insert/update        | read/insert/update   | no                            | ST sin acceso                                                          |
+| `supplier_products`                           | read/insert/update        | read/insert/update   | no                            | ST sin acceso (incluye `supplier_price`)                               |
+| `supplier_orders`                             | read/insert/update        | read/insert/update   | no                            | ST no en MVP                                                           |
+| `supplier_order_items`                        | read/insert/update        | read/insert/update   | no                            | ST no en MVP                                                           |
+| `supplier_payment_accounts`                   | read/insert/update        | read/insert/update   | no                            | Cuentas de transferencia por proveedor                                 |
+| `supplier_payables`                           | read/insert/update        | read/insert/update   | no                            | Cuenta por pagar por pedido (scope sucursal)                           |
+| `supplier_payments`                           | read/insert/update        | read/insert/update   | no                            | Movimientos de pago proveedor                                          |
+| `storage.objects` (`product-images`)          | insert/update/delete      | insert/update/delete | no                            | Imágenes de producto por org (`org_id/product_id.jpg`)                 |
+| `storefront_settings`                         | read/insert/update        | read/insert/update   | read                          | Configuración de storefront por org                                    |
+| `storefront_domains`                          | read/insert/update        | read/insert/update   | no                            | Dominios personalizados de tienda                                      |
+| `online_orders`                               | read/insert/update        | read/insert/update   | read/insert/update (limitado) | Pedidos online por org/sucursal                                        |
+| `online_order_items`                          | read/insert/update        | read/insert/update   | read/insert/update (limitado) | Ítems snapshot de pedido online                                        |
+| `online_order_status_history`                 | read/insert/update        | read/insert/update   | read/insert (limitado)        | Historial de estados de pedido online                                  |
+| `online_order_tracking_tokens`                | read/insert/update        | read/insert/update   | read/insert/update (limitado) | Token público de tracking                                              |
+| `online_order_payment_proofs`                 | read/insert/update        | read/insert/update   | read/insert/update (limitado) | Comprobantes de transferencia/QR                                       |
+| `storage.objects` (`platform-billing-assets`) | write (via service/admin) | no direct access     | no access                     | Assets privados de billing (QR); acceso por signed URL server-side     |
+| `subscription_plans`                          | read/insert/update        | read                 | no access                     | SA administra catálogo; OA solo consulta                               |
+| `platform_billing_settings`                   | read/write                | read                 | no access                     | CBU/alias/QR visibles para OA                                          |
+| `org_subscriptions`                           | read/write                | read                 | no access                     | Configuración comercial por org                                        |
+| `org_subscription_cycles`                     | read/write                | read                 | no access                     | Ciclos y estado oficial de pago                                        |
+| `org_subscription_payments`                   | read/update               | read/insert          | no access                     | OA informa pagos; SA revisa/aprueba/rechaza                            |
+| `sale_delivery_links`                         | read/insert/update        | read/insert/update   | read/insert/update (limitado) | Links públicos revocables para ticket/factura de venta                 |
+| `sale_delivery_events`                        | read/insert               | read/insert          | read/insert (limitado)        | Historial operativo de compartidos y aperturas de links                |
+| `clients`                                     | read/insert/update        | read/insert/update   | read/insert/update (limitado) | ST solo en branch asignada                                             |
+| `client_special_orders`                       | read/insert/update        | read/insert/update   | read/insert/update (limitado) | ST solo su branch                                                      |
+| `client_special_order_items`                  | read/insert/update        | read/insert/update   | read/insert/update (limitado) | ST solo su branch                                                      |
 
 ---
 
@@ -136,6 +147,9 @@ Estado actual:
 - Helper `is_platform_admin` define scope global SA fuera de `org_users`.
 - Aunque `is_platform_admin` sigue definiendo el scope SA real, desde migración `085` los SA quedan además materializados en `org_users` como `org_admin` para compatibilidad con flujos heredados.
 - `audit_log` es append-only; solo OA/SA pueden leer; insercion solo via RPCs/triggers con `security definer`.
+- `subscription_plans` y `platform_billing_settings` permiten lectura a OA/SA; escritura solo SA.
+- `org_subscriptions` y `org_subscription_cycles` son de escritura exclusiva SA.
+- `org_subscription_payments` permite insert OA/SA de la org; la revisión final queda restringida a SA.
 
 ---
 
@@ -191,5 +205,12 @@ Estado actual:
 - `rpc_superadmin_create_org` -> solo SA global.
 - `rpc_superadmin_upsert_branch` -> solo SA global.
 - `rpc_superadmin_set_active_org` -> solo SA global.
+- `rpc_upsert_platform_billing_settings` -> solo SA global; actualiza CBU/alias/QR e instrucciones.
+- `rpc_upsert_org_subscription` -> solo SA global; crea o edita pricing por org y opcionalmente su ciclo actual.
+- `rpc_set_org_subscription_service_status` -> solo SA global; controla `active/grace/suspended/cancelled`.
+- `rpc_set_org_subscription_cycle_payment_status` -> solo SA global; aprueba, rechaza o marca estado final del ciclo.
+- `rpc_set_org_active_status` -> solo SA global; activa/desactiva una org.
+- `rpc_set_branch_active_status` -> solo SA global; activa/desactiva sucursal y recalcula snapshot del último ciclo.
+- `rpc_create_org_subscription_payment_submission` -> OA/SA autenticado de la org; registra monto, método y comprobante del ciclo actual.
 - `rpc_invite_user_to_org` -> solo OA/SA autenticado para la org destino; requiere branches válidas para `staff`.
 - `rpc_update_user_membership` -> solo OA/SA autenticado para la org destino; exige al menos 1 branch para `staff` y limpia/reasigna membresías de sucursal de forma atómica.

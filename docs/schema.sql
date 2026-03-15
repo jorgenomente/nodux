@@ -135,6 +135,69 @@ CREATE TYPE "public"."stock_movement_type" AS ENUM (
 ALTER TYPE "public"."stock_movement_type" OWNER TO "postgres";
 
 
+CREATE TYPE "public"."subscription_discount_mode" AS ENUM (
+    'none',
+    'percent',
+    'fixed_amount'
+);
+
+
+ALTER TYPE "public"."subscription_discount_mode" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."subscription_payment_method" AS ENUM (
+    'bank_transfer',
+    'mercadopago_qr',
+    'cash',
+    'other'
+);
+
+
+ALTER TYPE "public"."subscription_payment_method" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."subscription_payment_status" AS ENUM (
+    'pending',
+    'proof_submitted',
+    'paid',
+    'rejected',
+    'waived'
+);
+
+
+ALTER TYPE "public"."subscription_payment_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."subscription_pricing_mode" AS ENUM (
+    'standard',
+    'custom'
+);
+
+
+ALTER TYPE "public"."subscription_pricing_mode" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."subscription_review_status" AS ENUM (
+    'pending',
+    'approved',
+    'rejected'
+);
+
+
+ALTER TYPE "public"."subscription_review_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."subscription_service_status" AS ENUM (
+    'active',
+    'grace',
+    'suspended',
+    'cancelled'
+);
+
+
+ALTER TYPE "public"."subscription_service_status" OWNER TO "postgres";
+
+
 CREATE TYPE "public"."supplier_order_status" AS ENUM (
     'draft',
     'sent',
@@ -177,6 +240,106 @@ CREATE TYPE "public"."weekday" AS ENUM (
 
 
 ALTER TYPE "public"."weekday" OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."fn_calculate_org_subscription_amount"("p_org_id" "uuid", "p_pricing_mode" "public"."subscription_pricing_mode", "p_base_price_monthly" numeric, "p_included_branches" integer, "p_additional_branch_price_monthly" numeric, "p_custom_monthly_price" numeric DEFAULT NULL::numeric) RETURNS TABLE("active_branch_count" integer, "billable_additional_branch_count" integer, "effective_monthly_price" numeric)
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+  with branch_counts as (
+    select count(*)::integer as active_branch_count
+    from public.branches b
+    where b.org_id = p_org_id
+      and b.is_active = true
+  )
+  select
+    bc.active_branch_count,
+    greatest(bc.active_branch_count - greatest(p_included_branches, 0), 0)::integer as billable_additional_branch_count,
+    round(
+      case
+        when p_pricing_mode = 'custom' then coalesce(p_custom_monthly_price, 0)
+        else
+          coalesce(p_base_price_monthly, 0)
+          + (
+            greatest(bc.active_branch_count - greatest(p_included_branches, 0), 0)
+            * coalesce(p_additional_branch_price_monthly, 0)
+          )
+      end,
+      2
+    ) as effective_monthly_price
+  from branch_counts bc;
+$$;
+
+
+ALTER FUNCTION "public"."fn_calculate_org_subscription_amount"("p_org_id" "uuid", "p_pricing_mode" "public"."subscription_pricing_mode", "p_base_price_monthly" numeric, "p_included_branches" integer, "p_additional_branch_price_monthly" numeric, "p_custom_monthly_price" numeric) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."fn_calculate_org_subscription_amount"("p_org_id" "uuid", "p_pricing_mode" "public"."subscription_pricing_mode", "p_base_price_monthly" numeric, "p_included_branches" integer, "p_additional_branch_price_monthly" numeric, "p_custom_monthly_price" numeric DEFAULT NULL::numeric, "p_discount_mode" "public"."subscription_discount_mode" DEFAULT 'none'::"public"."subscription_discount_mode", "p_discount_percent" numeric DEFAULT NULL::numeric, "p_discount_amount" numeric DEFAULT NULL::numeric) RETURNS TABLE("active_branch_count" integer, "billable_additional_branch_count" integer, "list_price_monthly" numeric, "discount_amount_applied" numeric, "effective_monthly_price" numeric)
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+  with branch_counts as (
+    select count(*)::integer as active_branch_count
+    from public.branches b
+    where b.org_id = p_org_id
+      and b.is_active = true
+  ),
+  base_price as (
+    select
+      bc.active_branch_count,
+      greatest(bc.active_branch_count - greatest(p_included_branches, 0), 0)::integer as billable_additional_branch_count,
+      round(
+        case
+          when p_pricing_mode = 'custom' then coalesce(p_custom_monthly_price, 0)
+          else
+            coalesce(p_base_price_monthly, 0)
+            + (
+              greatest(bc.active_branch_count - greatest(p_included_branches, 0), 0)
+              * coalesce(p_additional_branch_price_monthly, 0)
+            )
+        end,
+        2
+      ) as list_price_monthly
+    from branch_counts bc
+  )
+  select
+    bp.active_branch_count,
+    bp.billable_additional_branch_count,
+    bp.list_price_monthly,
+    round(
+      least(
+        bp.list_price_monthly,
+        case
+          when p_discount_mode = 'percent' then
+            bp.list_price_monthly * coalesce(p_discount_percent, 0) / 100
+          when p_discount_mode = 'fixed_amount' then
+            coalesce(p_discount_amount, 0)
+          else 0
+        end
+      ),
+      2
+    ) as discount_amount_applied,
+    round(
+      bp.list_price_monthly
+      - least(
+          bp.list_price_monthly,
+          case
+            when p_discount_mode = 'percent' then
+              bp.list_price_monthly * coalesce(p_discount_percent, 0) / 100
+            when p_discount_mode = 'fixed_amount' then
+              coalesce(p_discount_amount, 0)
+            else 0
+          end
+        ),
+      2
+    ) as effective_monthly_price
+  from base_price bp;
+$$;
+
+
+ALTER FUNCTION "public"."fn_calculate_org_subscription_amount"("p_org_id" "uuid", "p_pricing_mode" "public"."subscription_pricing_mode", "p_base_price_monthly" numeric, "p_included_branches" integer, "p_additional_branch_price_monthly" numeric, "p_custom_monthly_price" numeric, "p_discount_mode" "public"."subscription_discount_mode", "p_discount_percent" numeric, "p_discount_amount" numeric) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."fn_fiscal_append_event"("p_tenant_id" "uuid", "p_invoice_job_id" "uuid", "p_event_type" "text", "p_event_payload_json" "jsonb" DEFAULT '{}'::"jsonb") RETURNS "uuid"
@@ -968,6 +1131,92 @@ $$;
 
 
 ALTER FUNCTION "public"."fn_next_org_storefront_slug"("p_slug_base" "text", "p_exclude_org_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."fn_recompute_org_subscription_cycle"("p_org_subscription_id" "uuid", "p_cycle_id" "uuid" DEFAULT NULL::"uuid", "p_actor_user_id" "uuid" DEFAULT "auth"."uid"()) RETURNS "uuid"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_subscription public.org_subscriptions%rowtype;
+  v_cycle public.org_subscription_cycles%rowtype;
+  v_active_branch_count integer := 0;
+  v_billable_branch_count integer := 0;
+  v_list_price_amount numeric(12,2) := 0;
+  v_discount_amount_applied numeric(12,2) := 0;
+  v_expected_amount numeric(12,2) := 0;
+begin
+  select *
+    into v_subscription
+  from public.org_subscriptions os
+  where os.id = p_org_subscription_id;
+
+  if v_subscription.id is null then
+    raise exception 'subscription not found';
+  end if;
+
+  if p_cycle_id is not null then
+    select *
+      into v_cycle
+    from public.org_subscription_cycles osc
+    where osc.id = p_cycle_id
+      and osc.org_subscription_id = p_org_subscription_id
+    for update;
+  else
+    select *
+      into v_cycle
+    from public.org_subscription_cycles osc
+    where osc.org_subscription_id = p_org_subscription_id
+    order by osc.cycle_start_on desc, osc.created_at desc
+    limit 1
+    for update;
+  end if;
+
+  if v_cycle.id is null then
+    raise exception 'subscription cycle not found';
+  end if;
+
+  select calc.active_branch_count,
+         calc.billable_additional_branch_count,
+         calc.list_price_monthly,
+         calc.discount_amount_applied,
+         calc.effective_monthly_price
+    into v_active_branch_count, v_billable_branch_count, v_list_price_amount, v_discount_amount_applied, v_expected_amount
+  from public.fn_calculate_org_subscription_amount(
+    v_subscription.org_id,
+    v_subscription.pricing_mode,
+    v_subscription.base_price_monthly_snapshot,
+    v_subscription.included_branches_snapshot,
+    v_subscription.additional_branch_price_monthly_snapshot,
+    v_subscription.custom_monthly_price,
+    v_subscription.discount_mode,
+    v_subscription.discount_percent,
+    v_subscription.discount_amount
+  ) calc;
+
+  update public.org_subscription_cycles
+  set
+    active_branch_count_snapshot = v_active_branch_count,
+    billable_additional_branch_count_snapshot = v_billable_branch_count,
+    list_price_amount = round(v_list_price_amount, 2),
+    discount_amount_applied = round(v_discount_amount_applied, 2),
+    final_amount = round(v_expected_amount, 2),
+    expected_amount = round(v_expected_amount, 2),
+    discount_mode_snapshot = v_subscription.discount_mode,
+    discount_percent_snapshot = v_subscription.discount_percent,
+    discount_amount_snapshot = v_subscription.discount_amount,
+    discount_label_snapshot = nullif(trim(v_subscription.discount_label), ''),
+    updated_by = p_actor_user_id,
+    updated_at = now()
+  where id = v_cycle.id;
+
+  return v_cycle.id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."fn_recompute_org_subscription_cycle"("p_org_subscription_id" "uuid", "p_cycle_id" "uuid", "p_actor_user_id" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."fn_recompute_supplier_payable"("p_payable_id" "uuid", "p_actor_user_id" "uuid" DEFAULT "auth"."uid"()) RETURNS "void"
@@ -2604,6 +2853,93 @@ $$;
 
 
 ALTER FUNCTION "public"."rpc_create_online_order"("p_org_slug" "text", "p_branch_slug" "text", "p_customer_name" "text", "p_customer_phone" "text", "p_customer_address" "text", "p_items" "jsonb", "p_customer_notes" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_create_org_subscription_payment_submission"("p_cycle_id" "uuid", "p_payment_method" "public"."subscription_payment_method", "p_amount_reported" numeric, "p_reference_text" "text" DEFAULT NULL::"text", "p_proof_storage_path" "text" DEFAULT NULL::"text") RETURNS "uuid"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_cycle public.org_subscription_cycles%rowtype;
+  v_subscription public.org_subscriptions%rowtype;
+  v_payment_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  select *
+    into v_cycle
+  from public.org_subscription_cycles osc
+  where osc.id = p_cycle_id;
+
+  if v_cycle.id is null then
+    raise exception 'subscription cycle not found';
+  end if;
+
+  select *
+    into v_subscription
+  from public.org_subscriptions os
+  where os.id = v_cycle.org_subscription_id;
+
+  if v_subscription.id is null then
+    raise exception 'subscription not found';
+  end if;
+
+  if not public.is_org_admin_or_superadmin(v_subscription.org_id) then
+    raise exception 'not authorized';
+  end if;
+
+  insert into public.org_subscription_payments (
+    org_subscription_cycle_id,
+    org_id,
+    payment_method,
+    amount_reported,
+    reference_text,
+    proof_storage_path,
+    proof_uploaded_by
+  )
+  values (
+    p_cycle_id,
+    v_subscription.org_id,
+    p_payment_method,
+    p_amount_reported,
+    nullif(trim(p_reference_text), ''),
+    nullif(trim(p_proof_storage_path), ''),
+    auth.uid()
+  )
+  returning id into v_payment_id;
+
+  update public.org_subscription_cycles
+  set
+    payment_status = 'proof_submitted',
+    updated_by = auth.uid(),
+    updated_at = now()
+  where id = p_cycle_id
+    and payment_status in ('pending', 'rejected');
+
+  perform public.rpc_log_audit_event(
+    v_subscription.org_id,
+    'org_subscription_payment_submitted',
+    'org_subscription_payment',
+    v_payment_id,
+    null,
+    jsonb_build_object(
+      'cycle_id', p_cycle_id,
+      'payment_method', p_payment_method,
+      'amount_reported', p_amount_reported,
+      'proof_storage_path', nullif(trim(p_proof_storage_path), '')
+    ),
+    auth.uid()
+  );
+
+  return v_payment_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_create_org_subscription_payment_submission"("p_cycle_id" "uuid", "p_payment_method" "public"."subscription_payment_method", "p_amount_reported" numeric, "p_reference_text" "text", "p_proof_storage_path" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_create_sale"("p_org_id" "uuid", "p_branch_id" "uuid", "p_payment_method" "public"."payment_method", "p_items" "jsonb", "p_special_order_id" "uuid" DEFAULT NULL::"uuid", "p_close_special_order" boolean DEFAULT false, "p_apply_cash_discount" boolean DEFAULT false, "p_cash_discount_pct" numeric DEFAULT NULL::numeric, "p_payments" "jsonb" DEFAULT NULL::"jsonb", "p_payment_device_id" "uuid" DEFAULT NULL::"uuid", "p_apply_employee_discount" boolean DEFAULT false, "p_employee_discount_pct" numeric DEFAULT NULL::numeric, "p_employee_account_id" "uuid" DEFAULT NULL::"uuid", "p_client_id" "uuid" DEFAULT NULL::"uuid") RETURNS TABLE("sale_id" "uuid", "total" numeric, "created_at" timestamp with time zone)
@@ -5056,7 +5392,7 @@ begin
     raise exception 'not authenticated';
   end if;
 
-  if not public.is_org_member(p_org_id) then
+  if not (public.is_org_member(p_org_id) or public.is_platform_admin()) then
     raise exception 'not authorized';
   end if;
 
@@ -6425,6 +6761,69 @@ COMMENT ON FUNCTION "public"."rpc_revoke_sale_delivery_link"("p_sale_id" "uuid",
 
 
 
+CREATE OR REPLACE FUNCTION "public"."rpc_set_branch_active_status"("p_branch_id" "uuid", "p_is_active" boolean, "p_reason" "text" DEFAULT NULL::"text") RETURNS "uuid"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_branch public.branches%rowtype;
+  v_subscription_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_platform_admin() then
+    raise exception 'not authorized';
+  end if;
+
+  select *
+    into v_branch
+  from public.branches b
+  where b.id = p_branch_id
+  for update;
+
+  if v_branch.id is null then
+    raise exception 'branch not found';
+  end if;
+
+  update public.branches
+  set
+    is_active = coalesce(p_is_active, true),
+    updated_at = now()
+  where id = p_branch_id;
+
+  select os.id
+    into v_subscription_id
+  from public.org_subscriptions os
+  where os.org_id = v_branch.org_id;
+
+  if v_subscription_id is not null then
+    perform public.fn_recompute_org_subscription_cycle(v_subscription_id, null, auth.uid());
+  end if;
+
+  perform public.rpc_log_audit_event(
+    v_branch.org_id,
+    'branch_active_status_set',
+    'branch',
+    p_branch_id,
+    p_branch_id,
+    jsonb_build_object(
+      'is_active', coalesce(p_is_active, true),
+      'reason', nullif(trim(p_reason), '')
+    ),
+    auth.uid()
+  );
+
+  return p_branch_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_set_branch_active_status"("p_branch_id" "uuid", "p_is_active" boolean, "p_reason" "text") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rpc_set_online_order_status"("p_online_order_id" "uuid", "p_new_status" "public"."online_order_status", "p_internal_note" "text" DEFAULT NULL::"text", "p_customer_note" "text" DEFAULT NULL::"text") RETURNS TABLE("online_order_id" "uuid", "old_status" "public"."online_order_status", "new_status" "public"."online_order_status", "changed_at" timestamp with time zone)
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -6532,6 +6931,186 @@ $$;
 
 
 ALTER FUNCTION "public"."rpc_set_online_order_status"("p_online_order_id" "uuid", "p_new_status" "public"."online_order_status", "p_internal_note" "text", "p_customer_note" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_set_org_active_status"("p_org_id" "uuid", "p_is_active" boolean, "p_reason" "text" DEFAULT NULL::"text") RETURNS "uuid"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_platform_admin() then
+    raise exception 'not authorized';
+  end if;
+
+  update public.orgs
+  set
+    is_active = coalesce(p_is_active, true),
+    updated_at = now()
+  where id = p_org_id;
+
+  if not found then
+    raise exception 'org not found';
+  end if;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'org_active_status_set',
+    'org',
+    p_org_id,
+    null,
+    jsonb_build_object(
+      'is_active', coalesce(p_is_active, true),
+      'reason', nullif(trim(p_reason), '')
+    ),
+    auth.uid()
+  );
+
+  return p_org_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_set_org_active_status"("p_org_id" "uuid", "p_is_active" boolean, "p_reason" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_set_org_subscription_cycle_payment_status"("p_cycle_id" "uuid", "p_payment_status" "public"."subscription_payment_status", "p_review_note" "text" DEFAULT NULL::"text", "p_payment_id" "uuid" DEFAULT NULL::"uuid", "p_paid_at" timestamp with time zone DEFAULT "now"()) RETURNS "uuid"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_cycle public.org_subscription_cycles%rowtype;
+  v_subscription public.org_subscriptions%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_platform_admin() then
+    raise exception 'not authorized';
+  end if;
+
+  select *
+    into v_cycle
+  from public.org_subscription_cycles osc
+  where osc.id = p_cycle_id
+  for update;
+
+  if v_cycle.id is null then
+    raise exception 'subscription cycle not found';
+  end if;
+
+  select *
+    into v_subscription
+  from public.org_subscriptions os
+  where os.id = v_cycle.org_subscription_id;
+
+  if v_subscription.id is null then
+    raise exception 'subscription not found';
+  end if;
+
+  update public.org_subscription_cycles
+  set
+    payment_status = p_payment_status,
+    paid_at = case when p_payment_status = 'paid' then coalesce(p_paid_at, now()) else null end,
+    payment_confirmed_at = case when p_payment_status in ('paid', 'waived', 'rejected') then now() else null end,
+    payment_confirmed_by = case when p_payment_status in ('paid', 'waived', 'rejected') then auth.uid() else null end,
+    rejection_reason = case when p_payment_status = 'rejected' then nullif(trim(p_review_note), '') else null end,
+    updated_by = auth.uid(),
+    updated_at = now()
+  where id = p_cycle_id;
+
+  if p_payment_id is not null then
+    update public.org_subscription_payments
+    set
+      review_status = case
+        when p_payment_status = 'paid' then 'approved'
+        when p_payment_status = 'rejected' then 'rejected'
+        else review_status
+      end,
+      reviewed_by = case when p_payment_status in ('paid', 'rejected') then auth.uid() else reviewed_by end,
+      reviewed_at = case when p_payment_status in ('paid', 'rejected') then now() else reviewed_at end,
+      review_note = nullif(trim(p_review_note), '')
+    where id = p_payment_id
+      and org_subscription_cycle_id = p_cycle_id;
+  end if;
+
+  perform public.rpc_log_audit_event(
+    v_subscription.org_id,
+    'org_subscription_cycle_payment_status_set',
+    'org_subscription_cycle',
+    p_cycle_id,
+    null,
+    jsonb_build_object(
+      'payment_status', p_payment_status,
+      'payment_id', p_payment_id,
+      'review_note', nullif(trim(p_review_note), '')
+    ),
+    auth.uid()
+  );
+
+  return p_cycle_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_set_org_subscription_cycle_payment_status"("p_cycle_id" "uuid", "p_payment_status" "public"."subscription_payment_status", "p_review_note" "text", "p_payment_id" "uuid", "p_paid_at" timestamp with time zone) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_set_org_subscription_service_status"("p_org_id" "uuid", "p_service_status" "public"."subscription_service_status", "p_grace_until" "date" DEFAULT NULL::"date", "p_reason" "text" DEFAULT NULL::"text") RETURNS "uuid"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_subscription_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_platform_admin() then
+    raise exception 'not authorized';
+  end if;
+
+  update public.org_subscriptions
+  set
+    service_status = p_service_status,
+    grace_until = p_grace_until,
+    updated_by = auth.uid(),
+    updated_at = now()
+  where org_id = p_org_id
+  returning id into v_subscription_id;
+
+  if v_subscription_id is null then
+    raise exception 'subscription not found';
+  end if;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'org_subscription_service_status_set',
+    'org_subscription',
+    v_subscription_id,
+    null,
+    jsonb_build_object(
+      'service_status', p_service_status,
+      'grace_until', p_grace_until,
+      'reason', nullif(trim(p_reason), '')
+    ),
+    auth.uid()
+  );
+
+  return v_subscription_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_set_org_subscription_service_status"("p_org_id" "uuid", "p_service_status" "public"."subscription_service_status", "p_grace_until" "date", "p_reason" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_set_safety_stock"("p_org_id" "uuid", "p_branch_id" "uuid", "p_product_id" "uuid", "p_safety_stock" numeric) RETURNS "void"
@@ -7708,6 +8287,397 @@ $$;
 
 
 ALTER FUNCTION "public"."rpc_upsert_data_import_row"("p_org_id" "uuid", "p_job_id" "uuid", "p_row_number" integer, "p_raw_payload" "jsonb", "p_normalized_payload" "jsonb") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_upsert_org_subscription"("p_org_id" "uuid", "p_plan_id" "uuid" DEFAULT NULL::"uuid", "p_plan_name_snapshot" "text" DEFAULT NULL::"text", "p_pricing_mode" "public"."subscription_pricing_mode" DEFAULT 'standard'::"public"."subscription_pricing_mode", "p_currency_code" "text" DEFAULT 'ARS'::"text", "p_base_price_monthly_snapshot" numeric DEFAULT 100000, "p_included_branches_snapshot" integer DEFAULT 1, "p_additional_branch_price_monthly_snapshot" numeric DEFAULT 80000, "p_custom_monthly_price" numeric DEFAULT NULL::numeric, "p_started_on" "date" DEFAULT NULL::"date", "p_renews_on" "date" DEFAULT NULL::"date", "p_service_status" "public"."subscription_service_status" DEFAULT 'active'::"public"."subscription_service_status", "p_grace_until" "date" DEFAULT NULL::"date", "p_billing_notes_internal" "text" DEFAULT NULL::"text", "p_customer_note_visible" "text" DEFAULT NULL::"text", "p_is_auto_branch_pricing_enabled" boolean DEFAULT true, "p_cycle_start_on" "date" DEFAULT NULL::"date", "p_cycle_end_on" "date" DEFAULT NULL::"date", "p_cycle_due_on" "date" DEFAULT NULL::"date") RETURNS TABLE("subscription_id" "uuid", "cycle_id" "uuid")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_plan public.subscription_plans%rowtype;
+  v_subscription_id uuid;
+  v_cycle_id uuid;
+  v_effective_plan_name text;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_platform_admin() then
+    raise exception 'not authorized';
+  end if;
+
+  if not exists (
+    select 1 from public.orgs where id = p_org_id
+  ) then
+    raise exception 'org not found';
+  end if;
+
+  if p_plan_id is not null then
+    select *
+      into v_plan
+    from public.subscription_plans sp
+    where sp.id = p_plan_id;
+
+    if v_plan.id is null then
+      raise exception 'plan not found';
+    end if;
+  end if;
+
+  v_effective_plan_name := coalesce(
+    nullif(trim(p_plan_name_snapshot), ''),
+    v_plan.name,
+    'Plan Base'
+  );
+
+  insert into public.org_subscriptions (
+    org_id,
+    plan_id,
+    pricing_mode,
+    plan_name_snapshot,
+    currency_code,
+    base_price_monthly_snapshot,
+    included_branches_snapshot,
+    additional_branch_price_monthly_snapshot,
+    custom_monthly_price,
+    started_on,
+    renews_on,
+    service_status,
+    grace_until,
+    billing_notes_internal,
+    customer_note_visible,
+    is_auto_branch_pricing_enabled,
+    created_by,
+    updated_by
+  )
+  values (
+    p_org_id,
+    p_plan_id,
+    coalesce(p_pricing_mode, 'standard'),
+    v_effective_plan_name,
+    coalesce(nullif(trim(p_currency_code), ''), coalesce(v_plan.currency_code, 'ARS')),
+    coalesce(p_base_price_monthly_snapshot, v_plan.base_price_monthly, 100000),
+    coalesce(p_included_branches_snapshot, v_plan.included_branches, 1),
+    coalesce(p_additional_branch_price_monthly_snapshot, v_plan.additional_branch_price_monthly, 80000),
+    p_custom_monthly_price,
+    coalesce(p_started_on, current_date),
+    coalesce(p_renews_on, current_date + 30),
+    coalesce(p_service_status, 'active'),
+    p_grace_until,
+    nullif(trim(p_billing_notes_internal), ''),
+    nullif(trim(p_customer_note_visible), ''),
+    coalesce(p_is_auto_branch_pricing_enabled, true),
+    auth.uid(),
+    auth.uid()
+  )
+  on conflict (org_id) do update set
+    plan_id = excluded.plan_id,
+    pricing_mode = excluded.pricing_mode,
+    plan_name_snapshot = excluded.plan_name_snapshot,
+    currency_code = excluded.currency_code,
+    base_price_monthly_snapshot = excluded.base_price_monthly_snapshot,
+    included_branches_snapshot = excluded.included_branches_snapshot,
+    additional_branch_price_monthly_snapshot = excluded.additional_branch_price_monthly_snapshot,
+    custom_monthly_price = excluded.custom_monthly_price,
+    started_on = excluded.started_on,
+    renews_on = excluded.renews_on,
+    service_status = excluded.service_status,
+    grace_until = excluded.grace_until,
+    billing_notes_internal = excluded.billing_notes_internal,
+    customer_note_visible = excluded.customer_note_visible,
+    is_auto_branch_pricing_enabled = excluded.is_auto_branch_pricing_enabled,
+    updated_by = auth.uid(),
+    updated_at = now()
+  returning id into v_subscription_id;
+
+  if p_cycle_start_on is not null and p_cycle_end_on is not null and p_cycle_due_on is not null then
+    insert into public.org_subscription_cycles (
+      org_subscription_id,
+      cycle_start_on,
+      cycle_end_on,
+      due_on,
+      created_by,
+      updated_by
+    )
+    values (
+      v_subscription_id,
+      p_cycle_start_on,
+      p_cycle_end_on,
+      p_cycle_due_on,
+      auth.uid(),
+      auth.uid()
+    )
+    on conflict (org_subscription_id, cycle_start_on, cycle_end_on) do update set
+      due_on = excluded.due_on,
+      updated_by = auth.uid(),
+      updated_at = now()
+    returning id into v_cycle_id;
+
+    v_cycle_id := public.fn_recompute_org_subscription_cycle(v_subscription_id, v_cycle_id, auth.uid());
+  end if;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'org_subscription_upserted',
+    'org_subscription',
+    v_subscription_id,
+    null,
+    jsonb_build_object(
+      'pricing_mode', coalesce(p_pricing_mode, 'standard'),
+      'plan_id', p_plan_id,
+      'plan_name_snapshot', v_effective_plan_name,
+      'base_price_monthly_snapshot', coalesce(p_base_price_monthly_snapshot, v_plan.base_price_monthly, 100000),
+      'included_branches_snapshot', coalesce(p_included_branches_snapshot, v_plan.included_branches, 1),
+      'additional_branch_price_monthly_snapshot', coalesce(p_additional_branch_price_monthly_snapshot, v_plan.additional_branch_price_monthly, 80000),
+      'custom_monthly_price', p_custom_monthly_price,
+      'started_on', coalesce(p_started_on, current_date),
+      'renews_on', coalesce(p_renews_on, current_date + 30),
+      'service_status', coalesce(p_service_status, 'active'),
+      'cycle_id', v_cycle_id
+    ),
+    auth.uid()
+  );
+
+  return query select v_subscription_id, v_cycle_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_upsert_org_subscription"("p_org_id" "uuid", "p_plan_id" "uuid", "p_plan_name_snapshot" "text", "p_pricing_mode" "public"."subscription_pricing_mode", "p_currency_code" "text", "p_base_price_monthly_snapshot" numeric, "p_included_branches_snapshot" integer, "p_additional_branch_price_monthly_snapshot" numeric, "p_custom_monthly_price" numeric, "p_started_on" "date", "p_renews_on" "date", "p_service_status" "public"."subscription_service_status", "p_grace_until" "date", "p_billing_notes_internal" "text", "p_customer_note_visible" "text", "p_is_auto_branch_pricing_enabled" boolean, "p_cycle_start_on" "date", "p_cycle_end_on" "date", "p_cycle_due_on" "date") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_upsert_org_subscription"("p_org_id" "uuid", "p_plan_id" "uuid" DEFAULT NULL::"uuid", "p_plan_name_snapshot" "text" DEFAULT NULL::"text", "p_pricing_mode" "public"."subscription_pricing_mode" DEFAULT 'standard'::"public"."subscription_pricing_mode", "p_currency_code" "text" DEFAULT 'ARS'::"text", "p_base_price_monthly_snapshot" numeric DEFAULT 100000, "p_included_branches_snapshot" integer DEFAULT 1, "p_additional_branch_price_monthly_snapshot" numeric DEFAULT 80000, "p_custom_monthly_price" numeric DEFAULT NULL::numeric, "p_discount_mode" "public"."subscription_discount_mode" DEFAULT 'none'::"public"."subscription_discount_mode", "p_discount_percent" numeric DEFAULT NULL::numeric, "p_discount_amount" numeric DEFAULT NULL::numeric, "p_discount_label" "text" DEFAULT NULL::"text", "p_started_on" "date" DEFAULT NULL::"date", "p_renews_on" "date" DEFAULT NULL::"date", "p_service_status" "public"."subscription_service_status" DEFAULT 'active'::"public"."subscription_service_status", "p_grace_until" "date" DEFAULT NULL::"date", "p_billing_notes_internal" "text" DEFAULT NULL::"text", "p_customer_note_visible" "text" DEFAULT NULL::"text", "p_is_auto_branch_pricing_enabled" boolean DEFAULT true, "p_cycle_start_on" "date" DEFAULT NULL::"date", "p_cycle_end_on" "date" DEFAULT NULL::"date", "p_cycle_due_on" "date" DEFAULT NULL::"date") RETURNS TABLE("subscription_id" "uuid", "cycle_id" "uuid")
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+declare
+  v_plan public.subscription_plans%rowtype;
+  v_subscription_id uuid;
+  v_cycle_id uuid;
+  v_effective_plan_name text;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_platform_admin() then
+    raise exception 'not authorized';
+  end if;
+
+  if not exists (
+    select 1 from public.orgs where id = p_org_id
+  ) then
+    raise exception 'org not found';
+  end if;
+
+  if p_plan_id is not null then
+    select *
+      into v_plan
+    from public.subscription_plans sp
+    where sp.id = p_plan_id;
+
+    if v_plan.id is null then
+      raise exception 'plan not found';
+    end if;
+  end if;
+
+  v_effective_plan_name := coalesce(
+    nullif(trim(p_plan_name_snapshot), ''),
+    v_plan.name,
+    'Plan Base'
+  );
+
+  insert into public.org_subscriptions (
+    org_id,
+    plan_id,
+    pricing_mode,
+    plan_name_snapshot,
+    currency_code,
+    base_price_monthly_snapshot,
+    included_branches_snapshot,
+    additional_branch_price_monthly_snapshot,
+    custom_monthly_price,
+    discount_mode,
+    discount_percent,
+    discount_amount,
+    discount_label,
+    started_on,
+    renews_on,
+    service_status,
+    grace_until,
+    billing_notes_internal,
+    customer_note_visible,
+    is_auto_branch_pricing_enabled,
+    created_by,
+    updated_by
+  )
+  values (
+    p_org_id,
+    p_plan_id,
+    coalesce(p_pricing_mode, 'standard'),
+    v_effective_plan_name,
+    coalesce(nullif(trim(p_currency_code), ''), coalesce(v_plan.currency_code, 'ARS')),
+    coalesce(p_base_price_monthly_snapshot, v_plan.base_price_monthly, 100000),
+    coalesce(p_included_branches_snapshot, v_plan.included_branches, 1),
+    coalesce(p_additional_branch_price_monthly_snapshot, v_plan.additional_branch_price_monthly, 80000),
+    p_custom_monthly_price,
+    coalesce(p_discount_mode, 'none'),
+    p_discount_percent,
+    p_discount_amount,
+    nullif(trim(p_discount_label), ''),
+    coalesce(p_started_on, current_date),
+    coalesce(p_renews_on, current_date + 30),
+    coalesce(p_service_status, 'active'),
+    p_grace_until,
+    nullif(trim(p_billing_notes_internal), ''),
+    nullif(trim(p_customer_note_visible), ''),
+    coalesce(p_is_auto_branch_pricing_enabled, true),
+    auth.uid(),
+    auth.uid()
+  )
+  on conflict (org_id) do update set
+    plan_id = excluded.plan_id,
+    pricing_mode = excluded.pricing_mode,
+    plan_name_snapshot = excluded.plan_name_snapshot,
+    currency_code = excluded.currency_code,
+    base_price_monthly_snapshot = excluded.base_price_monthly_snapshot,
+    included_branches_snapshot = excluded.included_branches_snapshot,
+    additional_branch_price_monthly_snapshot = excluded.additional_branch_price_monthly_snapshot,
+    custom_monthly_price = excluded.custom_monthly_price,
+    discount_mode = excluded.discount_mode,
+    discount_percent = excluded.discount_percent,
+    discount_amount = excluded.discount_amount,
+    discount_label = excluded.discount_label,
+    started_on = excluded.started_on,
+    renews_on = excluded.renews_on,
+    service_status = excluded.service_status,
+    grace_until = excluded.grace_until,
+    billing_notes_internal = excluded.billing_notes_internal,
+    customer_note_visible = excluded.customer_note_visible,
+    is_auto_branch_pricing_enabled = excluded.is_auto_branch_pricing_enabled,
+    updated_by = auth.uid(),
+    updated_at = now()
+  returning id into v_subscription_id;
+
+  if p_cycle_start_on is not null and p_cycle_end_on is not null and p_cycle_due_on is not null then
+    insert into public.org_subscription_cycles (
+      org_subscription_id,
+      cycle_start_on,
+      cycle_end_on,
+      due_on,
+      created_by,
+      updated_by
+    )
+    values (
+      v_subscription_id,
+      p_cycle_start_on,
+      p_cycle_end_on,
+      p_cycle_due_on,
+      auth.uid(),
+      auth.uid()
+    )
+    on conflict (org_subscription_id, cycle_start_on, cycle_end_on) do update set
+      due_on = excluded.due_on,
+      updated_by = auth.uid(),
+      updated_at = now()
+    returning id into v_cycle_id;
+
+    v_cycle_id := public.fn_recompute_org_subscription_cycle(v_subscription_id, v_cycle_id, auth.uid());
+  end if;
+
+  perform public.rpc_log_audit_event(
+    p_org_id,
+    'org_subscription_upserted',
+    'org_subscription',
+    v_subscription_id,
+    null,
+    jsonb_build_object(
+      'pricing_mode', coalesce(p_pricing_mode, 'standard'),
+      'plan_id', p_plan_id,
+      'plan_name_snapshot', v_effective_plan_name,
+      'base_price_monthly_snapshot', coalesce(p_base_price_monthly_snapshot, v_plan.base_price_monthly, 100000),
+      'included_branches_snapshot', coalesce(p_included_branches_snapshot, v_plan.included_branches, 1),
+      'additional_branch_price_monthly_snapshot', coalesce(p_additional_branch_price_monthly_snapshot, v_plan.additional_branch_price_monthly, 80000),
+      'custom_monthly_price', p_custom_monthly_price,
+      'discount_mode', coalesce(p_discount_mode, 'none'),
+      'discount_percent', p_discount_percent,
+      'discount_amount', p_discount_amount,
+      'discount_label', nullif(trim(p_discount_label), ''),
+      'started_on', coalesce(p_started_on, current_date),
+      'renews_on', coalesce(p_renews_on, current_date + 30),
+      'service_status', coalesce(p_service_status, 'active'),
+      'cycle_id', v_cycle_id
+    ),
+    auth.uid()
+  );
+
+  return query select v_subscription_id, v_cycle_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_upsert_org_subscription"("p_org_id" "uuid", "p_plan_id" "uuid", "p_plan_name_snapshot" "text", "p_pricing_mode" "public"."subscription_pricing_mode", "p_currency_code" "text", "p_base_price_monthly_snapshot" numeric, "p_included_branches_snapshot" integer, "p_additional_branch_price_monthly_snapshot" numeric, "p_custom_monthly_price" numeric, "p_discount_mode" "public"."subscription_discount_mode", "p_discount_percent" numeric, "p_discount_amount" numeric, "p_discount_label" "text", "p_started_on" "date", "p_renews_on" "date", "p_service_status" "public"."subscription_service_status", "p_grace_until" "date", "p_billing_notes_internal" "text", "p_customer_note_visible" "text", "p_is_auto_branch_pricing_enabled" boolean, "p_cycle_start_on" "date", "p_cycle_end_on" "date", "p_cycle_due_on" "date") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rpc_upsert_platform_billing_settings"("p_bank_account_holder" "text" DEFAULT NULL::"text", "p_bank_name" "text" DEFAULT NULL::"text", "p_bank_account_type" "text" DEFAULT NULL::"text", "p_bank_cbu" "text" DEFAULT NULL::"text", "p_bank_alias" "text" DEFAULT NULL::"text", "p_bank_cuit" "text" DEFAULT NULL::"text", "p_mercadopago_qr_image_path" "text" DEFAULT NULL::"text", "p_payment_instructions" "text" DEFAULT NULL::"text", "p_is_active" boolean DEFAULT true) RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    SET "row_security" TO 'off'
+    AS $$
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if not public.is_platform_admin() then
+    raise exception 'not authorized';
+  end if;
+
+  insert into public.platform_billing_settings (
+    id,
+    bank_account_holder,
+    bank_name,
+    bank_account_type,
+    bank_cbu,
+    bank_alias,
+    bank_cuit,
+    mercadopago_qr_image_path,
+    payment_instructions,
+    is_active,
+    updated_by
+  )
+  values (
+    true,
+    nullif(trim(p_bank_account_holder), ''),
+    nullif(trim(p_bank_name), ''),
+    nullif(trim(p_bank_account_type), ''),
+    nullif(trim(p_bank_cbu), ''),
+    nullif(trim(p_bank_alias), ''),
+    nullif(trim(p_bank_cuit), ''),
+    nullif(trim(p_mercadopago_qr_image_path), ''),
+    nullif(trim(p_payment_instructions), ''),
+    coalesce(p_is_active, true),
+    auth.uid()
+  )
+  on conflict (id) do update set
+    bank_account_holder = excluded.bank_account_holder,
+    bank_name = excluded.bank_name,
+    bank_account_type = excluded.bank_account_type,
+    bank_cbu = excluded.bank_cbu,
+    bank_alias = excluded.bank_alias,
+    bank_cuit = excluded.bank_cuit,
+    mercadopago_qr_image_path = excluded.mercadopago_qr_image_path,
+    payment_instructions = excluded.payment_instructions,
+    is_active = excluded.is_active,
+    updated_by = auth.uid(),
+    updated_at = now();
+end;
+$$;
+
+
+ALTER FUNCTION "public"."rpc_upsert_platform_billing_settings"("p_bank_account_holder" "text", "p_bank_name" "text", "p_bank_account_type" "text", "p_bank_cbu" "text", "p_bank_alias" "text", "p_bank_cuit" "text", "p_mercadopago_qr_image_path" "text", "p_payment_instructions" "text", "p_is_active" boolean) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rpc_upsert_product"("p_product_id" "uuid", "p_org_id" "uuid", "p_name" "text", "p_internal_code" "text", "p_barcode" "text", "p_sell_unit_type" "public"."sell_unit_type", "p_uom" "text", "p_unit_price" numeric, "p_is_active" boolean) RETURNS TABLE("product_id" "uuid")
@@ -9191,6 +10161,110 @@ COMMENT ON COLUMN "public"."org_preferences"."fiscal_prod_live_enabled" IS 'Gate
 
 
 
+CREATE TABLE IF NOT EXISTS "public"."org_subscription_cycles" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "org_subscription_id" "uuid" NOT NULL,
+    "cycle_start_on" "date" NOT NULL,
+    "cycle_end_on" "date" NOT NULL,
+    "due_on" "date" NOT NULL,
+    "active_branch_count_snapshot" integer DEFAULT 0 NOT NULL,
+    "billable_additional_branch_count_snapshot" integer DEFAULT 0 NOT NULL,
+    "expected_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "payment_status" "public"."subscription_payment_status" DEFAULT 'pending'::"public"."subscription_payment_status" NOT NULL,
+    "paid_at" timestamp with time zone,
+    "payment_confirmed_at" timestamp with time zone,
+    "payment_confirmed_by" "uuid",
+    "rejection_reason" "text",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "created_by" "uuid",
+    "updated_by" "uuid",
+    "list_price_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "discount_amount_applied" numeric(12,2) DEFAULT 0 NOT NULL,
+    "final_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "discount_mode_snapshot" "public"."subscription_discount_mode" DEFAULT 'none'::"public"."subscription_discount_mode" NOT NULL,
+    "discount_percent_snapshot" numeric(5,2),
+    "discount_amount_snapshot" numeric(12,2),
+    "discount_label_snapshot" "text",
+    CONSTRAINT "org_subscription_cycles_active_branch_count_nonnegative_ck" CHECK (("active_branch_count_snapshot" >= 0)),
+    CONSTRAINT "org_subscription_cycles_billable_branch_count_nonnegative_ck" CHECK (("billable_additional_branch_count_snapshot" >= 0)),
+    CONSTRAINT "org_subscription_cycles_date_order_ck" CHECK (("cycle_end_on" >= "cycle_start_on")),
+    CONSTRAINT "org_subscription_cycles_discount_amount_applied_nonnegative_ck" CHECK (("discount_amount_applied" >= (0)::numeric)),
+    CONSTRAINT "org_subscription_cycles_discount_amount_snapshot_nonnegative_ck" CHECK ((("discount_amount_snapshot" IS NULL) OR ("discount_amount_snapshot" >= (0)::numeric))),
+    CONSTRAINT "org_subscription_cycles_discount_percent_snapshot_range_ck" CHECK ((("discount_percent_snapshot" IS NULL) OR (("discount_percent_snapshot" >= (0)::numeric) AND ("discount_percent_snapshot" <= (100)::numeric)))),
+    CONSTRAINT "org_subscription_cycles_due_on_ck" CHECK (("due_on" >= "cycle_start_on")),
+    CONSTRAINT "org_subscription_cycles_expected_amount_nonnegative_ck" CHECK (("expected_amount" >= (0)::numeric)),
+    CONSTRAINT "org_subscription_cycles_final_amount_nonnegative_ck" CHECK (("final_amount" >= (0)::numeric)),
+    CONSTRAINT "org_subscription_cycles_list_price_amount_nonnegative_ck" CHECK (("list_price_amount" >= (0)::numeric))
+);
+
+
+ALTER TABLE "public"."org_subscription_cycles" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."org_subscription_payments" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "org_subscription_cycle_id" "uuid" NOT NULL,
+    "org_id" "uuid" NOT NULL,
+    "payment_method" "public"."subscription_payment_method" NOT NULL,
+    "amount_reported" numeric(12,2) NOT NULL,
+    "reference_text" "text",
+    "proof_storage_path" "text",
+    "proof_uploaded_by" "uuid",
+    "proof_uploaded_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "review_status" "public"."subscription_review_status" DEFAULT 'pending'::"public"."subscription_review_status" NOT NULL,
+    "reviewed_by" "uuid",
+    "reviewed_at" timestamp with time zone,
+    "review_note" "text",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "org_subscription_payments_amount_positive_ck" CHECK (("amount_reported" > (0)::numeric))
+);
+
+
+ALTER TABLE "public"."org_subscription_payments" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."org_subscriptions" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "org_id" "uuid" NOT NULL,
+    "plan_id" "uuid",
+    "pricing_mode" "public"."subscription_pricing_mode" DEFAULT 'standard'::"public"."subscription_pricing_mode" NOT NULL,
+    "plan_name_snapshot" "text" NOT NULL,
+    "currency_code" "text" DEFAULT 'ARS'::"text" NOT NULL,
+    "base_price_monthly_snapshot" numeric(12,2) NOT NULL,
+    "included_branches_snapshot" integer DEFAULT 1 NOT NULL,
+    "additional_branch_price_monthly_snapshot" numeric(12,2) DEFAULT 0 NOT NULL,
+    "custom_monthly_price" numeric(12,2),
+    "started_on" "date" NOT NULL,
+    "renews_on" "date" NOT NULL,
+    "service_status" "public"."subscription_service_status" DEFAULT 'active'::"public"."subscription_service_status" NOT NULL,
+    "grace_until" "date",
+    "billing_notes_internal" "text",
+    "customer_note_visible" "text",
+    "is_auto_branch_pricing_enabled" boolean DEFAULT true NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "created_by" "uuid",
+    "updated_by" "uuid",
+    "discount_mode" "public"."subscription_discount_mode" DEFAULT 'none'::"public"."subscription_discount_mode" NOT NULL,
+    "discount_percent" numeric(5,2),
+    "discount_amount" numeric(12,2),
+    "discount_label" "text",
+    CONSTRAINT "org_subscriptions_additional_branch_price_nonnegative_ck" CHECK (("additional_branch_price_monthly_snapshot" >= (0)::numeric)),
+    CONSTRAINT "org_subscriptions_base_price_nonnegative_ck" CHECK (("base_price_monthly_snapshot" >= (0)::numeric)),
+    CONSTRAINT "org_subscriptions_custom_monthly_price_nonnegative_ck" CHECK ((("custom_monthly_price" IS NULL) OR ("custom_monthly_price" >= (0)::numeric))),
+    CONSTRAINT "org_subscriptions_custom_pricing_required_ck" CHECK (((("pricing_mode" = 'standard'::"public"."subscription_pricing_mode") AND ("custom_monthly_price" IS NULL)) OR (("pricing_mode" = 'custom'::"public"."subscription_pricing_mode") AND ("custom_monthly_price" IS NOT NULL)))),
+    CONSTRAINT "org_subscriptions_discount_amount_nonnegative_ck" CHECK ((("discount_amount" IS NULL) OR ("discount_amount" >= (0)::numeric))),
+    CONSTRAINT "org_subscriptions_discount_mode_value_ck" CHECK (((("discount_mode" = 'none'::"public"."subscription_discount_mode") AND ("discount_percent" IS NULL) AND ("discount_amount" IS NULL)) OR (("discount_mode" = 'percent'::"public"."subscription_discount_mode") AND ("discount_percent" IS NOT NULL) AND ("discount_amount" IS NULL)) OR (("discount_mode" = 'fixed_amount'::"public"."subscription_discount_mode") AND ("discount_amount" IS NOT NULL) AND ("discount_percent" IS NULL)))),
+    CONSTRAINT "org_subscriptions_discount_percent_range_ck" CHECK ((("discount_percent" IS NULL) OR (("discount_percent" >= (0)::numeric) AND ("discount_percent" <= (100)::numeric)))),
+    CONSTRAINT "org_subscriptions_grace_until_service_ck" CHECK ((("grace_until" IS NULL) OR ("service_status" = ANY (ARRAY['grace'::"public"."subscription_service_status", 'active'::"public"."subscription_service_status"])))),
+    CONSTRAINT "org_subscriptions_included_branches_nonnegative_ck" CHECK (("included_branches_snapshot" >= 0))
+);
+
+
+ALTER TABLE "public"."org_subscriptions" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."org_users" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "org_id" "uuid" NOT NULL,
@@ -9228,6 +10302,27 @@ CREATE TABLE IF NOT EXISTS "public"."platform_admins" (
 
 
 ALTER TABLE "public"."platform_admins" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."platform_billing_settings" (
+    "id" boolean DEFAULT true NOT NULL,
+    "bank_account_holder" "text",
+    "bank_name" "text",
+    "bank_account_type" "text",
+    "bank_cbu" "text",
+    "bank_alias" "text",
+    "bank_cuit" "text",
+    "mercadopago_qr_image_path" "text",
+    "payment_instructions" "text",
+    "is_active" boolean DEFAULT true NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_by" "uuid",
+    CONSTRAINT "platform_billing_settings_singleton_ck" CHECK (("id" = true))
+);
+
+
+ALTER TABLE "public"."platform_billing_settings" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."points_of_sale" (
@@ -9529,6 +10624,27 @@ CREATE TABLE IF NOT EXISTS "public"."storefront_settings" (
 
 
 ALTER TABLE "public"."storefront_settings" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."subscription_plans" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "code" "text" NOT NULL,
+    "name" "text" NOT NULL,
+    "description" "text",
+    "base_price_monthly" numeric(12,2) NOT NULL,
+    "included_branches" integer DEFAULT 1 NOT NULL,
+    "additional_branch_price_monthly" numeric(12,2) DEFAULT 0 NOT NULL,
+    "currency_code" "text" DEFAULT 'ARS'::"text" NOT NULL,
+    "is_active" boolean DEFAULT true NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "subscription_plans_additional_branch_price_nonnegative_ck" CHECK (("additional_branch_price_monthly" >= (0)::numeric)),
+    CONSTRAINT "subscription_plans_base_price_nonnegative_ck" CHECK (("base_price_monthly" >= (0)::numeric)),
+    CONSTRAINT "subscription_plans_included_branches_nonnegative_ck" CHECK (("included_branches" >= 0))
+);
+
+
+ALTER TABLE "public"."subscription_plans" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."supplier_order_items" (
@@ -10194,6 +11310,106 @@ CREATE OR REPLACE VIEW "public"."v_orders_admin" AS
 ALTER VIEW "public"."v_orders_admin" OWNER TO "postgres";
 
 
+CREATE OR REPLACE VIEW "public"."v_org_membership" WITH ("security_invoker"='true') AS
+ SELECT "os"."id" AS "subscription_id",
+    "o"."id" AS "org_id",
+    "o"."name" AS "org_name",
+    "os"."plan_name_snapshot" AS "plan_name",
+    "os"."pricing_mode",
+    "os"."currency_code",
+    "os"."service_status",
+    "os"."started_on",
+    "os"."renews_on",
+    "os"."base_price_monthly_snapshot" AS "base_price_monthly",
+    "os"."included_branches_snapshot" AS "included_branches",
+    "os"."additional_branch_price_monthly_snapshot" AS "additional_branch_price_monthly",
+    "os"."discount_mode",
+    "os"."discount_percent",
+    "os"."discount_amount",
+    "os"."discount_label",
+    "calc"."active_branch_count",
+    "calc"."billable_additional_branch_count",
+    "calc"."list_price_monthly",
+    "calc"."discount_amount_applied",
+    "calc"."effective_monthly_price",
+    "osc"."id" AS "current_cycle_id",
+    "osc"."cycle_start_on" AS "current_cycle_start_on",
+    "osc"."cycle_end_on" AS "current_cycle_end_on",
+    "osc"."due_on" AS "current_cycle_due_on",
+    "osc"."list_price_amount" AS "current_cycle_list_price_amount",
+    "osc"."discount_amount_applied" AS "current_cycle_discount_amount_applied",
+    "osc"."expected_amount" AS "current_cycle_expected_amount",
+    "osc"."payment_status" AS "current_cycle_payment_status",
+    "osc"."rejection_reason" AS "current_cycle_review_note",
+    "pbs"."bank_account_holder",
+    "pbs"."bank_name",
+    "pbs"."bank_account_type",
+    "pbs"."bank_cbu",
+    "pbs"."bank_alias",
+    "pbs"."bank_cuit",
+    "pbs"."mercadopago_qr_image_path",
+    "pbs"."payment_instructions"
+   FROM (((("public"."org_subscriptions" "os"
+     JOIN "public"."orgs" "o" ON (("o"."id" = "os"."org_id")))
+     CROSS JOIN LATERAL "public"."fn_calculate_org_subscription_amount"("os"."org_id", "os"."pricing_mode", "os"."base_price_monthly_snapshot", "os"."included_branches_snapshot", "os"."additional_branch_price_monthly_snapshot", "os"."custom_monthly_price", "os"."discount_mode", "os"."discount_percent", "os"."discount_amount") "calc"("active_branch_count", "billable_additional_branch_count", "list_price_monthly", "discount_amount_applied", "effective_monthly_price"))
+     LEFT JOIN LATERAL ( SELECT "osc_1"."id",
+            "osc_1"."org_subscription_id",
+            "osc_1"."cycle_start_on",
+            "osc_1"."cycle_end_on",
+            "osc_1"."due_on",
+            "osc_1"."active_branch_count_snapshot",
+            "osc_1"."billable_additional_branch_count_snapshot",
+            "osc_1"."expected_amount",
+            "osc_1"."payment_status",
+            "osc_1"."paid_at",
+            "osc_1"."payment_confirmed_at",
+            "osc_1"."payment_confirmed_by",
+            "osc_1"."rejection_reason",
+            "osc_1"."created_at",
+            "osc_1"."updated_at",
+            "osc_1"."created_by",
+            "osc_1"."updated_by",
+            "osc_1"."list_price_amount",
+            "osc_1"."discount_amount_applied",
+            "osc_1"."final_amount",
+            "osc_1"."discount_mode_snapshot",
+            "osc_1"."discount_percent_snapshot",
+            "osc_1"."discount_amount_snapshot",
+            "osc_1"."discount_label_snapshot"
+           FROM "public"."org_subscription_cycles" "osc_1"
+          WHERE ("osc_1"."org_subscription_id" = "os"."id")
+          ORDER BY "osc_1"."cycle_start_on" DESC, "osc_1"."created_at" DESC
+         LIMIT 1) "osc" ON (true))
+     LEFT JOIN "public"."platform_billing_settings" "pbs" ON (("pbs"."id" = true)));
+
+
+ALTER VIEW "public"."v_org_membership" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."v_org_membership_payments" WITH ("security_invoker"='true') AS
+ SELECT "osp"."id" AS "payment_id",
+    "osp"."org_id",
+    "os"."id" AS "subscription_id",
+    "osc"."id" AS "cycle_id",
+    "osc"."cycle_start_on",
+    "osc"."cycle_end_on",
+    "osc"."due_on",
+    "osp"."payment_method",
+    "osp"."amount_reported",
+    "osp"."reference_text",
+    "osp"."proof_storage_path",
+    "osp"."proof_uploaded_at" AS "submitted_at",
+    "osp"."review_status",
+    "osp"."review_note",
+    "osp"."reviewed_at"
+   FROM (("public"."org_subscription_payments" "osp"
+     JOIN "public"."org_subscription_cycles" "osc" ON (("osc"."id" = "osp"."org_subscription_cycle_id")))
+     JOIN "public"."org_subscriptions" "os" ON (("os"."id" = "osc"."org_subscription_id")));
+
+
+ALTER VIEW "public"."v_org_membership_payments" OWNER TO "postgres";
+
+
 CREATE OR REPLACE VIEW "public"."v_pos_product_catalog" AS
  SELECT "p"."id" AS "product_id",
     "p"."org_id",
@@ -10608,6 +11824,150 @@ CREATE OR REPLACE VIEW "public"."v_superadmin_orgs" WITH ("security_invoker"='tr
 ALTER VIEW "public"."v_superadmin_orgs" OWNER TO "postgres";
 
 
+CREATE OR REPLACE VIEW "public"."v_superadmin_subscriptions" WITH ("security_invoker"='true') AS
+ SELECT "os"."id" AS "subscription_id",
+    "o"."id" AS "org_id",
+    "o"."name" AS "org_name",
+    "o"."is_active" AS "org_is_active",
+    "o"."timezone",
+    "os"."plan_id",
+    "os"."plan_name_snapshot" AS "plan_name",
+    "os"."pricing_mode",
+    "os"."currency_code",
+    "os"."base_price_monthly_snapshot" AS "base_price_monthly",
+    "os"."included_branches_snapshot" AS "included_branches",
+    "os"."additional_branch_price_monthly_snapshot" AS "additional_branch_price_monthly",
+    "os"."discount_mode",
+    "os"."discount_percent",
+    "os"."discount_amount",
+    "os"."discount_label",
+    "calc"."active_branch_count",
+    "calc"."billable_additional_branch_count",
+    "calc"."list_price_monthly" AS "calculated_monthly_price",
+    "calc"."list_price_monthly",
+    "calc"."discount_amount_applied",
+    "os"."custom_monthly_price",
+    "calc"."effective_monthly_price",
+    "os"."started_on",
+    "os"."renews_on",
+    "os"."service_status",
+    "os"."grace_until",
+    "osc"."id" AS "current_cycle_id",
+    "osc"."cycle_start_on" AS "current_cycle_start_on",
+    "osc"."cycle_end_on" AS "current_cycle_end_on",
+    "osc"."due_on" AS "current_cycle_due_on",
+    "osc"."list_price_amount" AS "current_cycle_list_price_amount",
+    "osc"."discount_amount_applied" AS "current_cycle_discount_amount_applied",
+    "osc"."expected_amount" AS "current_cycle_expected_amount",
+    "osc"."payment_status" AS "current_cycle_payment_status",
+    "osc"."paid_at" AS "current_cycle_paid_at",
+    "osc"."payment_confirmed_at" AS "current_cycle_payment_confirmed_at"
+   FROM ((("public"."org_subscriptions" "os"
+     JOIN "public"."orgs" "o" ON (("o"."id" = "os"."org_id")))
+     CROSS JOIN LATERAL "public"."fn_calculate_org_subscription_amount"("os"."org_id", "os"."pricing_mode", "os"."base_price_monthly_snapshot", "os"."included_branches_snapshot", "os"."additional_branch_price_monthly_snapshot", "os"."custom_monthly_price", "os"."discount_mode", "os"."discount_percent", "os"."discount_amount") "calc"("active_branch_count", "billable_additional_branch_count", "list_price_monthly", "discount_amount_applied", "effective_monthly_price"))
+     LEFT JOIN LATERAL ( SELECT "osc_1"."id",
+            "osc_1"."org_subscription_id",
+            "osc_1"."cycle_start_on",
+            "osc_1"."cycle_end_on",
+            "osc_1"."due_on",
+            "osc_1"."active_branch_count_snapshot",
+            "osc_1"."billable_additional_branch_count_snapshot",
+            "osc_1"."expected_amount",
+            "osc_1"."payment_status",
+            "osc_1"."paid_at",
+            "osc_1"."payment_confirmed_at",
+            "osc_1"."payment_confirmed_by",
+            "osc_1"."rejection_reason",
+            "osc_1"."created_at",
+            "osc_1"."updated_at",
+            "osc_1"."created_by",
+            "osc_1"."updated_by",
+            "osc_1"."list_price_amount",
+            "osc_1"."discount_amount_applied",
+            "osc_1"."final_amount",
+            "osc_1"."discount_mode_snapshot",
+            "osc_1"."discount_percent_snapshot",
+            "osc_1"."discount_amount_snapshot",
+            "osc_1"."discount_label_snapshot"
+           FROM "public"."org_subscription_cycles" "osc_1"
+          WHERE ("osc_1"."org_subscription_id" = "os"."id")
+          ORDER BY "osc_1"."cycle_start_on" DESC, "osc_1"."created_at" DESC
+         LIMIT 1) "osc" ON (true));
+
+
+ALTER VIEW "public"."v_superadmin_subscriptions" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."v_superadmin_subscription_detail" WITH ("security_invoker"='true') AS
+ SELECT "vss"."subscription_id",
+    "vss"."org_id",
+    "vss"."org_name",
+    "vss"."org_is_active",
+    "vss"."timezone",
+    "vss"."plan_id",
+    "vss"."plan_name",
+    "vss"."pricing_mode",
+    "vss"."currency_code",
+    "vss"."base_price_monthly",
+    "vss"."included_branches",
+    "vss"."additional_branch_price_monthly",
+    "vss"."discount_mode",
+    "vss"."discount_percent",
+    "vss"."discount_amount",
+    "vss"."discount_label",
+    "vss"."active_branch_count",
+    "vss"."billable_additional_branch_count",
+    "vss"."calculated_monthly_price",
+    "vss"."list_price_monthly",
+    "vss"."discount_amount_applied",
+    "vss"."custom_monthly_price",
+    "vss"."effective_monthly_price",
+    "vss"."started_on",
+    "vss"."renews_on",
+    "vss"."service_status",
+    "vss"."grace_until",
+    "vss"."current_cycle_id",
+    "vss"."current_cycle_start_on",
+    "vss"."current_cycle_end_on",
+    "vss"."current_cycle_due_on",
+    "vss"."current_cycle_list_price_amount",
+    "vss"."current_cycle_discount_amount_applied",
+    "vss"."current_cycle_expected_amount",
+    "vss"."current_cycle_payment_status",
+    "vss"."current_cycle_paid_at",
+    "vss"."current_cycle_payment_confirmed_at",
+    "b"."id" AS "branch_id",
+    "b"."name" AS "branch_name",
+    "b"."is_active" AS "branch_is_active",
+    "osp"."id" AS "payment_id",
+    "osp"."payment_method",
+    "osp"."amount_reported",
+    "osp"."reference_text",
+    "osp"."proof_storage_path",
+    "osp"."proof_uploaded_by",
+    "osp"."proof_uploaded_at",
+    "osp"."review_status",
+    "osp"."reviewed_by",
+    "osp"."reviewed_at",
+    "osp"."review_note",
+    "pbs"."bank_account_holder",
+    "pbs"."bank_name",
+    "pbs"."bank_account_type",
+    "pbs"."bank_cbu",
+    "pbs"."bank_alias",
+    "pbs"."bank_cuit",
+    "pbs"."mercadopago_qr_image_path",
+    "pbs"."payment_instructions",
+    "pbs"."is_active" AS "billing_settings_is_active"
+   FROM ((("public"."v_superadmin_subscriptions" "vss"
+     LEFT JOIN "public"."branches" "b" ON (("b"."org_id" = "vss"."org_id")))
+     LEFT JOIN "public"."org_subscription_payments" "osp" ON (("osp"."org_subscription_cycle_id" = "vss"."current_cycle_id")))
+     LEFT JOIN "public"."platform_billing_settings" "pbs" ON (("pbs"."id" = true)));
+
+
+ALTER VIEW "public"."v_superadmin_subscription_detail" OWNER TO "postgres";
+
+
 CREATE OR REPLACE VIEW "public"."v_supplier_detail_admin" AS
  SELECT "s"."id" AS "supplier_id",
     "s"."org_id",
@@ -10940,6 +12300,31 @@ ALTER TABLE ONLY "public"."org_preferences"
 
 
 
+ALTER TABLE ONLY "public"."org_subscription_cycles"
+    ADD CONSTRAINT "org_subscription_cycles_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."org_subscription_cycles"
+    ADD CONSTRAINT "org_subscription_cycles_unique_period_uk" UNIQUE ("org_subscription_id", "cycle_start_on", "cycle_end_on");
+
+
+
+ALTER TABLE ONLY "public"."org_subscription_payments"
+    ADD CONSTRAINT "org_subscription_payments_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."org_subscriptions"
+    ADD CONSTRAINT "org_subscriptions_org_id_key" UNIQUE ("org_id");
+
+
+
+ALTER TABLE ONLY "public"."org_subscriptions"
+    ADD CONSTRAINT "org_subscriptions_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."org_users"
     ADD CONSTRAINT "org_users_org_id_user_id_key" UNIQUE ("org_id", "user_id");
 
@@ -10957,6 +12342,11 @@ ALTER TABLE ONLY "public"."orgs"
 
 ALTER TABLE ONLY "public"."platform_admins"
     ADD CONSTRAINT "platform_admins_pkey" PRIMARY KEY ("user_id");
+
+
+
+ALTER TABLE ONLY "public"."platform_billing_settings"
+    ADD CONSTRAINT "platform_billing_settings_pkey" PRIMARY KEY ("id");
 
 
 
@@ -11057,6 +12447,16 @@ ALTER TABLE ONLY "public"."storefront_domains"
 
 ALTER TABLE ONLY "public"."storefront_settings"
     ADD CONSTRAINT "storefront_settings_pkey" PRIMARY KEY ("org_id");
+
+
+
+ALTER TABLE ONLY "public"."subscription_plans"
+    ADD CONSTRAINT "subscription_plans_code_key" UNIQUE ("code");
+
+
+
+ALTER TABLE ONLY "public"."subscription_plans"
+    ADD CONSTRAINT "subscription_plans_pkey" PRIMARY KEY ("id");
 
 
 
@@ -11288,6 +12688,22 @@ CREATE INDEX "online_orders_org_created_at_idx" ON "public"."online_orders" USIN
 
 
 
+CREATE INDEX "org_subscription_cycles_subscription_due_idx" ON "public"."org_subscription_cycles" USING "btree" ("org_subscription_id", "due_on" DESC, "created_at" DESC);
+
+
+
+CREATE INDEX "org_subscription_payments_cycle_created_idx" ON "public"."org_subscription_payments" USING "btree" ("org_subscription_cycle_id", "created_at" DESC);
+
+
+
+CREATE INDEX "org_subscription_payments_org_review_idx" ON "public"."org_subscription_payments" USING "btree" ("org_id", "review_status", "proof_uploaded_at" DESC);
+
+
+
+CREATE INDEX "org_subscriptions_service_status_idx" ON "public"."org_subscriptions" USING "btree" ("service_status", "pricing_mode", "updated_at" DESC);
+
+
+
 CREATE UNIQUE INDEX "orgs_storefront_slug_uq" ON "public"."orgs" USING "btree" ("storefront_slug") WHERE ("storefront_slug" IS NOT NULL);
 
 
@@ -11369,6 +12785,10 @@ CREATE INDEX "sale_payments_sale_id_idx" ON "public"."sale_payments" USING "btre
 
 
 CREATE INDEX "sales_org_id_client_id_created_at_idx" ON "public"."sales" USING "btree" ("org_id", "client_id", "created_at" DESC) WHERE ("client_id" IS NOT NULL);
+
+
+
+CREATE INDEX "subscription_plans_active_idx" ON "public"."subscription_plans" USING "btree" ("is_active", "created_at" DESC);
 
 
 
@@ -11539,11 +12959,23 @@ CREATE OR REPLACE TRIGGER "trg_invoices_set_updated_at" BEFORE UPDATE ON "public
 
 
 
+CREATE OR REPLACE TRIGGER "trg_org_subscription_cycles_set_updated_at" BEFORE UPDATE ON "public"."org_subscription_cycles" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_org_subscriptions_set_updated_at" BEFORE UPDATE ON "public"."org_subscriptions" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
+
+
+
 CREATE OR REPLACE TRIGGER "trg_orgs_set_storefront_slug" BEFORE INSERT OR UPDATE OF "name", "storefront_slug" ON "public"."orgs" FOR EACH ROW EXECUTE FUNCTION "public"."trg_set_org_storefront_slug"();
 
 
 
 CREATE OR REPLACE TRIGGER "trg_orgs_sync_platform_admin_memberships" AFTER INSERT ON "public"."orgs" FOR EACH ROW EXECUTE FUNCTION "public"."trg_orgs_sync_platform_admin_memberships"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_platform_billing_settings_set_updated_at" BEFORE UPDATE ON "public"."platform_billing_settings" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
 
 
 
@@ -11560,6 +12992,10 @@ CREATE OR REPLACE TRIGGER "trg_products_normalize_category_tags" BEFORE INSERT O
 
 
 CREATE OR REPLACE TRIGGER "trg_sale_documents_set_updated_at" BEFORE UPDATE ON "public"."sale_documents" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_subscription_plans_set_updated_at" BEFORE UPDATE ON "public"."subscription_plans" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
 
 
 
@@ -11907,6 +13343,66 @@ ALTER TABLE ONLY "public"."org_preferences"
 
 
 
+ALTER TABLE ONLY "public"."org_subscription_cycles"
+    ADD CONSTRAINT "org_subscription_cycles_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."org_subscription_cycles"
+    ADD CONSTRAINT "org_subscription_cycles_org_subscription_id_fkey" FOREIGN KEY ("org_subscription_id") REFERENCES "public"."org_subscriptions"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."org_subscription_cycles"
+    ADD CONSTRAINT "org_subscription_cycles_payment_confirmed_by_fkey" FOREIGN KEY ("payment_confirmed_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."org_subscription_cycles"
+    ADD CONSTRAINT "org_subscription_cycles_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."org_subscription_payments"
+    ADD CONSTRAINT "org_subscription_payments_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."org_subscription_payments"
+    ADD CONSTRAINT "org_subscription_payments_org_subscription_cycle_id_fkey" FOREIGN KEY ("org_subscription_cycle_id") REFERENCES "public"."org_subscription_cycles"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."org_subscription_payments"
+    ADD CONSTRAINT "org_subscription_payments_proof_uploaded_by_fkey" FOREIGN KEY ("proof_uploaded_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."org_subscription_payments"
+    ADD CONSTRAINT "org_subscription_payments_reviewed_by_fkey" FOREIGN KEY ("reviewed_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."org_subscriptions"
+    ADD CONSTRAINT "org_subscriptions_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."org_subscriptions"
+    ADD CONSTRAINT "org_subscriptions_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."org_subscriptions"
+    ADD CONSTRAINT "org_subscriptions_plan_id_fkey" FOREIGN KEY ("plan_id") REFERENCES "public"."subscription_plans"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."org_subscriptions"
+    ADD CONSTRAINT "org_subscriptions_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
 ALTER TABLE ONLY "public"."org_users"
     ADD CONSTRAINT "org_users_org_id_fkey" FOREIGN KEY ("org_id") REFERENCES "public"."orgs"("id") ON DELETE CASCADE;
 
@@ -11924,6 +13420,11 @@ ALTER TABLE ONLY "public"."platform_admins"
 
 ALTER TABLE ONLY "public"."platform_admins"
     ADD CONSTRAINT "platform_admins_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."platform_billing_settings"
+    ADD CONSTRAINT "platform_billing_settings_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
 
 
 
@@ -12594,6 +14095,59 @@ CREATE POLICY "org_preferences_write" ON "public"."org_preferences" FOR INSERT W
 
 
 
+ALTER TABLE "public"."org_subscription_cycles" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "org_subscription_cycles_select" ON "public"."org_subscription_cycles" FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM "public"."org_subscriptions" "os"
+  WHERE (("os"."id" = "org_subscription_cycles"."org_subscription_id") AND ("public"."is_org_member"("os"."org_id") OR "public"."is_platform_admin"())))));
+
+
+
+CREATE POLICY "org_subscription_cycles_update" ON "public"."org_subscription_cycles" FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM "public"."org_subscriptions" "os"
+  WHERE (("os"."id" = "org_subscription_cycles"."org_subscription_id") AND "public"."is_platform_admin"())))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."org_subscriptions" "os"
+  WHERE (("os"."id" = "org_subscription_cycles"."org_subscription_id") AND "public"."is_platform_admin"()))));
+
+
+
+CREATE POLICY "org_subscription_cycles_write" ON "public"."org_subscription_cycles" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."org_subscriptions" "os"
+  WHERE (("os"."id" = "org_subscription_cycles"."org_subscription_id") AND "public"."is_platform_admin"()))));
+
+
+
+ALTER TABLE "public"."org_subscription_payments" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "org_subscription_payments_select" ON "public"."org_subscription_payments" FOR SELECT USING (("public"."is_org_member"("org_id") OR "public"."is_platform_admin"()));
+
+
+
+CREATE POLICY "org_subscription_payments_update" ON "public"."org_subscription_payments" FOR UPDATE USING ("public"."is_platform_admin"()) WITH CHECK ("public"."is_platform_admin"());
+
+
+
+CREATE POLICY "org_subscription_payments_write" ON "public"."org_subscription_payments" FOR INSERT WITH CHECK ("public"."is_org_admin_or_superadmin"("org_id"));
+
+
+
+ALTER TABLE "public"."org_subscriptions" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "org_subscriptions_select" ON "public"."org_subscriptions" FOR SELECT USING (("public"."is_org_member"("org_id") OR "public"."is_platform_admin"()));
+
+
+
+CREATE POLICY "org_subscriptions_update" ON "public"."org_subscriptions" FOR UPDATE USING ("public"."is_platform_admin"()) WITH CHECK ("public"."is_platform_admin"());
+
+
+
+CREATE POLICY "org_subscriptions_write" ON "public"."org_subscriptions" FOR INSERT WITH CHECK ("public"."is_platform_admin"());
+
+
+
 ALTER TABLE "public"."org_users" ENABLE ROW LEVEL SECURITY;
 
 
@@ -12644,6 +14198,21 @@ CREATE POLICY "platform_admins_update" ON "public"."platform_admins" FOR UPDATE 
 
 
 CREATE POLICY "platform_admins_write" ON "public"."platform_admins" FOR INSERT WITH CHECK ("public"."is_platform_admin"());
+
+
+
+ALTER TABLE "public"."platform_billing_settings" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "platform_billing_settings_select" ON "public"."platform_billing_settings" FOR SELECT USING (("public"."is_platform_admin"() OR "public"."is_org_admin_or_superadmin"("public"."rpc_get_active_org_id"())));
+
+
+
+CREATE POLICY "platform_billing_settings_update" ON "public"."platform_billing_settings" FOR UPDATE USING ("public"."is_platform_admin"()) WITH CHECK ("public"."is_platform_admin"());
+
+
+
+CREATE POLICY "platform_billing_settings_write" ON "public"."platform_billing_settings" FOR INSERT WITH CHECK ("public"."is_platform_admin"());
 
 
 
@@ -12828,6 +14397,25 @@ CREATE POLICY "storefront_settings_write" ON "public"."storefront_settings" FOR 
 
 
 
+ALTER TABLE "public"."subscription_plans" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "subscription_plans_delete" ON "public"."subscription_plans" FOR DELETE USING ("public"."is_platform_admin"());
+
+
+
+CREATE POLICY "subscription_plans_select" ON "public"."subscription_plans" FOR SELECT USING (("public"."is_platform_admin"() OR "public"."is_org_admin_or_superadmin"("public"."rpc_get_active_org_id"())));
+
+
+
+CREATE POLICY "subscription_plans_update" ON "public"."subscription_plans" FOR UPDATE USING ("public"."is_platform_admin"()) WITH CHECK ("public"."is_platform_admin"());
+
+
+
+CREATE POLICY "subscription_plans_write" ON "public"."subscription_plans" FOR INSERT WITH CHECK ("public"."is_platform_admin"());
+
+
+
 ALTER TABLE "public"."supplier_order_items" ENABLE ROW LEVEL SECURITY;
 
 
@@ -12955,6 +14543,18 @@ GRANT USAGE ON SCHEMA "public" TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."fn_calculate_org_subscription_amount"("p_org_id" "uuid", "p_pricing_mode" "public"."subscription_pricing_mode", "p_base_price_monthly" numeric, "p_included_branches" integer, "p_additional_branch_price_monthly" numeric, "p_custom_monthly_price" numeric) TO "anon";
+GRANT ALL ON FUNCTION "public"."fn_calculate_org_subscription_amount"("p_org_id" "uuid", "p_pricing_mode" "public"."subscription_pricing_mode", "p_base_price_monthly" numeric, "p_included_branches" integer, "p_additional_branch_price_monthly" numeric, "p_custom_monthly_price" numeric) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."fn_calculate_org_subscription_amount"("p_org_id" "uuid", "p_pricing_mode" "public"."subscription_pricing_mode", "p_base_price_monthly" numeric, "p_included_branches" integer, "p_additional_branch_price_monthly" numeric, "p_custom_monthly_price" numeric) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."fn_calculate_org_subscription_amount"("p_org_id" "uuid", "p_pricing_mode" "public"."subscription_pricing_mode", "p_base_price_monthly" numeric, "p_included_branches" integer, "p_additional_branch_price_monthly" numeric, "p_custom_monthly_price" numeric, "p_discount_mode" "public"."subscription_discount_mode", "p_discount_percent" numeric, "p_discount_amount" numeric) TO "anon";
+GRANT ALL ON FUNCTION "public"."fn_calculate_org_subscription_amount"("p_org_id" "uuid", "p_pricing_mode" "public"."subscription_pricing_mode", "p_base_price_monthly" numeric, "p_included_branches" integer, "p_additional_branch_price_monthly" numeric, "p_custom_monthly_price" numeric, "p_discount_mode" "public"."subscription_discount_mode", "p_discount_percent" numeric, "p_discount_amount" numeric) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."fn_calculate_org_subscription_amount"("p_org_id" "uuid", "p_pricing_mode" "public"."subscription_pricing_mode", "p_base_price_monthly" numeric, "p_included_branches" integer, "p_additional_branch_price_monthly" numeric, "p_custom_monthly_price" numeric, "p_discount_mode" "public"."subscription_discount_mode", "p_discount_percent" numeric, "p_discount_amount" numeric) TO "service_role";
+
+
+
 REVOKE ALL ON FUNCTION "public"."fn_fiscal_append_event"("p_tenant_id" "uuid", "p_invoice_job_id" "uuid", "p_event_type" "text", "p_event_payload_json" "jsonb") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."fn_fiscal_append_event"("p_tenant_id" "uuid", "p_invoice_job_id" "uuid", "p_event_type" "text", "p_event_payload_json" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "public"."fn_fiscal_append_event"("p_tenant_id" "uuid", "p_invoice_job_id" "uuid", "p_event_type" "text", "p_event_payload_json" "jsonb") TO "authenticated";
@@ -13046,6 +14646,12 @@ GRANT ALL ON FUNCTION "public"."fn_next_branch_storefront_slug"("p_org_id" "uuid
 GRANT ALL ON FUNCTION "public"."fn_next_org_storefront_slug"("p_slug_base" "text", "p_exclude_org_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."fn_next_org_storefront_slug"("p_slug_base" "text", "p_exclude_org_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."fn_next_org_storefront_slug"("p_slug_base" "text", "p_exclude_org_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."fn_recompute_org_subscription_cycle"("p_org_subscription_id" "uuid", "p_cycle_id" "uuid", "p_actor_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."fn_recompute_org_subscription_cycle"("p_org_subscription_id" "uuid", "p_cycle_id" "uuid", "p_actor_user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."fn_recompute_org_subscription_cycle"("p_org_subscription_id" "uuid", "p_cycle_id" "uuid", "p_actor_user_id" "uuid") TO "service_role";
 
 
 
@@ -13166,6 +14772,12 @@ GRANT ALL ON FUNCTION "public"."rpc_create_expiration_batch_manual"("p_org_id" "
 GRANT ALL ON FUNCTION "public"."rpc_create_online_order"("p_org_slug" "text", "p_branch_slug" "text", "p_customer_name" "text", "p_customer_phone" "text", "p_customer_address" "text", "p_items" "jsonb", "p_customer_notes" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_create_online_order"("p_org_slug" "text", "p_branch_slug" "text", "p_customer_name" "text", "p_customer_phone" "text", "p_customer_address" "text", "p_items" "jsonb", "p_customer_notes" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_create_online_order"("p_org_slug" "text", "p_branch_slug" "text", "p_customer_name" "text", "p_customer_phone" "text", "p_customer_address" "text", "p_items" "jsonb", "p_customer_notes" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_create_org_subscription_payment_submission"("p_cycle_id" "uuid", "p_payment_method" "public"."subscription_payment_method", "p_amount_reported" numeric, "p_reference_text" "text", "p_proof_storage_path" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_create_org_subscription_payment_submission"("p_cycle_id" "uuid", "p_payment_method" "public"."subscription_payment_method", "p_amount_reported" numeric, "p_reference_text" "text", "p_proof_storage_path" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_create_org_subscription_payment_submission"("p_cycle_id" "uuid", "p_payment_method" "public"."subscription_payment_method", "p_amount_reported" numeric, "p_reference_text" "text", "p_proof_storage_path" "text") TO "service_role";
 
 
 
@@ -13409,9 +15021,33 @@ GRANT ALL ON FUNCTION "public"."rpc_revoke_sale_delivery_link"("p_sale_id" "uuid
 
 
 
+GRANT ALL ON FUNCTION "public"."rpc_set_branch_active_status"("p_branch_id" "uuid", "p_is_active" boolean, "p_reason" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_set_branch_active_status"("p_branch_id" "uuid", "p_is_active" boolean, "p_reason" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_set_branch_active_status"("p_branch_id" "uuid", "p_is_active" boolean, "p_reason" "text") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."rpc_set_online_order_status"("p_online_order_id" "uuid", "p_new_status" "public"."online_order_status", "p_internal_note" "text", "p_customer_note" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_set_online_order_status"("p_online_order_id" "uuid", "p_new_status" "public"."online_order_status", "p_internal_note" "text", "p_customer_note" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_set_online_order_status"("p_online_order_id" "uuid", "p_new_status" "public"."online_order_status", "p_internal_note" "text", "p_customer_note" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_set_org_active_status"("p_org_id" "uuid", "p_is_active" boolean, "p_reason" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_set_org_active_status"("p_org_id" "uuid", "p_is_active" boolean, "p_reason" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_set_org_active_status"("p_org_id" "uuid", "p_is_active" boolean, "p_reason" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_set_org_subscription_cycle_payment_status"("p_cycle_id" "uuid", "p_payment_status" "public"."subscription_payment_status", "p_review_note" "text", "p_payment_id" "uuid", "p_paid_at" timestamp with time zone) TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_set_org_subscription_cycle_payment_status"("p_cycle_id" "uuid", "p_payment_status" "public"."subscription_payment_status", "p_review_note" "text", "p_payment_id" "uuid", "p_paid_at" timestamp with time zone) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_set_org_subscription_cycle_payment_status"("p_cycle_id" "uuid", "p_payment_status" "public"."subscription_payment_status", "p_review_note" "text", "p_payment_id" "uuid", "p_paid_at" timestamp with time zone) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_set_org_subscription_service_status"("p_org_id" "uuid", "p_service_status" "public"."subscription_service_status", "p_grace_until" "date", "p_reason" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_set_org_subscription_service_status"("p_org_id" "uuid", "p_service_status" "public"."subscription_service_status", "p_grace_until" "date", "p_reason" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_set_org_subscription_service_status"("p_org_id" "uuid", "p_service_status" "public"."subscription_service_status", "p_grace_until" "date", "p_reason" "text") TO "service_role";
 
 
 
@@ -13525,6 +15161,24 @@ GRANT ALL ON FUNCTION "public"."rpc_upsert_client"("p_client_id" "uuid", "p_org_
 GRANT ALL ON FUNCTION "public"."rpc_upsert_data_import_row"("p_org_id" "uuid", "p_job_id" "uuid", "p_row_number" integer, "p_raw_payload" "jsonb", "p_normalized_payload" "jsonb") TO "anon";
 GRANT ALL ON FUNCTION "public"."rpc_upsert_data_import_row"("p_org_id" "uuid", "p_job_id" "uuid", "p_row_number" integer, "p_raw_payload" "jsonb", "p_normalized_payload" "jsonb") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rpc_upsert_data_import_row"("p_org_id" "uuid", "p_job_id" "uuid", "p_row_number" integer, "p_raw_payload" "jsonb", "p_normalized_payload" "jsonb") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_upsert_org_subscription"("p_org_id" "uuid", "p_plan_id" "uuid", "p_plan_name_snapshot" "text", "p_pricing_mode" "public"."subscription_pricing_mode", "p_currency_code" "text", "p_base_price_monthly_snapshot" numeric, "p_included_branches_snapshot" integer, "p_additional_branch_price_monthly_snapshot" numeric, "p_custom_monthly_price" numeric, "p_started_on" "date", "p_renews_on" "date", "p_service_status" "public"."subscription_service_status", "p_grace_until" "date", "p_billing_notes_internal" "text", "p_customer_note_visible" "text", "p_is_auto_branch_pricing_enabled" boolean, "p_cycle_start_on" "date", "p_cycle_end_on" "date", "p_cycle_due_on" "date") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_upsert_org_subscription"("p_org_id" "uuid", "p_plan_id" "uuid", "p_plan_name_snapshot" "text", "p_pricing_mode" "public"."subscription_pricing_mode", "p_currency_code" "text", "p_base_price_monthly_snapshot" numeric, "p_included_branches_snapshot" integer, "p_additional_branch_price_monthly_snapshot" numeric, "p_custom_monthly_price" numeric, "p_started_on" "date", "p_renews_on" "date", "p_service_status" "public"."subscription_service_status", "p_grace_until" "date", "p_billing_notes_internal" "text", "p_customer_note_visible" "text", "p_is_auto_branch_pricing_enabled" boolean, "p_cycle_start_on" "date", "p_cycle_end_on" "date", "p_cycle_due_on" "date") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_upsert_org_subscription"("p_org_id" "uuid", "p_plan_id" "uuid", "p_plan_name_snapshot" "text", "p_pricing_mode" "public"."subscription_pricing_mode", "p_currency_code" "text", "p_base_price_monthly_snapshot" numeric, "p_included_branches_snapshot" integer, "p_additional_branch_price_monthly_snapshot" numeric, "p_custom_monthly_price" numeric, "p_started_on" "date", "p_renews_on" "date", "p_service_status" "public"."subscription_service_status", "p_grace_until" "date", "p_billing_notes_internal" "text", "p_customer_note_visible" "text", "p_is_auto_branch_pricing_enabled" boolean, "p_cycle_start_on" "date", "p_cycle_end_on" "date", "p_cycle_due_on" "date") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_upsert_org_subscription"("p_org_id" "uuid", "p_plan_id" "uuid", "p_plan_name_snapshot" "text", "p_pricing_mode" "public"."subscription_pricing_mode", "p_currency_code" "text", "p_base_price_monthly_snapshot" numeric, "p_included_branches_snapshot" integer, "p_additional_branch_price_monthly_snapshot" numeric, "p_custom_monthly_price" numeric, "p_discount_mode" "public"."subscription_discount_mode", "p_discount_percent" numeric, "p_discount_amount" numeric, "p_discount_label" "text", "p_started_on" "date", "p_renews_on" "date", "p_service_status" "public"."subscription_service_status", "p_grace_until" "date", "p_billing_notes_internal" "text", "p_customer_note_visible" "text", "p_is_auto_branch_pricing_enabled" boolean, "p_cycle_start_on" "date", "p_cycle_end_on" "date", "p_cycle_due_on" "date") TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_upsert_org_subscription"("p_org_id" "uuid", "p_plan_id" "uuid", "p_plan_name_snapshot" "text", "p_pricing_mode" "public"."subscription_pricing_mode", "p_currency_code" "text", "p_base_price_monthly_snapshot" numeric, "p_included_branches_snapshot" integer, "p_additional_branch_price_monthly_snapshot" numeric, "p_custom_monthly_price" numeric, "p_discount_mode" "public"."subscription_discount_mode", "p_discount_percent" numeric, "p_discount_amount" numeric, "p_discount_label" "text", "p_started_on" "date", "p_renews_on" "date", "p_service_status" "public"."subscription_service_status", "p_grace_until" "date", "p_billing_notes_internal" "text", "p_customer_note_visible" "text", "p_is_auto_branch_pricing_enabled" boolean, "p_cycle_start_on" "date", "p_cycle_end_on" "date", "p_cycle_due_on" "date") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_upsert_org_subscription"("p_org_id" "uuid", "p_plan_id" "uuid", "p_plan_name_snapshot" "text", "p_pricing_mode" "public"."subscription_pricing_mode", "p_currency_code" "text", "p_base_price_monthly_snapshot" numeric, "p_included_branches_snapshot" integer, "p_additional_branch_price_monthly_snapshot" numeric, "p_custom_monthly_price" numeric, "p_discount_mode" "public"."subscription_discount_mode", "p_discount_percent" numeric, "p_discount_amount" numeric, "p_discount_label" "text", "p_started_on" "date", "p_renews_on" "date", "p_service_status" "public"."subscription_service_status", "p_grace_until" "date", "p_billing_notes_internal" "text", "p_customer_note_visible" "text", "p_is_auto_branch_pricing_enabled" boolean, "p_cycle_start_on" "date", "p_cycle_end_on" "date", "p_cycle_due_on" "date") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rpc_upsert_platform_billing_settings"("p_bank_account_holder" "text", "p_bank_name" "text", "p_bank_account_type" "text", "p_bank_cbu" "text", "p_bank_alias" "text", "p_bank_cuit" "text", "p_mercadopago_qr_image_path" "text", "p_payment_instructions" "text", "p_is_active" boolean) TO "anon";
+GRANT ALL ON FUNCTION "public"."rpc_upsert_platform_billing_settings"("p_bank_account_holder" "text", "p_bank_name" "text", "p_bank_account_type" "text", "p_bank_cbu" "text", "p_bank_alias" "text", "p_bank_cuit" "text", "p_mercadopago_qr_image_path" "text", "p_payment_instructions" "text", "p_is_active" boolean) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rpc_upsert_platform_billing_settings"("p_bank_account_holder" "text", "p_bank_name" "text", "p_bank_account_type" "text", "p_bank_cbu" "text", "p_bank_alias" "text", "p_bank_cuit" "text", "p_mercadopago_qr_image_path" "text", "p_payment_instructions" "text", "p_is_active" boolean) TO "service_role";
 
 
 
@@ -13780,6 +15434,24 @@ GRANT ALL ON TABLE "public"."org_preferences" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."org_subscription_cycles" TO "anon";
+GRANT ALL ON TABLE "public"."org_subscription_cycles" TO "authenticated";
+GRANT ALL ON TABLE "public"."org_subscription_cycles" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."org_subscription_payments" TO "anon";
+GRANT ALL ON TABLE "public"."org_subscription_payments" TO "authenticated";
+GRANT ALL ON TABLE "public"."org_subscription_payments" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."org_subscriptions" TO "anon";
+GRANT ALL ON TABLE "public"."org_subscriptions" TO "authenticated";
+GRANT ALL ON TABLE "public"."org_subscriptions" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."org_users" TO "anon";
 GRANT ALL ON TABLE "public"."org_users" TO "authenticated";
 GRANT ALL ON TABLE "public"."org_users" TO "service_role";
@@ -13795,6 +15467,12 @@ GRANT ALL ON TABLE "public"."orgs" TO "service_role";
 GRANT ALL ON TABLE "public"."platform_admins" TO "anon";
 GRANT ALL ON TABLE "public"."platform_admins" TO "authenticated";
 GRANT ALL ON TABLE "public"."platform_admins" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."platform_billing_settings" TO "anon";
+GRANT ALL ON TABLE "public"."platform_billing_settings" TO "authenticated";
+GRANT ALL ON TABLE "public"."platform_billing_settings" TO "service_role";
 
 
 
@@ -13885,6 +15563,12 @@ GRANT ALL ON TABLE "public"."storefront_domains" TO "service_role";
 GRANT ALL ON TABLE "public"."storefront_settings" TO "anon";
 GRANT ALL ON TABLE "public"."storefront_settings" TO "authenticated";
 GRANT ALL ON TABLE "public"."storefront_settings" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."subscription_plans" TO "anon";
+GRANT ALL ON TABLE "public"."subscription_plans" TO "authenticated";
+GRANT ALL ON TABLE "public"."subscription_plans" TO "service_role";
 
 
 
@@ -14014,6 +15698,18 @@ GRANT ALL ON TABLE "public"."v_orders_admin" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."v_org_membership" TO "anon";
+GRANT ALL ON TABLE "public"."v_org_membership" TO "authenticated";
+GRANT ALL ON TABLE "public"."v_org_membership" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."v_org_membership_payments" TO "anon";
+GRANT ALL ON TABLE "public"."v_org_membership_payments" TO "authenticated";
+GRANT ALL ON TABLE "public"."v_org_membership_payments" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."v_pos_product_catalog" TO "anon";
 GRANT ALL ON TABLE "public"."v_pos_product_catalog" TO "authenticated";
 GRANT ALL ON TABLE "public"."v_pos_product_catalog" TO "service_role";
@@ -14095,6 +15791,18 @@ GRANT ALL ON TABLE "public"."v_superadmin_org_detail" TO "service_role";
 GRANT ALL ON TABLE "public"."v_superadmin_orgs" TO "anon";
 GRANT ALL ON TABLE "public"."v_superadmin_orgs" TO "authenticated";
 GRANT ALL ON TABLE "public"."v_superadmin_orgs" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."v_superadmin_subscriptions" TO "anon";
+GRANT ALL ON TABLE "public"."v_superadmin_subscriptions" TO "authenticated";
+GRANT ALL ON TABLE "public"."v_superadmin_subscriptions" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."v_superadmin_subscription_detail" TO "anon";
+GRANT ALL ON TABLE "public"."v_superadmin_subscription_detail" TO "authenticated";
+GRANT ALL ON TABLE "public"."v_superadmin_subscription_detail" TO "service_role";
 
 
 

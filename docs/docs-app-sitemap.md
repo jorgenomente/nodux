@@ -20,6 +20,7 @@ No deben existir pantallas fuera de este mapa.
 
 - **Home:** `/superadmin`
 - Objetivo: visión global del SaaS
+- Ruta comercial adicional: `/superadmin/subscriptions`
 
 ### Org Admin
 
@@ -77,12 +78,14 @@ Navegación fija:
 - Calendario proveedores → `/orders/calendar`
 - Clientes → `/clients`
 - Configuración → `/settings`
+- Membresía → `/settings/membership`
 
 ---
 
 ### Superadmin
 
 - Organizaciones → `/superadmin`
+- Suscripciones → `/superadmin/subscriptions`
 - Acceso a org/sucursal (impersonation controlada)
 - Soporte
 
@@ -112,6 +115,7 @@ Subrutas:
 - `/settings/fiscal`
 - `/settings/staff-permissions`
 - `/settings/preferences`
+- `/settings/membership`
 - `/settings/audit-log`
 
 Acceso:
@@ -209,8 +213,10 @@ Rutas post-MVP planeadas (NO implementar en MVP):
 - `/settings/fiscal`
 - `/settings/staff-permissions`
 - `/settings/preferences`
+- `/settings/membership`
 - `/settings/audit-log`
 - `/superadmin`
+- `/superadmin/subscriptions`
 
 ### Rutas públicas adicionales (fuera del flujo operativo MVP)
 

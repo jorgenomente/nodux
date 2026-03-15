@@ -12,6 +12,54 @@ Formato sugerido:
 **Prompt**
 <texto completo>
 
+## 2026-03-14 18:42 -03 — Superadmin/Org: plan maestro de suscripciones y membresías SaaS
+
+**Lote:** saas-subscriptions-platform-plan
+**Objetivo:** Diseñar un plan completo, repo-aware y DB-first/RLS-first para incorporar gestión de suscripciones por tenant desde superadmin y una sección de membresía/pagos visible para cada organización, con recomendación de arquitectura, scope MVP y etapas de implementación.
+
+**Prompt**
+necesito implementar en nodux un sistema para controlar las subscripciones de cada tenant desde superadmin. puede ser una nueva pagina de subscripciones donde se vean las org que serian mis clientes, que alli se vea la org, la cantidad de sucursales que tiene la fecha de inicio de plan, la fecha de renovacion y si el pago ha sido realizado. la posibilidad de cambiar las fechas de inicio de renovacion y de pagos, asi como la posibilidad de activar o desactivar la org o alguna sucursal. de la misma manera tambien debemos crear una seccion de membresia para las org donde ellos pueden ver la memebresia que tienen la cantidad de sucursales y el precio a pagar mensual, tambien deben alli poder pagar, el pago se haria hacia el cbu o mis datos bancarios o bien podriamos cargar nuestro QR de nuestro Mercadopago para que ellos lo puedan escanear, y adjuntar un comprobante cuando hayan hecho el pago y ellos puedan ver sus registros sus ultimos pagos y de esa manera tener claros sus pagos y sus servicios. Vamos primero a crear un plan para implementar estos cambios. que esten bien completos asi como lo hacen las empresas importantes, y no estoy seguro de si mi idea es la mas optima pero tu me puedes sugerir mas funciones o una manera distinta de hacer esto que sea completa y funcional
+
+## 2026-03-14 18:50 -03 — Suscripciones SaaS: inicio de Lote 0 documental
+
+**Lote:** saas-subscriptions-platform-plan
+**Objetivo:** Formalizar el Lote 0 documental del módulo de suscripciones SaaS: rutas, contratos de pantalla, módulo funcional y roadmap, usando pricing base con 1 sucursal incluida y adicional por sucursal activa extra.
+
+**Prompt**
+Si exacto pienso que nodux tiene un plan base que es 1 sucursal pienso que en 100mil pesos + 80mil por cada sucursal adicional, si agrega una sucursal solo agrega 80mil mas y obviamente al agregar una nueva sucursal entonces automaticamente cambia el precio ya que el sistema entiende cuantas sucursales hay. de igual manera esto de los precios debe ser editable de acuerdo a lo que el cliente va a mirar, pero si por ahora los pagos se confirman y se realizan manualmente
+
+## 2026-03-14 18:50 -03 — Suscripciones SaaS: confirmación para comenzar
+
+**Lote:** saas-subscriptions-platform-plan
+**Objetivo:** Dar inicio efectivo al lote documental y preparar la base de implementación DB-first/RLS-first para suscripciones y membresía.
+
+**Prompt**
+ok empecemos
+
+## 2026-03-14 19:00 -03 — Suscripciones SaaS: fundación DB/RLS del Lote 1
+
+**Lote:** saas-subscriptions-platform-foundation-db
+**Objetivo:** Implementar la base de datos real del módulo de suscripciones SaaS y membresía: enums, tablas, bucket privado, vistas, RPCs y documentación viva sincronizada.
+
+**Prompt**
+ok avanza
+
+## 2026-03-14 19:24 -03 — Suscripciones SaaS: UI inicial SA/OA
+
+**Lote:** saas-subscriptions-platform-ui-initial
+**Objetivo:** Implementar las pantallas iniciales de suscripciones para superadmin y membresía para org admin usando las vistas y RPCs ya creadas, integradas a Settings y TopBar.
+
+**Prompt**
+adeklante
+
+## 2026-03-14 19:30 -03 — Suscripciones SaaS: upload real de QR y acceso rápido SA a org activa
+
+**Lote:** saas-subscriptions-platform-ui-polish
+**Objetivo:** Agregar upload real del QR de cobro de la plataforma, visualización firmada en membresía y un acceso rápido de superadmin para activar una org e ir directo a su dashboard.
+
+**Prompt**
+ok adelante
+
 ## 2026-03-10 11:05 -03 — Products: transferencia de stock entre sucursales dentro de ajuste manual
 
 **Lote:** products-stock-branch-transfer-inline
@@ -4509,3 +4557,59 @@ tambie modifica Cantidad recibida y Precio proveedor (unitario) colocalos en la 
 
 **Prompt**
 y que primero vaya marca y despues categoria
+
+## 2026-03-14 19:55 -03 — Suscripciones SaaS: alinear contratos de pantalla con QR real y CTA de acceso
+
+**Lote:** platform-subscriptions-ui-polish
+**Objetivo:** Dejar los contratos de pantalla y el módulo de suscripciones totalmente alineados con la implementación actual: upload real de QR privado, signed URLs server-side y CTA de superadmin para activar org e ir al dashboard.
+
+**Prompt**
+ok adelante
+
+## 2026-03-14 20:05 -03 — Suscripciones SaaS: filtros reales SA y alertas de riesgo OA
+
+**Lote:** platform-subscriptions-ux-alerts
+**Objetivo:** Mejorar la operativa diaria del módulo de suscripciones con filtros reales en superadmin, KPIs comerciales y banners claros de gracia, suspensión y estado de pago en la pantalla de membresía.
+
+**Prompt**
+ok adelante
+
+## 2026-03-14 20:15 -03 — Suscripciones SaaS: checklist QA manual integral
+
+**Lote:** platform-subscriptions-qa-checklist
+**Objetivo:** Documentar un checklist QA manual completo para probar el módulo de suscripciones SaaS y membresía, cubriendo configuración comercial, datos de cobro, QR, comprobantes, estados y permisos por rol.
+
+**Prompt**
+no, lo siguiente es que hagas un checklist QA para probar todas estas nuevas funciones que agregamos
+
+## 2026-03-15 10:10 -03 — Suscripciones SaaS: corregir `save_error` al guardar en superadmin
+
+**Lote:** platform-subscriptions-save-error-fix
+**Objetivo:** Corregir el fallo `save_error` en `/superadmin/subscriptions` cuando superadmin guarda una suscripción estándar. El error real proviene de `rpc_log_audit_event`, que todavía exigía `is_org_member(org_id)` y rechazaba acciones cross-org válidas de `platform_admin`.
+
+**Prompt**
+estoy en el escenario 3 Alta o edición comercial en modo standard y me dice save_error
+
+## 2026-03-15 10:40 -03 — Suscripciones SaaS: corregir vista vacía para superadmin
+
+**Lote:** platform-subscriptions-superadmin-read-fix
+**Objetivo:** Corregir que `/superadmin/subscriptions` siga mostrando “sin suscripción” y “pendiente de alta comercial” aunque la suscripción exista. La causa es RLS: las tablas base del módulo permiten lectura a miembros de org, pero no a `platform_admin`, por lo que `v_superadmin_subscriptions` queda vacía en sesión real de superadmin.
+
+**Prompt**
+no se que estoy haciendo distinto ahora pero estoy asignadole una subscripcion a una de esas org demo pero me sigue diciendo sin subscripcion y pendiente de alta comercial sin configuracion comercial... podemos hacer smoke test para probar?
+
+## 2026-03-15 11:30 -03 — Suscripciones SaaS: bonificación visible para marketing comercial
+
+**Lote:** platform-subscriptions-visible-discounts
+**Objetivo:** Extender el módulo de suscripciones para soportar bonificaciones visibles por porcentaje o monto fijo, mostrando precio lista, ahorro y total final tanto en superadmin como en membership de la org.
+
+**Prompt**
+excelente. tambien me gustaria incorporar una opcion de bonificacion que sirva mucho como que para que la gente entienda que esta ahorrando con un precio especial o una bonificacion de tanto % la idea es que se vea el precio real y luego se vea la bonificacion y luego el monto a pagar y que la gente pueda darse cuenta que esta ahorrando, es mas un truco mental de marketing para que piensen que somos buenos con ellos, se entiende? Como me recomiendas hacer esto?
+
+## 2026-03-15 12:10 -03 — Suscripciones SaaS: refactor UX de configuración comercial
+
+**Lote:** platform-subscriptions-commercial-config-ux
+**Objetivo:** Reemplazar el formulario largo de `Configuración comercial` por un configurador más claro y guiado, dividido por intención comercial: resumen visible, cálculo, bonificación, vigencia y notas.
+
+**Prompt**
+adelante

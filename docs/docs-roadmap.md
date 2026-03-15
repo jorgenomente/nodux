@@ -258,6 +258,44 @@ Estado actual: **MVP operativo** (Fase 6 — hardening y QA completada, Fase 7 e
 
 **Regla**:
 
+---
+
+## Fase 8 — Suscripciones SaaS y membresía de organizaciones
+
+**Objetivo**: agregar control comercial del SaaS desde superadmin y visibilidad de membresía/pagos manuales para cada organización, sin integrar cobro automático en esta primera etapa.
+
+**Incluye**:
+
+- `/superadmin/subscriptions`
+- `/settings/membership`
+- pricing estándar por org:
+  - plan base mensual
+  - 1 sucursal incluida
+  - cargo por sucursal adicional activa
+- modo `custom` para excepciones comerciales
+- datos de cobro plataforma:
+  - CBU / alias / datos bancarios
+  - QR estático Mercado Pago
+- carga de comprobante por OA
+- revisión manual por SA
+- estados de servicio:
+  - `active`
+  - `grace`
+  - `suspended`
+  - `cancelled`
+- auditoría de cambios comerciales
+
+**Estado**: EN PROGRESO
+
+**Notas**:
+
+- Se recomienda no prorratear en V1.
+- El cálculo estándar debe basarse en sucursales activas reales.
+- El histórico de ciclos debe guardar snapshots de pricing para evitar drift.
+- UI ya operativa con filtros reales por servicio/pago/pricing en `/superadmin/subscriptions`, KPIs comerciales superiores y alertas contextuales de riesgo/pagos.
+- `/settings/membership` ya expone banners de gracia/suspensión/deuda/revisión para que la org entienda el estado de servicio sin depender de soporte manual.
+- Bonificaciones comerciales visibles ya soportadas: SA puede definir descuento porcentual o monto fijo, y OA ve precio lista, ahorro mensual y total final.
+
 - este track corre en paralelo como preparación post-MVP
 - no redefine el alcance del MVP en `docs/docs-scope-mvp.md`
 - no habilita UI/rollout operativo hasta completar homologación end-to-end

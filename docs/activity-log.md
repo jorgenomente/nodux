@@ -18,6 +18,128 @@ Breve descripcion de que se hizo y por que.
 - Que cambia
 - Que NO cambia
 
+## 2026-03-14 18:42 -03 — Planificación repo-aware para suscripciones SaaS multi-tenant
+
+**Tipo:** decision/docs
+**Lote:** saas-subscriptions-platform-plan
+**Descripción:** Se relevó la documentación viva, el contrato actual de `/superadmin`, el modelo de datos y la matriz RLS para definir un plan maestro de suscripciones por tenant. La propuesta separa control comercial de suscripción, evidencias manuales de pago y enforcement operativo, manteniendo DB-first/RLS-first y evitando integrar medios de pago reales en esta primera etapa.
+
+**Archivos afectados:**
+
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica (planificación)
+
+**Commit:** N/A
+
+## 2026-03-14 18:50 -03 — Lote 0 documental para suscripciones SaaS y membresía
+
+**Tipo:** docs/decision
+**Lote:** saas-subscriptions-platform-plan
+**Descripción:** Se creó la base documental del nuevo track de suscripciones SaaS multi-tenant. El lote agrega un módulo funcional dedicado, contratos de pantalla para `/superadmin/subscriptions` y `/settings/membership`, y actualiza sitemap, índice de pantallas, roadmap y context summary. La propuesta formaliza pricing estándar con 1 sucursal incluida, adicional por sucursal activa extra, modo `custom` para excepciones y pagos manuales con comprobante aprobado por superadmin.
+
+**Archivos afectados:**
+
+- docs/docs-modules-platform-subscriptions.md
+- docs/docs-app-screens-superadmin-subscriptions.md
+- docs/docs-app-screens-settings-membership.md
+- docs/docs-app-sitemap.md
+- docs/docs-app-screens-index.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- No aplica (docs-only)
+
+**Commit:** N/A
+
+## 2026-03-14 19:00 -03 — Fundación DB/RLS para suscripciones SaaS y membresía
+
+**Tipo:** db/rls/docs/tests
+**Lote:** saas-subscriptions-platform-foundation-db
+**Descripción:** Se implementó la fundación DB del módulo de suscripciones SaaS. El lote agrega enums comerciales, tablas de planes/suscripciones/ciclos/pagos, singleton de datos bancarios de plataforma, bucket privado `subscription-payment-proofs`, funciones de cálculo y recomputación, vistas de lectura para superadmin y org, y RPCs para pricing, submissions manuales, aprobación de pagos y activación/desactivación de org/sucursal. También se actualizaron modelo de datos, matriz RLS, snapshot SQL y types de Supabase.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260314190000_094_platform_subscriptions.sql
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/schema.sql
+- types/supabase.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset` OK (2026-03-14)
+- `npm run db:rls:smoke` OK (2026-03-14)
+- `psql ... select count(*) from public.v_superadmin_subscriptions;` OK (`1`)
+- `psql ... authenticated admin -> select count(*) from public.v_org_membership;` OK (`1`)
+- `psql ... authenticated otra org -> select count(*) from public.v_org_membership;` OK (`0`)
+- `npm run db:schema:snapshot` OK (2026-03-14)
+- `npm run types:gen` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 19:24 -03 — UI inicial para `/superadmin/subscriptions` y `/settings/membership`
+
+**Tipo:** ui/docs/tests
+**Lote:** saas-subscriptions-platform-ui-initial
+**Descripción:** Se implementó la primera UI operativa del módulo de suscripciones SaaS. Superadmin ahora cuenta con `/superadmin/subscriptions` para configurar pricing, editar datos bancarios/QR/instrucciones, revisar comprobantes, aprobar o rechazar pagos y activar/desactivar orgs o sucursales. Las organizaciones cuentan con `/settings/membership` para ver plan, monto mensual, medios de pago y subir comprobantes al bucket privado. También se agregaron los entry points correspondientes en Settings y TopBar.
+
+**Archivos afectados:**
+
+- app/superadmin/subscriptions/page.tsx
+- app/settings/membership/page.tsx
+- app/settings/page.tsx
+- app/components/TopBar.tsx
+- docs/prompts.md
+- docs/activity-log.md
+- docs/context-summary.md
+- docs/docs-roadmap.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 19:30 -03 — QR real de cobro y acceso rápido SA a dashboard
+
+**Tipo:** ui/db/docs/tests
+**Lote:** saas-subscriptions-platform-ui-polish
+**Descripción:** Se agregó el bucket privado `platform-billing-assets` para assets de billing y se conectó `/superadmin/subscriptions` con upload real del QR de Mercado Pago usando compresión client-side y subida server-side. `/settings/membership` ahora renderiza el QR mediante signed URL server-side. Además, la consola de suscripciones incorpora un CTA para activar una org e ingresar directo a `/dashboard`.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260314194000_095_platform_billing_assets_bucket.sql
+- app/superadmin/subscriptions/QrImageField.tsx
+- app/superadmin/subscriptions/page.tsx
+- app/settings/membership/page.tsx
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/schema.sql
+- types/supabase.ts
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset` OK (2026-03-14)
+- `npm run db:schema:snapshot` OK (2026-03-14)
+- `npm run types:gen` OK (2026-03-14)
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
 ## 2026-03-11 12:23 -03 — Orders: copy `marcarlo como enviado` en modal PDF
 
 **Tipo:** ui/docs
@@ -12464,5 +12586,170 @@ Se aplico una optimizacion de bajo riesgo para reducir latencia de navegacion en
 
 - `npm run lint` OK (2026-03-14)
 - `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 19:55 -03 — Suscripciones SaaS: contratos y módulo alineados con QR privado y CTA SA
+
+**Tipo:** docs
+**Lote:** platform-subscriptions-ui-polish
+**Descripción:** Se actualizaron los contratos de pantalla y la documentación del módulo de suscripciones para reflejar la implementación vigente: upload real del QR de Mercado Pago a bucket privado `platform-billing-assets`, exposición mediante signed URLs server-side en membresía, y CTA de superadmin para activar una org e ingresar directo al dashboard operativo.
+
+**Archivos afectados:**
+
+- docs/docs-app-screens-superadmin-subscriptions.md
+- docs/docs-app-screens-settings-membership.md
+- docs/docs-modules-platform-subscriptions.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- Sin tests adicionales; lote docs-only alineado a implementación ya verificada con `npm run db:reset`, `npm run db:schema:snapshot`, `npm run types:gen`, `npm run lint` y `npm run build` el 2026-03-14
+
+**Commit:** N/A
+
+## 2026-03-14 20:05 -03 — Suscripciones SaaS: filtros SA y alertas de riesgo en membresía
+
+**Tipo:** ui/docs/tests
+**Lote:** platform-subscriptions-ux-alerts
+**Descripción:** Se reforzó la UX operativa del módulo de suscripciones. `/superadmin/subscriptions` ahora incorpora filtros reales por servicio, estado de pago y pricing, además de KPIs superiores de cartera y alertas contextuales cuando una org está en gracia, suspendida o con comprobantes pendientes/rechazados. `/settings/membership` suma banners de estado para gracia, suspensión, deuda vencida, comprobante enviado y rechazo, y un resumen previo de monto esperado y vencimiento antes del formulario de pago. También se actualizaron roadmap, contexto y contratos de pantalla.
+
+**Archivos afectados:**
+
+- app/superadmin/subscriptions/page.tsx
+- app/settings/membership/page.tsx
+- docs/docs-app-screens-superadmin-subscriptions.md
+- docs/docs-app-screens-settings-membership.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-14)
+- `npm run build` OK (2026-03-14)
+
+**Commit:** N/A
+
+## 2026-03-14 20:15 -03 — Suscripciones SaaS: checklist QA manual integral
+
+**Tipo:** docs
+**Lote:** platform-subscriptions-qa-checklist
+**Descripción:** Se agregó un checklist QA manual integral para el módulo de suscripciones SaaS y membresía. El documento cubre acceso por rol, pricing estándar y custom, datos de cobro, upload de QR, carga y revisión de comprobantes, estados de servicio, activación/desactivación de org y sucursales, permisos y smoke técnico final.
+
+**Archivos afectados:**
+
+- docs/docs-qa-platform-subscriptions-manual.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- Sin tests adicionales; lote docs-only
+
+**Commit:** N/A
+
+## 2026-03-15 10:10 -03 — Suscripciones SaaS: fix `save_error` por auditoría SA cross-org
+
+**Tipo:** schema/docs/tests
+**Lote:** platform-subscriptions-save-error-fix
+**Descripción:** Se corrigió el error `save_error` detectado en QA al guardar suscripciones desde `/superadmin/subscriptions`. La causa raíz estaba en `rpc_log_audit_event`: exigía `is_org_member(org_id)` aun cuando el actor era `platform_admin`, por lo que rechazaba escrituras de auditoría válidas en flujos cross-org de superadmin. Se agregó hardening para permitir auditoría cuando el actor es `platform_admin`.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260315101000_096_audit_log_allow_platform_admin.sql
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset` PARCIAL (2026-03-15): migraciones aplicadas OK; el cierre del comando devolvió `502` del stack local al reiniciar contenedores
+- `node scripts/seed-users.js` OK (2026-03-15)
+- `npm run db:rls:smoke` OK (2026-03-15)
+- Repro local de `rpc_upsert_org_subscription` OK (2026-03-15): antes devolvía `P0001 not authorized`; después del fix respondió `200 OK` con `subscription_id` y `cycle_id`
+- `npm run db:schema:snapshot` OK (2026-03-15)
+
+**Commit:** N/A
+
+## 2026-03-15 10:40 -03 — Suscripciones SaaS: fix de lectura superadmin en views comerciales
+
+**Tipo:** schema/docs/tests
+**Lote:** platform-subscriptions-superadmin-read-fix
+**Descripción:** Se detectó que la DB sí persistía suscripciones y ciclos, pero `/superadmin/subscriptions` seguía mostrando “sin suscripción” porque `v_superadmin_subscriptions` devolvía vacío en sesión real de superadmin. La causa raíz estaba en RLS: `org_subscriptions`, `org_subscription_cycles` y `org_subscription_payments` solo permitían `select` a miembros de org. Se agregó lectura cross-org para `platform_admin`, restaurando la consola comercial superadmin.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260315104000_097_platform_subscriptions_superadmin_select.sql
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run db:reset` PARCIAL (2026-03-15): migraciones aplicadas OK; el comando quedó inestable al reiniciar contenedores locales
+- `npm run db:rls:smoke` OK (2026-03-15)
+- Repro autenticado de `v_superadmin_subscriptions` OK (2026-03-15): con sesión real de `superadmin@demo.com`, luego de `rpc_upsert_org_subscription`, la view devolvió `Demo QA Org` con `Plan Base`, `standard`, `180000` y `pending`
+
+**Commit:** N/A
+
+## 2026-03-15 11:30 -03 — Suscripciones SaaS: bonificaciones visibles con snapshot comercial
+
+**Tipo:** schema/ui/docs/tests
+**Lote:** platform-subscriptions-visible-discounts
+**Descripción:** Se agregó una capa de bonificación visible al modelo comercial de suscripciones. El schema ahora soporta `subscription_discount_mode` (`none`, `percent`, `fixed_amount`), campos de bonificación en `org_subscriptions` y snapshots de precio lista, bonificación y total final en `org_subscription_cycles`. Superadmin puede configurar la bonificación desde `/superadmin/subscriptions`, y `/settings/membership` ahora muestra precio lista, ahorro mensual y total final para reforzar el beneficio comercial percibido por la org.
+
+**Archivos afectados:**
+
+- supabase/migrations/20260315113000_098_subscription_discounts.sql
+- app/superadmin/subscriptions/page.tsx
+- app/settings/membership/page.tsx
+- docs/docs-modules-platform-subscriptions.md
+- docs/docs-app-screens-superadmin-subscriptions.md
+- docs/docs-app-screens-settings-membership.md
+- docs/docs-data-model.md
+- docs/docs-rls-matrix.md
+- docs/docs-roadmap.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+- docs/schema.sql
+- types/supabase.ts
+
+**Tests / comandos:**
+
+- `npm run db:reset` OK (2026-03-15)
+- `npm run db:rls:smoke` OK (2026-03-15)
+- Repro funcional OK (2026-03-15): bonificación del `20%` sobre lista `180000` devolvió ahorro `36000` y total `144000` en `v_superadmin_subscriptions` y `v_org_membership`
+- `npm run db:schema:snapshot` OK (2026-03-15)
+- `npm run types:gen` OK (2026-03-15)
+- `npm run lint` OK (2026-03-15)
+- `npm run build` OK (2026-03-15)
+
+**Commit:** N/A
+
+## 2026-03-15 12:10 -03 — Suscripciones SaaS: refactor UX de configuración comercial
+
+**Tipo:** ui/docs/tests
+**Lote:** platform-subscriptions-commercial-config-ux
+**Descripción:** Se reemplazó el bloque plano de `Configuración comercial` en `/superadmin/subscriptions` por un configurador guiado implementado con componente cliente. La edición ahora se organiza en bloques `Lo que ve el cliente`, `Cómo se calcula`, `Bonificación`, `Vigencia y ciclo` y `Notas`, con preview comercial arriba y campos condicionales para `pricing_mode` y `discount_mode`. Esto reduce carga cognitiva sin cambiar la lógica de guardado.
+
+**Archivos afectados:**
+
+- app/superadmin/subscriptions/CommercialConfigFormFields.tsx
+- app/superadmin/subscriptions/page.tsx
+- docs/docs-app-screens-superadmin-subscriptions.md
+- docs/context-summary.md
+- docs/prompts.md
+- docs/activity-log.md
+
+**Tests / comandos:**
+
+- `npm run lint` OK (2026-03-15)
+- `npm run build` OK (2026-03-15)
 
 **Commit:** N/A

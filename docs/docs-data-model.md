@@ -67,6 +67,11 @@ Estado actual:
 - Lifecycle operativo de links compartibles en `supabase/migrations/20260310193000_090_sale_delivery_link_lifecycle.sql`: `sale_delivery_links` suma metadata mínima de compartido (`last_shared_at`, `last_shared_channel`, `share_count`) y RPCs para listar estado, revocar, regenerar y registrar compartido asistido.
 - Observabilidad de delivery en `supabase/migrations/20260310195500_091_sale_delivery_events_observability.sql`: agrega `sale_delivery_events` y RPCs para append/listado de eventos operativos (`shared`, `revoked`, `regenerated`, `opened`) por ticket/factura.
 - Archivado operativo de borradores en pedidos proveedor en `supabase/migrations/20260310234000_092_supplier_orders_draft_archive.sql`: agrega `supplier_orders.is_archived`, extiende `v_orders_admin` y suma `rpc_set_supplier_order_archived(...)`.
+- Suscripciones SaaS y membresía en `supabase/migrations/20260314190000_094_platform_subscriptions.sql`: agrega `subscription_plans`, `platform_billing_settings`, `org_subscriptions`, `org_subscription_cycles`, `org_subscription_payments`, bucket privado `subscription-payment-proofs`, vistas y RPCs comerciales.
+- Assets privados de billing en `supabase/migrations/20260314194000_095_platform_billing_assets_bucket.sql`: agrega bucket `platform-billing-assets` para QR de cobro de la plataforma, servido a UI con signed URLs server-side.
+- Hardening de auditoría SA en `supabase/migrations/20260315101000_096_audit_log_allow_platform_admin.sql`: `rpc_log_audit_event` ahora permite eventos cross-org de `platform_admin`, evitando falsos `not authorized` en flujos superadmin que sí son válidos comercialmente.
+- Hardening RLS de lectura SA en `supabase/migrations/20260315104000_097_platform_subscriptions_superadmin_select.sql`: habilita lectura cross-org por `platform_admin` sobre `org_subscriptions`, `org_subscription_cycles` y `org_subscription_payments`, necesaria para que `v_superadmin_subscriptions` y el detalle comercial muestren datos reales en UI.
+- Bonificaciones visibles en `supabase/migrations/20260315113000_098_subscription_discounts.sql`: agrega `subscription_discount_mode`, campos de bonificación en `org_subscriptions`, snapshots de lista/descuento/final en `org_subscription_cycles`, extiende `fn_calculate_org_subscription_amount`, `rpc_upsert_org_subscription`, y expone precio lista, ahorro y total final en `v_superadmin_subscriptions` y `v_org_membership`.
 - Hardening de RPCs de usuarios para preservar actor de auditoría en alta/edición de membresía en `supabase/migrations/20260301162000_064_users_membership_rpcs_auth_context.sql` (`rpc_invite_user_to_org`, `rpc_update_user_membership` como `security definer` con validación explícita de rol/org/sucursales).
 - Hotfix de `rpc_invite_user_to_org` por ambigüedad de `user_id` en producción en `supabase/migrations/20260301170000_065_fix_rpc_invite_user_to_org_ambiguous_user_id.sql` y `supabase/migrations/20260301171500_066_fix_rpc_invite_user_to_org_out_param_conflict.sql` (se elimina conflicto de OUT param y queda salida `invited_user_id`).
 - Onboarding de datos maestros (jobs/rows de importación + vista de pendientes + RPCs de importación) en `supabase/migrations/20260222001000_053_data_onboarding_jobs_tasks.sql` (`data_import_jobs`, `data_import_rows`, `v_data_onboarding_tasks`, `rpc_create_data_import_job`, `rpc_upsert_data_import_row`, `rpc_validate_data_import_job`, `rpc_apply_data_import_job`).
@@ -107,6 +112,11 @@ Estado actual:
 - `online_order_status`: `pending` | `confirmed` | `ready_for_pickup` | `delivered` | `cancelled`
 - `online_payment_intent`: `pay_on_pickup` | `transfer` | `qr`
 - `online_proof_review_status`: `pending` | `approved` | `rejected`
+- `subscription_pricing_mode`: `standard` | `custom`
+- `subscription_service_status`: `active` | `grace` | `suspended` | `cancelled`
+- `subscription_payment_status`: `pending` | `proof_submitted` | `paid` | `rejected` | `waived`
+- `subscription_payment_method`: `bank_transfer` | `mercadopago_qr` | `cash` | `other`
+- `subscription_review_status`: `pending` | `approved` | `rejected`
 
 ---
 
@@ -209,6 +219,136 @@ Estado actual:
 - `user_id` (uuid, PK/FK -> auth.users.id)
 - `active_org_id` (uuid, FK -> orgs.id)
 - `updated_at` (timestamptz)
+
+---
+
+### subscription_plans
+
+**Proposito**: catálogo comercial de planes SaaS.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `code` (text, unique)
+- `name` (text)
+- `description` (text, nullable)
+- `base_price_monthly` (numeric(12,2))
+- `included_branches` (integer)
+- `additional_branch_price_monthly` (numeric(12,2))
+- `currency_code` (text)
+- `is_active` (boolean)
+- `created_at`, `updated_at`
+
+---
+
+### platform_billing_settings
+
+**Proposito**: singleton con los datos de cobro manual de la plataforma.
+
+**Campos clave**:
+
+- `id` (boolean PK, fijo `true`)
+- `bank_account_holder`
+- `bank_name`
+- `bank_account_type`
+- `bank_cbu`
+- `bank_alias`
+- `bank_cuit`
+- `mercadopago_qr_image_path`
+- `payment_instructions`
+- `is_active`
+- `updated_by`
+- `created_at`, `updated_at`
+
+---
+
+### org_subscriptions
+
+**Proposito**: configuración comercial vigente por organización.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_id` (uuid, unique FK -> orgs.id)
+- `plan_id` (uuid, nullable FK -> subscription_plans.id)
+- `pricing_mode` (`subscription_pricing_mode`)
+- `plan_name_snapshot` (text)
+- `currency_code` (text)
+- `base_price_monthly_snapshot` (numeric(12,2))
+- `included_branches_snapshot` (integer)
+- `additional_branch_price_monthly_snapshot` (numeric(12,2))
+- `custom_monthly_price` (numeric(12,2), nullable)
+- `started_on` (date)
+- `renews_on` (date)
+- `service_status` (`subscription_service_status`)
+- `grace_until` (date, nullable)
+- `billing_notes_internal` (text, nullable)
+- `customer_note_visible` (text, nullable)
+- `is_auto_branch_pricing_enabled` (boolean)
+- `created_by`, `updated_by`
+- `created_at`, `updated_at`
+
+**Notas operativas**:
+
+- `standard` calcula el precio desde sucursales activas reales.
+- `custom` permite precio mensual pactado manualmente.
+- Los snapshots preservan historia aun si cambia el plan catálogo.
+
+---
+
+### org_subscription_cycles
+
+**Proposito**: ciclos concretos de cobro de la suscripción.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_subscription_id` (uuid, FK -> org_subscriptions.id)
+- `cycle_start_on` (date)
+- `cycle_end_on` (date)
+- `due_on` (date)
+- `active_branch_count_snapshot` (integer)
+- `billable_additional_branch_count_snapshot` (integer)
+- `expected_amount` (numeric(12,2))
+- `payment_status` (`subscription_payment_status`)
+- `paid_at` (timestamptz, nullable)
+- `payment_confirmed_at` (timestamptz, nullable)
+- `payment_confirmed_by` (uuid, nullable)
+- `rejection_reason` (text, nullable)
+- `created_by`, `updated_by`
+- `created_at`, `updated_at`
+
+**Constraints**:
+
+- unique (`org_subscription_id`, `cycle_start_on`, `cycle_end_on`)
+
+---
+
+### org_subscription_payments
+
+**Proposito**: submissions manuales de pago y revisión de comprobantes.
+
+**Campos clave**:
+
+- `id` (uuid, PK)
+- `org_subscription_cycle_id` (uuid, FK -> org_subscription_cycles.id)
+- `org_id` (uuid, FK -> orgs.id)
+- `payment_method` (`subscription_payment_method`)
+- `amount_reported` (numeric(12,2))
+- `reference_text` (text, nullable)
+- `proof_storage_path` (text, nullable)
+- `proof_uploaded_by` (uuid, nullable)
+- `proof_uploaded_at` (timestamptz)
+- `review_status` (`subscription_review_status`)
+- `reviewed_by` (uuid, nullable)
+- `reviewed_at` (timestamptz, nullable)
+- `review_note` (text, nullable)
+- `created_at`
+
+**Notas operativas**:
+
+- Es append-only.
+- El estado oficial del pago vive en `org_subscription_cycles.payment_status`.
 
 ---
 
